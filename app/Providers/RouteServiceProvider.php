@@ -33,8 +33,30 @@ class RouteServiceProvider extends ServiceProvider
                 ->prefix('api')
                 ->group(base_path('routes/api.php'));
 
+            foreach (glob(base_path('routes/*.php')) as $routeFile) {
+                $filename = basename($routeFile);
+
+                // Saltar los archivos por defecto
+                if (in_array($filename, ['api.php', 'web.php'])) {
+                    continue;
+                }
+
+                // Prefijo basado en el nombre del archivo (sin extensión)
+                $prefix = 'api/' . pathinfo($filename, PATHINFO_FILENAME);
+
+                Route::middleware('api')
+                    ->prefix($prefix)
+                    ->group($routeFile);
+            }/*
+
+            Route::middleware('api')
+                ->prefix('api/configuracion')
+                //->name('configuracion.')
+                ->group(base_path('routes/configuracion.php')); */
+
             Route::middleware('web')
                 ->group(base_path('routes/web.php'));
+
         });
     }
 }
