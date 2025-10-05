@@ -6,9 +6,10 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\Configuracion\StoreUserRequest;
 use App\Http\Requests\Api\Configuracion\UpdateUserRequest;
 use App\Http\Resources\Api\Configuracion\UserResource;
-use App\Models\user;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 
 class UserController extends Controller
 {
@@ -36,18 +37,27 @@ class UserController extends Controller
      */
     public function index(Request $request)
     {
-        $query = User::query();
+        try {
+            $query = User::query();
 
-        if ($request->has('search')) {
-            $search = $request->input('search');
-            $query->where('name', 'like', "%{$search}%")
-                ->orWhere('email', 'like', "%{$search}%")
-                ->orWhere('documento', 'like', "%{$search}%");
+            if ($request->has('search')) {
+                $search = $request->input('search');
+                $query->where('name', 'like', "%{$search}%")
+                    ->orWhere('email', 'like', "%{$search}%")
+                    ->orWhere('documento', 'like', "%{$search}%");
+            }
+
+            $users = $query->with('roles', 'permissions')->paginate($request->input('per_page', 15));
+
+            return UserResource::collection($users);
+
+        } catch (\Exception $e) {
+            Log::error("Error al realizar la consulta", [
+                'exception' => $e->getMessage(),
+                'trace' => $e->getTraceAsString() // Muy importante para saber dónde falló
+            ]);
         }
 
-        $users = $query->with('roles', 'permissions')->paginate($request->input('per_page', 15));
-
-        return UserResource::collection($users);
     }
 
     /**

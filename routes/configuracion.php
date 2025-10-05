@@ -19,6 +19,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Define las rutas de recursos API para el controlador UserController.
     // Esto crea automáticamente las rutas para index, store, show, update y destroy.
     Route::apiResource('users', UserController::class);
+    Route::post('users/restore/{user}', [UserController::class, 'restore']);
 
     // Si tuvieras rutas adicionales específicas para usuarios que no encajan en el CRUD estándar,
     // podrías definirlas aquí. Por ejemplo:
