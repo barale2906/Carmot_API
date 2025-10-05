@@ -3,7 +3,11 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+
+use App\Models\Academico\Curso;
+use App\Models\Crm\Referido;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -56,4 +60,16 @@ class User extends Authenticatable
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
     ];
+
+    //Estudiantes por curso
+    public function controles(): HasMany
+    {
+        return $this->hasMany(Curso::class);
+    }
+
+    //Gestor CRM
+    public function gestores(): HasMany
+    {
+        return $this->hasMany(Referido::class);
+    }
 }
