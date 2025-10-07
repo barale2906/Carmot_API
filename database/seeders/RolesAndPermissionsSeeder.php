@@ -22,6 +22,7 @@ class RolesAndPermissionsSeeder extends Seeder
         $financiero = Role::create(['name' => 'financiero']);
         $coordinador = Role::create(['name' => 'coordinador']);
         $profesor = Role::create(['name' => 'profesor']);
+        $auxiliar = Role::create(['name' => 'auxiliar']);
         $alumno = Role::create(['name' => 'alumno']);
 
         // Create permissions
@@ -50,6 +51,28 @@ class RolesAndPermissionsSeeder extends Seeder
                     'name'=>'co_usersPerfil',
                     'descripcion'=>'perfil usuarios',
                     //'modulo'=>'configuracion'
-                    ])->syncRoles([$Superusuario,$financiero,$coordinador,$profesor,$alumno]);
+                    ])->syncRoles([$Superusuario,$financiero,$coordinador,$profesor,$auxiliar,$alumno]);
+
+                    // Create permissions Referido
+                    Permission::create([
+                                'name'=>'crm_referidos',
+                                'descripcion'=>'ver referidos',
+                                //'modulo'=>'configuracion'
+                                ])->syncRoles([$Superusuario,$financiero,$coordinador,$auxiliar]);
+                    Permission::create([
+                                'name'=>'crm_referidoCrear',
+                                'descripcion'=>'crear referido',
+                                //'modulo'=>'configuracion'
+                                ])->syncRoles([$Superusuario,$financiero,$coordinador,$auxiliar]);
+                    Permission::create([
+                                'name'=>'crm_referidoEditar',
+                                'descripcion'=>'editar referido',
+                                //'modulo'=>'configuracion'
+                                ])->syncRoles([$Superusuario,$financiero,$coordinador,$auxiliar]);
+                    Permission::create([
+                                'name'=>'crm_referidoInactivar',
+                                'descripcion'=>'inactivar referido',
+                                //'modulo'=>'configuracion'
+                                ])->syncRoles([$Superusuario,$financiero,$coordinador]);
     }
 }
