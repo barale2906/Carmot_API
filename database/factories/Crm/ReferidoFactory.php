@@ -22,7 +22,7 @@ class ReferidoFactory extends Factory
             'curso_id' => Curso::all()->random()->id, // Asigna un ID de un Curso existente aleatoriamente
             'gestor_id' => User::all()->random()->id, // Asigna un ID de un Usuario existente aleatoriamente
             'nombre' => fake()->name(),
-            'celular' => fake()->phoneNumber(),
+            'celular' => fake()->unique()->phoneNumber(),
             'ciudad' => fake()->city(),
             'status'    => fake()->randomElement([0,1,2,3,4]),
         ];

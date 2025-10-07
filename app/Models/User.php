@@ -6,6 +6,7 @@ namespace App\Models;
 
 use App\Models\Academico\Curso;
 use App\Models\Crm\Referido;
+use App\Models\Crm\Seguimiento;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -71,5 +72,11 @@ class User extends Authenticatable
     public function gestores(): HasMany
     {
         return $this->hasMany(Referido::class);
+    }
+
+    //Gestor que hace el seguimiento
+    public function seguimientos(): HasMany
+    {
+        return $this->hasMany(Seguimiento::class);
     }
 }
