@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\Crm\ReferidoController;
+use App\Http\Controllers\Api\Crm\SeguimientoController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -31,5 +32,20 @@ Route::middleware('auth:sanctum')->group(function () {
             ->name('referidos.filters');
         Route::get('statistics', [ReferidoController::class, 'statistics'])
             ->name('referidos.statistics');
+    });
+
+    // Rutas principales de Seguimientos (CRUD estándar)
+    Route::apiResource('seguimientos', SeguimientoController::class);
+
+    // Rutas adicionales para seguimientos
+    Route::prefix('seguimientos')->group(function () {
+        Route::post('{id}/restore', [SeguimientoController::class, 'restore'])
+            ->name('seguimientos.restore');
+        Route::delete('{id}/force-delete', [SeguimientoController::class, 'forceDelete'])
+            ->name('seguimientos.force-delete');
+        Route::get('by-referido/{referidoId}', [SeguimientoController::class, 'byReferido'])
+            ->name('seguimientos.by-referido');
+        Route::get('by-seguidor/{seguidorId}', [SeguimientoController::class, 'bySeguidor'])
+            ->name('seguimientos.by-seguidor');
     });
 });

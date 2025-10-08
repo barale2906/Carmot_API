@@ -20,7 +20,7 @@ return new class extends Migration
             $table->unsignedBigInteger('seguidor_id');
             $table->foreign('seguidor_id')->references('id')->on('users');
 
-            $table->date('fecha')->comment('FEcha en que se genera el registro');
+            $table->date('fecha')->comment('Fecha en que se genera el registro');
             $table->longText('seguimiento')->comment('Observaciones de la llamada o seguimiento respectivos.');
 
             $table->timestamps();

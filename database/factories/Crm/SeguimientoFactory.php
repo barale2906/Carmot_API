@@ -25,4 +25,24 @@ class SeguimientoFactory extends Factory
             'seguimiento'   => fake()->paragraph(),
         ];
     }
+
+    /**
+     * Indicate that the model is soft deleted.
+     */
+    public function deleted(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'deleted_at' => fake()->dateTimeBetween('-1 year', 'now'),
+        ]);
+    }
+
+    /**
+     * Indicate that the model was recently deleted.
+     */
+    public function recentlyDeleted(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'deleted_at' => fake()->dateTimeBetween('-1 week', 'now'),
+        ]);
+    }
 }
