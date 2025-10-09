@@ -36,7 +36,7 @@ class AgendaResource extends JsonResource
                     'celular' => $this->referido->celular,
                     'ciudad' => $this->referido->ciudad,
                     'status' => $this->referido->status,
-                    'status_text' => $this->referido->getStatusText(),
+                    'status_text' => $this->referido->getStatusTextAttribute(),
                 ];
             }),
 
