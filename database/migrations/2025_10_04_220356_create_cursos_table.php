@@ -16,6 +16,7 @@ return new class extends Migration
 
             $table->string('nombre')->comment('nombre del curso');
             $table->double('duracion')->comment('duración del curso en horas');
+            $table->integer('tipo')->comment('0 curso práctico, 1 Técnico laboral');
             $table->integer('status')->default(1)->comment('0 inactivo, 1 Activo');
 
             $table->timestamps();

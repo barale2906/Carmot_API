@@ -2,10 +2,12 @@
 
 namespace App\Http\Requests\Api\Academico;
 
+use App\Traits\HasTipo;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreCursoRequest extends FormRequest
 {
+    use HasTipo;
     /**
      * Determina si el usuario está autorizado para hacer esta solicitud.
      */
@@ -24,6 +26,7 @@ class StoreCursoRequest extends FormRequest
         return [
             'nombre' => 'required|string|max:255|unique:cursos,nombre',
             'duracion' => 'required|numeric|min:0',
+            'tipo' => 'required|integer|' . self::getTipoValidationRule(),
             'status' => 'sometimes|integer|in:0,1',
         ];
     }
@@ -43,6 +46,9 @@ class StoreCursoRequest extends FormRequest
             'duracion.required' => 'La duración del curso es obligatoria.',
             'duracion.numeric' => 'La duración del curso debe ser un número.',
             'duracion.min' => 'La duración del curso debe ser mayor o igual a 0.',
+            'tipo.required' => 'El tipo del curso es obligatorio.',
+            'tipo.integer' => 'El tipo debe ser un número entero.',
+            'tipo.in' => 'El tipo debe ser uno de los valores válidos: ' . implode(', ', array_map(function($key, $value) { return "$key ($value)"; }, array_keys(self::getTipoOptions()), self::getTipoOptions())) . '.',
             'status.integer' => 'El estado debe ser un número entero.',
             'status.in' => 'El estado debe ser 0 (Inactivo) o 1 (Activo).',
         ];

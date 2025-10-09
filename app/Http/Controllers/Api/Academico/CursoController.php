@@ -7,12 +7,13 @@ use App\Http\Requests\Api\Academico\StoreCursoRequest;
 use App\Http\Requests\Api\Academico\UpdateCursoRequest;
 use App\Http\Resources\Api\Academico\CursoResource;
 use App\Models\Academico\Curso;
-use App\Models\User;
+use App\Traits\HasTipo;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 
 class CursoController extends Controller
 {
+    use HasTipo;
     /**
      * Constructor del controlador.
      */
@@ -33,7 +34,7 @@ class CursoController extends Controller
     public function index(Request $request): JsonResponse
     {
         // Preparar filtros
-        $filters = $request->only(['search', 'status', 'duracion_min', 'duracion_max']);
+        $filters = $request->only(['search', 'status', 'tipo', 'duracion_min', 'duracion_max']);
 
         // Preparar relaciones
         $relations = $request->has('with')
@@ -73,6 +74,7 @@ class CursoController extends Controller
         $curso = Curso::create([
             'nombre' => $request->nombre,
             'duracion' => $request->duracion,
+            'tipo' => $request->tipo,
             'status' => $request->status ?? 1, // Por defecto estado "Activo"
         ]);
 
@@ -119,6 +121,7 @@ class CursoController extends Controller
         $curso->update($request->only([
             'nombre',
             'duracion',
+            'tipo',
             'status',
         ]));
 
@@ -216,7 +219,7 @@ class CursoController extends Controller
     public function trashed(Request $request): JsonResponse
     {
         // Preparar filtros
-        $filters = $request->only(['search', 'status', 'duracion_min', 'duracion_max']);
+        $filters = $request->only(['search', 'status', 'tipo', 'duracion_min', 'duracion_max']);
 
         // Preparar relaciones
         $relations = $request->has('with')
@@ -261,6 +264,7 @@ class CursoController extends Controller
                     0 => 'Inactivo',
                     1 => 'Activo',
                 ],
+                'tipo_options' => self::getTipoOptions(),
                 'cursos' => $cursos,
             ],
         ]);
@@ -287,6 +291,9 @@ class CursoController extends Controller
                 ->groupBy('duracion')
                 ->orderBy('total', 'desc')
                 ->get(),
+            'por_tipo' => collect(self::getTipoOptions())->mapWithKeys(function ($text, $tipo) {
+                return [$text => Curso::where('tipo', $tipo)->count()];
+            }),
             'con_referidos' => Curso::with('referidos')
                 ->selectRaw('id, count(referidos.id) as total_referidos')
                 ->leftJoin('referidos', 'cursos.id', '=', 'referidos.curso_id')

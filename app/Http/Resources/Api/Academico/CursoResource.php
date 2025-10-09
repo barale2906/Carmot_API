@@ -2,11 +2,13 @@
 
 namespace App\Http\Resources\Api\Academico;
 
+use App\Traits\HasTipo;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 class CursoResource extends JsonResource
 {
+    use HasTipo;
     /**
      * Transforma el recurso en un array.
      *
@@ -18,6 +20,8 @@ class CursoResource extends JsonResource
             'id' => $this->id,
             'nombre' => $this->nombre,
             'duracion' => $this->duracion,
+            'tipo' => $this->tipo,
+            'tipo_text' => self::getTipoText($this->tipo),
             'status' => $this->status,
             'status_text' => $this->status ? 'Activo' : 'Inactivo',
             'created_at' => $this->created_at?->format('Y-m-d H:i:s'),
@@ -57,6 +61,7 @@ class CursoResource extends JsonResource
             'estudiantes_count' => $this->when(isset($this->estudiantes_count), $this->estudiantes_count),
         ];
     }
+
 
     /**
      * Obtiene el texto del estado del referido.
