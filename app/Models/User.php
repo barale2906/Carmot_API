@@ -5,6 +5,7 @@ namespace App\Models;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 
 use App\Models\Academico\Curso;
+use App\Models\Crm\Agenda;
 use App\Models\Crm\Referido;
 use App\Models\Crm\Seguimiento;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -72,6 +73,12 @@ class User extends Authenticatable
     public function gestores(): HasMany
     {
         return $this->hasMany(Referido::class);
+    }
+
+    //Agendador CRM
+    public function agendadores(): HasMany
+    {
+        return $this->hasMany(Agenda::class);
     }
 
     //Gestor que hace el seguimiento

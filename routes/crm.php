@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\Crm\AgendaController;
 use App\Http\Controllers\Api\Crm\ReferidoController;
 use App\Http\Controllers\Api\Crm\SeguimientoController;
 use Illuminate\Support\Facades\Route;
@@ -47,5 +48,22 @@ Route::middleware('auth:sanctum')->group(function () {
             ->name('seguimientos.by-referido');
         Route::get('by-seguidor/{seguidorId}', [SeguimientoController::class, 'bySeguidor'])
             ->name('seguimientos.by-seguidor');
+    });
+
+    // Rutas principales de Agendas (CRUD estándar)
+    Route::apiResource('agendas', AgendaController::class);
+
+    // Rutas adicionales para agendas
+    Route::prefix('agendas')->group(function () {
+        Route::post('{id}/restore', [AgendaController::class, 'restore'])
+            ->name('agendas.restore');
+        Route::delete('{id}/force-delete', [AgendaController::class, 'forceDelete'])
+            ->name('agendas.force-delete');
+        Route::get('trashed/list', [AgendaController::class, 'trashed'])
+            ->name('agendas.trashed');
+        Route::get('filters/options', [AgendaController::class, 'filters'])
+            ->name('agendas.filters');
+        Route::get('statistics', [AgendaController::class, 'statistics'])
+            ->name('agendas.statistics');
     });
 });

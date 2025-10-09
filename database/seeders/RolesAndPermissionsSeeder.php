@@ -96,5 +96,28 @@ class RolesAndPermissionsSeeder extends Seeder
                                 'descripcion'=>'inactivar seguimiento',
                                 //'modulo'=>'configuracion'
                                 ])->syncRoles([$Superusuario,$financiero,$coordinador]);
+
+
+                                // Create permissions agenda
+                    Permission::create([
+                                'name'=>'crm_agendas',
+                                'descripcion'=>'ver agendas',
+                                //'modulo'=>'configuracion'
+                                ])->syncRoles([$Superusuario,$financiero,$coordinador,$auxiliar]);
+                    Permission::create([
+                                'name'=>'crm_agendaCrear',
+                                'descripcion'=>'crear agenda',
+                                //'modulo'=>'configuracion'
+                                ])->syncRoles([$Superusuario,$financiero,$coordinador,$auxiliar]);
+                    Permission::create([
+                                'name'=>'crm_agendaEditar',
+                                'descripcion'=>'editar agenda',
+                                //'modulo'=>'configuracion'
+                                ])->syncRoles([$Superusuario,$financiero,$coordinador,$auxiliar]);
+                    Permission::create([
+                                'name'=>'crm_agendaInactivar',
+                                'descripcion'=>'inactivar agenda',
+                                //'modulo'=>'configuracion'
+                                ])->syncRoles([$Superusuario,$financiero,$coordinador]);
     }
 }

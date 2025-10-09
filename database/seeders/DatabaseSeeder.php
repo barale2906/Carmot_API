@@ -18,6 +18,7 @@ class DatabaseSeeder extends Seeder
             CursoSeeder::class,
             ReferidoSeeder::class,
             SeguimientoSeeder::class,
+            AgendaSeeder::class,
         ]);
         // \App\Models\User::factory(10)->create();
 

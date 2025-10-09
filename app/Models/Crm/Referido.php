@@ -36,6 +36,12 @@ class Referido extends Model
         return $this->hasMany(Seguimiento::class);
     }
 
+    // RElación uno a mucho agendamiento a los referidos
+    public function agendamientos(): HasMany
+    {
+        return $this->hasMany(Agenda::class);
+    }
+
     //Aspirantes a cada curso
     public function curso() : BelongsTo
     {
