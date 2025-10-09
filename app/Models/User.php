@@ -9,6 +9,7 @@ use App\Models\Crm\Agenda;
 use App\Models\Crm\Referido;
 use App\Models\Crm\Seguimiento;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -63,10 +64,11 @@ class User extends Authenticatable
         'password' => 'hashed',
     ];
 
-    //Estudiantes por curso
-    public function controles(): HasMany
+    //Cursos en los que está inscrito el estudiante (relación muchos a muchos)
+    public function cursos(): BelongsToMany
     {
-        return $this->hasMany(Curso::class);
+        return $this->belongsToMany(Curso::class, 'curso_user')
+                    ->withTimestamps();
     }
 
     //Gestor CRM

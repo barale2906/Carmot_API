@@ -19,7 +19,7 @@ class CursoFactory extends Factory
     {
         return [
             'nombre'    => fake()->randomElement(['Soldadura','Motos','Carros']),
-            'user_id' => User::all()->random()->id, // Asigna un ID de un Usuario existente aleatoriamente
+            'duracion'  => fake()->randomNumber([100,150,200,250,300]),
             'status'    => fake()->randomElement([0,1]),
         ];
     }

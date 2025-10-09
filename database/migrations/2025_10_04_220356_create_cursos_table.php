@@ -14,12 +14,12 @@ return new class extends Migration
         Schema::create('cursos', function (Blueprint $table) {
             $table->id();
 
-            $table->unsignedBigInteger('user_id');
-            $table->foreign('user_id')->references('id')->on('users');
-
             $table->string('nombre')->comment('nombre del curso');
+            $table->double('duracion')->comment('duración del curso en horas');
             $table->integer('status')->default(1)->comment('0 inactivo, 1 Activo');
+
             $table->timestamps();
+            $table->softDeletes();
         });
     }
 
