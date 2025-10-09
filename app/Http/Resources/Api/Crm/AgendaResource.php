@@ -33,9 +33,10 @@ class AgendaResource extends JsonResource
                 return [
                     'id' => $this->referido->id,
                     'nombre' => $this->referido->nombre,
-                    'apellido' => $this->referido->apellido,
-                    'telefono' => $this->referido->telefono,
-                    'email' => $this->referido->email,
+                    'celular' => $this->referido->celular,
+                    'ciudad' => $this->referido->ciudad,
+                    'status' => $this->referido->status,
+                    'status_text' => $this->referido->getStatusText(),
                 ];
             }),
 

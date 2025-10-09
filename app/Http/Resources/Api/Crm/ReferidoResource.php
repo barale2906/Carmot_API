@@ -41,12 +41,26 @@ class ReferidoResource extends JsonResource
                     return [
                         'id' => $seguimiento->id,
                         'fecha' => $seguimiento->fecha,
-                        'observaciones' => $seguimiento->observaciones,
+                        'seguimiento' => $seguimiento->seguimiento,
                         'created_at' => $seguimiento->created_at,
                     ];
                 });
             }),
+            'agendamientos' => $this->whenLoaded('agendamientos', function () {
+                return $this->agendamientos->map(function ($agendamiento) {
+                    return [
+                        'id' => $agendamiento->id,
+                        'fecha' => $agendamiento->fecha,
+                        'hora' => $agendamiento->hora,
+                        'jornada' => $agendamiento->jornada,
+                        'status' => $agendamiento->status,
+                        'status_text' => \App\Models\Crm\Agenda::getStatusText($agendamiento->status),
+                        'created_at' => $agendamiento->created_at,
+                    ];
+                });
+            }),
             'seguimientos_count' => $this->when(isset($this->seguimientos_count), $this->seguimientos_count),
+            'agendamientos_count' => $this->when(isset($this->agendamientos_count), $this->agendamientos_count),
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
             'deleted_at' => $this->when($this->deleted_at, $this->deleted_at),

@@ -155,4 +155,5 @@ class Agenda extends Model
             default => 'Desconocido',
         };
     }
+
 }

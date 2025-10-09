@@ -42,7 +42,7 @@ class AgendaController extends Controller
             : ['referido', 'agendador'];
 
         // Verificar si incluir contadores
-        $includeCounts = $request->has('with') && str_contains($request->with, 'seguimientos');
+        $includeCounts = $request->has('with') && (str_contains($request->with, 'seguimientos') || str_contains($request->with, 'agendamientos'));
 
         // Construir query usando scopes
         $agendas = Agenda::withFilters($filters)
@@ -201,7 +201,7 @@ class AgendaController extends Controller
             : ['referido', 'agendador'];
 
         // Verificar si incluir contadores
-        $includeCounts = $request->has('with') && str_contains($request->with, 'seguimientos');
+        $includeCounts = $request->has('with') && (str_contains($request->with, 'seguimientos') || str_contains($request->with, 'agendamientos'));
 
         // Construir query usando scopes (solo eliminados)
         $agendas = Agenda::onlyTrashed()

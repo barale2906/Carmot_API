@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Traits\HasFilterScopes;
 use App\Traits\HasRelationScopes;
 use App\Traits\HasSortingScopes;
+use App\Traits\HasStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -17,7 +18,7 @@ use Spatie\Translatable\HasTranslations;
 class Referido extends Model
 {
     use HasFactory, HasTranslations, SoftDeletes;
-    use HasFilterScopes, HasSortingScopes, HasRelationScopes;
+    use HasFilterScopes, HasSortingScopes, HasRelationScopes, HasStatus;
 
     protected $guarded = ['id', 'created_at', 'updated_at', 'deleted_at'];
 
@@ -109,4 +110,43 @@ class Referido extends Model
         $nextStatus = $this->getNextSuggestedStatus();
         return $nextStatus ? self::getStatusText($nextStatus) : null;
     }
+
+    /**
+     * Obtiene las relaciones permitidas para este modelo.
+     * Sobrescribe el método del trait HasRelationScopes.
+     *
+     * @return array
+     */
+    protected function getAllowedRelations(): array
+    {
+        return [
+            'curso',
+            'gestor',
+            'seguimientos',
+            'agendamientos'
+        ];
+    }
+
+    /**
+     * Obtiene las relaciones por defecto a cargar.
+     * Sobrescribe el método del trait HasRelationScopes.
+     *
+     * @return array
+     */
+    protected function getDefaultRelations(): array
+    {
+        return ['curso', 'gestor'];
+    }
+
+    /**
+     * Obtiene las relaciones que pueden ser contadas.
+     * Sobrescribe el método del trait HasRelationScopes.
+     *
+     * @return array
+     */
+    protected function getCountableRelations(): array
+    {
+        return ['seguimientos', 'agendamientos'];
+    }
+
 }

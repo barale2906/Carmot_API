@@ -40,10 +40,10 @@ class ReferidoController extends Controller
         // Preparar relaciones
         $relations = $request->has('with')
             ? explode(',', $request->with)
-            : ['curso', 'gestor'];
+            : ['curso', 'gestor', 'seguimientos', 'agendamientos'];
 
         // Verificar si incluir contadores
-        $includeCounts = $request->has('with') && str_contains($request->with, 'seguimientos');
+        $includeCounts = $request->has('with') && (str_contains($request->with, 'seguimientos') || str_contains($request->with, 'agendamientos'));
 
         // Construir query usando scopes
         $referidos = Referido::withFilters($filters)
@@ -101,11 +101,11 @@ class ReferidoController extends Controller
         // Preparar relaciones
         $relations = $request->has('with')
             ? explode(',', $request->with)
-            : ['curso', 'gestor', 'seguimientos'];
+            : ['curso', 'gestor', 'seguimientos', 'agendamientos'];
 
         // Cargar relaciones y contadores usando el modelo
         $referido->load($relations);
-        $referido->loadCount('seguimientos');
+        $referido->loadCount(['seguimientos', 'agendamientos']);
 
         return response()->json([
             'data' => new ReferidoResource($referido),
@@ -215,10 +215,10 @@ class ReferidoController extends Controller
         // Preparar relaciones
         $relations = $request->has('with')
             ? explode(',', $request->with)
-            : ['curso', 'gestor'];
+            : ['curso', 'gestor', 'seguimientos', 'agendamientos'];
 
         // Verificar si incluir contadores
-        $includeCounts = $request->has('with') && str_contains($request->with, 'seguimientos');
+        $includeCounts = $request->has('with') && (str_contains($request->with, 'seguimientos') || str_contains($request->with, 'agendamientos'));
 
         // Construir query usando scopes (solo eliminados)
         $referidos = Referido::onlyTrashed()
