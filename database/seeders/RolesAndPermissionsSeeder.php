@@ -147,20 +147,42 @@ class RolesAndPermissionsSeeder extends Seeder
                                 'name'=>'aca_modulos',
                                 'descripcion'=>'ver modulos',
                                 //'modulo'=>'configuracion'
-                                ])->syncRoles([$Superusuario,$financiero,$coordinador,$auxiliar]);
+                                ])->syncRoles([$Superusuario,$financiero,$coordinador]);
                     Permission::create([
                                 'name'=>'aca_moduloCrear',
                                 'descripcion'=>'crear modulo',
                                 //'modulo'=>'configuracion'
-                                ])->syncRoles([$Superusuario,$financiero,$coordinador,$auxiliar]);
+                                ])->syncRoles([$Superusuario,$financiero,$coordinador]);
                     Permission::create([
                                 'name'=>'aca_moduloEditar',
                                 'descripcion'=>'editar modulo',
                                 //'modulo'=>'configuracion'
-                                ])->syncRoles([$Superusuario,$financiero,$coordinador,$auxiliar]);
+                                ])->syncRoles([$Superusuario,$financiero,$coordinador]);
                     Permission::create([
                                 'name'=>'aca_moduloInactivar',
                                 'descripcion'=>'inactivar modulo',
+                                //'modulo'=>'configuracion'
+                                ])->syncRoles([$Superusuario,$financiero,$coordinador]);
+
+                    // Create permissions modulo
+                    Permission::create([
+                                'name'=>'aca_topicos',
+                                'descripcion'=>'ver topicos',
+                                //'modulo'=>'configuracion'
+                                ])->syncRoles([$Superusuario,$financiero,$coordinador]);
+                    Permission::create([
+                                'name'=>'aca_topicoCrear',
+                                'descripcion'=>'crear topico',
+                                //'modulo'=>'configuracion'
+                                ])->syncRoles([$Superusuario,$financiero,$coordinador]);
+                    Permission::create([
+                                'name'=>'aca_topicoEditar',
+                                'descripcion'=>'editar topico',
+                                //'modulo'=>'configuracion'
+                                ])->syncRoles([$Superusuario,$financiero,$coordinador]);
+                    Permission::create([
+                                'name'=>'aca_topicoInactivar',
+                                'descripcion'=>'inactivar topico',
                                 //'modulo'=>'configuracion'
                                 ])->syncRoles([$Superusuario,$financiero,$coordinador]);
     }

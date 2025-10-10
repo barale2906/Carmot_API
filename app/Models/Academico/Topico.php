@@ -10,31 +10,21 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Spatie\Translatable\HasTranslations;
 
-class Modulo extends Model
+class Topico extends Model
 {
-    use HasFactory, HasTranslations, SoftDeletes, HasFilterScopes, HasSortingScopes, HasRelationScopes, HasActiveStatus;
+    use HasFactory, SoftDeletes, HasFilterScopes, HasSortingScopes, HasRelationScopes, HasActiveStatus;
 
     protected $guarded = ['id', 'created_at', 'updated_at'];
 
     protected $dates = ['deleted_at'];
 
     /**
-     * Cursos asociados al módulo (relación muchos a muchos).
+     * Módulos asociados al tópico (relación muchos a muchos).
      */
-    public function cursos(): BelongsToMany
+    public function modulos(): BelongsToMany
     {
-        return $this->belongsToMany(Curso::class, 'modulo_curso')
-                    ->withTimestamps();
-    }
-
-    /**
-     * Tópicos asociados al módulo (relación muchos a muchos).
-     */
-    public function topicos(): BelongsToMany
-    {
-        return $this->belongsToMany(Topico::class, 'topico_modulo')
+        return $this->belongsToMany(Modulo::class, 'topico_modulo')
                     ->withTimestamps();
     }
 
@@ -73,6 +63,7 @@ class Modulo extends Model
     {
         return [
             'nombre',
+            'duracion',
             'status',
             'created_at',
             'updated_at'
@@ -85,8 +76,7 @@ class Modulo extends Model
     protected function getAllowedRelations(): array
     {
         return [
-            'cursos',
-            'topicos'
+            'modulos'
         ];
     }
 
@@ -95,7 +85,7 @@ class Modulo extends Model
      */
     protected function getDefaultRelations(): array
     {
-        return ['cursos', 'topicos'];
+        return ['modulos'];
     }
 
     /**
@@ -103,6 +93,6 @@ class Modulo extends Model
      */
     protected function getCountableRelations(): array
     {
-        return ['cursos', 'topicos'];
+        return ['modulos'];
     }
 }

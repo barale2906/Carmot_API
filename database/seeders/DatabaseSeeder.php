@@ -17,6 +17,7 @@ class DatabaseSeeder extends Seeder
             UserSeeder::class,
             CursoSeeder::class,
             ModuloSeeder::class,
+            TopicoSeeder::class,
             ReferidoSeeder::class,
             SeguimientoSeeder::class,
             AgendaSeeder::class,

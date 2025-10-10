@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\Academico\CursoController;
 use App\Http\Controllers\Api\Academico\ModuloController;
+use App\Http\Controllers\Api\Academico\TopicoController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -45,5 +46,20 @@ Route::middleware('auth:sanctum')->group(function () {
         // Rutas para filtros y estadísticas
         Route::get('filters', [ModuloController::class, 'filters'])->name('modulos.filters');
         Route::get('statistics', [ModuloController::class, 'statistics'])->name('modulos.statistics');
+    });
+
+    // Rutas principales de topicos (CRUD estándar)
+    Route::apiResource('topicos', TopicoController::class);
+
+    // Rutas adicionales para funcionalidades específicas de tópicos
+    Route::prefix('topicos')->group(function () {
+        // Rutas para manejo de soft delete
+        Route::post('{id}/restore', [TopicoController::class, 'restore'])->name('topicos.restore');
+        Route::delete('{id}/force-delete', [TopicoController::class, 'forceDelete'])->name('topicos.force-delete');
+        Route::get('trashed', [TopicoController::class, 'trashed'])->name('topicos.trashed');
+
+        // Rutas para filtros y estadísticas
+        Route::get('filters', [TopicoController::class, 'filters'])->name('topicos.filters');
+        Route::get('statistics', [TopicoController::class, 'statistics'])->name('topicos.statistics');
     });
 });
