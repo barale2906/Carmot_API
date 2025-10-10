@@ -16,6 +16,7 @@ class DatabaseSeeder extends Seeder
             RolesAndPermissionsSeeder::class,
             UserSeeder::class,
             CursoSeeder::class,
+            ModuloSeeder::class,
             ReferidoSeeder::class,
             SeguimientoSeeder::class,
             AgendaSeeder::class,

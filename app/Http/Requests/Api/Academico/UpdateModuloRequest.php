@@ -4,13 +4,12 @@ namespace App\Http\Requests\Api\Academico;
 
 use App\Traits\HasActiveStatus;
 use App\Traits\HasActiveStatusValidation;
-use App\Traits\HasTipo;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
-class UpdateCursoRequest extends FormRequest
+class UpdateModuloRequest extends FormRequest
 {
-    use HasTipo, HasActiveStatus, HasActiveStatusValidation;
+    use HasActiveStatus, HasActiveStatusValidation;
     /**
      * Determina si el usuario está autorizado para hacer esta solicitud.
      */
@@ -26,18 +25,18 @@ class UpdateCursoRequest extends FormRequest
      */
     public function rules(): array
     {
-        $cursoId = $this->route('curso')->id;
+        $moduloId = $this->route('modulo')->id;
 
         return [
             'nombre' => [
                 'sometimes',
                 'string',
                 'max:255',
-                Rule::unique('cursos', 'nombre')->ignore($cursoId)
+                Rule::unique('modulos', 'nombre')->ignore($moduloId)
             ],
-            'duracion' => 'sometimes|numeric|min:0',
-            'tipo' => 'sometimes|integer|' . self::getTipoValidationRule(),
             'status' => self::getStatusValidationRule(),
+            'curso_ids' => 'sometimes|array',
+            'curso_ids.*' => 'integer|exists:cursos,id',
         ];
     }
 
@@ -49,13 +48,12 @@ class UpdateCursoRequest extends FormRequest
     public function messages(): array
     {
         return array_merge([
-            'nombre.string' => 'El nombre del curso debe ser una cadena de texto.',
-            'nombre.max' => 'El nombre del curso no puede tener más de 255 caracteres.',
-            'nombre.unique' => 'Ya existe un curso con este nombre.',
-            'duracion.numeric' => 'La duración del curso debe ser un número.',
-            'duracion.min' => 'La duración del curso debe ser mayor o igual a 0.',
-            'tipo.integer' => 'El tipo debe ser un número entero.',
-            'tipo.in' => 'El tipo debe ser uno de los valores válidos: ' . implode(', ', array_map(function($key, $value) { return "$key ($value)"; }, array_keys(self::getTipoOptions()), self::getTipoOptions())) . '.',
+            'nombre.string' => 'El nombre del módulo debe ser una cadena de texto.',
+            'nombre.max' => 'El nombre del módulo no puede tener más de 255 caracteres.',
+            'nombre.unique' => 'Ya existe un módulo con este nombre.',
+            'curso_ids.array' => 'Los cursos deben ser un array.',
+            'curso_ids.*.integer' => 'Cada curso debe ser un número entero.',
+            'curso_ids.*.exists' => 'Uno o más cursos seleccionados no existen.',
         ], self::getStatusValidationMessages());
     }
 }

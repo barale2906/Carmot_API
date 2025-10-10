@@ -7,13 +7,14 @@ use App\Http\Requests\Api\Academico\StoreCursoRequest;
 use App\Http\Requests\Api\Academico\UpdateCursoRequest;
 use App\Http\Resources\Api\Academico\CursoResource;
 use App\Models\Academico\Curso;
+use App\Traits\HasActiveStatus;
 use App\Traits\HasTipo;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 
 class CursoController extends Controller
 {
-    use HasTipo;
+    use HasTipo, HasActiveStatus;
     /**
      * Constructor del controlador.
      */
@@ -260,10 +261,7 @@ class CursoController extends Controller
 
         return response()->json([
             'data' => [
-                'status_options' => [
-                    0 => 'Inactivo',
-                    1 => 'Activo',
-                ],
+                'status_options' => self::getActiveStatusOptions(),
                 'tipo_options' => self::getTipoOptions(),
                 'cursos' => $cursos,
             ],

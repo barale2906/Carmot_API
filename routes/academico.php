@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\Academico\CursoController;
+use App\Http\Controllers\Api\Academico\ModuloController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -29,5 +30,20 @@ Route::middleware('auth:sanctum')->group(function () {
         // Rutas para filtros y estadísticas
         Route::get('filters', [CursoController::class, 'filters'])->name('cursos.filters');
         Route::get('statistics', [CursoController::class, 'statistics'])->name('cursos.statistics');
+    });
+
+    // Rutas principales de modulos (CRUD estándar)
+    Route::apiResource('modulos', ModuloController::class);
+
+    // Rutas adicionales para funcionalidades específicas de módulos
+    Route::prefix('modulos')->group(function () {
+        // Rutas para manejo de soft delete
+        Route::post('{id}/restore', [ModuloController::class, 'restore'])->name('modulos.restore');
+        Route::delete('{id}/force-delete', [ModuloController::class, 'forceDelete'])->name('modulos.force-delete');
+        Route::get('trashed', [ModuloController::class, 'trashed'])->name('modulos.trashed');
+
+        // Rutas para filtros y estadísticas
+        Route::get('filters', [ModuloController::class, 'filters'])->name('modulos.filters');
+        Route::get('statistics', [ModuloController::class, 'statistics'])->name('modulos.statistics');
     });
 });

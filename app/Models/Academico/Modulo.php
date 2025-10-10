@@ -2,21 +2,17 @@
 
 namespace App\Models\Academico;
 
-use App\Models\Crm\Referido;
-use App\Models\User;
 use App\Traits\HasActiveStatus;
 use App\Traits\HasFilterScopes;
 use App\Traits\HasRelationScopes;
 use App\Traits\HasSortingScopes;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\Translatable\HasTranslations;
 
-class Curso extends Model
+class Modulo extends Model
 {
     use HasFactory, HasTranslations, SoftDeletes, HasFilterScopes, HasSortingScopes, HasRelationScopes, HasActiveStatus;
 
@@ -25,33 +21,16 @@ class Curso extends Model
     protected $dates = ['deleted_at'];
 
     /**
-     * Relación uno a muchos con referidos.
+     * Cursos asociados al módulo (relación muchos a muchos).
      */
-    public function referidos(): HasMany
+    public function cursos(): BelongsToMany
     {
-        return $this->hasMany(Referido::class);
-    }
-
-    /**
-     * Estudiantes registrados al curso (relación muchos a muchos).
-     */
-    public function estudiantes(): BelongsToMany
-    {
-        return $this->belongsToMany(User::class, 'curso_user')
+        return $this->belongsToMany(Curso::class, 'modulo_curso')
                     ->withTimestamps();
     }
 
     /**
-     * Módulos asociados al curso (relación muchos a muchos).
-     */
-    public function modulos(): BelongsToMany
-    {
-        return $this->belongsToMany(Modulo::class, 'modulo_curso')
-                    ->withTimestamps();
-    }
-
-    /**
-     * Scope para filtrar por búsqueda de nombre (sobrescribe el del trait).
+     * Scope para filtrar por búsqueda de nombre.
      */
     public function scopeSearch($query, $search)
     {
@@ -59,31 +38,7 @@ class Curso extends Model
     }
 
     /**
-     * Scope para filtrar por duración mínima.
-     */
-    public function scopeByDuracionMin($query, $duracionMin)
-    {
-        return $query->where('duracion', '>=', $duracionMin);
-    }
-
-    /**
-     * Scope para filtrar por duración máxima.
-     */
-    public function scopeByDuracionMax($query, $duracionMax)
-    {
-        return $query->where('duracion', '<=', $duracionMax);
-    }
-
-    /**
-     * Scope para filtrar por rango de duración.
-     */
-    public function scopeByDuracionRange($query, $duracionMin, $duracionMax)
-    {
-        return $query->whereBetween('duracion', [$duracionMin, $duracionMax]);
-    }
-
-    /**
-     * Scope para aplicar múltiples filtros de manera dinámica (sobrescribe el del trait).
+     * Scope para aplicar múltiples filtros de manera dinámica.
      */
     public function scopeWithFilters($query, array $filters)
     {
@@ -93,12 +48,6 @@ class Curso extends Model
             })
             ->when(isset($filters['status']) && $filters['status'] !== null, function ($q) use ($filters) {
                 return $q->byStatus($filters['status']);
-            })
-            ->when(isset($filters['duracion_min']) && $filters['duracion_min'], function ($q) use ($filters) {
-                return $q->byDuracionMin($filters['duracion_min']);
-            })
-            ->when(isset($filters['duracion_max']) && $filters['duracion_max'], function ($q) use ($filters) {
-                return $q->byDuracionMax($filters['duracion_max']);
             })
             ->when(isset($filters['include_trashed']) && $filters['include_trashed'], function ($q) {
                 return $q->withTrashed();
@@ -115,7 +64,6 @@ class Curso extends Model
     {
         return [
             'nombre',
-            'duracion',
             'status',
             'created_at',
             'updated_at'
@@ -128,9 +76,7 @@ class Curso extends Model
     protected function getAllowedRelations(): array
     {
         return [
-            'referidos',
-            'estudiantes',
-            'modulos'
+            'cursos'
         ];
     }
 
@@ -139,7 +85,7 @@ class Curso extends Model
      */
     protected function getDefaultRelations(): array
     {
-        return ['referidos', 'estudiantes', 'modulos'];
+        return ['cursos'];
     }
 
     /**
@@ -147,6 +93,6 @@ class Curso extends Model
      */
     protected function getCountableRelations(): array
     {
-        return ['referidos', 'estudiantes', 'modulos'];
+        return ['cursos'];
     }
 }
