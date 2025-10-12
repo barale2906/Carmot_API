@@ -35,6 +35,7 @@ class UpdateTopicoRequest extends FormRequest
                 'max:255',
                 Rule::unique('topicos', 'nombre')->ignore($topicoId)
             ],
+            'descripcion' => 'required|string|max:1000',
             'duracion' => 'required|integer|min:1|max:999',
             'status' => self::getStatusValidationRule(),
             'modulo_ids' => 'sometimes|array',
@@ -54,6 +55,9 @@ class UpdateTopicoRequest extends FormRequest
             'nombre.string' => 'El nombre del tópico debe ser una cadena de texto.',
             'nombre.max' => 'El nombre del tópico no puede tener más de 255 caracteres.',
             'nombre.unique' => 'Ya existe un tópico con este nombre.',
+            'descripcion.required' => 'La descripción del tópico es obligatoria.',
+            'descripcion.string' => 'La descripción del tópico debe ser una cadena de texto.',
+            'descripcion.max' => 'La descripción del tópico no puede tener más de 1000 caracteres.',
             'duracion.required' => 'La duración del tópico es obligatoria.',
             'duracion.integer' => 'La duración del tópico debe ser un número entero.',
             'duracion.min' => 'La duración del tópico debe ser al menos 1 minuto.',

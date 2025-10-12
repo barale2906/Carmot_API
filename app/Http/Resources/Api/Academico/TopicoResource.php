@@ -20,6 +20,7 @@ class TopicoResource extends JsonResource
         return [
             'id' => $this->id,
             'nombre' => $this->nombre,
+            'descripcion' => $this->descripcion,
             'duracion' => $this->duracion,
             'status' => $this->status,
             'status_text' => self::getActiveStatusText($this->status),

@@ -74,6 +74,7 @@ class TopicoController extends Controller
     {
         $topico = Topico::create([
             'nombre' => $request->nombre,
+            'descripcion' => $request->descripcion,
             'duracion' => $request->duracion,
             'status' => $request->status ?? 1, // Por defecto estado "Activo"
         ]);
@@ -125,6 +126,7 @@ class TopicoController extends Controller
     {
         $topico->update($request->only([
             'nombre',
+            'descripcion',
             'duracion',
             'status',
         ]));

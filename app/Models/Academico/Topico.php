@@ -29,11 +29,14 @@ class Topico extends Model
     }
 
     /**
-     * Scope para filtrar por búsqueda de nombre.
+     * Scope para filtrar por búsqueda de nombre y descripción.
      */
     public function scopeSearch($query, $search)
     {
-        return $query->where('nombre', 'like', '%' . $search . '%');
+        return $query->where(function ($q) use ($search) {
+            $q->where('nombre', 'like', '%' . $search . '%')
+              ->orWhere('descripcion', 'like', '%' . $search . '%');
+        });
     }
 
     /**
@@ -63,6 +66,7 @@ class Topico extends Model
     {
         return [
             'nombre',
+            'descripcion',
             'duracion',
             'status',
             'created_at',
