@@ -11,7 +11,7 @@ trait HasActiveStatusValidation
      */
     public static function getStatusValidationRule(): string
     {
-        $statusOptions = self::getActiveStatusOptions();
+        $statusOptions = static::getActiveStatusOptions();
         $statusKeys = array_keys($statusOptions);
 
         return 'sometimes|integer|in:' . implode(',', $statusKeys);
@@ -24,7 +24,7 @@ trait HasActiveStatusValidation
      */
     public static function getStatusValidationMessages(): array
     {
-        $statusOptions = self::getActiveStatusOptions();
+        $statusOptions = static::getActiveStatusOptions();
         $statusList = [];
 
         foreach ($statusOptions as $key => $value) {

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\Configuracion\AreaController;
 use App\Http\Controllers\Api\Configuracion\PoblacionController;
 use App\Http\Controllers\Api\Configuracion\SedeController;
 use App\Http\Controllers\Api\Configuracion\UserController;
@@ -51,5 +52,22 @@ Route::middleware('auth:sanctum')->group(function () {
             ->name('sedes.filters');
         Route::get('statistics', [SedeController::class, 'statistics'])
             ->name('sedes.statistics');
+    });
+
+    // Rutas de áreas
+    Route::apiResource('areas', AreaController::class);
+    Route::post('areas/restore/{area}', [AreaController::class, 'restore'])
+        ->name('areas.restore');
+    Route::delete('areas/force/{area}', [AreaController::class, 'forceDelete'])
+        ->name('areas.force-delete');
+
+    // Rutas adicionales para áreas
+    Route::prefix('areas')->group(function () {
+        Route::get('trashed', [AreaController::class, 'trashed'])
+            ->name('areas.trashed');
+        Route::get('filters/options', [AreaController::class, 'filters'])
+            ->name('areas.filters');
+        Route::get('statistics', [AreaController::class, 'statistics'])
+            ->name('areas.statistics');
     });
 });

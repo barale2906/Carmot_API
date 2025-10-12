@@ -40,6 +40,8 @@ class UpdateSedeRequest extends FormRequest
             'hora_inicio' => ['sometimes', 'date_format:H:i:s'],
             'hora_fin' => ['sometimes', 'date_format:H:i:s', 'after:hora_inicio'],
             'poblacion_id' => ['sometimes', 'integer', 'exists:poblacions,id'],
+            'areas' => ['sometimes', 'array'],
+            'areas.*' => ['integer', 'exists:areas,id'],
         ];
     }
 
@@ -61,6 +63,9 @@ class UpdateSedeRequest extends FormRequest
             'hora_fin.date_format' => 'La hora de fin debe tener el formato HH:MM:SS.',
             'hora_fin.after' => 'La hora de fin debe ser posterior a la hora de inicio.',
             'poblacion_id.exists' => 'La población seleccionada no existe.',
+            'areas.array' => 'Las áreas deben ser un array.',
+            'areas.*.integer' => 'Cada área debe ser un número entero.',
+            'areas.*.exists' => 'Una o más áreas seleccionadas no existen.',
         ];
     }
 
@@ -79,6 +84,7 @@ class UpdateSedeRequest extends FormRequest
             'hora_inicio' => 'hora de inicio',
             'hora_fin' => 'hora de fin',
             'poblacion_id' => 'población',
+            'areas' => 'áreas',
         ];
     }
 }

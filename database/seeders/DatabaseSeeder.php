@@ -24,6 +24,7 @@ class DatabaseSeeder extends Seeder
             PoblacionSeeder::class,
             poblacionstatuSeeder::class,
             SedeSeeder::class,
+            AreaSeeder::class,
         ]);
         // \App\Models\User::factory(10)->create();
 

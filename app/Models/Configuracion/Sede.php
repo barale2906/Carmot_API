@@ -8,6 +8,7 @@ use App\Traits\HasSortingScopes;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Sede extends Model
@@ -15,6 +16,16 @@ class Sede extends Model
     use HasFactory, SoftDeletes, HasSedeFilterScopes, HasSortingScopes, HasRelationScopes;
 
     protected $guarded = ['id', 'created_at', 'updated_at', 'deleted_at'];
+
+    /**
+     * Los atributos que deben ser convertidos a tipos nativos.
+     *
+     * @var array
+     */
+    protected $casts = [
+        'hora_inicio' => 'datetime:H:i:s',
+        'hora_fin' => 'datetime:H:i:s',
+    ];
 
     /**
      * Relación con Poblacion (muchos a uno).
@@ -28,6 +39,17 @@ class Sede extends Model
     }
 
     /**
+     * Relación con Area (muchos a muchos).
+     * Una sede puede pertenecer a múltiples áreas.
+     *
+     * @return BelongsToMany
+     */
+    public function areas(): BelongsToMany
+    {
+        return $this->belongsToMany(Area::class, 'area_sede');
+    }
+
+    /**
      * Obtiene las relaciones permitidas para este modelo.
      * Sobrescribe el método del trait HasRelationScopes.
      *
@@ -36,7 +58,8 @@ class Sede extends Model
     protected function getAllowedRelations(): array
     {
         return [
-            'poblacion'
+            'poblacion',
+            'areas'
         ];
     }
 
@@ -61,7 +84,9 @@ class Sede extends Model
      */
     protected function getCountableRelations(): array
     {
-        return [];
+        return [
+            'areas'
+        ];
     }
 
     /**
@@ -83,5 +108,41 @@ class Sede extends Model
             'created_at',
             'updated_at'
         ];
+    }
+
+    /**
+     * Calcula la duración entre hora_inicio y hora_fin.
+     *
+     * @return \Carbon\CarbonInterval|null
+     */
+    public function getDuracionAttribute()
+    {
+        if (!$this->hora_inicio || !$this->hora_fin) {
+            return null;
+        }
+
+        return $this->hora_inicio->diffAsCarbonInterval($this->hora_fin);
+    }
+
+    /**
+     * Obtiene la duración en horas.
+     *
+     * @return float|null
+     */
+    public function getDuracionEnHorasAttribute()
+    {
+        $duracion = $this->getDuracionAttribute();
+        return $duracion ? $duracion->totalHours : null;
+    }
+
+    /**
+     * Obtiene la duración en minutos.
+     *
+     * @return int|null
+     */
+    public function getDuracionEnMinutosAttribute()
+    {
+        $duracion = $this->getDuracionAttribute();
+        return $duracion ? $duracion->totalMinutes : null;
     }
 }

@@ -39,10 +39,10 @@ class SedeController extends Controller
         // Preparar relaciones
         $relations = $request->has('with')
             ? explode(',', $request->with)
-            : ['poblacion'];
+            : ['poblacion', 'areas'];
 
         // Verificar si incluir contadores
-        $includeCounts = $request->has('with') && str_contains($request->with, 'poblacion');
+        $includeCounts = $request->has('with') && (str_contains($request->with, 'poblacion') || str_contains($request->with, 'areas'));
 
         // Construir query usando scopes
         $sedes = Sede::withFilters($filters)
@@ -81,7 +81,12 @@ class SedeController extends Controller
             'poblacion_id' => $request->poblacion_id,
         ]);
 
-        $sede->load(['poblacion']);
+        // Asignar áreas si se proporcionan
+        if ($request->has('areas') && is_array($request->areas)) {
+            $sede->areas()->attach($request->areas);
+        }
+
+        $sede->load(['poblacion', 'areas']);
 
         return response()->json([
             'message' => 'Sede creada exitosamente.',
@@ -101,7 +106,7 @@ class SedeController extends Controller
         // Preparar relaciones
         $relations = $request->has('with')
             ? explode(',', $request->with)
-            : ['poblacion'];
+            : ['poblacion', 'areas'];
 
         // Cargar relaciones y contadores usando el modelo
         $sede->load($relations);
@@ -130,7 +135,17 @@ class SedeController extends Controller
             'poblacion_id',
         ]));
 
-        $sede->load(['poblacion']);
+        // Actualizar áreas si se proporcionan
+        if ($request->has('areas')) {
+            if (is_array($request->areas)) {
+                $sede->areas()->sync($request->areas);
+            } else {
+                // Si se envía null o vacío, eliminar todas las áreas
+                $sede->areas()->detach();
+            }
+        }
+
+        $sede->load(['poblacion', 'areas']);
 
         return response()->json([
             'message' => 'Sede actualizada exitosamente.',
@@ -166,7 +181,7 @@ class SedeController extends Controller
 
         return response()->json([
             'message' => 'Sede restaurada exitosamente.',
-            'data' => new SedeResource($sede->load(['poblacion'])),
+            'data' => new SedeResource($sede->load(['poblacion', 'areas'])),
         ]);
     }
 
@@ -200,10 +215,10 @@ class SedeController extends Controller
         // Preparar relaciones
         $relations = $request->has('with')
             ? explode(',', $request->with)
-            : ['poblacion'];
+            : ['poblacion', 'areas'];
 
         // Verificar si incluir contadores
-        $includeCounts = $request->has('with') && str_contains($request->with, 'poblacion');
+        $includeCounts = $request->has('with') && (str_contains($request->with, 'poblacion') || str_contains($request->with, 'areas'));
 
         // Construir query usando scopes (solo eliminados)
         $sedes = Sede::onlyTrashed()
