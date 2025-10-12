@@ -6,8 +6,10 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\Configuracion\StoreSedeRequest;
 use App\Http\Requests\Api\Configuracion\UpdateSedeRequest;
 use App\Http\Resources\Api\Configuracion\SedeResource;
+use App\Http\Resources\Api\Configuracion\HorarioResource;
 use App\Models\Configuracion\Sede;
 use App\Models\Configuracion\Poblacion;
+use App\Models\Configuracion\Horario;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 
@@ -39,10 +41,10 @@ class SedeController extends Controller
         // Preparar relaciones
         $relations = $request->has('with')
             ? explode(',', $request->with)
-            : ['poblacion', 'areas'];
+            : ['poblacion', 'areas', 'horarios'];
 
         // Verificar si incluir contadores
-        $includeCounts = $request->has('with') && (str_contains($request->with, 'poblacion') || str_contains($request->with, 'areas'));
+        $includeCounts = $request->has('with') && (str_contains($request->with, 'poblacion') || str_contains($request->with, 'areas') || str_contains($request->with, 'horarios'));
 
         // Construir query usando scopes
         $sedes = Sede::withFilters($filters)
@@ -86,7 +88,23 @@ class SedeController extends Controller
             $sede->areas()->attach($request->areas);
         }
 
-        $sede->load(['poblacion', 'areas']);
+        // Crear horarios si se proporcionan
+        if ($request->has('horarios') && is_array($request->horarios)) {
+            foreach ($request->horarios as $horarioData) {
+                $sede->horarios()->create([
+                    'area_id' => $horarioData['area_id'],
+                    'dia' => $horarioData['dia'],
+                    'hora' => $horarioData['hora'],
+                    'tipo' => $horarioData['tipo'] ?? true,
+                    'periodo' => $horarioData['periodo'] ?? true,
+                    'grupo_id' => $horarioData['grupo_id'] ?? null,
+                    'grupo_nombre' => $horarioData['grupo_nombre'] ?? null,
+                    'status' => 1,
+                ]);
+            }
+        }
+
+        $sede->load(['poblacion', 'areas', 'horarios']);
 
         return response()->json([
             'message' => 'Sede creada exitosamente.',
@@ -106,7 +124,7 @@ class SedeController extends Controller
         // Preparar relaciones
         $relations = $request->has('with')
             ? explode(',', $request->with)
-            : ['poblacion', 'areas'];
+            : ['poblacion', 'areas', 'horarios'];
 
         // Cargar relaciones y contadores usando el modelo
         $sede->load($relations);
@@ -145,7 +163,32 @@ class SedeController extends Controller
             }
         }
 
-        $sede->load(['poblacion', 'areas']);
+        // Actualizar horarios si se proporcionan
+        if ($request->has('horarios')) {
+            if (is_array($request->horarios)) {
+                // Eliminar horarios existentes
+                $sede->horarios()->delete();
+
+                // Crear nuevos horarios
+                foreach ($request->horarios as $horarioData) {
+                    $sede->horarios()->create([
+                        'area_id' => $horarioData['area_id'],
+                        'dia' => $horarioData['dia'],
+                        'hora' => $horarioData['hora'],
+                        'tipo' => $horarioData['tipo'] ?? true,
+                        'periodo' => $horarioData['periodo'] ?? true,
+                        'grupo_id' => $horarioData['grupo_id'] ?? null,
+                        'grupo_nombre' => $horarioData['grupo_nombre'] ?? null,
+                        'status' => 1,
+                    ]);
+                }
+            } else {
+                // Si se envía null o vacío, eliminar todos los horarios
+                $sede->horarios()->delete();
+            }
+        }
+
+        $sede->load(['poblacion', 'areas', 'horarios']);
 
         return response()->json([
             'message' => 'Sede actualizada exitosamente.',
@@ -181,7 +224,7 @@ class SedeController extends Controller
 
         return response()->json([
             'message' => 'Sede restaurada exitosamente.',
-            'data' => new SedeResource($sede->load(['poblacion', 'areas'])),
+            'data' => new SedeResource($sede->load(['poblacion', 'areas', 'horarios'])),
         ]);
     }
 
@@ -215,10 +258,10 @@ class SedeController extends Controller
         // Preparar relaciones
         $relations = $request->has('with')
             ? explode(',', $request->with)
-            : ['poblacion', 'areas'];
+            : ['poblacion', 'areas', 'horarios'];
 
         // Verificar si incluir contadores
-        $includeCounts = $request->has('with') && (str_contains($request->with, 'poblacion') || str_contains($request->with, 'areas'));
+        $includeCounts = $request->has('with') && (str_contains($request->with, 'poblacion') || str_contains($request->with, 'areas') || str_contains($request->with, 'horarios'));
 
         // Construir query usando scopes (solo eliminados)
         $sedes = Sede::onlyTrashed()

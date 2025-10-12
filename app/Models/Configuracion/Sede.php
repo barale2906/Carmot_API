@@ -9,8 +9,34 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
+/**
+ * Modelo Sede
+ *
+ * Representa una sede física de la organización.
+ * Cada sede tiene horarios de atención, áreas asignadas y pertenece a una población.
+ *
+ * @property int $id Identificador único de la sede
+ * @property string $nombre Nombre de la sede
+ * @property string $direccion Dirección de la sede
+ * @property string $telefono Teléfono de la sede
+ * @property string $email Email de la sede
+ * @property \Carbon\Carbon $hora_inicio Hora de inicio de la sede
+ * @property \Carbon\Carbon $hora_fin Hora de fin de la sede
+ * @property int $poblacion_id ID de la población a la que pertenece
+ * @property \Carbon\Carbon $created_at Fecha de creación
+ * @property \Carbon\Carbon $updated_at Fecha de última actualización
+ * @property \Carbon\Carbon|null $deleted_at Fecha de eliminación (soft delete)
+ *
+ * @property-read \App\Models\Configuracion\Poblacion $poblacion Población a la que pertenece
+ * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\Configuracion\Area[] $areas Áreas asignadas a la sede
+ * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\Configuracion\Horario[] $horarios Horarios de atención de la sede
+ * @property-read \Carbon\CarbonInterval|null $duracion Duración entre hora_inicio y hora_fin
+ * @property-read float|null $duracion_en_horas Duración en horas
+ * @property-read int|null $duracion_en_minutos Duración en minutos
+ */
 class Sede extends Model
 {
     use HasFactory, SoftDeletes, HasSedeFilterScopes, HasSortingScopes, HasRelationScopes;
@@ -50,6 +76,17 @@ class Sede extends Model
     }
 
     /**
+     * Relación con Horario (uno a muchos).
+     * Una sede puede tener múltiples horarios.
+     *
+     * @return HasMany
+     */
+    public function horarios(): HasMany
+    {
+        return $this->hasMany(Horario::class);
+    }
+
+    /**
      * Obtiene las relaciones permitidas para este modelo.
      * Sobrescribe el método del trait HasRelationScopes.
      *
@@ -59,7 +96,8 @@ class Sede extends Model
     {
         return [
             'poblacion',
-            'areas'
+            'areas',
+            'horarios'
         ];
     }
 
@@ -85,7 +123,8 @@ class Sede extends Model
     protected function getCountableRelations(): array
     {
         return [
-            'areas'
+            'areas',
+            'horarios'
         ];
     }
 

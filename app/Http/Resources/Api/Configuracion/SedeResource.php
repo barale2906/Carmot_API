@@ -54,9 +54,33 @@ class SedeResource extends JsonResource
                 });
             }),
 
+            'horarios' => $this->whenLoaded('horarios', function () {
+                return $this->horarios->map(function ($horario) {
+                    return [
+                        'id' => $horario->id,
+                        'area_id' => $horario->area_id,
+                        'grupo_id' => $horario->grupo_id,
+                        'grupo_nombre' => $horario->grupo_nombre,
+                        'tipo' => $horario->tipo,
+                        'periodo' => $horario->periodo,
+                        'dia' => $horario->dia,
+                        'hora' => $horario->hora?->format('H:i:s'),
+                        'status' => $horario->status,
+                        'area' => $horario->whenLoaded('area', function () use ($horario) {
+                            return [
+                                'id' => $horario->area->id,
+                                'nombre' => $horario->area->nombre,
+                                'status' => $horario->area->status,
+                            ];
+                        }),
+                    ];
+                });
+            }),
+
             // Contadores
             'poblacion_count' => $this->when(isset($this->poblacion_count), $this->poblacion_count),
             'areas_count' => $this->when(isset($this->areas_count), $this->areas_count),
+            'horarios_count' => $this->when(isset($this->horarios_count), $this->horarios_count),
         ];
     }
 

@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\Configuracion\AreaController;
+use App\Http\Controllers\Api\Configuracion\HorarioController;
 use App\Http\Controllers\Api\Configuracion\PoblacionController;
 use App\Http\Controllers\Api\Configuracion\SedeController;
 use App\Http\Controllers\Api\Configuracion\UserController;
@@ -69,5 +70,22 @@ Route::middleware('auth:sanctum')->group(function () {
             ->name('areas.filters');
         Route::get('statistics', [AreaController::class, 'statistics'])
             ->name('areas.statistics');
+    });
+
+    // Rutas de horarios
+    Route::apiResource('horarios', HorarioController::class);
+    Route::post('horarios/restore/{horario}', [HorarioController::class, 'restore'])
+        ->name('horarios.restore');
+    Route::delete('horarios/force/{horario}', [HorarioController::class, 'forceDelete'])
+        ->name('horarios.force-delete');
+
+    // Rutas adicionales para horarios
+    Route::prefix('horarios')->group(function () {
+        Route::get('trashed', [HorarioController::class, 'trashed'])
+            ->name('horarios.trashed');
+        Route::get('filters/options', [HorarioController::class, 'filters'])
+            ->name('horarios.filters');
+        Route::get('statistics', [HorarioController::class, 'statistics'])
+            ->name('horarios.statistics');
     });
 });

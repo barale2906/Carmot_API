@@ -33,6 +33,14 @@ class StoreSedeRequest extends FormRequest
             'poblacion_id' => ['required', 'integer', 'exists:poblacions,id'],
             'areas' => ['sometimes', 'array'],
             'areas.*' => ['integer', 'exists:areas,id'],
+            'horarios' => ['required', 'array', 'min:1'],
+            'horarios.*.area_id' => ['required', 'integer', 'exists:areas,id'],
+            'horarios.*.dia' => ['required', 'string', 'in:lunes,martes,miércoles,jueves,viernes,sábado,domingo'],
+            'horarios.*.hora' => ['required', 'date_format:H:i:s'],
+            'horarios.*.tipo' => ['sometimes', 'boolean'],
+            'horarios.*.periodo' => ['sometimes', 'boolean'],
+            'horarios.*.grupo_id' => ['sometimes', 'integer', 'nullable'],
+            'horarios.*.grupo_nombre' => ['sometimes', 'string', 'max:255', 'nullable'],
         ];
     }
 
@@ -64,6 +72,19 @@ class StoreSedeRequest extends FormRequest
             'areas.array' => 'Las áreas deben ser un array.',
             'areas.*.integer' => 'Cada área debe ser un número entero.',
             'areas.*.exists' => 'Una o más áreas seleccionadas no existen.',
+            'horarios.required' => 'Los horarios de atención son obligatorios.',
+            'horarios.array' => 'Los horarios deben ser un array.',
+            'horarios.min' => 'Debe proporcionar al menos un horario de atención.',
+            'horarios.*.area_id.required' => 'El área es obligatoria para cada horario.',
+            'horarios.*.area_id.exists' => 'Una o más áreas seleccionadas no existen.',
+            'horarios.*.dia.required' => 'El día es obligatorio para cada horario.',
+            'horarios.*.dia.in' => 'El día debe ser uno de: lunes, martes, miércoles, jueves, viernes, sábado, domingo.',
+            'horarios.*.hora.required' => 'La hora es obligatoria para cada horario.',
+            'horarios.*.hora.date_format' => 'La hora debe tener el formato HH:MM:SS.',
+            'horarios.*.tipo.boolean' => 'El tipo debe ser verdadero o falso.',
+            'horarios.*.periodo.boolean' => 'El período debe ser verdadero o falso.',
+            'horarios.*.grupo_id.integer' => 'El ID del grupo debe ser un número entero.',
+            'horarios.*.grupo_nombre.max' => 'El nombre del grupo no puede exceder los 255 caracteres.',
         ];
     }
 
@@ -83,6 +104,14 @@ class StoreSedeRequest extends FormRequest
             'hora_fin' => 'hora de fin',
             'poblacion_id' => 'población',
             'areas' => 'áreas',
+            'horarios' => 'horarios de atención',
+            'horarios.*.area_id' => 'área del horario',
+            'horarios.*.dia' => 'día del horario',
+            'horarios.*.hora' => 'hora del horario',
+            'horarios.*.tipo' => 'tipo del horario',
+            'horarios.*.periodo' => 'período del horario',
+            'horarios.*.grupo_id' => 'ID del grupo',
+            'horarios.*.grupo_nombre' => 'nombre del grupo',
         ];
     }
 }

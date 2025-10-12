@@ -9,6 +9,7 @@ use App\Traits\HasActiveStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Area extends Model
@@ -29,6 +30,17 @@ class Area extends Model
     }
 
     /**
+     * Relación con Horario (uno a muchos).
+     * Un área puede tener múltiples horarios.
+     *
+     * @return HasMany
+     */
+    public function horarios(): HasMany
+    {
+        return $this->hasMany(Horario::class);
+    }
+
+    /**
      * Obtiene las relaciones permitidas para este modelo.
      * Sobrescribe el método del trait HasRelationScopes.
      *
@@ -38,7 +50,8 @@ class Area extends Model
     {
         return [
             'sedes',
-            'sedes.poblacion'
+            'sedes.poblacion',
+            'horarios'
         ];
     }
 
@@ -64,7 +77,8 @@ class Area extends Model
     protected function getCountableRelations(): array
     {
         return [
-            'sedes'
+            'sedes',
+            'horarios'
         ];
     }
 

@@ -236,5 +236,27 @@ class RolesAndPermissionsSeeder extends Seeder
                                 'descripcion'=>'inactivar area',
                                 //'modulo'=>'configuracion'
                                 ])->syncRoles([$Superusuario,$financiero,$coordinador]);
+
+                    // Create permissions horario
+                    Permission::create([
+                                        'name'=>'co_horarios',
+                                        'descripcion'=>'ver horarios',
+                                        //'modulo'=>'configuracion'
+                                        ])->syncRoles([$Superusuario,$financiero,$coordinador]);
+                    Permission::create([
+                                'name'=>'co_horarioCrear',
+                                'descripcion'=>'crear horario',
+                                //'modulo'=>'configuracion'
+                                ])->syncRoles([$Superusuario,$financiero,$coordinador]);
+                    Permission::create([
+                                'name'=>'co_horarioEditar',
+                                'descripcion'=>'editar horario',
+                                //'modulo'=>'configuracion'
+                                ])->syncRoles([$Superusuario,$financiero,$coordinador]);
+                    Permission::create([
+                                'name'=>'co_horarioInactivar',
+                                'descripcion'=>'inactivar horario',
+                                //'modulo'=>'configuracion'
+                                ])->syncRoles([$Superusuario,$financiero,$coordinador]);
     }
 }
