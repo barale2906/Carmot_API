@@ -185,5 +185,34 @@ class RolesAndPermissionsSeeder extends Seeder
                                 'descripcion'=>'inactivar topico',
                                 //'modulo'=>'configuracion'
                                 ])->syncRoles([$Superusuario,$financiero,$coordinador]);
+
+                    // Create permissions poblaciones
+                    Permission::create([
+                        'name'=>'co_poblaciones',
+                        'descripcion'=>'ver poblaciones',
+                        //'modulo'=>'configuracion'
+                        ])->syncRoles([$Superusuario,$financiero,$coordinador,$auxiliar]);
+
+                    // Create permissions sede
+                    Permission::create([
+                        'name'=>'co_sedes',
+                        'descripcion'=>'ver sedes',
+                        //'modulo'=>'configuracion'
+                        ])->syncRoles([$Superusuario,$financiero,$coordinador,$auxiliar]);
+                    Permission::create([
+                                'name'=>'co_sedeCrear',
+                                'descripcion'=>'crear sede',
+                                //'modulo'=>'configuracion'
+                                ])->syncRoles([$Superusuario,$financiero,$coordinador]);
+                    Permission::create([
+                                'name'=>'co_sedeEditar',
+                                'descripcion'=>'editar sede',
+                                //'modulo'=>'configuracion'
+                                ])->syncRoles([$Superusuario,$financiero,$coordinador]);
+                    Permission::create([
+                                'name'=>'co_sedeInactivar',
+                                'descripcion'=>'inactivar sede',
+                                //'modulo'=>'configuracion'
+                                ])->syncRoles([$Superusuario,$financiero,$coordinador]);
     }
 }
