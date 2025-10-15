@@ -54,6 +54,7 @@ class SedeResource extends JsonResource
                 });
             }),
 
+            /** @var array<int, array<string, mixed>> */
             'horarios' => $this->whenLoaded('horarios', function () {
                 return $this->horarios->map(function ($horario) {
                     return [
@@ -74,6 +75,32 @@ class SedeResource extends JsonResource
                             ];
                         }),
                     ];
+                })->toArray();
+            }),
+
+            'grupos' => $this->whenLoaded('grupos', function () {
+                return $this->grupos->map(function ($grupo) {
+                    return [
+                        'id' => $grupo->id,
+                        'nombre' => $grupo->nombre,
+                        'inscritos' => $grupo->inscritos,
+                        'jornada' => $grupo->jornada,
+                        'jornada_nombre' => $grupo->jornada_nombre,
+                        'status' => $grupo->status,
+                        'status_text' => self::getActiveStatusText($grupo->status),
+                        'modulo' => $grupo->whenLoaded('modulo', function () use ($grupo) {
+                            return [
+                                'id' => $grupo->modulo->id,
+                                'nombre' => $grupo->modulo->nombre,
+                            ];
+                        }),
+                        'profesor' => $grupo->whenLoaded('profesor', function () use ($grupo) {
+                            return [
+                                'id' => $grupo->profesor->id,
+                                'name' => $grupo->profesor->name,
+                            ];
+                        }),
+                    ];
                 });
             }),
 
@@ -81,6 +108,7 @@ class SedeResource extends JsonResource
             'poblacion_count' => $this->when(isset($this->poblacion_count), $this->poblacion_count),
             'areas_count' => $this->when(isset($this->areas_count), $this->areas_count),
             'horarios_count' => $this->when(isset($this->horarios_count), $this->horarios_count),
+            'grupos_count' => $this->when(isset($this->grupos_count), $this->grupos_count),
         ];
     }
 

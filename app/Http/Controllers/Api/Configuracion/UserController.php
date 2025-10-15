@@ -47,7 +47,15 @@ class UserController extends Controller
                     ->orWhere('documento', 'like', "%{$search}%");
             }
 
-            $users = $query->with('roles', 'permissions')->paginate($request->input('per_page', 15));
+            // Preparar relaciones
+            $relations = $request->has('with')
+                ? explode(',', $request->with)
+                : ['roles', 'permissions', 'grupos'];
+
+            // Verificar si incluir contadores
+            $includeCounts = $request->has('with') && str_contains($request->with, 'grupos');
+
+            $users = $query->with($relations)->paginate($request->input('per_page', 15));
 
             return UserResource::collection($users);
 
@@ -99,9 +107,18 @@ class UserController extends Controller
      * @param  \App\Models\User  $user
      * @return \App\Http\Resources\UserResource
      */
-    public function show(User $user)
+    public function show(Request $request, User $user)
     {
-        return new UserResource($user->load('roles', 'permissions'));
+        // Preparar relaciones
+        $relations = $request->has('with')
+            ? explode(',', $request->with)
+            : ['roles', 'permissions', 'grupos'];
+
+        // Cargar relaciones y contadores
+        $user->load($relations);
+        $user->loadCount(['grupos']);
+
+        return new UserResource($user);
     }
 
     /**
@@ -130,7 +147,11 @@ class UserController extends Controller
             $user->syncPermissions($request->permissions);
         }
 
-        return new UserResource($user->load('roles', 'permissions'));
+        // Cargar relaciones y contadores
+        $user->load(['roles', 'permissions']);
+        $user->loadCount(['grupos']);
+
+        return new UserResource($user);
     }
 
     /**
@@ -141,6 +162,13 @@ class UserController extends Controller
      */
     public function destroy(User $user)
     {
+        // Verificar si tiene grupos asociados
+        if ($user->grupos()->count() > 0) {
+            return response()->json([
+                'message' => 'No se puede eliminar el usuario porque tiene grupos asociados.',
+            ], 422);
+        }
+
         // Verifica si el usuario ya está "eliminado suavemente"
         if ($user->trashed()) {
             return response()->json(['message' => 'El usuario ya está inactivo.'], 409); // 409 Conflict
@@ -178,8 +206,66 @@ class UserController extends Controller
     public function forceDelete($id)
     {
         $user = User::onlyTrashed()->findOrFail($id); // Busca solo entre los eliminados suavemente
+
+        // Verificar si tiene grupos asociados
+        if ($user->grupos()->withTrashed()->count() > 0) {
+            return response()->json([
+                'message' => 'No se puede eliminar permanentemente el usuario porque tiene grupos asociados.',
+            ], 422);
+        }
+
         $user->forceDelete(); // Elimina permanentemente
 
         return response()->json(null, 204);
+    }
+
+    /**
+     * Obtiene las opciones de filtros disponibles.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function filters()
+    {
+        $roles = \Spatie\Permission\Models\Role::select('id', 'name')->get();
+        $profesores = User::role('profesor')->select('id', 'name')->get();
+
+        return response()->json([
+            'data' => [
+                'roles' => $roles,
+                'profesores' => $profesores,
+            ],
+        ]);
+    }
+
+    /**
+     * Obtiene estadísticas de usuarios.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function statistics()
+    {
+        $stats = [
+            'totales' => [
+                'total' => User::count(),
+                'activos' => User::whereNull('deleted_at')->count(),
+                'eliminados' => User::onlyTrashed()->count(),
+            ],
+            'por_rol' => User::with('roles')
+                ->selectRaw('id, count(model_has_roles.role_id) as total_roles')
+                ->leftJoin('model_has_roles', 'users.id', '=', 'model_has_roles.model_id')
+                ->groupBy('users.id')
+                ->having('total_roles', '>', 0)
+                ->get(),
+            'con_grupos' => User::with('grupos')
+                ->selectRaw('id, count(grupos.id) as total_grupos')
+                ->leftJoin('grupos', 'users.id', '=', 'grupos.profesor_id')
+                ->groupBy('users.id')
+                ->having('total_grupos', '>', 0)
+                ->get(),
+        ];
+
+        return response()->json([
+            'data' => $stats,
+        ]);
     }
 }

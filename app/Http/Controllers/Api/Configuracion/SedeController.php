@@ -41,10 +41,15 @@ class SedeController extends Controller
         // Preparar relaciones
         $relations = $request->has('with')
             ? explode(',', $request->with)
-            : ['poblacion', 'areas', 'horarios'];
+            : ['poblacion', 'areas', 'horarios', 'grupos'];
 
         // Verificar si incluir contadores
-        $includeCounts = $request->has('with') && (str_contains($request->with, 'poblacion') || str_contains($request->with, 'areas') || str_contains($request->with, 'horarios'));
+        $includeCounts = $request->has('with') && (
+            str_contains($request->with, 'poblacion') ||
+            str_contains($request->with, 'areas') ||
+            str_contains($request->with, 'horarios') ||
+            str_contains($request->with, 'grupos')
+        );
 
         // Construir query usando scopes
         $sedes = Sede::withFilters($filters)
@@ -124,10 +129,11 @@ class SedeController extends Controller
         // Preparar relaciones
         $relations = $request->has('with')
             ? explode(',', $request->with)
-            : ['poblacion', 'areas', 'horarios'];
+            : ['poblacion', 'areas', 'horarios', 'grupos'];
 
         // Cargar relaciones y contadores usando el modelo
         $sede->load($relations);
+        $sede->loadCount(['poblacion', 'areas', 'horarios', 'grupos']);
 
         return response()->json([
             'data' => new SedeResource($sede),
@@ -204,6 +210,13 @@ class SedeController extends Controller
      */
     public function destroy(Sede $sede): JsonResponse
     {
+        // Verificar si tiene grupos asociados
+        if ($sede->grupos()->count() > 0) {
+            return response()->json([
+                'message' => 'No se puede eliminar la sede porque tiene grupos asociados.',
+            ], 422);
+        }
+
         $sede->delete(); // Soft delete
 
         return response()->json([
@@ -237,6 +250,14 @@ class SedeController extends Controller
     public function forceDelete(int $id): JsonResponse
     {
         $sede = Sede::onlyTrashed()->findOrFail($id);
+
+        // Verificar si tiene grupos asociados
+        if ($sede->grupos()->withTrashed()->count() > 0) {
+            return response()->json([
+                'message' => 'No se puede eliminar permanentemente la sede porque tiene grupos asociados.',
+            ], 422);
+        }
+
         $sede->forceDelete();
 
         return response()->json([
@@ -258,10 +279,15 @@ class SedeController extends Controller
         // Preparar relaciones
         $relations = $request->has('with')
             ? explode(',', $request->with)
-            : ['poblacion', 'areas', 'horarios'];
+            : ['poblacion', 'areas', 'horarios', 'grupos'];
 
         // Verificar si incluir contadores
-        $includeCounts = $request->has('with') && (str_contains($request->with, 'poblacion') || str_contains($request->with, 'areas') || str_contains($request->with, 'horarios'));
+        $includeCounts = $request->has('with') && (
+            str_contains($request->with, 'poblacion') ||
+            str_contains($request->with, 'areas') ||
+            str_contains($request->with, 'horarios') ||
+            str_contains($request->with, 'grupos')
+        );
 
         // Construir query usando scopes (solo eliminados)
         $sedes = Sede::onlyTrashed()
@@ -326,6 +352,12 @@ class SedeController extends Controller
                         'total' => $item->total,
                     ];
                 }),
+            'con_grupos' => Sede::with('grupos')
+                ->selectRaw('id, count(grupos.id) as total_grupos')
+                ->leftJoin('grupos', 'sedes.id', '=', 'grupos.sede_id')
+                ->groupBy('sedes.id')
+                ->having('total_grupos', '>', 0)
+                ->get(),
         ];
 
         return response()->json([

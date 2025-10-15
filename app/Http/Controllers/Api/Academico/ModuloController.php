@@ -39,10 +39,13 @@ class ModuloController extends Controller
         // Preparar relaciones
         $relations = $request->has('with')
             ? explode(',', $request->with)
-            : ['cursos'];
+            : ['cursos', 'grupos'];
 
         // Verificar si incluir contadores
-        $includeCounts = $request->has('with') && str_contains($request->with, 'cursos');
+        $includeCounts = $request->has('with') && (
+            str_contains($request->with, 'cursos') ||
+            str_contains($request->with, 'grupos')
+        );
 
         // Construir query usando scopes
         $modulos = Modulo::withFilters($filters)
@@ -101,11 +104,11 @@ class ModuloController extends Controller
         // Preparar relaciones
         $relations = $request->has('with')
             ? explode(',', $request->with)
-            : ['cursos'];
+            : ['cursos', 'grupos'];
 
         // Cargar relaciones y contadores usando el modelo
         $modulo->load($relations);
-        $modulo->loadCount(['cursos']);
+        $modulo->loadCount(['cursos', 'grupos']);
 
         return response()->json([
             'data' => new ModuloResource($modulo),
@@ -147,10 +150,16 @@ class ModuloController extends Controller
      */
     public function destroy(Modulo $modulo): JsonResponse
     {
-        // Verificar si tiene cursos asociados
+        // Verificar si tiene cursos o grupos asociados
         if ($modulo->cursos()->count() > 0) {
             return response()->json([
                 'message' => 'No se puede eliminar el módulo porque tiene cursos asociados.',
+            ], 422);
+        }
+
+        if ($modulo->grupos()->count() > 0) {
+            return response()->json([
+                'message' => 'No se puede eliminar el módulo porque tiene grupos asociados.',
             ], 422);
         }
 
@@ -188,10 +197,16 @@ class ModuloController extends Controller
     {
         $modulo = Modulo::onlyTrashed()->findOrFail($id);
 
-        // Verificar si tiene cursos asociados
+        // Verificar si tiene cursos o grupos asociados
         if ($modulo->cursos()->withTrashed()->count() > 0) {
             return response()->json([
                 'message' => 'No se puede eliminar permanentemente el módulo porque tiene cursos asociados.',
+            ], 422);
+        }
+
+        if ($modulo->grupos()->withTrashed()->count() > 0) {
+            return response()->json([
+                'message' => 'No se puede eliminar permanentemente el módulo porque tiene grupos asociados.',
             ], 422);
         }
 
@@ -217,10 +232,13 @@ class ModuloController extends Controller
         // Preparar relaciones
         $relations = $request->has('with')
             ? explode(',', $request->with)
-            : ['cursos'];
+            : ['cursos', 'grupos'];
 
         // Verificar si incluir contadores
-        $includeCounts = $request->has('with') && str_contains($request->with, 'cursos');
+        $includeCounts = $request->has('with') && (
+            str_contains($request->with, 'cursos') ||
+            str_contains($request->with, 'grupos')
+        );
 
         // Construir query usando scopes (solo eliminados)
         $modulos = Modulo::withFilters($filters)
@@ -280,6 +298,12 @@ class ModuloController extends Controller
                 ->leftJoin('modulo_curso', 'modulos.id', '=', 'modulo_curso.modulo_id')
                 ->groupBy('modulos.id')
                 ->having('total_cursos', '>', 0)
+                ->get(),
+            'con_grupos' => Modulo::with('grupos')
+                ->selectRaw('id, count(grupos.id) as total_grupos')
+                ->leftJoin('grupos', 'modulos.id', '=', 'grupos.modulo_id')
+                ->groupBy('modulos.id')
+                ->having('total_grupos', '>', 0)
                 ->get(),
         ];
 

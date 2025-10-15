@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\Academico\CursoController;
+use App\Http\Controllers\Api\Academico\GrupoController;
 use App\Http\Controllers\Api\Academico\ModuloController;
 use App\Http\Controllers\Api\Academico\TopicoController;
 use Illuminate\Support\Facades\Route;
@@ -61,5 +62,20 @@ Route::middleware('auth:sanctum')->group(function () {
         // Rutas para filtros y estadísticas
         Route::get('filters', [TopicoController::class, 'filters'])->name('topicos.filters');
         Route::get('statistics', [TopicoController::class, 'statistics'])->name('topicos.statistics');
+    });
+
+    // Rutas principales de grupos (CRUD estándar)
+    Route::apiResource('grupos', GrupoController::class);
+
+    // Rutas adicionales para funcionalidades específicas de grupos
+    Route::prefix('grupos')->group(function () {
+        // Rutas para manejo de soft delete
+        Route::post('{id}/restore', [GrupoController::class, 'restore'])->name('grupos.restore');
+        Route::delete('{id}/force-delete', [GrupoController::class, 'forceDelete'])->name('grupos.force-delete');
+        Route::get('trashed', [GrupoController::class, 'trashed'])->name('grupos.trashed');
+
+        // Rutas para filtros y estadísticas
+        Route::get('filters', [GrupoController::class, 'filters'])->name('grupos.filters');
+        Route::get('statistics', [GrupoController::class, 'statistics'])->name('grupos.statistics');
     });
 });

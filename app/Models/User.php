@@ -88,4 +88,10 @@ class User extends Authenticatable
     {
         return $this->hasMany(Seguimiento::class);
     }
+
+    //Grupos que imparte el profesor
+    public function grupos(): HasMany
+    {
+        return $this->hasMany(\App\Models\Academico\Grupo::class, 'profesor_id');
+    }
 }

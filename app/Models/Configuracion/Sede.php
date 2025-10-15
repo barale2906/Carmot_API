@@ -87,6 +87,17 @@ class Sede extends Model
     }
 
     /**
+     * Relación con Grupo (uno a muchos).
+     * Una sede puede tener múltiples grupos.
+     *
+     * @return HasMany
+     */
+    public function grupos(): HasMany
+    {
+        return $this->hasMany(\App\Models\Academico\Grupo::class);
+    }
+
+    /**
      * Obtiene las relaciones permitidas para este modelo.
      * Sobrescribe el método del trait HasRelationScopes.
      *
@@ -97,7 +108,8 @@ class Sede extends Model
         return [
             'poblacion',
             'areas',
-            'horarios'
+            'horarios',
+            'grupos'
         ];
     }
 
@@ -124,7 +136,8 @@ class Sede extends Model
     {
         return [
             'areas',
-            'horarios'
+            'horarios',
+            'grupos'
         ];
     }
 

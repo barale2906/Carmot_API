@@ -7737,7 +7737,11 @@
                         "type": "string"
                     },
                     "horarios": {
-                        "type": "string"
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "additionalProperties": {}
+                        }
                     },
                     "poblacion_count": {
                         "type": "string",

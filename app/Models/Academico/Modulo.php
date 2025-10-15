@@ -9,6 +9,7 @@ use App\Traits\HasSortingScopes;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\Translatable\HasTranslations;
 
@@ -36,6 +37,15 @@ class Modulo extends Model
     {
         return $this->belongsToMany(Topico::class, 'topico_modulo')
                     ->withTimestamps();
+    }
+
+    /**
+     * Grupos asociados al módulo (relación uno a muchos).
+     * Un módulo puede tener múltiples grupos.
+     */
+    public function grupos(): HasMany
+    {
+        return $this->hasMany(Grupo::class);
     }
 
     /**
@@ -86,7 +96,8 @@ class Modulo extends Model
     {
         return [
             'cursos',
-            'topicos'
+            'topicos',
+            'grupos'
         ];
     }
 
@@ -103,6 +114,6 @@ class Modulo extends Model
      */
     protected function getCountableRelations(): array
     {
-        return ['cursos', 'topicos'];
+        return ['cursos', 'topicos', 'grupos'];
     }
 }

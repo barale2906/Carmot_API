@@ -23,6 +23,16 @@ Route::middleware('auth:sanctum')->group(function () {
     // Rutas de usuarios
     Route::apiResource('users', UserController::class);
     Route::post('users/restore/{user}', [UserController::class, 'restore']);
+    Route::delete('users/force/{user}', [UserController::class, 'forceDelete'])
+        ->name('users.force-delete');
+
+    // Rutas adicionales para usuarios
+    Route::prefix('users')->group(function () {
+        Route::get('filters', [UserController::class, 'filters'])
+            ->name('users.filters');
+        Route::get('statistics', [UserController::class, 'statistics'])
+            ->name('users.statistics');
+    });
 
     // Rutas de poblaciones (solo lectura)
     Route::get('poblaciones', [PoblacionController::class, 'index'])

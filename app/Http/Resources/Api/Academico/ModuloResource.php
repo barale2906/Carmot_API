@@ -43,8 +43,35 @@ class ModuloResource extends JsonResource
                 });
             }),
 
+            'grupos' => $this->whenLoaded('grupos', function () {
+                return $this->grupos->map(function ($grupo) {
+                    return [
+                        'id' => $grupo->id,
+                        'nombre' => $grupo->nombre,
+                        'inscritos' => $grupo->inscritos,
+                        'jornada' => $grupo->jornada,
+                        'jornada_nombre' => $grupo->jornada_nombre,
+                        'status' => $grupo->status,
+                        'status_text' => self::getActiveStatusText($grupo->status),
+                        'sede' => $grupo->whenLoaded('sede', function () use ($grupo) {
+                            return [
+                                'id' => $grupo->sede->id,
+                                'nombre' => $grupo->sede->nombre,
+                            ];
+                        }),
+                        'profesor' => $grupo->whenLoaded('profesor', function () use ($grupo) {
+                            return [
+                                'id' => $grupo->profesor->id,
+                                'name' => $grupo->profesor->name,
+                            ];
+                        }),
+                    ];
+                });
+            }),
+
             // Contadores
             'cursos_count' => $this->when(isset($this->cursos_count), $this->cursos_count),
+            'grupos_count' => $this->when(isset($this->grupos_count), $this->grupos_count),
         ];
     }
 }

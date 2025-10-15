@@ -258,5 +258,27 @@ class RolesAndPermissionsSeeder extends Seeder
                                 'descripcion'=>'inactivar horario',
                                 //'modulo'=>'configuracion'
                                 ])->syncRoles([$Superusuario,$financiero,$coordinador]);
+
+                    // Create permissions grupos
+                    Permission::create([
+                        'name'=>'aca_grupos',
+                        'descripcion'=>'ver grupos',
+                        //'modulo'=>'configuracion'
+                        ])->syncRoles([$Superusuario,$financiero,$coordinador]);
+                    Permission::create([
+                                'name'=>'aca_grupoCrear',
+                                'descripcion'=>'crear grupo',
+                                //'modulo'=>'configuracion'
+                                ])->syncRoles([$Superusuario,$financiero,$coordinador]);
+                    Permission::create([
+                                'name'=>'aca_grupoEditar',
+                                'descripcion'=>'editar grupo',
+                                //'modulo'=>'configuracion'
+                                ])->syncRoles([$Superusuario,$financiero,$coordinador]);
+                    Permission::create([
+                                'name'=>'aca_grupoInactivar',
+                                'descripcion'=>'inactivar grupo',
+                                //'modulo'=>'configuracion'
+                                ])->syncRoles([$Superusuario,$financiero,$coordinador]);
     }
 }
