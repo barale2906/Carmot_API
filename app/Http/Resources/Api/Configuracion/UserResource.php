@@ -19,36 +19,29 @@ class UserResource extends JsonResource
             'name' => is_array($this->name) ? $this->name['es'] ?? $this->name['en'] ?? reset($this->name) : $this->name,
             'email' => $this->email,
             'documento' => $this->documento,
-            'roles' => $this->whenLoaded('roles', function () {
-                return $this->roles->pluck('name')->toArray();
-            }, []),
-            'permissions' => $this->whenLoaded('permissions', function () {
-                return $this->permissions->pluck('name')->toArray();
-            }, []),
-            'grupos' => $this->whenLoaded('grupos', function () {
-                return $this->grupos->map(function ($grupo) {
-                    return [
-                        'id' => $grupo->id,
-                        'nombre' => $grupo->nombre,
-                        'inscritos' => $grupo->inscritos,
-                        'jornada' => $grupo->jornada,
-                        'jornada_nombre' => $grupo->jornada_nombre,
-                        'status' => $grupo->status,
-                        'sede' => $grupo->whenLoaded('sede', function () use ($grupo) {
-                            return [
-                                'id' => $grupo->sede->id,
-                                'nombre' => $grupo->sede->nombre,
-                            ];
-                        }),
-                        'modulo' => $grupo->whenLoaded('modulo', function () use ($grupo) {
-                            return [
-                                'id' => $grupo->modulo->id,
-                                'nombre' => $grupo->modulo->nombre,
-                            ];
-                        }),
-                    ];
-                })->toArray();
-            }, []),
+            /** @var array<string> */
+            'roles' => $this->roles ? $this->roles->pluck('name')->toArray() : [],
+            /** @var array<string> */
+            'permissions' => $this->permissions ? $this->permissions->pluck('name')->toArray() : [],
+            /** @var array<array<string, mixed>> */
+            'grupos' => $this->grupos ? $this->grupos->map(function ($grupo) {
+                return [
+                    'id' => $grupo->id,
+                    'nombre' => $grupo->nombre,
+                    'inscritos' => $grupo->inscritos,
+                    'jornada' => $grupo->jornada,
+                    'jornada_nombre' => $grupo->jornada_nombre,
+                    'status' => $grupo->status,
+                    'sede' => $grupo->sede ? [
+                        'id' => $grupo->sede->id,
+                        'nombre' => $grupo->sede->nombre,
+                    ] : null,
+                    'modulo' => $grupo->modulo ? [
+                        'id' => $grupo->modulo->id,
+                        'nombre' => $grupo->modulo->nombre,
+                    ] : null,
+                ];
+            })->toArray() : [],
             'created_at' => $this->created_at->toDateTimeString(),
             'updated_at' => $this->updated_at->toDateTimeString(),
             'deleted_at' => $this->deleted_at?->toDateTimeString(),

@@ -2153,6 +2153,816 @@
                 }
             }
         },
+        "/academico/grupos": {
+            "get": {
+                "operationId": "grupos.index",
+                "summary": "Muestra una lista de los grupos",
+                "tags": [
+                    "Grupo"
+                ],
+                "parameters": [
+                    {
+                        "name": "sort_by",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "sort_direction",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "default": 15
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/GrupoResource"
+                                            }
+                                        },
+                                        "meta": {
+                                            "type": "object",
+                                            "properties": {
+                                                "current_page": {
+                                                    "type": "string"
+                                                },
+                                                "last_page": {
+                                                    "type": "string"
+                                                },
+                                                "per_page": {
+                                                    "type": "string"
+                                                },
+                                                "total": {
+                                                    "type": "string"
+                                                },
+                                                "from": {
+                                                    "type": "string"
+                                                },
+                                                "to": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "required": [
+                                                "current_page",
+                                                "last_page",
+                                                "per_page",
+                                                "total",
+                                                "from",
+                                                "to"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "data",
+                                        "meta"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            },
+            "post": {
+                "operationId": "grupos.store",
+                "summary": "Almacena un nuevo grupo en la base de datos",
+                "tags": [
+                    "Grupo"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/StoreGrupoRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "enum": [
+                                                "Grupo creado exitosamente."
+                                            ]
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/GrupoResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "message",
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            }
+        },
+        "/academico/grupos/{grupo}": {
+            "get": {
+                "operationId": "grupos.show",
+                "summary": "Muestra el grupo especificado",
+                "tags": [
+                    "Grupo"
+                ],
+                "parameters": [
+                    {
+                        "name": "grupo",
+                        "in": "path",
+                        "required": true,
+                        "description": "The grupo ID",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/GrupoResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            },
+            "put": {
+                "operationId": "grupos.update",
+                "summary": "Actualiza el grupo especificado en la base de datos",
+                "tags": [
+                    "Grupo"
+                ],
+                "parameters": [
+                    {
+                        "name": "grupo",
+                        "in": "path",
+                        "required": true,
+                        "description": "The grupo ID",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateGrupoRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "enum": [
+                                                "Grupo actualizado exitosamente."
+                                            ]
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/GrupoResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "message",
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "grupos.destroy",
+                "summary": "Elimina el grupo especificado de la base de datos (soft delete)",
+                "tags": [
+                    "Grupo"
+                ],
+                "parameters": [
+                    {
+                        "name": "grupo",
+                        "in": "path",
+                        "required": true,
+                        "description": "The grupo ID",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Soft delete",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "enum": [
+                                                "Grupo eliminado exitosamente."
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "enum": [
+                                                "No se puede eliminar el grupo porque tiene estudiantes inscritos."
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/academico/grupos/{id}/restore": {
+            "post": {
+                "operationId": "grupos.restore",
+                "summary": "Restaura un grupo eliminado (soft delete)",
+                "tags": [
+                    "Grupo"
+                ],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "enum": [
+                                                "Grupo restaurado exitosamente."
+                                            ]
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/GrupoResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "message",
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/academico/grupos/{id}/force-delete": {
+            "delete": {
+                "operationId": "grupos.force-delete",
+                "summary": "Elimina permanentemente un grupo",
+                "tags": [
+                    "Grupo"
+                ],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "enum": [
+                                                "Grupo eliminado permanentemente."
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "enum": [
+                                                "No se puede eliminar permanentemente el grupo porque tiene estudiantes inscritos."
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/academico/grupos/trashed": {
+            "get": {
+                "operationId": "grupos.trashed",
+                "summary": "Obtiene solo los grupos eliminados (soft delete)",
+                "tags": [
+                    "Grupo"
+                ],
+                "parameters": [
+                    {
+                        "name": "sort_by",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "sort_direction",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "default": 15
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/GrupoResource"
+                                            }
+                                        },
+                                        "meta": {
+                                            "type": "object",
+                                            "properties": {
+                                                "current_page": {
+                                                    "type": "string"
+                                                },
+                                                "last_page": {
+                                                    "type": "string"
+                                                },
+                                                "per_page": {
+                                                    "type": "string"
+                                                },
+                                                "total": {
+                                                    "type": "string"
+                                                },
+                                                "from": {
+                                                    "type": "string"
+                                                },
+                                                "to": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "required": [
+                                                "current_page",
+                                                "last_page",
+                                                "per_page",
+                                                "total",
+                                                "from",
+                                                "to"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "data",
+                                        "meta"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/academico/grupos/filters": {
+            "get": {
+                "operationId": "grupos.filters",
+                "summary": "Obtiene las opciones de filtros disponibles",
+                "tags": [
+                    "Grupo"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "status_options": {
+                                                    "type": "array",
+                                                    "prefixItems": [
+                                                        {
+                                                            "type": "string",
+                                                            "enum": [
+                                                                "Inactivo"
+                                                            ]
+                                                        },
+                                                        {
+                                                            "type": "string",
+                                                            "enum": [
+                                                                "Activo"
+                                                            ]
+                                                        }
+                                                    ],
+                                                    "minItems": 2,
+                                                    "maxItems": 2,
+                                                    "additionalItems": false
+                                                },
+                                                "jornada_options": {
+                                                    "type": "array",
+                                                    "prefixItems": [
+                                                        {
+                                                            "type": "object",
+                                                            "properties": {
+                                                                "value": {
+                                                                    "type": "integer",
+                                                                    "enum": [
+                                                                        0
+                                                                    ]
+                                                                },
+                                                                "label": {
+                                                                    "type": "string",
+                                                                    "enum": [
+                                                                        "Ma\u00f1ana"
+                                                                    ]
+                                                                }
+                                                            },
+                                                            "required": [
+                                                                "value",
+                                                                "label"
+                                                            ]
+                                                        },
+                                                        {
+                                                            "type": "object",
+                                                            "properties": {
+                                                                "value": {
+                                                                    "type": "integer",
+                                                                    "enum": [
+                                                                        1
+                                                                    ]
+                                                                },
+                                                                "label": {
+                                                                    "type": "string",
+                                                                    "enum": [
+                                                                        "Tarde"
+                                                                    ]
+                                                                }
+                                                            },
+                                                            "required": [
+                                                                "value",
+                                                                "label"
+                                                            ]
+                                                        },
+                                                        {
+                                                            "type": "object",
+                                                            "properties": {
+                                                                "value": {
+                                                                    "type": "integer",
+                                                                    "enum": [
+                                                                        2
+                                                                    ]
+                                                                },
+                                                                "label": {
+                                                                    "type": "string",
+                                                                    "enum": [
+                                                                        "Noche"
+                                                                    ]
+                                                                }
+                                                            },
+                                                            "required": [
+                                                                "value",
+                                                                "label"
+                                                            ]
+                                                        },
+                                                        {
+                                                            "type": "object",
+                                                            "properties": {
+                                                                "value": {
+                                                                    "type": "integer",
+                                                                    "enum": [
+                                                                        3
+                                                                    ]
+                                                                },
+                                                                "label": {
+                                                                    "type": "string",
+                                                                    "enum": [
+                                                                        "Fin de semana"
+                                                                    ]
+                                                                }
+                                                            },
+                                                            "required": [
+                                                                "value",
+                                                                "label"
+                                                            ]
+                                                        }
+                                                    ],
+                                                    "minItems": 4,
+                                                    "maxItems": 4,
+                                                    "additionalItems": false
+                                                },
+                                                "sedes": {
+                                                    "type": "string"
+                                                },
+                                                "modulos": {
+                                                    "type": "string"
+                                                },
+                                                "profesores": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "required": [
+                                                "status_options",
+                                                "jornada_options",
+                                                "sedes",
+                                                "modulos",
+                                                "profesores"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/academico/grupos/statistics": {
+            "get": {
+                "operationId": "grupos.statistics",
+                "summary": "Obtiene estad\u00edsticas de grupos",
+                "tags": [
+                    "Grupo"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "totales": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "total": {
+                                                            "type": "string"
+                                                        },
+                                                        "activos": {
+                                                            "type": "string"
+                                                        },
+                                                        "eliminados": {
+                                                            "type": "string"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "total",
+                                                        "activos",
+                                                        "eliminados"
+                                                    ]
+                                                },
+                                                "por_status": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "activos": {
+                                                            "type": "string"
+                                                        },
+                                                        "inactivos": {
+                                                            "type": "string"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "activos",
+                                                        "inactivos"
+                                                    ]
+                                                },
+                                                "por_jornada": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "manana": {
+                                                            "type": "string"
+                                                        },
+                                                        "tarde": {
+                                                            "type": "string"
+                                                        },
+                                                        "noche": {
+                                                            "type": "string"
+                                                        },
+                                                        "fin_semana": {
+                                                            "type": "string"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "manana",
+                                                        "tarde",
+                                                        "noche",
+                                                        "fin_semana"
+                                                    ]
+                                                },
+                                                "por_inscritos": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "pocos": {
+                                                            "type": "string"
+                                                        },
+                                                        "medios": {
+                                                            "type": "string"
+                                                        },
+                                                        "muchos": {
+                                                            "type": "string"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "pocos",
+                                                        "medios",
+                                                        "muchos"
+                                                    ]
+                                                },
+                                                "total_inscritos": {
+                                                    "type": "string"
+                                                },
+                                                "promedio_inscritos": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "required": [
+                                                "totales",
+                                                "por_status",
+                                                "por_jornada",
+                                                "por_inscritos",
+                                                "total_inscritos",
+                                                "promedio_inscritos"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
         "/configuracion/horarios": {
             "get": {
                 "operationId": "horarios.index",
@@ -3193,17 +4003,35 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "message": {
-                                            "type": "string",
-                                            "enum": [
-                                                "No se puede eliminar el m\u00f3dulo porque tiene cursos asociados."
+                                    "anyOf": [
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "message": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                        "No se puede eliminar el m\u00f3dulo porque tiene grupos asociados."
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "message"
+                                            ]
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "message": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                        "No se puede eliminar el m\u00f3dulo porque tiene cursos asociados."
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "message"
                                             ]
                                         }
-                                    },
-                                    "required": [
-                                        "message"
                                     ]
                                 }
                             }
@@ -3311,17 +4139,35 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "message": {
-                                            "type": "string",
-                                            "enum": [
-                                                "No se puede eliminar permanentemente el m\u00f3dulo porque tiene cursos asociados."
+                                    "anyOf": [
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "message": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                        "No se puede eliminar permanentemente el m\u00f3dulo porque tiene grupos asociados."
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "message"
+                                            ]
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "message": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                        "No se puede eliminar permanentemente el m\u00f3dulo porque tiene cursos asociados."
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "message"
                                             ]
                                         }
-                                    },
-                                    "required": [
-                                        "message"
                                     ]
                                 }
                             }
@@ -3539,12 +4385,16 @@
                                                 },
                                                 "con_cursos": {
                                                     "type": "string"
+                                                },
+                                                "con_grupos": {
+                                                    "type": "string"
                                                 }
                                             },
                                             "required": [
                                                 "totales",
                                                 "por_status",
-                                                "con_cursos"
+                                                "con_cursos",
+                                                "con_grupos"
                                             ]
                                         }
                                     },
@@ -4793,6 +5643,27 @@
                             }
                         }
                     },
+                    "422": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "enum": [
+                                                "No se puede eliminar la sede porque tiene grupos asociados."
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        }
+                    },
                     "404": {
                         "$ref": "#/components/responses/ModelNotFoundException"
                     },
@@ -4880,6 +5751,27 @@
                                             "type": "string",
                                             "enum": [
                                                 "Sede eliminada permanentemente."
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "enum": [
+                                                "No se puede eliminar permanentemente la sede porque tiene grupos asociados."
                                             ]
                                         }
                                     },
@@ -5066,11 +5958,15 @@
                                                 },
                                                 "por_poblacion": {
                                                     "type": "string"
+                                                },
+                                                "con_grupos": {
+                                                    "type": "string"
                                                 }
                                             },
                                             "required": [
                                                 "totales",
-                                                "por_poblacion"
+                                                "por_poblacion",
+                                                "con_grupos"
                                             ]
                                         }
                                     },
@@ -7046,6 +7942,27 @@
                             }
                         }
                     },
+                    "422": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "enum": [
+                                                "No se puede eliminar el usuario porque tiene grupos asociados."
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        }
+                    },
                     "404": {
                         "$ref": "#/components/responses/ModelNotFoundException"
                     },
@@ -7089,6 +8006,162 @@
                                     },
                                     "required": [
                                         "message"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/configuracion/users/force/{id}": {
+            "delete": {
+                "operationId": "users.force-delete",
+                "summary": "Eliminar permanentemente el usuario especificado",
+                "tags": [
+                    "User"
+                ],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Elimina permanentemente\n\n\n\nNo content"
+                    },
+                    "422": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "enum": [
+                                                "No se puede eliminar permanentemente el usuario porque tiene grupos asociados."
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/configuracion/users/filters": {
+            "get": {
+                "operationId": "users.filters",
+                "summary": "Obtiene las opciones de filtros disponibles",
+                "tags": [
+                    "User"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "roles": {
+                                                    "type": "string"
+                                                },
+                                                "profesores": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "required": [
+                                                "roles",
+                                                "profesores"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/configuracion/users/statistics": {
+            "get": {
+                "operationId": "users.statistics",
+                "summary": "Obtiene estad\u00edsticas de usuarios",
+                "tags": [
+                    "User"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "totales": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "total": {
+                                                            "type": "string"
+                                                        },
+                                                        "activos": {
+                                                            "type": "string"
+                                                        },
+                                                        "eliminados": {
+                                                            "type": "string"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "total",
+                                                        "activos",
+                                                        "eliminados"
+                                                    ]
+                                                },
+                                                "por_rol": {
+                                                    "type": "string"
+                                                },
+                                                "con_grupos": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "required": [
+                                                "totales",
+                                                "por_rol",
+                                                "con_grupos"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
                                     ]
                                 }
                             }
@@ -7320,6 +8393,154 @@
                 ],
                 "title": "CursoResource"
             },
+            "GrupoResource": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string"
+                    },
+                    "nombre": {
+                        "type": "string"
+                    },
+                    "inscritos": {
+                        "type": "string"
+                    },
+                    "jornada": {
+                        "type": "string"
+                    },
+                    "jornada_nombre": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "type": "string"
+                    },
+                    "status_text": {
+                        "type": "string"
+                    },
+                    "created_at": {
+                        "type": "string"
+                    },
+                    "updated_at": {
+                        "type": "string"
+                    },
+                    "deleted_at": {
+                        "type": "string"
+                    },
+                    "sede": {
+                        "type": "object",
+                        "description": "Relaciones cargadas",
+                        "properties": {
+                            "id": {
+                                "type": "string"
+                            },
+                            "nombre": {
+                                "type": "string"
+                            },
+                            "direccion": {
+                                "type": "string"
+                            },
+                            "telefono": {
+                                "type": "string"
+                            },
+                            "email": {
+                                "type": "string"
+                            },
+                            "hora_inicio": {
+                                "type": "string"
+                            },
+                            "hora_fin": {
+                                "type": "string"
+                            },
+                            "status": {
+                                "type": "string"
+                            },
+                            "status_text": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "id",
+                            "nombre",
+                            "direccion",
+                            "telefono",
+                            "email",
+                            "hora_inicio",
+                            "hora_fin",
+                            "status",
+                            "status_text"
+                        ]
+                    },
+                    "modulo": {
+                        "type": "object",
+                        "properties": {
+                            "id": {
+                                "type": "string"
+                            },
+                            "nombre": {
+                                "type": "string"
+                            },
+                            "status": {
+                                "type": "string"
+                            },
+                            "status_text": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "id",
+                            "nombre",
+                            "status",
+                            "status_text"
+                        ]
+                    },
+                    "profesor": {
+                        "type": "object",
+                        "properties": {
+                            "id": {
+                                "type": "string"
+                            },
+                            "name": {
+                                "type": "string"
+                            },
+                            "email": {
+                                "type": "string"
+                            },
+                            "documento": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "id",
+                            "name",
+                            "email",
+                            "documento"
+                        ]
+                    },
+                    "sede_count": {
+                        "type": "string",
+                        "description": "Contadores"
+                    },
+                    "modulo_count": {
+                        "type": "string"
+                    },
+                    "profesor_count": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "id",
+                    "nombre",
+                    "inscritos",
+                    "jornada",
+                    "jornada_nombre",
+                    "status",
+                    "status_text",
+                    "created_at",
+                    "updated_at",
+                    "deleted_at"
+                ],
+                "title": "GrupoResource"
+            },
             "HorarioResource": {
                 "type": "object",
                 "properties": {
@@ -7498,9 +8719,15 @@
                         "type": "string",
                         "description": "Relaciones cargadas"
                     },
+                    "grupos": {
+                        "type": "string"
+                    },
                     "cursos_count": {
                         "type": "string",
                         "description": "Contadores"
+                    },
+                    "grupos_count": {
+                        "type": "string"
                     }
                 },
                 "required": [
@@ -7743,6 +8970,9 @@
                             "additionalProperties": {}
                         }
                     },
+                    "grupos": {
+                        "type": "string"
+                    },
                     "poblacion_count": {
                         "type": "string",
                         "description": "Contadores"
@@ -7751,6 +8981,9 @@
                         "type": "string"
                     },
                     "horarios_count": {
+                        "type": "string"
+                    },
+                    "grupos_count": {
                         "type": "string"
                     }
                 },
@@ -7919,6 +9152,54 @@
                     "tipo"
                 ],
                 "title": "StoreCursoRequest"
+            },
+            "StoreGrupoRequest": {
+                "type": "object",
+                "properties": {
+                    "sede_id": {
+                        "type": "integer"
+                    },
+                    "modulo_id": {
+                        "type": "integer"
+                    },
+                    "profesor_id": {
+                        "type": "integer"
+                    },
+                    "nombre": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "inscritos": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 50
+                    },
+                    "jornada": {
+                        "type": "integer",
+                        "enum": [
+                            "0",
+                            "1",
+                            "2",
+                            "3"
+                        ]
+                    },
+                    "status": {
+                        "type": "integer",
+                        "enum": [
+                            "0",
+                            "1"
+                        ]
+                    }
+                },
+                "required": [
+                    "sede_id",
+                    "modulo_id",
+                    "profesor_id",
+                    "nombre",
+                    "inscritos",
+                    "jornada"
+                ],
+                "title": "StoreGrupoRequest"
             },
             "StoreHorarioRequest": {
                 "type": "object",
@@ -8366,6 +9647,42 @@
                 },
                 "title": "UpdateCursoRequest"
             },
+            "UpdateGrupoRequest": {
+                "type": "object",
+                "properties": {
+                    "sede_id": {
+                        "type": "integer"
+                    },
+                    "modulo_id": {
+                        "type": "integer"
+                    },
+                    "profesor_id": {
+                        "type": "integer"
+                    },
+                    "nombre": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "inscritos": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 50
+                    },
+                    "jornada": {
+                        "type": "integer",
+                        "enum": [
+                            "0",
+                            "1",
+                            "2",
+                            "3"
+                        ]
+                    },
+                    "status": {
+                        "type": "string"
+                    }
+                },
+                "title": "UpdateGrupoRequest"
+            },
             "UpdateHorarioRequest": {
                 "type": "object",
                 "properties": {
@@ -8655,8 +9972,15 @@
                         "type": "integer"
                     },
                     "name": {
-                        "type": "array",
-                        "items": {}
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "array",
+                                "items": {}
+                            }
+                        ]
                     },
                     "email": {
                         "type": "string"
@@ -8665,16 +9989,36 @@
                         "type": "string"
                     },
                     "roles": {
-                        "type": "string"
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
                     },
                     "permissions": {
-                        "type": "string"
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "grupos": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "additionalProperties": {}
+                        }
                     },
                     "created_at": {
                         "type": "string"
                     },
                     "updated_at": {
                         "type": "string"
+                    },
+                    "deleted_at": {
+                        "type": "string"
+                    },
+                    "grupos_count": {
+                        "type": "string",
+                        "description": "Contadores"
                     }
                 },
                 "required": [
@@ -8682,8 +10026,12 @@
                     "name",
                     "email",
                     "documento",
+                    "roles",
+                    "permissions",
+                    "grupos",
                     "created_at",
-                    "updated_at"
+                    "updated_at",
+                    "deleted_at"
                 ],
                 "title": "UserResource"
             }
