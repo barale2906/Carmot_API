@@ -67,13 +67,11 @@ class SedeResource extends JsonResource
                         'dia' => $horario->dia,
                         'hora' => $horario->hora?->format('H:i:s'),
                         'status' => $horario->status,
-                        'area' => $horario->whenLoaded('area', function () use ($horario) {
-                            return [
-                                'id' => $horario->area->id,
-                                'nombre' => $horario->area->nombre,
-                                'status' => $horario->area->status,
-                            ];
-                        }),
+                        'area' => $horario->relationLoaded('area') ? [
+                            'id' => $horario->area->id,
+                            'nombre' => $horario->area->nombre,
+                            'status' => $horario->area->status,
+                        ] : null,
                     ];
                 })->toArray();
             }),
@@ -88,18 +86,14 @@ class SedeResource extends JsonResource
                         'jornada_nombre' => $grupo->jornada_nombre,
                         'status' => $grupo->status,
                         'status_text' => self::getActiveStatusText($grupo->status),
-                        'modulo' => $grupo->whenLoaded('modulo', function () use ($grupo) {
-                            return [
-                                'id' => $grupo->modulo->id,
-                                'nombre' => $grupo->modulo->nombre,
-                            ];
-                        }),
-                        'profesor' => $grupo->whenLoaded('profesor', function () use ($grupo) {
-                            return [
-                                'id' => $grupo->profesor->id,
-                                'name' => $grupo->profesor->name,
-                            ];
-                        }),
+                        'modulo' => $grupo->relationLoaded('modulo') ? [
+                            'id' => $grupo->modulo->id,
+                            'nombre' => $grupo->modulo->nombre,
+                        ] : null,
+                        'profesor' => $grupo->relationLoaded('profesor') ? [
+                            'id' => $grupo->profesor->id,
+                            'name' => $grupo->profesor->name,
+                        ] : null,
                     ];
                 });
             }),

@@ -30,37 +30,31 @@ class GrupoResource extends JsonResource
             'deleted_at' => $this->deleted_at?->format('Y-m-d H:i:s'),
 
             // Relaciones cargadas
-            'sede' => $this->whenLoaded('sede', function () {
-                return [
-                    'id' => $this->sede->id,
-                    'nombre' => $this->sede->nombre,
-                    'direccion' => $this->sede->direccion,
-                    'telefono' => $this->sede->telefono,
-                    'email' => $this->sede->email,
-                    'hora_inicio' => $this->sede->hora_inicio?->format('H:i:s'),
-                    'hora_fin' => $this->sede->hora_fin?->format('H:i:s'),
-                    'status' => $this->sede->status,
-                    'status_text' => self::getActiveStatusText($this->sede->status),
-                ];
-            }),
+            'sede' => $this->whenLoaded('sede', [
+                'id' => $this->sede->id,
+                'nombre' => $this->sede->nombre,
+                'direccion' => $this->sede->direccion,
+                'telefono' => $this->sede->telefono,
+                'email' => $this->sede->email,
+                'hora_inicio' => $this->sede->hora_inicio?->format('H:i:s'),
+                'hora_fin' => $this->sede->hora_fin?->format('H:i:s'),
+                'status' => $this->sede->status,
+                'status_text' => self::getActiveStatusText($this->sede->status),
+            ]),
 
-            'modulo' => $this->whenLoaded('modulo', function () {
-                return [
-                    'id' => $this->modulo->id,
-                    'nombre' => $this->modulo->nombre,
-                    'status' => $this->modulo->status,
-                    'status_text' => self::getActiveStatusText($this->modulo->status),
-                ];
-            }),
+            'modulo' => $this->whenLoaded('modulo', [
+                'id' => $this->modulo->id,
+                'nombre' => $this->modulo->nombre,
+                'status' => $this->modulo->status,
+                'status_text' => self::getActiveStatusText($this->modulo->status),
+            ]),
 
-            'profesor' => $this->whenLoaded('profesor', function () {
-                return [
-                    'id' => $this->profesor->id,
-                    'name' => $this->profesor->name,
-                    'email' => $this->profesor->email,
-                    'documento' => $this->profesor->documento,
-                ];
-            }),
+            'profesor' => $this->whenLoaded('profesor', [
+                'id' => $this->profesor->id,
+                'name' => $this->profesor->name,
+                'email' => $this->profesor->email,
+                'documento' => $this->profesor->documento,
+            ]),
 
             // Contadores
             'sede_count' => $this->when(isset($this->sede_count), $this->sede_count),

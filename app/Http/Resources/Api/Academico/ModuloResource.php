@@ -53,18 +53,14 @@ class ModuloResource extends JsonResource
                         'jornada_nombre' => $grupo->jornada_nombre,
                         'status' => $grupo->status,
                         'status_text' => self::getActiveStatusText($grupo->status),
-                        'sede' => $grupo->whenLoaded('sede', function () use ($grupo) {
-                            return [
-                                'id' => $grupo->sede->id,
-                                'nombre' => $grupo->sede->nombre,
-                            ];
-                        }),
-                        'profesor' => $grupo->whenLoaded('profesor', function () use ($grupo) {
-                            return [
-                                'id' => $grupo->profesor->id,
-                                'name' => $grupo->profesor->name,
-                            ];
-                        }),
+                        'sede' => $grupo->relationLoaded('sede') ? [
+                            'id' => $grupo->sede->id,
+                            'nombre' => $grupo->sede->nombre,
+                        ] : null,
+                        'profesor' => $grupo->relationLoaded('profesor') ? [
+                            'id' => $grupo->profesor->id,
+                            'name' => $grupo->profesor->name,
+                        ] : null,
                     ];
                 });
             }),
