@@ -31,6 +31,8 @@ class StoreUserRequest extends FormRequest
             'roles.*' => ['exists:roles,name'], // Valida que los roles existan
             'permissions' => ['sometimes', 'array'],
             'permissions.*' => ['exists:permissions,name'], // Valida que los permisos existan
+            'cursos' => ['sometimes', 'array'],
+            'cursos.*' => ['exists:cursos,id'], // Valida que los cursos existan
         ];
     }
 }

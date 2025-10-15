@@ -42,12 +42,69 @@ class UserResource extends JsonResource
                     ] : null,
                 ];
             })->toArray() : [],
+            /** @var array<array<string, mixed>> */
+            'cursos' => $this->cursos ? $this->cursos->map(function ($curso) {
+                return [
+                    'id' => $curso->id,
+                    'nombre' => $curso->nombre,
+                    'duracion' => $curso->duracion,
+                    'status' => $curso->status,
+                    'created_at' => $curso->created_at->toDateTimeString(),
+                ];
+            })->toArray() : [],
+            /** @var array<array<string, mixed>> */
+            'gestores' => $this->gestores ? $this->gestores->map(function ($gestor) {
+                return [
+                    'id' => $gestor->id,
+                    'nombre' => $gestor->nombre,
+                    'telefono' => $gestor->telefono,
+                    'email' => $gestor->email,
+                    'status' => $gestor->status,
+                    'curso' => $gestor->curso ? [
+                        'id' => $gestor->curso->id,
+                        'nombre' => $gestor->curso->nombre,
+                    ] : null,
+                    'created_at' => $gestor->created_at->toDateTimeString(),
+                ];
+            })->toArray() : [],
+            /** @var array<array<string, mixed>> */
+            'agendadores' => $this->agendadores ? $this->agendadores->map(function ($agenda) {
+                return [
+                    'id' => $agenda->id,
+                    'fecha' => $agenda->fecha->toDateString(),
+                    'hora' => $agenda->hora,
+                    'jornada' => $agenda->jornada,
+                    'status' => $agenda->status,
+                    'referido' => $agenda->referido ? [
+                        'id' => $agenda->referido->id,
+                        'nombre' => $agenda->referido->nombre,
+                    ] : null,
+                    'created_at' => $agenda->created_at->toDateTimeString(),
+                ];
+            })->toArray() : [],
+            /** @var array<array<string, mixed>> */
+            'seguimientos' => $this->seguimientos ? $this->seguimientos->map(function ($seguimiento) {
+                return [
+                    'id' => $seguimiento->id,
+                    'fecha' => $seguimiento->fecha->toDateString(),
+                    'seguimiento' => $seguimiento->seguimiento,
+                    'referido' => $seguimiento->referido ? [
+                        'id' => $seguimiento->referido->id,
+                        'nombre' => $seguimiento->referido->nombre,
+                    ] : null,
+                    'created_at' => $seguimiento->created_at->toDateTimeString(),
+                ];
+            })->toArray() : [],
             'created_at' => $this->created_at->toDateTimeString(),
             'updated_at' => $this->updated_at->toDateTimeString(),
             'deleted_at' => $this->deleted_at?->toDateTimeString(),
 
             // Contadores
             'grupos_count' => $this->when(isset($this->grupos_count), $this->grupos_count),
+            'cursos_count' => $this->when(isset($this->cursos_count), $this->cursos_count),
+            'gestores_count' => $this->when(isset($this->gestores_count), $this->gestores_count),
+            'agendadores_count' => $this->when(isset($this->agendadores_count), $this->agendadores_count),
+            'seguimientos_count' => $this->when(isset($this->seguimientos_count), $this->seguimientos_count),
         ];
     }
 }

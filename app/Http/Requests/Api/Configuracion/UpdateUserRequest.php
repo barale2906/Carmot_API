@@ -32,6 +32,8 @@ class UpdateUserRequest extends FormRequest
             'roles.*' => ['exists:roles,name'],
             'permissions' => ['sometimes', 'array'],
             'permissions.*' => ['exists:permissions,name'],
+            'cursos' => ['sometimes', 'array'],
+            'cursos.*' => ['exists:cursos,id'], // Valida que los cursos existan
         ];
     }
 }

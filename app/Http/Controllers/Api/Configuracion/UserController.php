@@ -50,10 +50,16 @@ class UserController extends Controller
             // Preparar relaciones
             $relations = $request->has('with')
                 ? explode(',', $request->with)
-                : ['roles', 'permissions', 'grupos'];
+                : ['roles', 'permissions', 'grupos', 'cursos', 'gestores', 'agendadores', 'seguimientos'];
 
             // Verificar si incluir contadores
-            $includeCounts = $request->has('with') && str_contains($request->with, 'grupos');
+            $includeCounts = $request->has('with') && (
+                str_contains($request->with, 'grupos') ||
+                str_contains($request->with, 'cursos') ||
+                str_contains($request->with, 'gestores') ||
+                str_contains($request->with, 'agendadores') ||
+                str_contains($request->with, 'seguimientos')
+            );
 
             $users = $query->with($relations)->paginate($request->input('per_page', 15));
 
@@ -93,7 +99,12 @@ class UserController extends Controller
             $user->syncPermissions($request->permissions);
         }
 
-        return (new UserResource($user->load('roles', 'permissions')))
+        // Sincronizar cursos si se proporcionan
+        if ($request->has('cursos')) {
+            $user->cursos()->sync($request->cursos);
+        }
+
+        return (new UserResource($user->load('roles', 'permissions', 'cursos')))
                 ->response()
                 ->setStatusCode(201); // 201 Created
     }
@@ -112,11 +123,11 @@ class UserController extends Controller
         // Preparar relaciones
         $relations = $request->has('with')
             ? explode(',', $request->with)
-            : ['roles', 'permissions', 'grupos'];
+            : ['roles', 'permissions', 'grupos', 'cursos', 'gestores', 'agendadores', 'seguimientos'];
 
         // Cargar relaciones y contadores
         $user->load($relations);
-        $user->loadCount(['grupos']);
+        $user->loadCount(['grupos', 'cursos', 'gestores', 'agendadores', 'seguimientos']);
 
         return new UserResource($user);
     }
@@ -147,9 +158,14 @@ class UserController extends Controller
             $user->syncPermissions($request->permissions);
         }
 
+        // Sincronizar cursos si se proporcionan
+        if ($request->has('cursos')) {
+            $user->cursos()->sync($request->cursos);
+        }
+
         // Cargar relaciones y contadores
-        $user->load(['roles', 'permissions']);
-        $user->loadCount(['grupos']);
+        $user->load(['roles', 'permissions', 'cursos']);
+        $user->loadCount(['grupos', 'cursos', 'gestores', 'agendadores', 'seguimientos']);
 
         return new UserResource($user);
     }
@@ -162,10 +178,16 @@ class UserController extends Controller
      */
     public function destroy(User $user)
     {
-        // Verificar si tiene grupos asociados
-        if ($user->grupos()->count() > 0) {
+        // Verificar si tiene relaciones asociadas
+        $hasRelations = $user->grupos()->count() > 0 ||
+                       $user->cursos()->count() > 0 ||
+                       $user->gestores()->count() > 0 ||
+                       $user->agendadores()->count() > 0 ||
+                       $user->seguimientos()->count() > 0;
+
+        if ($hasRelations) {
             return response()->json([
-                'message' => 'No se puede eliminar el usuario porque tiene grupos asociados.',
+                'message' => 'No se puede eliminar el usuario porque tiene relaciones asociadas (grupos, cursos, gestores, agendadores o seguimientos).',
             ], 422);
         }
 
@@ -207,10 +229,16 @@ class UserController extends Controller
     {
         $user = User::onlyTrashed()->findOrFail($id); // Busca solo entre los eliminados suavemente
 
-        // Verificar si tiene grupos asociados
-        if ($user->grupos()->withTrashed()->count() > 0) {
+        // Verificar si tiene relaciones asociadas
+        $hasRelations = $user->grupos()->withTrashed()->count() > 0 ||
+                       $user->cursos()->withTrashed()->count() > 0 ||
+                       $user->gestores()->withTrashed()->count() > 0 ||
+                       $user->agendadores()->withTrashed()->count() > 0 ||
+                       $user->seguimientos()->withTrashed()->count() > 0;
+
+        if ($hasRelations) {
             return response()->json([
-                'message' => 'No se puede eliminar permanentemente el usuario porque tiene grupos asociados.',
+                'message' => 'No se puede eliminar permanentemente el usuario porque tiene relaciones asociadas (grupos, cursos, gestores, agendadores o seguimientos).',
             ], 422);
         }
 
@@ -228,11 +256,17 @@ class UserController extends Controller
     {
         $roles = \Spatie\Permission\Models\Role::select('id', 'name')->get();
         $profesores = User::role('profesor')->select('id', 'name')->get();
+        $cursos = \App\Models\Academico\Curso::select('id', 'nombre')->get();
+        $gestores = User::role('gestor')->select('id', 'name')->get();
+        $agendadores = User::role('agendador')->select('id', 'name')->get();
 
         return response()->json([
             'data' => [
                 'roles' => $roles,
                 'profesores' => $profesores,
+                'cursos' => $cursos,
+                'gestores' => $gestores,
+                'agendadores' => $agendadores,
             ],
         ]);
     }
@@ -261,6 +295,30 @@ class UserController extends Controller
                 ->leftJoin('grupos', 'users.id', '=', 'grupos.profesor_id')
                 ->groupBy('users.id')
                 ->having('total_grupos', '>', 0)
+                ->get(),
+            'con_cursos' => User::with('cursos')
+                ->selectRaw('id, count(curso_user.curso_id) as total_cursos')
+                ->leftJoin('curso_user', 'users.id', '=', 'curso_user.user_id')
+                ->groupBy('users.id')
+                ->having('total_cursos', '>', 0)
+                ->get(),
+            'con_gestores' => User::with('gestores')
+                ->selectRaw('id, count(referidos.id) as total_gestores')
+                ->leftJoin('referidos', 'users.id', '=', 'referidos.gestor_id')
+                ->groupBy('users.id')
+                ->having('total_gestores', '>', 0)
+                ->get(),
+            'con_agendadores' => User::with('agendadores')
+                ->selectRaw('id, count(agendas.id) as total_agendadores')
+                ->leftJoin('agendas', 'users.id', '=', 'agendas.agendador_id')
+                ->groupBy('users.id')
+                ->having('total_agendadores', '>', 0)
+                ->get(),
+            'con_seguimientos' => User::with('seguimientos')
+                ->selectRaw('id, count(seguimientos.id) as total_seguimientos')
+                ->leftJoin('seguimientos', 'users.id', '=', 'seguimientos.seguidor_id')
+                ->groupBy('users.id')
+                ->having('total_seguimientos', '>', 0)
                 ->get(),
         ];
 
