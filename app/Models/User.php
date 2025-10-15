@@ -71,22 +71,22 @@ class User extends Authenticatable
                     ->withTimestamps();
     }
 
-    //Gestor CRM
+    //Gestor CRM - referidos que gestiona
     public function gestores(): HasMany
     {
-        return $this->hasMany(Referido::class);
+        return $this->hasMany(Referido::class, 'gestor_id');
     }
 
-    //Agendador CRM
+    //Agendador CRM - agendas que ha creado
     public function agendadores(): HasMany
     {
-        return $this->hasMany(Agenda::class);
+        return $this->hasMany(Agenda::class, 'agendador_id');
     }
 
     //Gestor que hace el seguimiento
     public function seguimientos(): HasMany
     {
-        return $this->hasMany(Seguimiento::class);
+        return $this->hasMany(Seguimiento::class, 'seguidor_id');
     }
 
     //Grupos que imparte el profesor

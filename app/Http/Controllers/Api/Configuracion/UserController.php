@@ -40,26 +40,19 @@ class UserController extends Controller
         try {
             $query = User::query();
 
-            if ($request->has('search')) {
+            if ($request->has('search') && !empty($request->input('search'))) {
                 $search = $request->input('search');
-                $query->where('name', 'like', "%{$search}%")
-                    ->orWhere('email', 'like', "%{$search}%")
-                    ->orWhere('documento', 'like', "%{$search}%");
+                $query->where(function($q) use ($search) {
+                    $q->where('name', 'like', "%{$search}%")
+                      ->orWhere('email', 'like', "%{$search}%")
+                      ->orWhere('documento', 'like', "%{$search}%");
+                });
             }
 
-            // Preparar relaciones
+            // Preparar relaciones - básicas por defecto
             $relations = $request->has('with')
                 ? explode(',', $request->with)
                 : ['roles', 'permissions', 'grupos', 'cursos', 'gestores', 'agendadores', 'seguimientos'];
-
-            // Verificar si incluir contadores
-            $includeCounts = $request->has('with') && (
-                str_contains($request->with, 'grupos') ||
-                str_contains($request->with, 'cursos') ||
-                str_contains($request->with, 'gestores') ||
-                str_contains($request->with, 'agendadores') ||
-                str_contains($request->with, 'seguimientos')
-            );
 
             $users = $query->with($relations)->paginate($request->input('per_page', 15));
 
@@ -68,10 +61,14 @@ class UserController extends Controller
         } catch (\Exception $e) {
             Log::error("Error al realizar la consulta", [
                 'exception' => $e->getMessage(),
-                'trace' => $e->getTraceAsString() // Muy importante para saber dónde falló
+                'trace' => $e->getTraceAsString()
             ]);
-        }
 
+            return response()->json([
+                'message' => 'Error al obtener los usuarios',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
