@@ -26,10 +26,10 @@ class UserController extends Controller
 
     /**
      * Mostrar una lista de usuarios.
-    * @queryParam page int Número de página. Ejemplo: 1
-    * @queryParam per_page int Número de elementos por página. Ejemplo: 15
-    * @queryParam search string Buscar usuarios por nombre o correo electrónico. Ejemplo: John Doe
-    *
+     * @queryParam page int Número de página. Ejemplo: 1
+     * @queryParam per_page int Número de elementos por página. Ejemplo: 15
+     * @queryParam search string Buscar usuarios por nombre o correo electrónico. Ejemplo: John Doe
+     *
      * @apiResourceCollection App\Http\Resources\UserResource
      * @apiResourceModel App\Models\User
      *
@@ -69,7 +69,7 @@ class UserController extends Controller
     }
 
     /**
-     * Store a newly created user in storage.
+     * Almacenar un usuario recién creado en el almacenamiento.
      *
      * @apiResource App\Http\Resources\UserResource
      * @apiResourceModel App\Models\User
