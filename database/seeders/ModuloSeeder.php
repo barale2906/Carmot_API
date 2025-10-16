@@ -13,6 +13,6 @@ class ModuloSeeder extends Seeder
      */
     public function run(): void
     {
-        Modulo::factory(100)->create([]);
+        Modulo::factory(70)->create([]);
     }
 }

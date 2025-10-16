@@ -23,7 +23,7 @@ class UserSeeder extends Seeder
             //'rol_id'=>1
         ])->assignRole('superusuario');
 
-        $roles = Role::whereIn('name', ['financiero', 'coordinador', 'profesor'])->get(); // O roles específicos
+        $roles = Role::whereIn('name', ['financiero', 'coordinador', 'profesor','alumno'])->get(); // O roles específicos
 
         User::factory(10)->create()->each(function ($user) use ($roles) {
             $user->assignRole($roles->random());

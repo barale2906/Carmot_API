@@ -20,18 +20,29 @@ class AreaSeeder extends Seeder
             Sede::factory(5)->create();
         }
 
-        // Crear áreas (las relaciones se crean automáticamente en el factory)
-        Area::factory(10)->create();
+        // Crear áreas sin relaciones automáticas para evitar duplicados
+        Area::factory(8)->withoutSedes()->create();
 
         // Crear algunas áreas específicas para ejemplos
         Area::factory()
             ->active()
-            ->withSedes([1, 2]) // Con sedes específicas
-            ->create(['nombre' => 'Área de Ventas']);
+            ->withoutSedes() // Sin relaciones automáticas
+            ->create(['nombre' => 'Área de Ventas'])
+            ->sedes()->attach([1, 2]); // Asignar sedes específicas después
 
         Area::factory()
             ->inactive()
             ->withoutSedes() // Sin sedes
             ->create(['nombre' => 'Área Archivada']);
+
+        // Crear algunas áreas con relaciones aleatorias (pero controladas)
+        $areas = Area::whereNotIn('nombre', ['Área de Ventas', 'Área Archivada'])->get();
+        $sedes = Sede::all();
+
+        foreach ($areas as $area) {
+            // Asignar entre 1 y 3 sedes aleatorias a cada área
+            $randomSedes = $sedes->random(rand(1, min(3, $sedes->count())));
+            $area->sedes()->attach($randomSedes->pluck('id')->toArray());
+        }
     }
 }

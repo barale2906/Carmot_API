@@ -26,6 +26,7 @@ class DatabaseSeeder extends Seeder
             SedeSeeder::class,
             AreaSeeder::class,
             GrupoSeeder::class,
+            CicloSeeder::class,
         ]);
         // \App\Models\User::factory(10)->create();
 

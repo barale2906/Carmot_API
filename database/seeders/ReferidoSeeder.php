@@ -13,7 +13,7 @@ class ReferidoSeeder extends Seeder
      */
     public function run(): void
     {
-        Referido::factory(300)->create([
+        Referido::factory(150)->create([
             'status' => 0,
         ]);
     }

@@ -51,6 +51,14 @@ class Curso extends Model
     }
 
     /**
+     * Ciclos asociados al curso (relación uno a muchos).
+     */
+    public function ciclos(): HasMany
+    {
+        return $this->hasMany(Ciclo::class);
+    }
+
+    /**
      * Scope para filtrar por búsqueda de nombre (sobrescribe el del trait).
      */
     public function scopeSearch($query, $search)
@@ -130,7 +138,8 @@ class Curso extends Model
         return [
             'referidos',
             'estudiantes',
-            'modulos'
+            'modulos',
+            'ciclos'
         ];
     }
 
@@ -139,7 +148,7 @@ class Curso extends Model
      */
     protected function getDefaultRelations(): array
     {
-        return ['referidos', 'estudiantes', 'modulos'];
+        return ['referidos', 'estudiantes', 'modulos', 'ciclos'];
     }
 
     /**
@@ -147,6 +156,6 @@ class Curso extends Model
      */
     protected function getCountableRelations(): array
     {
-        return ['referidos', 'estudiantes', 'modulos'];
+        return ['referidos', 'estudiantes', 'modulos', 'ciclos'];
     }
 }

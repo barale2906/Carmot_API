@@ -25,24 +25,15 @@ class AreaFactory extends Factory
 
     /**
      * Configura el estado del modelo después de la creación.
-     * Crea relaciones con sedes automáticamente.
+     * Por defecto, NO crea relaciones automáticamente para evitar duplicados.
      *
      * @return static
      */
     public function configure(): static
     {
         return $this->afterCreating(function ($area) {
-            // Obtener sedes existentes
-            $sedes = Sede::all();
-
-            // Si no hay sedes, crear algunas
-            if ($sedes->isEmpty()) {
-                $sedes = Sede::factory(3)->create();
-            }
-
-            // Asignar entre 1 y 3 sedes aleatorias a esta área
-            $randomSedes = $sedes->random(rand(1, min(3, $sedes->count())));
-            $area->sedes()->attach($randomSedes->pluck('id')->toArray());
+            // Por defecto, no asignar sedes automáticamente
+            // Las relaciones se manejan explícitamente en los seeders
         });
     }
 
@@ -68,6 +59,28 @@ class AreaFactory extends Factory
     {
         return $this->afterCreating(function ($area) {
             // No asignar sedes
+        });
+    }
+
+    /**
+     * Crea un área con sedes aleatorias automáticamente.
+     *
+     * @return static
+     */
+    public function withRandomSedes(): static
+    {
+        return $this->afterCreating(function ($area) {
+            // Obtener sedes existentes
+            $sedes = Sede::all();
+
+            // Si no hay sedes, crear algunas
+            if ($sedes->isEmpty()) {
+                $sedes = Sede::factory(3)->create();
+            }
+
+            // Asignar entre 1 y 3 sedes aleatorias a esta área
+            $randomSedes = $sedes->random(rand(1, min(3, $sedes->count())));
+            $area->sedes()->attach($randomSedes->pluck('id')->toArray());
         });
     }
 

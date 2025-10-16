@@ -70,6 +70,6 @@ class TopicoSeeder extends Seeder
         }
 
         // Crear tópicos adicionales con factory
-        Topico::factory(50)->create();
+        Topico::factory(20)->create();
     }
 }

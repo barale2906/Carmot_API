@@ -98,6 +98,17 @@ class Sede extends Model
     }
 
     /**
+     * Relación con Ciclo (uno a muchos).
+     * Una sede puede tener múltiples ciclos.
+     *
+     * @return HasMany
+     */
+    public function ciclos(): HasMany
+    {
+        return $this->hasMany(\App\Models\Academico\Ciclo::class);
+    }
+
+    /**
      * Obtiene las relaciones permitidas para este modelo.
      * Sobrescribe el método del trait HasRelationScopes.
      *
@@ -109,7 +120,8 @@ class Sede extends Model
             'poblacion',
             'areas',
             'horarios',
-            'grupos'
+            'grupos',
+            'ciclos'
         ];
     }
 
@@ -137,7 +149,8 @@ class Sede extends Model
         return [
             'areas',
             'horarios',
-            'grupos'
+            'grupos',
+            'ciclos'
         ];
     }
 

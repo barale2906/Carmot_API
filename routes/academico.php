@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\Academico\CicloController;
 use App\Http\Controllers\Api\Academico\CursoController;
 use App\Http\Controllers\Api\Academico\GrupoController;
 use App\Http\Controllers\Api\Academico\ModuloController;
@@ -77,5 +78,20 @@ Route::middleware('auth:sanctum')->group(function () {
         // Rutas para filtros y estadísticas
         Route::get('filters', [GrupoController::class, 'filters'])->name('grupos.filters');
         Route::get('statistics', [GrupoController::class, 'statistics'])->name('grupos.statistics');
+    });
+
+    // Rutas principales de ciclos (CRUD estándar)
+    Route::apiResource('ciclos', CicloController::class);
+
+    // Rutas adicionales para funcionalidades específicas de ciclos
+    Route::prefix('ciclos')->group(function () {
+        // Rutas para manejo de soft delete
+        Route::post('{id}/restore', [CicloController::class, 'restore'])->name('ciclos.restore');
+        Route::delete('{id}/force-delete', [CicloController::class, 'forceDelete'])->name('ciclos.force-delete');
+        Route::get('trashed', [CicloController::class, 'trashed'])->name('ciclos.trashed');
+
+        // Rutas para filtros y estadísticas
+        Route::get('filters', [CicloController::class, 'filters'])->name('ciclos.filters');
+        Route::get('statistics', [CicloController::class, 'statistics'])->name('ciclos.statistics');
     });
 });
