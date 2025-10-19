@@ -43,7 +43,11 @@ class ValidateKpiSecurity
      */
     private function validateBaseModel(string $baseModel): void
     {
-        $allowedModels = array_keys(config('kpis.available_kpi_models', []));
+        $kpiMetadataService = app(\App\Services\KpiMetadataService::class);
+        $allowedModels = [];
+        foreach (config('kpis.available_kpi_models', []) as $config) {
+            $allowedModels[] = $config['class'];
+        }
 
         if (!in_array($baseModel, $allowedModels)) {
             throw new \InvalidArgumentException("El modelo '{$baseModel}' no está permitido para KPIs.");
@@ -66,7 +70,8 @@ class ValidateKpiSecurity
             throw new \InvalidArgumentException("KPI no válido o sin modelo base.");
         }
 
-        $allowedFields = config("kpis.available_kpi_models.{$kpi->base_model}.fields", []);
+        $kpiMetadataService = app(\App\Services\KpiMetadataService::class);
+        $allowedFields = $kpiMetadataService->getModelFieldsByClass($kpi->base_model);
 
         if (!in_array($fieldName, $allowedFields)) {
             throw new \InvalidArgumentException("El campo '{$fieldName}' no está permitido para este modelo.");

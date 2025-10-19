@@ -20,7 +20,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Rutas de metadata de KPIs (sin middleware de seguridad - solo lectura)
     Route::prefix('kpi-metadata')->group(function () {
         Route::get('models', [KpiMetadataController::class, 'getModels']);
-        Route::get('models/{modelClass}/fields', [KpiMetadataController::class, 'getFields']);
+        Route::get('models/{modelId}/fields', [KpiMetadataController::class, 'getFields']);
     });
 
     // Rutas de dashboards (sin middleware de seguridad - no manejan KPIs directamente)

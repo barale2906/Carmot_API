@@ -49,7 +49,8 @@ class KpiResource extends JsonResource
             return null;
         }
 
-        $config = config("kpis.available_kpi_models.{$this->base_model}");
+        $kpiMetadataService = app(\App\Services\KpiMetadataService::class);
+        $config = $kpiMetadataService->getModelConfig($this->base_model);
         return $config['display_name'] ?? class_basename($this->base_model);
     }
 }

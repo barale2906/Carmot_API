@@ -22,9 +22,10 @@ class ModelMetadataResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-            'class' => $this->resource['class'],
-            'display_name' => $this->resource['display_name'],
-            'short_name' => class_basename($this->resource['class']),
+            'id' => $this->resource['id'] ?? null,
+            'class' => $this->resource['class'] ?? null,
+            'display_name' => $this->resource['display_name'] ?? 'Unknown Model',
+            'short_name' => $this->resource['class'] ? class_basename($this->resource['class']) : 'Unknown',
             'namespace' => $this->getNamespace(),
             'is_available' => true,
             'fields_count' => $this->getFieldsCount(),
@@ -38,8 +39,16 @@ class ModelMetadataResource extends JsonResource
      */
     private function getNamespace(): string
     {
-        $reflection = new \ReflectionClass($this->resource['class']);
-        return $reflection->getNamespaceName();
+        if (!isset($this->resource['class']) || !$this->resource['class']) {
+            return 'Unknown';
+        }
+
+        try {
+            $reflection = new \ReflectionClass($this->resource['class']);
+            return $reflection->getNamespaceName();
+        } catch (\Exception $e) {
+            return 'Unknown';
+        }
     }
 
     /**
@@ -49,7 +58,11 @@ class ModelMetadataResource extends JsonResource
      */
     private function getFieldsCount(): int
     {
-        $config = config("kpis.available_kpi_models.{$this->resource['class']}");
+        if (!isset($this->resource['id'])) {
+            return 0;
+        }
+
+        $config = config("kpis.available_kpi_models.{$this->resource['id']}");
         return count($config['fields'] ?? []);
     }
 }
