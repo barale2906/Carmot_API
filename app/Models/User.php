@@ -94,4 +94,10 @@ class User extends Authenticatable
     {
         return $this->hasMany(\App\Models\Academico\Grupo::class, 'profesor_id');
     }
+
+    //Grupos que imparte el profesor
+    public function dashboards(): HasMany
+    {
+        return $this->hasMany(\App\Models\Dashboard\Dashboard::class, 'user_id');
+    }
 }
