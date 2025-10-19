@@ -24,8 +24,8 @@ class ModelMetadataResource extends JsonResource
         return [
             'id' => $this->resource['id'] ?? null,
             'class' => $this->resource['class'] ?? null,
-            'display_name' => $this->resource['display_name'] ?? 'Unknown Model',
-            'short_name' => $this->resource['class'] ? class_basename($this->resource['class']) : 'Unknown',
+            'display_name' => $this->resource['display_name'] ?? 'Modelo desconocido',
+            'short_name' => $this->resource['class'] ? class_basename($this->resource['class']) : 'Desconocido',
             'namespace' => $this->getNamespace(),
             'is_available' => true,
             'fields_count' => $this->getFieldsCount(),
@@ -40,14 +40,14 @@ class ModelMetadataResource extends JsonResource
     private function getNamespace(): string
     {
         if (!isset($this->resource['class']) || !$this->resource['class']) {
-            return 'Unknown';
+            return 'Desconocido';
         }
 
         try {
             $reflection = new \ReflectionClass($this->resource['class']);
             return $reflection->getNamespaceName();
         } catch (\Exception $e) {
-            return 'Unknown';
+            return 'Desconocido';
         }
     }
 
