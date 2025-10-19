@@ -39,7 +39,8 @@ class Kpi extends Model
      */
     protected $fillable = [
         'name', 'code', 'description', 'unit', 'is_active',
-        'calculation_type', 'base_model'
+        'calculation_type', 'base_model', 'default_period_type',
+        'default_period_start_date', 'default_period_end_date', 'use_custom_time_range'
     ];
 
     /**
@@ -49,6 +50,9 @@ class Kpi extends Model
      */
     protected $casts = [
         'is_active' => 'boolean',
+        'default_period_start_date' => 'date',
+        'default_period_end_date' => 'date',
+        'use_custom_time_range' => 'boolean',
     ];
 
     /**
@@ -71,5 +75,62 @@ class Kpi extends Model
     public function dashboardCards(): HasMany
     {
         return $this->hasMany(DashboardCard::class);
+    }
+
+    /**
+     * Obtiene el rango de fechas por defecto del KPI.
+     *
+     * @return array{start: \Carbon\Carbon, end: \Carbon\Carbon}
+     */
+    public function getDefaultTimeRange(): array
+    {
+        if ($this->use_custom_time_range && $this->default_period_start_date && $this->default_period_end_date) {
+            return [
+                'start' => $this->default_period_start_date,
+                'end' => $this->default_period_end_date
+            ];
+        }
+
+        // Si no tiene rango personalizado, usar el tipo de periodo por defecto
+        $now = \Carbon\Carbon::now();
+
+        switch ($this->default_period_type) {
+            case 'daily':
+                return [
+                    'start' => $now->copy()->startOfDay(),
+                    'end' => $now->copy()->endOfDay()
+                ];
+            case 'weekly':
+                return [
+                    'start' => $now->copy()->startOfWeek(),
+                    'end' => $now->copy()->endOfWeek()
+                ];
+            case 'monthly':
+                return [
+                    'start' => $now->copy()->startOfMonth(),
+                    'end' => $now->copy()->endOfMonth()
+                ];
+            case 'yearly':
+                return [
+                    'start' => $now->copy()->startOfYear(),
+                    'end' => $now->copy()->endOfYear()
+                ];
+            default:
+                // Por defecto, último mes
+                return [
+                    'start' => $now->copy()->subMonth(),
+                    'end' => $now
+                ];
+        }
+    }
+
+    /**
+     * Verifica si el KPI tiene un rango de tiempo configurado.
+     *
+     * @return bool
+     */
+    public function hasTimeRange(): bool
+    {
+        return $this->use_custom_time_range || !empty($this->default_period_type);
     }
 }

@@ -46,6 +46,10 @@ class StoreKpiRequest extends FormRequest
             'is_active' => 'boolean',
             'calculation_type' => 'required|in:predefined,custom_fields,sql_query',
             'base_model' => 'nullable|string',
+            'default_period_type' => 'nullable|in:daily,weekly,monthly,yearly,custom',
+            'default_period_start_date' => 'nullable|date',
+            'default_period_end_date' => 'nullable|date|after_or_equal:default_period_start_date',
+            'use_custom_time_range' => 'boolean',
             'kpi_fields' => 'nullable|array',
             'kpi_fields.*.field_name' => 'required_with:kpi_fields|string|max:255',
             'kpi_fields.*.display_name' => 'required_with:kpi_fields|string|max:255',
@@ -76,6 +80,11 @@ class StoreKpiRequest extends FormRequest
             'calculation_type.required' => 'El tipo de cálculo es obligatorio.',
             'calculation_type.in' => 'El tipo de cálculo debe ser: predefined, custom_fields o sql_query.',
             'base_model.string' => 'El modelo base debe ser una cadena válida.',
+            'default_period_type.in' => 'El tipo de periodo debe ser: daily, weekly, monthly, yearly o custom.',
+            'default_period_start_date.date' => 'La fecha de inicio debe ser una fecha válida.',
+            'default_period_end_date.date' => 'La fecha de fin debe ser una fecha válida.',
+            'default_period_end_date.after_or_equal' => 'La fecha de fin debe ser posterior o igual a la fecha de inicio.',
+            'use_custom_time_range.boolean' => 'El uso de rango personalizado debe ser verdadero o falso.',
             'kpi_fields.array' => 'Los campos del KPI deben ser un array.',
             'kpi_fields.*.field_name.required_with' => 'El nombre del campo es obligatorio cuando se especifican campos.',
             'kpi_fields.*.display_name.required_with' => 'El nombre de visualización es obligatorio cuando se especifican campos.',
@@ -112,6 +121,17 @@ class StoreKpiRequest extends FormRequest
                 if (!$hasMainOperation) {
                     $validator->errors()->add('kpi_fields', 'Debe especificar al menos un campo con operación principal (sum, count, avg, min, max).');
                 }
+            }
+
+            // Validar configuración de rango de tiempo
+            if ($this->use_custom_time_range) {
+                if (!$this->default_period_start_date || !$this->default_period_end_date) {
+                    $validator->errors()->add('use_custom_time_range', 'Si se usa rango personalizado, deben especificarse las fechas de inicio y fin.');
+                }
+            }
+
+            if ($this->default_period_type === 'custom' && !$this->use_custom_time_range) {
+                $validator->errors()->add('default_period_type', 'Si el tipo de periodo es custom, debe activarse el rango personalizado.');
             }
         });
     }

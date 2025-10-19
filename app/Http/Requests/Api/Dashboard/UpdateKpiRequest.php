@@ -48,6 +48,10 @@ class UpdateKpiRequest extends FormRequest
             'is_active' => 'boolean',
             'calculation_type' => 'sometimes|in:predefined,custom_fields,sql_query',
             'base_model' => 'nullable|string',
+            'default_period_type' => 'nullable|in:daily,weekly,monthly,yearly,custom',
+            'default_period_start_date' => 'nullable|date',
+            'default_period_end_date' => 'nullable|date|after_or_equal:default_period_start_date',
+            'use_custom_time_range' => 'boolean',
         ];
     }
 
@@ -68,6 +72,11 @@ class UpdateKpiRequest extends FormRequest
             'unit.max' => 'La unidad no puede exceder 50 caracteres.',
             'calculation_type.in' => 'El tipo de cálculo debe ser: predefined, custom_fields o sql_query.',
             'base_model.string' => 'El modelo base debe ser una cadena válida.',
+            'default_period_type.in' => 'El tipo de periodo debe ser: daily, weekly, monthly, yearly o custom.',
+            'default_period_start_date.date' => 'La fecha de inicio debe ser una fecha válida.',
+            'default_period_end_date.date' => 'La fecha de fin debe ser una fecha válida.',
+            'default_period_end_date.after_or_equal' => 'La fecha de fin debe ser posterior o igual a la fecha de inicio.',
+            'use_custom_time_range.boolean' => 'El uso de rango personalizado debe ser verdadero o falso.',
         ];
     }
 
@@ -83,6 +92,17 @@ class UpdateKpiRequest extends FormRequest
             // Validar que el modelo base existe si se especifica
             if ($this->base_model && !$this->kpiMetadataService->isModelAllowed($this->base_model)) {
                 $validator->errors()->add('base_model', 'El modelo especificado no está permitido para KPIs.');
+            }
+
+            // Validar configuración de rango de tiempo
+            if ($this->use_custom_time_range) {
+                if (!$this->default_period_start_date || !$this->default_period_end_date) {
+                    $validator->errors()->add('use_custom_time_range', 'Si se usa rango personalizado, deben especificarse las fechas de inicio y fin.');
+                }
+            }
+
+            if ($this->default_period_type === 'custom' && !$this->use_custom_time_range) {
+                $validator->errors()->add('default_period_type', 'Si el tipo de periodo es custom, debe activarse el rango personalizado.');
             }
         });
     }

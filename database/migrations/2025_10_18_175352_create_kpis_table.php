@@ -21,6 +21,10 @@ return new class extends Migration
             $table->boolean('is_active')->default(true)->comment('Habilita/deshabilita el KPI.');
             $table->string('calculation_type')->default('predefined')->comment("Tipo de cálculo ('predefined', 'custom_fields', 'sql_query').");
             $table->string('base_model')->nullable()->comment("Nombre del modelo Eloquent base para el cálculo (ej. App\Models\Academico\Matricula).");
+            $table->string('default_period_type')->nullable()->comment('Tipo de periodo por defecto (daily, weekly, monthly, yearly, custom)');
+            $table->date('default_period_start_date')->nullable()->comment('Fecha de inicio del periodo por defecto');
+            $table->date('default_period_end_date')->nullable()->comment('Fecha de fin del periodo por defecto');
+            $table->boolean('use_custom_time_range')->default(false)->comment('Si el KPI debe usar un rango de tiempo personalizado');
             $table->softDeletes();
             $table->timestamps();
         });

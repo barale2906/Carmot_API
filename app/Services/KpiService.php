@@ -19,17 +19,24 @@ class KpiService
      *
      * @param int $kpiId ID del KPI a calcular
      * @param int|null $tenantId ID del tenant (opcional, puede ser null)
-     * @param Carbon $startDate Fecha de inicio del periodo
-     * @param Carbon $endDate Fecha de fin del periodo
+     * @param Carbon|null $startDate Fecha de inicio del periodo (opcional, usa el rango por defecto del KPI si no se especifica)
+     * @param Carbon|null $endDate Fecha de fin del periodo (opcional, usa el rango por defecto del KPI si no se especifica)
      * @return float|null Valor calculado del KPI o null si no se puede calcular
      * @throws \Illuminate\Database\Eloquent\ModelNotFoundException Si el KPI no existe
      */
-    public function getKpiValue(int $kpiId, ?int $tenantId, Carbon $startDate, Carbon $endDate): ?float
+    public function getKpiValue(int $kpiId, ?int $tenantId, ?Carbon $startDate = null, ?Carbon $endDate = null): ?float
     {
         $kpi = Kpi::with('kpiFields')->findOrFail($kpiId);
 
         if (!$kpi->base_model || !class_exists($kpi->base_model)) {
             return null;
+        }
+
+        // Si no se proporcionan fechas, usar el rango por defecto del KPI
+        if ($startDate === null || $endDate === null) {
+            $defaultRange = $kpi->getDefaultTimeRange();
+            $startDate = $startDate ?? $defaultRange['start'];
+            $endDate = $endDate ?? $defaultRange['end'];
         }
 
         $query = $kpi->base_model::query();
@@ -65,6 +72,19 @@ class KpiService
 
         // Ejecutar la operación principal
         return $this->executeMainOperation($query, $mainOperation, $mainOperationField);
+    }
+
+    /**
+     * Calcula el valor de un KPI usando su rango de tiempo por defecto.
+     *
+     * @param int $kpiId ID del KPI a calcular
+     * @param int|null $tenantId ID del tenant (opcional, puede ser null)
+     * @return float|null Valor calculado del KPI o null si no se puede calcular
+     * @throws \Illuminate\Database\Eloquent\ModelNotFoundException Si el KPI no existe
+     */
+    public function getKpiValueWithDefaultRange(int $kpiId, ?int $tenantId = null): ?float
+    {
+        return $this->getKpiValue($kpiId, $tenantId);
     }
 
     /**

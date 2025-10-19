@@ -8,6 +8,7 @@ use App\Http\Resources\Api\Dashboard\FieldMetadataResource;
 use App\Services\KpiMetadataService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Controlador KpiMetadataController
@@ -35,13 +36,13 @@ class KpiMetadataController extends Controller
             $models = $this->kpiMetadataService->getAvailableKpiModels();
 
             // Debug: Log de los modelos obtenidos
-            \Log::info('KPI Metadata Models:', $models);
+            //Log::info('KPI Metadata Models:', $models);
 
             return ModelMetadataResource::collection($models)->response();
         } catch (\Exception $e) {
-            \Log::error('Error en getModels: ' . $e->getMessage(), [
+            /* Log::error('Error en getModels: ' . $e->getMessage(), [
                 'trace' => $e->getTraceAsString()
-            ]);
+            ]); */
 
             return response()->json([
                 'error' => 'Error interno del servidor',
