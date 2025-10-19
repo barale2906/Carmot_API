@@ -47,7 +47,7 @@ class UpdateKpiRequest extends FormRequest
             'unit' => 'nullable|string|max:50',
             'is_active' => 'boolean',
             'calculation_type' => 'sometimes|in:predefined,custom_fields,sql_query',
-            'base_model' => 'nullable|string',
+            'base_model' => 'nullable|integer',
             'default_period_type' => 'nullable|in:daily,weekly,monthly,yearly,custom',
             'default_period_start_date' => 'nullable|date',
             'default_period_end_date' => 'nullable|date|after_or_equal:default_period_start_date',
@@ -71,7 +71,7 @@ class UpdateKpiRequest extends FormRequest
             'description.max' => 'La descripción no puede exceder 1000 caracteres.',
             'unit.max' => 'La unidad no puede exceder 50 caracteres.',
             'calculation_type.in' => 'El tipo de cálculo debe ser: predefined, custom_fields o sql_query.',
-            'base_model.string' => 'El modelo base debe ser una cadena válida.',
+            'base_model.integer' => 'El modelo base debe ser un número entero.',
             'default_period_type.in' => 'El tipo de periodo debe ser: daily, weekly, monthly, yearly o custom.',
             'default_period_start_date.date' => 'La fecha de inicio debe ser una fecha válida.',
             'default_period_end_date.date' => 'La fecha de fin debe ser una fecha válida.',
@@ -89,9 +89,12 @@ class UpdateKpiRequest extends FormRequest
     public function withValidator($validator): void
     {
         $validator->after(function ($validator) {
-            // Validar que el modelo base existe si se especifica
-            if ($this->base_model && !$this->kpiMetadataService->isModelAllowed($this->base_model)) {
-                $validator->errors()->add('base_model', 'El modelo especificado no está permitido para KPIs.');
+            // Validar que el modelo base existe en la configuración
+            if ($this->base_model) {
+                $availableModels = config('kpis.available_kpi_models', []);
+                if (!array_key_exists($this->base_model, $availableModels)) {
+                    $validator->errors()->add('base_model', 'El modelo especificado no está disponible en la configuración.');
+                }
             }
 
             // Validar configuración de rango de tiempo

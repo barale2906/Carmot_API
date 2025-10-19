@@ -20,7 +20,7 @@ return new class extends Migration
             $table->string('unit')->nullable()->comment('Unidad de medida (ej. "USD", "%").');
             $table->boolean('is_active')->default(true)->comment('Habilita/deshabilita el KPI.');
             $table->string('calculation_type')->default('predefined')->comment("Tipo de cálculo ('predefined', 'custom_fields', 'sql_query').");
-            $table->string('base_model')->nullable()->comment("Nombre del modelo Eloquent base para el cálculo (ej. App\Models\Academico\Matricula).");
+            $table->integer('base_model')->nullable()->comment('ID del modelo en la configuración de KPIs base para el cálculo (ej. App\Models\Academico\Matricula)');
             $table->string('default_period_type')->nullable()->comment('Tipo de periodo por defecto (daily, weekly, monthly, yearly, custom)');
             $table->date('default_period_start_date')->nullable()->comment('Fecha de inicio del periodo por defecto');
             $table->date('default_period_end_date')->nullable()->comment('Fecha de fin del periodo por defecto');

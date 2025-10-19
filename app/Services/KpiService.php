@@ -26,9 +26,9 @@ class KpiService
      */
     public function getKpiValue(int $kpiId, ?int $tenantId, ?Carbon $startDate = null, ?Carbon $endDate = null): ?float
     {
-        $kpi = Kpi::with('kpiFields')->findOrFail($kpiId);
+        $kpi = Kpi::with(['kpiFields', 'fieldRelations.fieldA', 'fieldRelations.fieldB'])->findOrFail($kpiId);
 
-        if (!$kpi->base_model || !class_exists($kpi->base_model)) {
+        if (!$kpi->hasValidBaseModel()) {
             return null;
         }
 
@@ -39,11 +39,46 @@ class KpiService
             $endDate = $endDate ?? $defaultRange['end'];
         }
 
-        $query = $kpi->base_model::query();
-        //$query = $kpi->base_model::where('tenant_id', $tenantId);
+        // Verificar si hay relaciones entre campos
+        $activeRelations = $kpi->fieldRelations()->where('is_active', true)->orderBy('order')->get();
+
+        if ($activeRelations->isNotEmpty()) {
+            return $this->calculateKpiWithRelations($kpi, $activeRelations, $tenantId, $startDate, $endDate);
+        }
+
+        // Si no hay relaciones, usar el método tradicional
+        return $this->calculateKpiTraditional($kpi, $tenantId, $startDate, $endDate);
+    }
+
+    /**
+     * Calcula el valor de un KPI usando su rango de tiempo por defecto.
+     *
+     * @param int $kpiId ID del KPI a calcular
+     * @param int|null $tenantId ID del tenant (opcional, puede ser null)
+     * @return float|null Valor calculado del KPI o null si no se puede calcular
+     * @throws \Illuminate\Database\Eloquent\ModelNotFoundException Si el KPI no existe
+     */
+    public function getKpiValueWithDefaultRange(int $kpiId, ?int $tenantId = null): ?float
+    {
+        return $this->getKpiValue($kpiId, $tenantId);
+    }
+
+    /**
+     * Calcula un KPI usando el método tradicional (sin relaciones).
+     *
+     * @param \App\Models\Dashboard\Kpi $kpi
+     * @param int|null $tenantId
+     * @param Carbon $startDate
+     * @param Carbon $endDate
+     * @return float|null
+     */
+    private function calculateKpiTraditional($kpi, ?int $tenantId, Carbon $startDate, Carbon $endDate): ?float
+    {
+        $modelClass = $kpi->getBaseModelClass();
+        $query = $modelClass::query();
 
         // Aplicar filtro de tenant si está disponible
-        if ($tenantId && method_exists($kpi->base_model, 'where')) {
+        if ($tenantId && method_exists($modelClass, 'where')) {
             $query->where('tenant_id', $tenantId);
         }
 
@@ -75,16 +110,131 @@ class KpiService
     }
 
     /**
-     * Calcula el valor de un KPI usando su rango de tiempo por defecto.
+     * Calcula un KPI con relaciones entre campos.
      *
-     * @param int $kpiId ID del KPI a calcular
-     * @param int|null $tenantId ID del tenant (opcional, puede ser null)
-     * @return float|null Valor calculado del KPI o null si no se puede calcular
-     * @throws \Illuminate\Database\Eloquent\ModelNotFoundException Si el KPI no existe
+     * @param \App\Models\Dashboard\Kpi $kpi
+     * @param \Illuminate\Database\Eloquent\Collection $relations
+     * @param int|null $tenantId
+     * @param Carbon $startDate
+     * @param Carbon $endDate
+     * @return float|null
      */
-    public function getKpiValueWithDefaultRange(int $kpiId, ?int $tenantId = null): ?float
+    private function calculateKpiWithRelations($kpi, $relations, ?int $tenantId, Carbon $startDate, Carbon $endDate): ?float
     {
-        return $this->getKpiValue($kpiId, $tenantId);
+        $fieldValues = [];
+
+        // Calcular el valor de cada campo involucrado en las relaciones
+        foreach ($relations as $relation) {
+            if (!$relation->isValid()) {
+                continue;
+            }
+
+            // Calcular valor del campo A si no se ha calculado
+            if (!isset($fieldValues[$relation->field_a_id])) {
+                $fieldValues[$relation->field_a_id] = $this->calculateFieldValue(
+                    $relation->fieldA,
+                    $relation->getFieldAModel(),
+                    $relation->field_a_conditions,
+                    $tenantId,
+                    $startDate,
+                    $endDate
+                );
+            }
+
+            // Calcular valor del campo B si no se ha calculado
+            if (!isset($fieldValues[$relation->field_b_id])) {
+                $fieldValues[$relation->field_b_id] = $this->calculateFieldValue(
+                    $relation->fieldB,
+                    $relation->getFieldBModel(),
+                    $relation->field_b_conditions,
+                    $tenantId,
+                    $startDate,
+                    $endDate
+                );
+            }
+
+            // Realizar la operación entre los campos
+            $valueA = $fieldValues[$relation->field_a_id];
+            $valueB = $fieldValues[$relation->field_b_id];
+
+            if ($valueA === null || $valueB === null) {
+                continue;
+            }
+
+            $result = $this->executeFieldRelation($valueA, $valueB, $relation->operation);
+
+            if ($result !== null) {
+                $result *= $relation->multiplier;
+                $fieldValues[$relation->id] = $result;
+            }
+        }
+
+        // Retornar el resultado de la última relación o el primer valor calculado
+        return $fieldValues[array_key_last($fieldValues)] ?? null;
+    }
+
+    /**
+     * Calcula el valor de un campo específico.
+     *
+     * @param \App\Models\Dashboard\KpiField $field
+     * @param string $modelClass
+     * @param array|null $conditions
+     * @param int|null $tenantId
+     * @param Carbon $startDate
+     * @param Carbon $endDate
+     * @return float|null
+     */
+    private function calculateFieldValue($field, string $modelClass, ?array $conditions, ?int $tenantId, Carbon $startDate, Carbon $endDate): ?float
+    {
+        if (!class_exists($modelClass)) {
+            return null;
+        }
+
+        $query = $modelClass::query();
+
+        // Aplicar filtro de tenant si está disponible
+        if ($tenantId && method_exists($modelClass, 'where')) {
+            $query->where('tenant_id', $tenantId);
+        }
+
+        // Aplicar condiciones adicionales
+        if ($conditions) {
+            foreach ($conditions as $condition) {
+                $query->where($condition['field'], $condition['operator'], $condition['value']);
+            }
+        }
+
+        // Aplicar filtro de fechas
+        $query->whereBetween('created_at', [$startDate, $endDate]);
+
+        // Ejecutar la operación del campo
+        return $this->executeMainOperation($query, $field->operation, $field->field_name);
+    }
+
+    /**
+     * Ejecuta una operación entre dos valores.
+     *
+     * @param float $valueA
+     * @param float $valueB
+     * @param string $operation
+     * @return float|null
+     */
+    private function executeFieldRelation(float $valueA, float $valueB, string $operation): ?float
+    {
+        switch ($operation) {
+            case 'divide':
+                return $valueB != 0 ? $valueA / $valueB : null;
+            case 'multiply':
+                return $valueA * $valueB;
+            case 'add':
+                return $valueA + $valueB;
+            case 'subtract':
+                return $valueA - $valueB;
+            case 'percentage':
+                return $valueB != 0 ? ($valueA / $valueB) * 100 : null;
+            default:
+                return null;
+        }
     }
 
     /**
@@ -128,12 +278,11 @@ class KpiService
     private function isFieldAllowed($field): bool
     {
         $kpi = $field->kpi;
-        if (!$kpi || !$kpi->base_model) {
+        if (!$kpi || !$kpi->hasValidBaseModel()) {
             return false;
         }
 
-        $kpiMetadataService = app(\App\Services\KpiMetadataService::class);
-        $allowedFields = $kpiMetadataService->getModelFieldsByClass($kpi->base_model);
+        $allowedFields = $kpi->getBaseModelFields();
         return in_array($field->field_name, $allowedFields);
     }
 

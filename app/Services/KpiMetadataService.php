@@ -131,16 +131,6 @@ class KpiMetadataService
         return array_key_exists($modelId, config('kpis.available_kpi_models', []));
     }
 
-    /**
-     * Obtiene la configuración de un modelo específico por ID.
-     *
-     * @param int $modelId ID del modelo
-     * @return array|null Configuración del modelo o null si no existe
-     */
-    public function getModelConfigById(int $modelId): ?array
-    {
-        return config("kpis.available_kpi_models.{$modelId}");
-    }
 
     /**
      * Obtiene la configuración de un modelo específico por clase.
@@ -182,5 +172,39 @@ class KpiMetadataService
     public function isModelAllowedByClass(string $modelClass): bool
     {
         return $this->getModelConfig($modelClass) !== null;
+    }
+
+    /**
+     * Obtiene la configuración completa de un modelo por su ID.
+     *
+     * @param int $modelId ID del modelo
+     * @return array|null Configuración completa del modelo
+     */
+    public function getModelConfigById(int $modelId): ?array
+    {
+        return config("kpis.available_kpi_models.{$modelId}");
+    }
+
+    /**
+     * Obtiene todos los modelos disponibles con su información completa.
+     *
+     * @return array Lista de modelos con información completa
+     */
+    public function getAllModelsWithInfo(): array
+    {
+        $models = [];
+        $availableModels = config('kpis.available_kpi_models', []);
+
+        foreach ($availableModels as $modelId => $config) {
+            $models[] = [
+                'id' => $modelId,
+                'class' => $config['class'],
+                'display_name' => $config['display_name'],
+                'fields' => $config['fields'] ?? [],
+                'fields_count' => count($config['fields'] ?? [])
+            ];
+        }
+
+        return $models;
     }
 }

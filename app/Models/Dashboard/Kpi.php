@@ -50,6 +50,7 @@ class Kpi extends Model
      */
     protected $casts = [
         'is_active' => 'boolean',
+        'base_model' => 'integer',
         'default_period_start_date' => 'date',
         'default_period_end_date' => 'date',
         'use_custom_time_range' => 'boolean',
@@ -75,6 +76,17 @@ class Kpi extends Model
     public function dashboardCards(): HasMany
     {
         return $this->hasMany(DashboardCard::class);
+    }
+
+    /**
+     * Relación con KpiFieldRelation (uno a muchos).
+     * Un KPI puede tener múltiples relaciones entre campos.
+     *
+     * @return HasMany
+     */
+    public function fieldRelations(): HasMany
+    {
+        return $this->hasMany(KpiFieldRelation::class);
     }
 
     /**
@@ -132,5 +144,63 @@ class Kpi extends Model
     public function hasTimeRange(): bool
     {
         return $this->use_custom_time_range || !empty($this->default_period_type);
+    }
+
+    /**
+     * Obtiene la configuración del modelo base desde config/kpis.php.
+     *
+     * @return array|null
+     */
+    public function getBaseModelConfig(): ?array
+    {
+        if (!$this->base_model) {
+            return null;
+        }
+
+        return config("kpis.available_kpi_models.{$this->base_model}");
+    }
+
+    /**
+     * Obtiene la clase del modelo base.
+     *
+     * @return string|null
+     */
+    public function getBaseModelClass(): ?string
+    {
+        $config = $this->getBaseModelConfig();
+        return $config['class'] ?? null;
+    }
+
+    /**
+     * Obtiene el nombre de visualización del modelo base.
+     *
+     * @return string|null
+     */
+    public function getBaseModelDisplayName(): ?string
+    {
+        $config = $this->getBaseModelConfig();
+        return $config['display_name'] ?? null;
+    }
+
+    /**
+     * Obtiene los campos permitidos del modelo base.
+     *
+     * @return array
+     */
+    public function getBaseModelFields(): array
+    {
+        $config = $this->getBaseModelConfig();
+        return $config['fields'] ?? [];
+    }
+
+    /**
+     * Verifica si el modelo base está configurado correctamente.
+     *
+     * @return bool
+     */
+    public function hasValidBaseModel(): bool
+    {
+        $config = $this->getBaseModelConfig();
+        return $config && isset($config['class']) && class_exists($config['class']);
     }
 }

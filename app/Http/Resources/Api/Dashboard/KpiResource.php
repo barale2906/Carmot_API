@@ -30,32 +30,21 @@ class KpiResource extends JsonResource
             'is_active' => $this->is_active,
             'calculation_type' => $this->calculation_type,
             'base_model' => $this->base_model,
+            'base_model_config' => $this->getBaseModelConfig(),
             'base_model_display_name' => $this->getBaseModelDisplayName(),
+            'base_model_fields' => $this->getBaseModelFields(),
             'default_period_type' => $this->default_period_type,
             'default_period_start_date' => $this->default_period_start_date?->format('Y-m-d'),
             'default_period_end_date' => $this->default_period_end_date?->format('Y-m-d'),
             'use_custom_time_range' => $this->use_custom_time_range,
             'has_time_range' => $this->hasTimeRange(),
             'kpi_fields' => KpiFieldResource::collection($this->whenLoaded('kpiFields')),
+            'field_relations' => KpiFieldRelationResource::collection($this->whenLoaded('fieldRelations')),
+            'has_field_relations' => $this->when($this->relationLoaded('fieldRelations'), $this->fieldRelations->count() > 0),
             'dashboard_cards_count' => $this->when($this->relationLoaded('dashboardCards'), $this->dashboardCards->count()),
             'created_at' => $this->created_at?->format('Y-m-d H:i:s'),
             'updated_at' => $this->updated_at?->format('Y-m-d H:i:s'),
         ];
     }
 
-    /**
-     * Obtiene el nombre de visualización del modelo base.
-     *
-     * @return string|null
-     */
-    private function getBaseModelDisplayName(): ?string
-    {
-        if (!$this->base_model) {
-            return null;
-        }
-
-        $kpiMetadataService = app(\App\Services\KpiMetadataService::class);
-        $config = $kpiMetadataService->getModelConfig($this->base_model);
-        return $config['display_name'] ?? class_basename($this->base_model);
-    }
 }

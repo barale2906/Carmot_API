@@ -62,4 +62,37 @@ class KpiField extends Model
     {
         return $this->belongsTo(Kpi::class);
     }
+
+    /**
+     * Relación con KpiFieldRelation como campo A (uno a muchos).
+     * Un campo puede ser el primer campo en múltiples relaciones.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     */
+    public function relationsAsFieldA(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(KpiFieldRelation::class, 'field_a_id');
+    }
+
+    /**
+     * Relación con KpiFieldRelation como campo B (uno a muchos).
+     * Un campo puede ser el segundo campo en múltiples relaciones.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     */
+    public function relationsAsFieldB(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(KpiFieldRelation::class, 'field_b_id');
+    }
+
+    /**
+     * Obtiene todas las relaciones donde este campo participa.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     */
+    public function allRelations(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(KpiFieldRelation::class, 'field_a_id')
+            ->orWhere('field_b_id', $this->id);
+    }
 }

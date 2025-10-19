@@ -32,6 +32,18 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::apiResource('kpis', \App\Http\Controllers\Api\Dashboard\KpiController::class);
         Route::apiResource('kpi-fields', \App\Http\Controllers\Api\Dashboard\KpiFieldController::class);
         Route::apiResource('dashboard-cards', \App\Http\Controllers\Api\Dashboard\DashboardCardController::class);
+
+        // Rutas para relaciones entre campos de KPIs
+        Route::prefix('kpis/{kpi}')->group(function () {
+            Route::get('field-relations', [\App\Http\Controllers\Api\Dashboard\KpiFieldRelationController::class, 'index']);
+            Route::post('field-relations', [\App\Http\Controllers\Api\Dashboard\KpiFieldRelationController::class, 'store']);
+            Route::get('field-relations/{relation}', [\App\Http\Controllers\Api\Dashboard\KpiFieldRelationController::class, 'show']);
+            Route::put('field-relations/{relation}', [\App\Http\Controllers\Api\Dashboard\KpiFieldRelationController::class, 'update']);
+            Route::delete('field-relations/{relation}', [\App\Http\Controllers\Api\Dashboard\KpiFieldRelationController::class, 'destroy']);
+        });
+
+        // Ruta para obtener operaciones disponibles
+        Route::get('field-relations/operations', [\App\Http\Controllers\Api\Dashboard\KpiFieldRelationController::class, 'availableOperations']);
     });
 
     // Ruta de compatibilidad para KPIs disponibles (sin middleware - solo lectura)

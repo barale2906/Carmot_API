@@ -33,17 +33,12 @@ class KpiMetadataController extends Controller
     public function getModels(): JsonResponse
     {
         try {
-            $models = $this->kpiMetadataService->getAvailableKpiModels();
+            $models = $this->kpiMetadataService->getAllModelsWithInfo();
 
-            // Debug: Log de los modelos obtenidos
-            //Log::info('KPI Metadata Models:', $models);
-
-            return ModelMetadataResource::collection($models)->response();
+            return response()->json([
+                'data' => $models
+            ]);
         } catch (\Exception $e) {
-            /* Log::error('Error en getModels: ' . $e->getMessage(), [
-                'trace' => $e->getTraceAsString()
-            ]); */
-
             return response()->json([
                 'error' => 'Error interno del servidor',
                 'message' => $e->getMessage()
