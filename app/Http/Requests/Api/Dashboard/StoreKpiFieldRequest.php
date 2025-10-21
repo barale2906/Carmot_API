@@ -112,7 +112,14 @@ class StoreKpiFieldRequest extends FormRequest
         }
 
         $kpiMetadataService = app(\App\Services\KpiMetadataService::class);
-        $allowedFields = $kpiMetadataService->getModelFieldsByClass($kpi->base_model);
+        $modelConfig = $kpiMetadataService->getModelConfigById($kpi->base_model);
+
+        if (!$modelConfig || !isset($modelConfig['fields'])) {
+            $validator->errors()->add('field_name', "No se pudo obtener la configuración del modelo para este KPI.");
+            return;
+        }
+
+        $allowedFields = $modelConfig['fields'];
 
         if (!in_array($this->field_name, $allowedFields)) {
             $validator->errors()->add('field_name', "El campo '{$this->field_name}' no está permitido para este modelo.");

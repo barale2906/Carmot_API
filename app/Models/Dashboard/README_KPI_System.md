@@ -43,12 +43,18 @@ Primero, configura los modelos que pueden ser usados para KPIs en `config/kpis.p
     ],
     2 => [
         'class' => \App\Models\Academico\Modulo::class,
-        'display_name' => 'Módulos por sede',
+        'display_name' => 'Modulos por sede',
         'fields' => ['id', 'sede_id', 'nombre', 'status', 'created_at', 'updated_at']
     ],
     // Agregar más modelos según necesidad
 ],
 ```
+
+**Estructura de configuración:**
+- **ID numérico**: Clave única para referenciar el modelo
+- **class**: Clase completa del modelo Eloquent
+- **display_name**: Nombre legible para mostrar en la interfaz
+- **fields**: Array de campos permitidos para usar en KPIs
 
 ### 2. Crear un KPI
 
@@ -61,7 +67,7 @@ $kpi = Kpi::create([
     'unit' => 'grupos',
     'is_active' => true,
     'calculation_type' => 'custom_fields',
-    'base_model' => 1, // ID del modelo en config/kpis.php
+    'base_model' => 1, // ID del modelo en config/kpis.php (Grupo)
     'default_period_type' => 'monthly',
     'use_custom_time_range' => false,
 ]);
@@ -240,77 +246,82 @@ Permite crear operaciones matemáticas entre dos campos:
 - **Condiciones adicionales**: Filtros específicos por campo
 
 ### 3. Configuración Centralizada
-- **IDs numéricos**: Los modelos se referencian por ID en lugar de clase
-- **Validación automática**: Se valida que el ID existe en la configuración
-- **Información completa**: La API devuelve configuración completa del modelo
+- **IDs numéricos**: Los modelos se referencian por ID en lugar de clase completa
+- **Validación automática**: El middleware `ValidateKpiSecurity` valida que el ID existe en la configuración
+- **Información completa**: La API devuelve configuración completa del modelo incluyendo campos permitidos
+- **Seguridad**: Solo se pueden usar modelos y campos predefinidos en la configuración
 
 ## Consideraciones de Seguridad
 
 1. **Autenticación**: Todas las rutas requieren autenticación
-2. **Validación**: Se valida que los modelos estén en la lista permitida
+2. **Middleware de Validación**: `ValidateKpiSecurity` valida que:
+   - Los modelos base estén en la lista permitida (por ID)
+   - Los campos usados estén en la lista de campos permitidos del modelo
 3. **Permisos**: Los dashboards están asociados a usuarios específicos
 4. **Soft Deletes**: Todos los modelos usan eliminación suave
 5. **Límites de relaciones**: Máximo 1 relación por KPI
 6. **Validación de campos**: Solo campos permitidos en la configuración
+7. **Configuración centralizada**: Solo modelos y campos predefinidos pueden ser usados
 
 ## Extensibilidad
 
 El sistema está diseñado para ser extensible:
 
-1. **Nuevos Modelos**: Agregar modelos a `config/kpis.php` con IDs únicos
+1. **Nuevos Modelos**: Agregar modelos a `config/kpis.php` con IDs únicos y sus campos permitidos
 2. **Nuevas Operaciones**: Extender `KpiService` con nuevas operaciones
 3. **Nuevos Tipos de Campo**: Agregar validaciones en los controladores
 4. **Nuevas Operaciones entre Campos**: Agregar en `KpiFieldRelation::getAvailableOperations()`
 5. **Exportación**: Implementar `exportPdf` en `DashboardController`
+6. **Middleware de Seguridad**: El middleware se actualiza automáticamente con nuevos modelos de la configuración
 
 ## Ejemplos de Uso
 
-### KPI de Ventas Totales (Tradicional)
+### KPI de Grupos Totales (Tradicional)
 ```php
 $kpi = Kpi::create([
-    'name' => 'Ventas Totales',
-    'code' => 'total_ventas',
-    'base_model' => 1, // ID del modelo en config/kpis.php
+    'name' => 'Total de Grupos',
+    'code' => 'total_grupos',
+    'base_model' => 1, // ID del modelo Grupo en config/kpis.php
     'default_period_type' => 'monthly',
 ]);
 
 $kpi->kpiFields()->create([
-    'field_name' => 'monto',
-    'operation' => 'sum',
+    'field_name' => 'id',
+    'operation' => 'count',
     'field_type' => 'numeric',
 ]);
 ```
 
-### KPI de Tasa de Conversión (Con Relación)
+### KPI de Promedio de Inscritos por Grupo (Con Relación)
 ```php
 $kpi = Kpi::create([
-    'name' => 'Tasa de Conversión',
-    'code' => 'tasa_conversion',
-    'base_model' => 1,
-    'unit' => '%',
+    'name' => 'Promedio de Inscritos por Grupo',
+    'code' => 'promedio_inscritos_grupo',
+    'base_model' => 1, // ID del modelo Grupo
+    'unit' => 'inscritos',
 ]);
 
-// Campo A: Ventas
+// Campo A: Total de Inscritos
 $kpi->kpiFields()->create([
-    'field_name' => 'ventas',
-    'display_name' => 'Ventas',
+    'field_name' => 'inscritos',
+    'display_name' => 'Total Inscritos',
     'field_type' => 'numeric',
     'operation' => 'sum',
 ]);
 
-// Campo B: Visitas
+// Campo B: Conteo de Grupos
 $kpi->kpiFields()->create([
-    'field_name' => 'visitas',
-    'display_name' => 'Visitas',
+    'field_name' => 'id',
+    'display_name' => 'Total Grupos',
     'field_type' => 'numeric',
-    'operation' => 'sum',
+    'operation' => 'count',
 ]);
 
-// Relación: (Ventas / Visitas) * 100
+// Relación: (Total Inscritos / Total Grupos)
 $kpi->fieldRelations()->create([
-    'field_a_id' => 1, // Ventas
-    'field_b_id' => 2, // Visitas
-    'operation' => 'percentage',
+    'field_a_id' => 1, // Total Inscritos
+    'field_b_id' => 2, // Total Grupos
+    'operation' => 'divide',
     'multiplier' => 1.0,
 ]);
 ```
@@ -318,43 +329,44 @@ $kpi->fieldRelations()->create([
 ### KPI con Rango de Tiempo Personalizado
 ```php
 $kpi = Kpi::create([
-    'name' => 'Beneficio Neto',
-    'code' => 'beneficio_neto',
-    'base_model' => 1,
+    'name' => 'Grupos del Año 2024',
+    'code' => 'grupos_2024',
+    'base_model' => 1, // ID del modelo Grupo
     'use_custom_time_range' => true,
     'default_period_start_date' => '2024-01-01',
     'default_period_end_date' => '2024-12-31',
 ]);
 ```
 
-### KPI de Beneficio Neto (Con Resta)
+### KPI de Diferencia de Inscritos (Con Resta)
 ```php
 $kpi = Kpi::create([
-    'name' => 'Beneficio Neto',
-    'code' => 'beneficio_neto',
-    'base_model' => 1,
+    'name' => 'Diferencia de Inscritos',
+    'code' => 'diferencia_inscritos',
+    'base_model' => 1, // ID del modelo Grupo
 ]);
 
-// Campo A: Ingresos
+// Campo A: Inscritos Actuales
 $kpi->kpiFields()->create([
-    'field_name' => 'ingresos',
-    'display_name' => 'Ingresos',
+    'field_name' => 'inscritos',
+    'display_name' => 'Inscritos Actuales',
     'field_type' => 'numeric',
     'operation' => 'sum',
 ]);
 
-// Campo B: Gastos
+// Campo B: Capacidad Máxima (ejemplo: 30 por grupo)
 $kpi->kpiFields()->create([
-    'field_name' => 'gastos',
-    'display_name' => 'Gastos',
+    'field_name' => 'id',
+    'display_name' => 'Capacidad Total',
     'field_type' => 'numeric',
-    'operation' => 'sum',
+    'operation' => 'count',
+    'value' => '30', // 30 estudiantes por grupo
 ]);
 
-// Relación: Ingresos - Gastos
+// Relación: Inscritos - Capacidad
 $kpi->fieldRelations()->create([
-    'field_a_id' => 1, // Ingresos
-    'field_b_id' => 2, // Gastos
+    'field_a_id' => 1, // Inscritos
+    'field_b_id' => 2, // Capacidad
     'operation' => 'subtract',
     'multiplier' => 1.0,
 ]);
@@ -366,25 +378,31 @@ $kpi->fieldRelations()->create([
 ```json
 {
     "id": 1,
-    "name": "Tasa de Conversión",
+    "name": "Promedio de Inscritos por Grupo",
     "base_model": 1,
     "base_model_config": {
         "class": "App\\Models\\Academico\\Grupo",
         "display_name": "Grupos por sede",
-        "fields": ["id", "sede_id", "inscritos", ...]
+        "fields": ["id", "sede_id", "inscritos", "modulo_id", "profesor_id", "status", "created_at", "updated_at"]
     },
     "base_model_display_name": "Grupos por sede",
-    "base_model_fields": ["id", "sede_id", "inscritos", ...],
+    "base_model_fields": ["id", "sede_id", "inscritos", "modulo_id", "profesor_id", "status", "created_at", "updated_at"],
     "default_period_type": "monthly",
     "has_time_range": true,
     "has_field_relations": true,
     "field_relations": [
         {
             "id": 1,
-            "operation": "percentage",
-            "operation_display": "Porcentaje ((A / B) * 100)",
-            "field_a": {...},
-            "field_b": {...}
+            "operation": "divide",
+            "operation_display": "División (A ÷ B)",
+            "field_a": {
+                "field_name": "inscritos",
+                "display_name": "Total Inscritos"
+            },
+            "field_b": {
+                "field_name": "id", 
+                "display_name": "Total Grupos"
+            }
         }
     ]
 }
