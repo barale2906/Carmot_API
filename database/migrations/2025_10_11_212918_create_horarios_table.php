@@ -26,6 +26,7 @@ return new class extends Migration
             $table->boolean('periodo')->default(true)->comment('true: inicia, false: termina aplica para el horario de la sede');
             $table->enum('dia', ['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo'])->comment('día de la semana');
             $table->time('hora')->nullable()->comment('hora de inicio o cierre del horario');
+            $table->integer('duracion_horas')->default(1)->comment('duración de la clase en horas');
             $table->integer('status')->default(1)->comment('1: activo, 0: inactivo');
 
             $table->softDeletes();

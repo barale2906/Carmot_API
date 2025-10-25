@@ -49,6 +49,7 @@ class Horario extends Model
         'hora' => 'datetime:H:i:s',
         'tipo' => 'boolean',
         'periodo' => 'boolean',
+        'duracion_horas' => 'integer',
     ];
 
     /**

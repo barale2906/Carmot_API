@@ -33,6 +33,14 @@ class StoreGrupoRequest extends FormRequest
             'inscritos' => 'required|integer|min:0|max:50',
             'jornada' => 'required|integer|in:0,1,2,3',
             'status' => self::getStatusValidationRule(),
+
+            // Horarios opcionales
+            'horarios' => 'sometimes|array|min:1',
+            'horarios.*.area_id' => 'required_with:horarios|integer|exists:areas,id',
+            'horarios.*.dia' => 'required_with:horarios|string|in:lunes,martes,miércoles,jueves,viernes,sábado,domingo',
+            'horarios.*.hora' => 'required_with:horarios|date_format:H:i',
+            'horarios.*.duracion_horas' => 'sometimes|integer|min:1|max:8',
+            'horarios.*.status' => 'sometimes|integer|in:0,1',
         ];
     }
 
@@ -64,6 +72,23 @@ class StoreGrupoRequest extends FormRequest
             'jornada.required' => 'La jornada es obligatoria.',
             'jornada.integer' => 'La jornada debe ser un número entero.',
             'jornada.in' => 'La jornada debe ser: 0 (Mañana), 1 (Tarde), 2 (Noche) o 3 (Fin de semana).',
+
+            // Mensajes para horarios
+            'horarios.array' => 'Los horarios deben ser un arreglo.',
+            'horarios.min' => 'Debe especificar al menos un horario.',
+            'horarios.*.area_id.required_with' => 'El área es obligatoria para cada horario.',
+            'horarios.*.area_id.integer' => 'El área debe ser un número entero.',
+            'horarios.*.area_id.exists' => 'El área seleccionada no existe.',
+            'horarios.*.dia.required_with' => 'El día de la semana es obligatorio.',
+            'horarios.*.dia.string' => 'El día debe ser una cadena de texto.',
+            'horarios.*.dia.in' => 'El día debe ser: lunes, martes, miércoles, jueves, viernes, sábado o domingo.',
+            'horarios.*.hora.required_with' => 'La hora es obligatoria.',
+            'horarios.*.hora.date_format' => 'La hora debe tener el formato HH:MM.',
+            'horarios.*.duracion_horas.integer' => 'La duración debe ser un número entero.',
+            'horarios.*.duracion_horas.min' => 'La duración debe ser de al menos 1 hora.',
+            'horarios.*.duracion_horas.max' => 'La duración no puede ser mayor a 8 horas.',
+            'horarios.*.status.integer' => 'El estado debe ser un número entero.',
+            'horarios.*.status.in' => 'El estado debe ser 0 (Inactivo) o 1 (Activo).',
         ], self::getStatusValidationMessages());
     }
 
@@ -80,6 +105,29 @@ class StoreGrupoRequest extends FormRequest
             'profesor_id' => 'profesor',
             'inscritos' => 'número de inscritos',
             'jornada' => 'jornada',
+            'horarios' => 'horarios',
+            'horarios.*.area_id' => 'área',
+            'horarios.*.dia' => 'día',
+            'horarios.*.hora' => 'hora',
+            'horarios.*.duracion_horas' => 'duración en horas',
         ];
+    }
+
+    /**
+     * Prepara los datos para la validación.
+     */
+    protected function prepareForValidation(): void
+    {
+        // Asegurar que el tipo sea false (horario de grupo) y el periodo sea true (inicio)
+        if ($this->has('horarios')) {
+            $horarios = $this->input('horarios', []);
+            foreach ($horarios as $index => $horario) {
+                $horarios[$index]['tipo'] = false; // Horario de grupo
+                $horarios[$index]['periodo'] = true; // Hora de inicio
+                $horarios[$index]['status'] = $horario['status'] ?? 1; // Activo por defecto
+                $horarios[$index]['duracion_horas'] = $horario['duracion_horas'] ?? 1; // 1 hora por defecto
+            }
+            $this->merge(['horarios' => $horarios]);
+        }
     }
 }

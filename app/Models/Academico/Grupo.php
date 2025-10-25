@@ -3,6 +3,7 @@
 namespace App\Models\Academico;
 
 use App\Models\Configuracion\Sede;
+use App\Models\Configuracion\Horario;
 use App\Models\User;
 use App\Traits\HasActiveStatus;
 use App\Traits\HasFilterScopes;
@@ -13,6 +14,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Grupo extends Model
@@ -81,6 +83,18 @@ class Grupo extends Model
     }
 
     /**
+     * Relación con Horario (uno a muchos).
+     * Un grupo puede tener múltiples horarios específicos.
+     * Los horarios específicos del grupo tienen tipo = false.
+     *
+     * @return HasMany
+     */
+    public function horarios(): HasMany
+    {
+        return $this->hasMany(Horario::class, 'grupo_id')->where('tipo', false);
+    }
+
+    /**
      * Scope para filtrar por búsqueda de nombre.
      */
     public function scopeSearch($query, $search)
@@ -116,7 +130,8 @@ class Grupo extends Model
             'sede',
             'modulo',
             'profesor',
-            'ciclos'
+            'ciclos',
+            'horarios'
         ];
     }
 
@@ -125,7 +140,7 @@ class Grupo extends Model
      */
     protected function getDefaultRelations(): array
     {
-        return ['sede', 'modulo', 'profesor', 'ciclos'];
+        return ['sede', 'modulo', 'profesor', 'ciclos', 'horarios'];
     }
 
     /**
@@ -133,7 +148,7 @@ class Grupo extends Model
      */
     protected function getCountableRelations(): array
     {
-        return ['ciclos'];
+        return ['ciclos', 'horarios'];
     }
 
     /**
@@ -151,5 +166,46 @@ class Grupo extends Model
         ];
 
         return $jornadas[$this->jornada] ?? 'Desconocida';
+    }
+
+    /**
+     * Obtiene el total de horas de clase por semana del grupo.
+     *
+     * @return int
+     */
+    public function getTotalHorasSemanaAttribute(): int
+    {
+        return $this->horarios()->sum('duracion_horas');
+    }
+
+    /**
+     * Obtiene las horas de clase por día (usando la duración real de cada horario).
+     *
+     * @return int
+     */
+    public function getHorasPorDia(): int
+    {
+        // Ahora usa la duración real de cada horario
+        return $this->horarios()->sum('duracion_horas');
+    }
+
+    /**
+     * Obtiene los días de la semana en que tiene clases el grupo.
+     *
+     * @return array
+     */
+    public function getDiasClaseAttribute(): array
+    {
+        return $this->horarios()->pluck('dia')->unique()->toArray();
+    }
+
+    /**
+     * Verifica si el grupo tiene horarios configurados.
+     *
+     * @return bool
+     */
+    public function tieneHorarios(): bool
+    {
+        return $this->horarios()->exists();
     }
 }

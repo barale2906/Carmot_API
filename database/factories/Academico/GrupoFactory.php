@@ -4,6 +4,8 @@ namespace Database\Factories\Academico;
 
 use App\Models\Academico\Modulo;
 use App\Models\Configuracion\Sede;
+use App\Models\Configuracion\Area;
+use App\Models\Configuracion\Horario;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -120,6 +122,187 @@ class GrupoFactory extends Factory
         return $this->state(fn (array $attributes) => [
             'inscritos' => $this->faker->numberBetween(20, 30),
         ]);
+    }
+
+    /**
+     * Estado para grupo con horarios.
+     */
+    public function conHorarios(): static
+    {
+        return $this->afterCreating(function ($grupo) {
+            // Generar 1-4 horarios aleatorios para el grupo
+            $cantidadHorarios = $this->faker->numberBetween(1, 4);
+            $dias = ['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo'];
+            $horas = ['08:00', '09:00', '10:00', '14:00', '15:00', '16:00', '18:00', '19:00'];
+            $duraciones = [1, 2, 3, 4]; // Duración en horas
+
+            // Obtener áreas disponibles o crear una si no existen
+            $area = Area::inRandomOrder()->first() ?? Area::factory();
+
+            for ($i = 0; $i < $cantidadHorarios; $i++) {
+                Horario::create([
+                    'sede_id' => $grupo->sede_id,
+                    'area_id' => $area->id,
+                    'grupo_id' => $grupo->id,
+                    'grupo_nombre' => $grupo->nombre,
+                    'tipo' => false, // Horario de grupo
+                    'periodo' => true, // Hora de inicio
+                    'dia' => $this->faker->randomElement($dias),
+                    'hora' => $this->faker->randomElement($horas),
+                    'duracion_horas' => $this->faker->randomElement($duraciones),
+                    'status' => 1, // Activo
+                ]);
+            }
+        });
+    }
+
+    /**
+     * Estado para grupo con horarios específicos de mañana.
+     */
+    public function conHorariosManana(): static
+    {
+        return $this->afterCreating(function ($grupo) {
+            $horasManana = ['08:00', '09:00', '10:00', '11:00'];
+            $dias = ['lunes', 'martes', 'miércoles', 'jueves', 'viernes'];
+
+            $area = Area::inRandomOrder()->first() ?? Area::factory();
+
+            // 2-3 horarios de mañana
+            $cantidad = $this->faker->numberBetween(2, 3);
+            for ($i = 0; $i < $cantidad; $i++) {
+                Horario::create([
+                    'sede_id' => $grupo->sede_id,
+                    'area_id' => $area->id,
+                    'grupo_id' => $grupo->id,
+                    'grupo_nombre' => $grupo->nombre,
+                    'tipo' => false,
+                    'periodo' => true,
+                    'dia' => $this->faker->randomElement($dias),
+                    'hora' => $this->faker->randomElement($horasManana),
+                    'duracion_horas' => $this->faker->randomElement([1, 2]),
+                    'status' => 1,
+                ]);
+            }
+        });
+    }
+
+    /**
+     * Estado para grupo con horarios específicos de tarde.
+     */
+    public function conHorariosTarde(): static
+    {
+        return $this->afterCreating(function ($grupo) {
+            $horasTarde = ['14:00', '15:00', '16:00', '17:00'];
+            $dias = ['lunes', 'martes', 'miércoles', 'jueves', 'viernes'];
+
+            $area = Area::inRandomOrder()->first() ?? Area::factory();
+
+            // 2-3 horarios de tarde
+            $cantidad = $this->faker->numberBetween(2, 3);
+            for ($i = 0; $i < $cantidad; $i++) {
+                Horario::create([
+                    'sede_id' => $grupo->sede_id,
+                    'area_id' => $area->id,
+                    'grupo_id' => $grupo->id,
+                    'grupo_nombre' => $grupo->nombre,
+                    'tipo' => false,
+                    'periodo' => true,
+                    'dia' => $this->faker->randomElement($dias),
+                    'hora' => $this->faker->randomElement($horasTarde),
+                    'duracion_horas' => $this->faker->randomElement([1, 2, 3]),
+                    'status' => 1,
+                ]);
+            }
+        });
+    }
+
+    /**
+     * Estado para grupo con horarios específicos de noche.
+     */
+    public function conHorariosNoche(): static
+    {
+        return $this->afterCreating(function ($grupo) {
+            $horasNoche = ['18:00', '19:00', '20:00'];
+            $dias = ['lunes', 'martes', 'miércoles', 'jueves', 'viernes'];
+
+            $area = Area::inRandomOrder()->first() ?? Area::factory();
+
+            // 1-2 horarios de noche
+            $cantidad = $this->faker->numberBetween(1, 2);
+            for ($i = 0; $i < $cantidad; $i++) {
+                Horario::create([
+                    'sede_id' => $grupo->sede_id,
+                    'area_id' => $area->id,
+                    'grupo_id' => $grupo->id,
+                    'grupo_nombre' => $grupo->nombre,
+                    'tipo' => false,
+                    'periodo' => true,
+                    'dia' => $this->faker->randomElement($dias),
+                    'hora' => $this->faker->randomElement($horasNoche),
+                    'duracion_horas' => $this->faker->randomElement([2, 3, 4]), // Clases más largas en la noche
+                    'status' => 1,
+                ]);
+            }
+        });
+    }
+
+    /**
+     * Estado para grupo con horarios de fin de semana.
+     */
+    public function conHorariosFinSemana(): static
+    {
+        return $this->afterCreating(function ($grupo) {
+            $horasFinSemana = ['08:00', '09:00', '10:00', '14:00', '15:00'];
+            $dias = ['sábado', 'domingo'];
+
+            $area = Area::inRandomOrder()->first() ?? Area::factory();
+
+            // 1-2 horarios de fin de semana
+            $cantidad = $this->faker->numberBetween(1, 2);
+            for ($i = 0; $i < $cantidad; $i++) {
+                Horario::create([
+                    'sede_id' => $grupo->sede_id,
+                    'area_id' => $area->id,
+                    'grupo_id' => $grupo->id,
+                    'grupo_nombre' => $grupo->nombre,
+                    'tipo' => false,
+                    'periodo' => true,
+                    'dia' => $this->faker->randomElement($dias),
+                    'hora' => $this->faker->randomElement($horasFinSemana),
+                    'duracion_horas' => $this->faker->randomElement([3, 4, 5]), // Clases intensivas
+                    'status' => 1,
+                ]);
+            }
+        });
+    }
+
+    /**
+     * Estado para grupo con horarios intensivos (múltiples horas).
+     */
+    public function conHorariosIntensivos(): static
+    {
+        return $this->afterCreating(function ($grupo) {
+            $dias = ['lunes', 'miércoles', 'viernes'];
+
+            $area = Area::inRandomOrder()->first() ?? Area::factory();
+
+            // 2-3 horarios intensivos
+            $cantidad = $this->faker->numberBetween(2, 3);
+            for ($i = 0; $i < $cantidad; $i++) {
+                Horario::create([
+                    'sede_id' => $grupo->sede_id,
+                    'area_id' => $area->id,
+                    'grupo_id' => $grupo->id,
+                    'grupo_nombre' => $grupo->nombre,
+                    'tipo' => false,
+                    'periodo' => true,
+                    'dia' => $this->faker->randomElement($dias),
+                    'hora' => $this->faker->randomElement(['08:00', '14:00', '18:00']),
+                    'duracion_horas' => $this->faker->randomElement([4, 5, 6]), // Clases muy largas
+                    'status' => 1,
+                ]);
+            }
+        });
     }
 
     /**

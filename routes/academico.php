@@ -78,6 +78,15 @@ Route::middleware('auth:sanctum')->group(function () {
         // Rutas para filtros y estadísticas
         Route::get('filters', [GrupoController::class, 'filters'])->name('grupos.filters');
         Route::get('statistics', [GrupoController::class, 'statistics'])->name('grupos.statistics');
+
+        // Rutas para manejo de horarios de grupos
+        Route::prefix('{grupo}/horarios')->group(function () {
+            Route::get('/', [GrupoController::class, 'getHorarios'])->name('grupos.horarios.index');
+            Route::post('/', [GrupoController::class, 'storeHorarios'])->name('grupos.horarios.store');
+            Route::put('/', [GrupoController::class, 'updateHorarios'])->name('grupos.horarios.update');
+            Route::delete('/', [GrupoController::class, 'destroyHorarios'])->name('grupos.horarios.destroy');
+            Route::get('estadisticas', [GrupoController::class, 'getHorariosEstadisticas'])->name('grupos.horarios.statistics');
+        });
     });
 
     // Rutas principales de ciclos (CRUD estándar)

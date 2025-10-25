@@ -5,25 +5,30 @@ namespace App\Http\Controllers\Api\Academico;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\Academico\StoreGrupoRequest;
 use App\Http\Requests\Api\Academico\UpdateGrupoRequest;
+use App\Http\Requests\Api\Academico\StoreGrupoHorarioRequest;
+use App\Http\Requests\Api\Academico\UpdateGrupoHorarioRequest;
 use App\Http\Resources\Api\Academico\GrupoResource;
 use App\Models\Academico\Grupo;
+use App\Models\Configuracion\Horario;
 use App\Traits\HasActiveStatus;
+use App\Traits\HasGrupoHorarios;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\DB;
 
 class GrupoController extends Controller
 {
-    use HasActiveStatus;
+    use HasActiveStatus, HasGrupoHorarios;
 
     /**
      * Constructor del controlador.
      */
     public function __construct()
     {
-        $this->middleware('permission:aca_grupos')->only(['index', 'show', 'filters', 'statistics']);
-        $this->middleware('permission:aca_grupoCrear')->only(['store']);
-        $this->middleware('permission:aca_grupoEditar')->only(['update']);
-        $this->middleware('permission:aca_grupoInactivar')->only(['destroy', 'restore', 'forceDelete', 'trashed']);
+        $this->middleware('permission:aca_grupos')->only(['index', 'show', 'filters', 'statistics', 'getHorarios', 'getHorariosEstadisticas']);
+        $this->middleware('permission:aca_grupoCrear')->only(['store', 'storeHorarios']);
+        $this->middleware('permission:aca_grupoEditar')->only(['update', 'updateHorarios']);
+        $this->middleware('permission:aca_grupoInactivar')->only(['destroy', 'restore', 'forceDelete', 'trashed', 'destroyHorarios']);
     }
 
     /**
@@ -43,13 +48,14 @@ class GrupoController extends Controller
         // Preparar relaciones
         $relations = $request->has('with')
             ? explode(',', $request->with)
-            : ['sede', 'modulo', 'profesor'];
+            : ['sede', 'modulo', 'profesor', 'horarios'];
 
         // Verificar si incluir contadores
         $includeCounts = $request->has('with') && (
             str_contains($request->with, 'sede') ||
             str_contains($request->with, 'modulo') ||
-            str_contains($request->with, 'profesor')
+            str_contains($request->with, 'profesor') ||
+            str_contains($request->with, 'horarios')
         );
 
         // Construir query usando scopes
@@ -79,22 +85,64 @@ class GrupoController extends Controller
      */
     public function store(StoreGrupoRequest $request): JsonResponse
     {
-        $grupo = Grupo::create([
-            'sede_id' => $request->sede_id,
-            'modulo_id' => $request->modulo_id,
-            'profesor_id' => $request->profesor_id,
-            'nombre' => $request->nombre,
-            'inscritos' => $request->inscritos,
-            'jornada' => $request->jornada,
-            'status' => $request->status ?? 1, // Por defecto estado "Activo"
-        ]);
+        try {
+            DB::beginTransaction();
 
-        $grupo->load(['sede', 'modulo', 'profesor']);
+            // Crear el grupo
+            $grupo = Grupo::create([
+                'sede_id' => $request->sede_id,
+                'modulo_id' => $request->modulo_id,
+                'profesor_id' => $request->profesor_id,
+                'nombre' => $request->nombre,
+                'inscritos' => $request->inscritos,
+                'jornada' => $request->jornada,
+                'status' => $request->status ?? 1, // Por defecto estado "Activo"
+            ]);
 
-        return response()->json([
-            'message' => 'Grupo creado exitosamente.',
-            'data' => new GrupoResource($grupo),
-        ], 201);
+            // Si se proporcionan horarios, asignarlos al grupo
+            if ($request->has('horarios') && !empty($request->horarios)) {
+                // Validar que no haya solapamientos
+                $validacion = $this->validarSolapamientoHorarios($request->horarios);
+                if (!$validacion['valido']) {
+                    DB::rollBack();
+                    return response()->json([
+                        'message' => 'Error en la validación de horarios.',
+                        'errors' => $validacion['errores'],
+                    ], 422);
+                }
+
+                // Asignar horarios al grupo
+                if (!$this->asignarHorariosAGrupo($grupo, $request->horarios)) {
+                    DB::rollBack();
+                    return response()->json([
+                        'message' => 'Error al asignar horarios al grupo.',
+                    ], 500);
+                }
+            }
+
+            DB::commit();
+
+            // Cargar relaciones
+            $grupo->load(['sede', 'modulo', 'profesor', 'horarios.area']);
+
+            $message = 'Grupo creado exitosamente.';
+            if ($request->has('horarios') && !empty($request->horarios)) {
+                $message .= ' Horarios asignados correctamente.';
+            }
+
+            return response()->json([
+                'message' => $message,
+                'data' => new GrupoResource($grupo),
+            ], 201);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            return response()->json([
+                'message' => 'Error al crear el grupo.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
     }
 
     /**
@@ -109,11 +157,11 @@ class GrupoController extends Controller
         // Preparar relaciones
         $relations = $request->has('with')
             ? explode(',', $request->with)
-            : ['sede', 'modulo', 'profesor'];
+            : ['sede', 'modulo', 'profesor', 'horarios'];
 
         // Cargar relaciones y contadores usando el modelo
         $grupo->load($relations);
-        $grupo->loadCount(['sede', 'modulo', 'profesor']);
+        $grupo->loadCount(['sede', 'modulo', 'profesor', 'horarios']);
 
         return response()->json([
             'data' => new GrupoResource($grupo),
@@ -228,13 +276,14 @@ class GrupoController extends Controller
         // Preparar relaciones
         $relations = $request->has('with')
             ? explode(',', $request->with)
-            : ['sede', 'modulo', 'profesor'];
+            : ['sede', 'modulo', 'profesor', 'horarios'];
 
         // Verificar si incluir contadores
         $includeCounts = $request->has('with') && (
             str_contains($request->with, 'sede') ||
             str_contains($request->with, 'modulo') ||
-            str_contains($request->with, 'profesor')
+            str_contains($request->with, 'profesor') ||
+            str_contains($request->with, 'horarios')
         );
 
         // Construir query usando scopes (solo eliminados)
@@ -317,6 +366,140 @@ class GrupoController extends Controller
 
         return response()->json([
             'data' => $stats,
+        ]);
+    }
+
+    /**
+     * Asigna horarios a un grupo específico.
+     *
+     * @param StoreGrupoHorarioRequest $request
+     * @param Grupo $grupo
+     * @return JsonResponse
+     */
+    public function storeHorarios(StoreGrupoHorarioRequest $request, Grupo $grupo): JsonResponse
+    {
+        // Validar que no haya solapamientos
+        $validacion = $this->validarSolapamientoHorarios($request->horarios);
+        if (!$validacion['valido']) {
+            return response()->json([
+                'message' => 'Error en la validación de horarios.',
+                'errors' => $validacion['errores'],
+            ], 422);
+        }
+
+        if ($this->asignarHorariosAGrupo($grupo, $request->horarios)) {
+            // Recargar el grupo con sus horarios
+            $grupo->load(['horarios.area']);
+
+            return response()->json([
+                'message' => 'Horarios asignados exitosamente al grupo.',
+                'data' => new GrupoResource($grupo),
+            ], 201);
+        }
+
+        return response()->json([
+            'message' => 'Error al asignar horarios al grupo.',
+        ], 500);
+    }
+
+    /**
+     * Actualiza los horarios de un grupo específico.
+     *
+     * @param UpdateGrupoHorarioRequest $request
+     * @param Grupo $grupo
+     * @return JsonResponse
+     */
+    public function updateHorarios(UpdateGrupoHorarioRequest $request, Grupo $grupo): JsonResponse
+    {
+        // Si se proporcionan nuevos horarios, validar y actualizar
+        if ($request->has('horarios')) {
+            // Validar que no haya solapamientos
+            $validacion = $this->validarSolapamientoHorarios($request->horarios);
+            if (!$validacion['valido']) {
+                return response()->json([
+                    'message' => 'Error en la validación de horarios.',
+                    'errors' => $validacion['errores'],
+                ], 422);
+            }
+
+            if (!$this->actualizarHorariosDeGrupo($grupo, $request->horarios)) {
+                return response()->json([
+                    'message' => 'Error al actualizar horarios del grupo.',
+                ], 500);
+            }
+        }
+
+        // Recargar el grupo con sus horarios
+        $grupo->load(['horarios.area']);
+
+        return response()->json([
+            'message' => 'Horarios del grupo actualizados exitosamente.',
+            'data' => new GrupoResource($grupo),
+        ]);
+    }
+
+    /**
+     * Elimina todos los horarios de un grupo específico.
+     *
+     * @param Grupo $grupo
+     * @return JsonResponse
+     */
+    public function destroyHorarios(Grupo $grupo): JsonResponse
+    {
+        if ($this->eliminarHorariosDeGrupo($grupo)) {
+            return response()->json([
+                'message' => 'Horarios del grupo eliminados exitosamente.',
+            ]);
+        }
+
+        return response()->json([
+            'message' => 'Error al eliminar horarios del grupo.',
+        ], 500);
+    }
+
+    /**
+     * Obtiene los horarios de un grupo específico.
+     *
+     * @param Request $request
+     * @param Grupo $grupo
+     * @return JsonResponse
+     */
+    public function getHorarios(Request $request, Grupo $grupo): JsonResponse
+    {
+        $filtros = $request->only(['status', 'dia']);
+        $horarios = $this->obtenerHorariosDeGrupo($grupo, $filtros);
+
+        return response()->json([
+            'data' => $horarios->map(function ($horario) {
+                return [
+                    'id' => $horario->id,
+                    'dia' => $horario->dia,
+                    'hora' => $horario->hora?->format('H:i:s'),
+                    'area' => [
+                        'id' => $horario->area->id,
+                        'nombre' => $horario->area->nombre,
+                    ],
+                    'status' => $horario->status,
+                    'status_text' => self::getActiveStatusText($horario->status),
+                    'created_at' => $horario->created_at?->format('Y-m-d H:i:s'),
+                    'updated_at' => $horario->updated_at?->format('Y-m-d H:i:s'),
+                ];
+            }),
+        ]);
+    }
+
+    /**
+     * Obtiene estadísticas de horarios de un grupo específico.
+     *
+     * @param Grupo $grupo
+     * @return JsonResponse
+     */
+    public function getHorariosEstadisticas(Grupo $grupo): JsonResponse
+    {
+        $estadisticas = $this->obtenerEstadisticasHorariosGrupo($grupo);
+
+        return response()->json([
+            'data' => $estadisticas,
         ]);
     }
 }
