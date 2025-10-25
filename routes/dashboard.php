@@ -42,6 +42,29 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::delete('field-relations/{relation}', [\App\Http\Controllers\Api\Dashboard\KpiFieldRelationController::class, 'destroy']);
         });
 
+        // Rutas para datos de gráficos
+        Route::prefix('kpis/{kpi}')->group(function () {
+            Route::get('chart-data', [\App\Http\Controllers\Api\Dashboard\ChartDataController::class, 'getChartData']);
+            Route::get('chart-statistics', [\App\Http\Controllers\Api\Dashboard\ChartDataController::class, 'getChartStatistics']);
+        });
+
+        // Rutas para tarjetas de dashboard con gráficos
+        Route::prefix('dashboard-cards/{card}')->group(function () {
+            Route::get('chart-data', [\App\Http\Controllers\Api\Dashboard\ChartDataController::class, 'getChartDataForCard']);
+        });
+
+        // Rutas para configuración de gráficos
+        Route::prefix('chart-types')->group(function () {
+            Route::get('{chartType}/parameters', [\App\Http\Controllers\Api\Dashboard\ChartDataController::class, 'getChartParameters']);
+        });
+
+        // Rutas para filtros y agrupación
+        Route::prefix('models/{modelId}')->group(function () {
+            Route::get('group-by-fields', [\App\Http\Controllers\Api\Dashboard\ChartDataController::class, 'getGroupByFields']);
+        });
+
+        Route::get('filter-types', [\App\Http\Controllers\Api\Dashboard\ChartDataController::class, 'getAvailableFilterTypes']);
+
         // Ruta para obtener operaciones disponibles
         Route::get('field-relations/operations', [\App\Http\Controllers\Api\Dashboard\KpiFieldRelationController::class, 'availableOperations']);
     });

@@ -4,6 +4,7 @@ namespace App\Models\Academico;
 
 use App\Traits\HasActiveStatus;
 use App\Traits\HasFilterScopes;
+use App\Traits\HasGenericScopes;
 use App\Traits\HasRelationScopes;
 use App\Traits\HasSortingScopes;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -15,7 +16,7 @@ use Spatie\Translatable\HasTranslations;
 
 class Modulo extends Model
 {
-    use HasFactory, HasTranslations, SoftDeletes, HasFilterScopes, HasSortingScopes, HasRelationScopes, HasActiveStatus;
+    use HasFactory, HasTranslations, SoftDeletes, HasFilterScopes, HasGenericScopes, HasSortingScopes, HasRelationScopes, HasActiveStatus;
 
     protected $guarded = ['id', 'created_at', 'updated_at'];
 

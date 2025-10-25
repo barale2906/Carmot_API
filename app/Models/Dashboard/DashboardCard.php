@@ -27,6 +27,10 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property string|null $period_start_date Fecha de inicio del periodo personalizado
  * @property string|null $period_end_date Fecha de fin del periodo personalizado
  * @property array|null $custom_field_values Valores personalizados para campos del KPI
+ * @property string|null $chart_type Tipo de gráfico (bar, pie, line, area, scatter)
+ * @property array|null $chart_parameters Parámetros específicos del gráfico
+ * @property string|null $group_by Campo por el cual agrupar los datos
+ * @property array|null $filters Filtros dinámicos a aplicar a los datos
  * @property int $order Orden de visualización de la tarjeta
  * @property \Carbon\Carbon $created_at Fecha de creación
  * @property \Carbon\Carbon $updated_at Fecha de última actualización
@@ -47,7 +51,8 @@ class DashboardCard extends Model
     protected $fillable = [
         'dashboard_id', 'kpi_id', 'title', 'background_color', 'text_color',
         'width', 'height', 'x_position', 'y_position', 'period_type',
-        'period_start_date', 'period_end_date', 'custom_field_values', 'order'
+        'period_start_date', 'period_end_date', 'custom_field_values', 'order',
+        'chart_type', 'chart_parameters', 'group_by', 'filters'
     ];
 
     /**
@@ -59,6 +64,8 @@ class DashboardCard extends Model
         'custom_field_values' => 'array',
         'period_start_date' => 'date',
         'period_end_date' => 'date',
+        'chart_parameters' => 'array',
+        'filters' => 'array',
     ];
 
     /**
@@ -81,5 +88,76 @@ class DashboardCard extends Model
     public function kpi(): BelongsTo
     {
         return $this->belongsTo(Kpi::class);
+    }
+
+    /**
+     * Verifica si la tarjeta tiene configuración de gráfico.
+     *
+     * @return bool True si tiene configuración de gráfico
+     */
+    public function hasChartConfiguration(): bool
+    {
+        return !empty($this->chart_type) && !empty($this->group_by);
+    }
+
+    /**
+     * Obtiene los filtros aplicados a la tarjeta.
+     *
+     * @return array Array de filtros o array vacío si no hay filtros
+     */
+    public function getFilters(): array
+    {
+        return $this->filters ?? [];
+    }
+
+    /**
+     * Obtiene los parámetros del gráfico.
+     *
+     * @return array Array de parámetros o array vacío si no hay parámetros
+     */
+    public function getChartParameters(): array
+    {
+        return $this->chart_parameters ?? [];
+    }
+
+    /**
+     * Verifica si la tarjeta tiene filtros aplicados.
+     *
+     * @return bool True si tiene filtros
+     */
+    public function hasFilters(): bool
+    {
+        return !empty($this->filters);
+    }
+
+    /**
+     * Obtiene el tipo de gráfico con valores por defecto.
+     *
+     * @return string Tipo de gráfico o 'bar' por defecto
+     */
+    public function getChartType(): string
+    {
+        return $this->chart_type ?? 'bar';
+    }
+
+    /**
+     * Obtiene el campo de agrupación.
+     *
+     * @return string|null Campo de agrupación o null si no está definido
+     */
+    public function getGroupBy(): ?string
+    {
+        return $this->group_by;
+    }
+
+    /**
+     * Verifica si el tipo de gráfico es válido.
+     *
+     * @return bool True si el tipo de gráfico es válido
+     */
+    public function hasValidChartType(): bool
+    {
+        $validTypes = ['bar', 'pie', 'line', 'area', 'scatter'];
+        return in_array($this->chart_type, $validTypes);
     }
 }

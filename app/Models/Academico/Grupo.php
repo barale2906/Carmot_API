@@ -7,6 +7,7 @@ use App\Models\Configuracion\Horario;
 use App\Models\User;
 use App\Traits\HasActiveStatus;
 use App\Traits\HasFilterScopes;
+use App\Traits\HasGenericScopes;
 use App\Traits\HasGrupoFilterScopes;
 use App\Traits\HasRelationScopes;
 use App\Traits\HasSortingScopes;
@@ -19,7 +20,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Grupo extends Model
 {
-    use HasFactory, SoftDeletes, HasFilterScopes, HasGrupoFilterScopes, HasSortingScopes, HasRelationScopes, HasActiveStatus {
+    use HasFactory, SoftDeletes, HasFilterScopes, HasGenericScopes, HasGrupoFilterScopes, HasSortingScopes, HasRelationScopes, HasActiveStatus {
         HasGrupoFilterScopes::scopeWithFilters insteadof HasFilterScopes;
     }
 
