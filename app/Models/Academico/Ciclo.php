@@ -51,6 +51,10 @@ class Ciclo extends Model
      */
     protected $casts = [
         'status' => 'integer',
+        'fecha_inicio' => 'date',
+        'fecha_fin' => 'date',
+        'duracion_dias' => 'integer',
+        'fecha_fin_automatica' => 'boolean',
     ];
 
     /**
@@ -83,7 +87,10 @@ class Ciclo extends Model
      */
     public function grupos(): BelongsToMany
     {
-        return $this->belongsToMany(Grupo::class, 'ciclo_grupo')->withTimestamps();
+        return $this->belongsToMany(Grupo::class, 'ciclo_grupo')
+            ->withPivot(['orden', 'fecha_inicio_grupo', 'fecha_fin_grupo'])
+            ->withTimestamps()
+            ->orderBy('ciclo_grupo.orden');
     }
 
     /**
@@ -136,5 +143,254 @@ class Ciclo extends Model
     protected function getCountableRelations(): array
     {
         return ['grupos'];
+    }
+
+    /**
+     * Calcula la fecha de finalización del ciclo basada en los grupos y sus horarios.
+     * Considera el orden secuencial de los grupos.
+     *
+     * @return \Carbon\Carbon|null
+     */
+    public function calcularFechaFin(): ?\Carbon\Carbon
+    {
+        if (!$this->fecha_inicio) {
+            return null;
+        }
+
+        $fechaInicio = \Carbon\Carbon::parse($this->fecha_inicio);
+        $fechaActual = $fechaInicio->copy();
+
+        // Obtener grupos ordenados por el campo 'orden' en la tabla pivot
+        $gruposOrdenados = $this->grupos()->orderBy('ciclo_grupo.orden')->get();
+
+        if ($gruposOrdenados->isEmpty()) {
+            return null;
+        }
+
+        // Calcular fecha de fin considerando el orden secuencial
+        foreach ($gruposOrdenados as $grupo) {
+            $duracionModulo = $grupo->modulo->duracion ?? 0;
+            $horasPorSemana = $grupo->getTotalHorasSemanaAttribute();
+
+            if ($horasPorSemana > 0) {
+                // Calcular semanas necesarias para este grupo
+                $semanasNecesarias = ceil($duracionModulo / $horasPorSemana);
+
+                // Actualizar fecha de inicio del grupo
+                $this->grupos()->updateExistingPivot($grupo->id, [
+                    'fecha_inicio_grupo' => $fechaActual->format('Y-m-d')
+                ]);
+
+                // Avanzar la fecha actual por las semanas necesarias
+                $fechaActual->addWeeks($semanasNecesarias);
+
+                // Actualizar fecha de fin del grupo
+                $this->grupos()->updateExistingPivot($grupo->id, [
+                    'fecha_fin_grupo' => $fechaActual->format('Y-m-d')
+                ]);
+            }
+        }
+
+        return $fechaActual;
+    }
+
+    /**
+     * Actualiza automáticamente la fecha de fin si está habilitado el cálculo automático.
+     */
+    public function actualizarFechaFin(): void
+    {
+        if ($this->fecha_fin_automatica && $this->fecha_inicio) {
+            $fechaFinCalculada = $this->calcularFechaFin();
+            if ($fechaFinCalculada) {
+                $this->fecha_fin = $fechaFinCalculada;
+                $this->duracion_dias = $this->fecha_inicio->diffInDays($fechaFinCalculada);
+            }
+        }
+    }
+
+    /**
+     * Boot del modelo para eventos automáticos.
+     */
+    protected static function boot()
+    {
+        parent::boot();
+
+        // Actualizar fecha de fin cuando se actualiza un ciclo
+        static::updated(function ($ciclo) {
+            if ($ciclo->fecha_fin_automatica) {
+                $ciclo->actualizarFechaFin();
+                $ciclo->saveQuietly(); // Guardar sin disparar eventos
+            }
+        });
+    }
+
+    /**
+     * Obtiene la duración estimada del ciclo en días.
+     *
+     * @return int
+     */
+    public function getDuracionEstimadaAttribute(): int
+    {
+        if ($this->duracion_dias) {
+            return $this->duracion_dias;
+        }
+
+        if ($this->fecha_inicio && $this->fecha_fin) {
+            return $this->fecha_inicio->diffInDays($this->fecha_fin);
+        }
+
+        return 0;
+    }
+
+    /**
+     * Obtiene el total de horas del ciclo basado en los módulos de los grupos.
+     *
+     * @return int
+     */
+    public function getTotalHorasAttribute(): int
+    {
+        return $this->grupos->sum(function ($grupo) {
+            return $grupo->modulo->duracion ?? 0;
+        });
+    }
+
+    /**
+     * Obtiene las horas por semana del ciclo.
+     *
+     * @return int
+     */
+    public function getHorasPorSemanaAttribute(): int
+    {
+        return $this->grupos->sum(function ($grupo) {
+            return $grupo->getTotalHorasSemanaAttribute();
+        });
+    }
+
+    /**
+     * Verifica si el ciclo está en curso.
+     *
+     * @return bool
+     */
+    public function getEnCursoAttribute(): bool
+    {
+        $ahora = now();
+        return $this->fecha_inicio &&
+               $this->fecha_inicio <= $ahora &&
+               (!$this->fecha_fin || $this->fecha_fin >= $ahora);
+    }
+
+    /**
+     * Verifica si el ciclo ha finalizado.
+     *
+     * @return bool
+     */
+    public function getFinalizadoAttribute(): bool
+    {
+        return $this->fecha_fin && $this->fecha_fin < now();
+    }
+
+    /**
+     * Verifica si el ciclo está por iniciar.
+     *
+     * @return bool
+     */
+    public function getPorIniciarAttribute(): bool
+    {
+        return $this->fecha_inicio && $this->fecha_inicio > now();
+    }
+
+    /**
+     * Asigna grupos al ciclo con orden específico.
+     *
+     * @param array $gruposConOrden Array de grupos con su orden: [['grupo_id' => 1, 'orden' => 1], ...]
+     * @return void
+     */
+    public function asignarGruposConOrden(array $gruposConOrden): void
+    {
+        $datosPivot = [];
+
+        foreach ($gruposConOrden as $grupo) {
+            $datosPivot[$grupo['grupo_id']] = [
+                'orden' => $grupo['orden'],
+                'created_at' => now(),
+                'updated_at' => now()
+            ];
+        }
+
+        $this->grupos()->sync($datosPivot);
+    }
+
+    /**
+     * Actualiza el orden de un grupo específico.
+     *
+     * @param int $grupoId ID del grupo
+     * @param int $nuevoOrden Nuevo orden del grupo
+     * @return bool
+     */
+    public function actualizarOrdenGrupo(int $grupoId, int $nuevoOrden): bool
+    {
+        return $this->grupos()->updateExistingPivot($grupoId, [
+            'orden' => $nuevoOrden,
+            'updated_at' => now()
+        ]) > 0;
+    }
+
+    /**
+     * Reordena todos los grupos del ciclo.
+     *
+     * @param array $nuevoOrden Array con los IDs de grupos en el nuevo orden
+     * @return void
+     */
+    public function reordenarGrupos(array $nuevoOrden): void
+    {
+        foreach ($nuevoOrden as $index => $grupoId) {
+            $this->grupos()->updateExistingPivot($grupoId, [
+                'orden' => $index + 1,
+                'updated_at' => now()
+            ]);
+        }
+    }
+
+    /**
+     * Obtiene el siguiente orden disponible para un nuevo grupo.
+     *
+     * @return int
+     */
+    public function getSiguienteOrden(): int
+    {
+        $maxOrden = $this->grupos()->max('ciclo_grupo.orden');
+        return ($maxOrden ?? 0) + 1;
+    }
+
+    /**
+     * Obtiene información detallada del cronograma del ciclo.
+     *
+     * @return array
+     */
+    public function getCronogramaAttribute(): array
+    {
+        $gruposOrdenados = $this->grupos()->orderBy('ciclo_grupo.orden')->get();
+        $cronograma = [];
+
+        foreach ($gruposOrdenados as $grupo) {
+            $cronograma[] = [
+                'grupo_id' => $grupo->id,
+                'grupo_nombre' => $grupo->nombre,
+                'orden' => $grupo->pivot->orden,
+                'modulo' => [
+                    'id' => $grupo->modulo->id,
+                    'nombre' => $grupo->modulo->nombre,
+                    'duracion' => $grupo->modulo->duracion,
+                ],
+                'fecha_inicio_grupo' => $grupo->pivot->fecha_inicio_grupo,
+                'fecha_fin_grupo' => $grupo->pivot->fecha_fin_grupo,
+                'horas_por_semana' => $grupo->getTotalHorasSemanaAttribute(),
+                'semanas_estimadas' => $grupo->getTotalHorasSemanaAttribute() > 0
+                    ? ceil($grupo->modulo->duracion / $grupo->getTotalHorasSemanaAttribute())
+                    : 0
+            ];
+        }
+
+        return $cronograma;
     }
 }

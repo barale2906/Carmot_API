@@ -6,7 +6,7 @@
     },
     "servers": [
         {
-            "url": "http://localhost/api"
+            "url": "http://127.0.0.1/api"
         }
     ],
     "paths": {
@@ -1301,6 +1301,7 @@
         "/login": {
             "post": {
                 "operationId": "auth.login",
+                "summary": "Iniciar sesi\u00f3n de usuario",
                 "tags": [
                     "Auth"
                 ],
@@ -1338,7 +1339,7 @@
                                         "message": {
                                             "type": "string",
                                             "enum": [
-                                                "Login successful"
+                                                "Inicio de sesi\u00f3n exitoso"
                                             ]
                                         },
                                         "access_token": {
@@ -1369,6 +1370,7 @@
         "/logout": {
             "post": {
                 "operationId": "auth.logout",
+                "summary": "Cerrar sesi\u00f3n del usuario",
                 "tags": [
                     "Auth"
                 ],
@@ -1403,6 +1405,7 @@
         "/user": {
             "get": {
                 "operationId": "auth.user",
+                "summary": "Obtener informaci\u00f3n del usuario autenticado",
                 "tags": [
                     "Auth"
                 ],
@@ -1416,6 +1419,1378 @@
                                 }
                             }
                         }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/academico/ciclos": {
+            "get": {
+                "operationId": "ciclos.index",
+                "summary": "Muestra una lista de los ciclos",
+                "tags": [
+                    "Ciclo"
+                ],
+                "parameters": [
+                    {
+                        "name": "sort_by",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "sort_direction",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "default": 15
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/CicloResource"
+                                            }
+                                        },
+                                        "meta": {
+                                            "type": "object",
+                                            "properties": {
+                                                "current_page": {
+                                                    "type": "string"
+                                                },
+                                                "last_page": {
+                                                    "type": "string"
+                                                },
+                                                "per_page": {
+                                                    "type": "string"
+                                                },
+                                                "total": {
+                                                    "type": "string"
+                                                },
+                                                "from": {
+                                                    "type": "string"
+                                                },
+                                                "to": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "required": [
+                                                "current_page",
+                                                "last_page",
+                                                "per_page",
+                                                "total",
+                                                "from",
+                                                "to"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "data",
+                                        "meta"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            },
+            "post": {
+                "operationId": "ciclos.store",
+                "summary": "Almacena un nuevo ciclo en la base de datos",
+                "tags": [
+                    "Ciclo"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/StoreCicloRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "enum": [
+                                                "Ciclo creado exitosamente."
+                                            ]
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/CicloResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "message",
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            }
+        },
+        "/academico/ciclos/{ciclo}": {
+            "get": {
+                "operationId": "ciclos.show",
+                "summary": "Muestra el ciclo especificado",
+                "tags": [
+                    "Ciclo"
+                ],
+                "parameters": [
+                    {
+                        "name": "ciclo",
+                        "in": "path",
+                        "required": true,
+                        "description": "The ciclo ID",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/CicloResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            },
+            "put": {
+                "operationId": "ciclos.update",
+                "summary": "Actualiza el ciclo especificado en la base de datos",
+                "tags": [
+                    "Ciclo"
+                ],
+                "parameters": [
+                    {
+                        "name": "ciclo",
+                        "in": "path",
+                        "required": true,
+                        "description": "The ciclo ID",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateCicloRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "enum": [
+                                                "Ciclo actualizado exitosamente."
+                                            ]
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/CicloResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "message",
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "ciclos.destroy",
+                "summary": "Elimina el ciclo especificado de la base de datos (soft delete)",
+                "tags": [
+                    "Ciclo"
+                ],
+                "parameters": [
+                    {
+                        "name": "ciclo",
+                        "in": "path",
+                        "required": true,
+                        "description": "The ciclo ID",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Soft delete",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "enum": [
+                                                "Ciclo eliminado exitosamente."
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "enum": [
+                                                "No se puede eliminar el ciclo porque tiene grupos asociados."
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/academico/ciclos/{id}/restore": {
+            "post": {
+                "operationId": "ciclos.restore",
+                "summary": "Restaura un ciclo eliminado (soft delete)",
+                "tags": [
+                    "Ciclo"
+                ],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "enum": [
+                                                "Ciclo restaurado exitosamente."
+                                            ]
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/CicloResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "message",
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/academico/ciclos/{id}/force-delete": {
+            "delete": {
+                "operationId": "ciclos.force-delete",
+                "summary": "Elimina permanentemente un ciclo",
+                "tags": [
+                    "Ciclo"
+                ],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "enum": [
+                                                "Ciclo eliminado permanentemente."
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "enum": [
+                                                "No se puede eliminar permanentemente el ciclo porque tiene grupos asociados."
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/academico/ciclos/trashed": {
+            "get": {
+                "operationId": "ciclos.trashed",
+                "summary": "Obtiene solo los ciclos eliminados (soft delete)",
+                "tags": [
+                    "Ciclo"
+                ],
+                "parameters": [
+                    {
+                        "name": "sort_by",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "sort_direction",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "default": 15
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/CicloResource"
+                                            }
+                                        },
+                                        "meta": {
+                                            "type": "object",
+                                            "properties": {
+                                                "current_page": {
+                                                    "type": "string"
+                                                },
+                                                "last_page": {
+                                                    "type": "string"
+                                                },
+                                                "per_page": {
+                                                    "type": "string"
+                                                },
+                                                "total": {
+                                                    "type": "string"
+                                                },
+                                                "from": {
+                                                    "type": "string"
+                                                },
+                                                "to": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "required": [
+                                                "current_page",
+                                                "last_page",
+                                                "per_page",
+                                                "total",
+                                                "from",
+                                                "to"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "data",
+                                        "meta"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/academico/ciclos/filters": {
+            "get": {
+                "operationId": "ciclos.filters",
+                "summary": "Obtiene las opciones de filtros disponibles",
+                "tags": [
+                    "Ciclo"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "status_options": {
+                                                    "type": "array",
+                                                    "prefixItems": [
+                                                        {
+                                                            "type": "string",
+                                                            "enum": [
+                                                                "Inactivo"
+                                                            ]
+                                                        },
+                                                        {
+                                                            "type": "string",
+                                                            "enum": [
+                                                                "Activo"
+                                                            ]
+                                                        }
+                                                    ],
+                                                    "minItems": 2,
+                                                    "maxItems": 2,
+                                                    "additionalItems": false
+                                                },
+                                                "sedes": {
+                                                    "type": "string"
+                                                },
+                                                "cursos": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "required": [
+                                                "status_options",
+                                                "sedes",
+                                                "cursos"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/academico/ciclos/statistics": {
+            "get": {
+                "operationId": "ciclos.statistics",
+                "summary": "Obtiene estad\u00edsticas de ciclos",
+                "tags": [
+                    "Ciclo"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "totales": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "total": {
+                                                            "type": "string"
+                                                        },
+                                                        "activos": {
+                                                            "type": "string"
+                                                        },
+                                                        "eliminados": {
+                                                            "type": "string"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "total",
+                                                        "activos",
+                                                        "eliminados"
+                                                    ]
+                                                },
+                                                "por_status": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "activos": {
+                                                            "type": "string"
+                                                        },
+                                                        "inactivos": {
+                                                            "type": "string"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "activos",
+                                                        "inactivos"
+                                                    ]
+                                                },
+                                                "por_sede": {
+                                                    "type": "string"
+                                                },
+                                                "por_curso": {
+                                                    "type": "string"
+                                                },
+                                                "con_grupos": {
+                                                    "type": "string"
+                                                },
+                                                "sin_grupos": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "required": [
+                                                "totales",
+                                                "por_status",
+                                                "por_sede",
+                                                "por_curso",
+                                                "con_grupos",
+                                                "sin_grupos"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/academico/ciclos/{ciclo}/asignar-grupos": {
+            "post": {
+                "operationId": "ciclos.asignar-grupos",
+                "summary": "Asigna grupos a un ciclo",
+                "tags": [
+                    "Ciclo"
+                ],
+                "parameters": [
+                    {
+                        "name": "ciclo",
+                        "in": "path",
+                        "required": true,
+                        "description": "The ciclo ID",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "grupos": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "integer"
+                                        }
+                                    }
+                                },
+                                "required": [
+                                    "grupos"
+                                ]
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "enum": [
+                                                "Grupos asignados exitosamente."
+                                            ]
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/CicloResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "message",
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/academico/ciclos/{ciclo}/desasignar-grupo": {
+            "post": {
+                "operationId": "ciclos.desasignar-grupo",
+                "summary": "Desasigna un grupo de un ciclo",
+                "tags": [
+                    "Ciclo"
+                ],
+                "parameters": [
+                    {
+                        "name": "ciclo",
+                        "in": "path",
+                        "required": true,
+                        "description": "The ciclo ID",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "grupo_id": {
+                                        "type": "integer"
+                                    }
+                                },
+                                "required": [
+                                    "grupo_id"
+                                ]
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "enum": [
+                                                "Grupo desasignado exitosamente."
+                                            ]
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/CicloResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "message",
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/academico/ciclos/{ciclo}/calcular-fecha-fin": {
+            "post": {
+                "operationId": "ciclos.calcular-fecha-fin",
+                "summary": "Calcula y actualiza la fecha de fin del ciclo",
+                "tags": [
+                    "Ciclo"
+                ],
+                "parameters": [
+                    {
+                        "name": "ciclo",
+                        "in": "path",
+                        "required": true,
+                        "description": "The ciclo ID",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "enum": [
+                                                "Fecha de fin calculada exitosamente."
+                                            ]
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/CicloResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "message",
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "enum": [
+                                                "No se pudo calcular la fecha de fin. Verifique que el ciclo tenga fecha de inicio y grupos con horarios configurados."
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/academico/ciclos/{ciclo}/informacion-calculo": {
+            "get": {
+                "operationId": "ciclos.informacion-calculo",
+                "summary": "Obtiene informaci\u00f3n detallada del c\u00e1lculo de fechas del ciclo",
+                "tags": [
+                    "Ciclo"
+                ],
+                "parameters": [
+                    {
+                        "name": "ciclo",
+                        "in": "path",
+                        "required": true,
+                        "description": "The ciclo ID",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "ciclo": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "id": {
+                                                            "type": "integer"
+                                                        },
+                                                        "nombre": {
+                                                            "type": "string"
+                                                        },
+                                                        "fecha_inicio": {
+                                                            "type": "string"
+                                                        },
+                                                        "fecha_fin": {
+                                                            "type": "string"
+                                                        },
+                                                        "fecha_fin_automatica": {
+                                                            "type": "string"
+                                                        },
+                                                        "duracion_dias": {
+                                                            "type": "string"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "id",
+                                                        "nombre",
+                                                        "fecha_inicio",
+                                                        "fecha_fin",
+                                                        "fecha_fin_automatica",
+                                                        "duracion_dias"
+                                                    ]
+                                                },
+                                                "grupos": {
+                                                    "type": "string"
+                                                },
+                                                "calculos": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "total_horas": {
+                                                            "type": "integer"
+                                                        },
+                                                        "horas_por_semana": {
+                                                            "type": "integer"
+                                                        },
+                                                        "semanas_estimadas": {
+                                                            "anyOf": [
+                                                                {
+                                                                    "type": "string"
+                                                                },
+                                                                {
+                                                                    "type": "integer",
+                                                                    "enum": [
+                                                                        0
+                                                                    ]
+                                                                }
+                                                            ]
+                                                        },
+                                                        "fecha_fin_calculada": {
+                                                            "type": [
+                                                                "string",
+                                                                "null"
+                                                            ],
+                                                            "format": "date-time"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "total_horas",
+                                                        "horas_por_semana",
+                                                        "semanas_estimadas",
+                                                        "fecha_fin_calculada"
+                                                    ]
+                                                },
+                                                "estado": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "en_curso": {
+                                                            "type": "boolean"
+                                                        },
+                                                        "finalizado": {
+                                                            "type": "boolean"
+                                                        },
+                                                        "por_iniciar": {
+                                                            "type": "boolean"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "en_curso",
+                                                        "finalizado",
+                                                        "por_iniciar"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "ciclo",
+                                                "grupos",
+                                                "calculos",
+                                                "estado"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/academico/ciclos/{ciclo}/actualizar-orden-grupo": {
+            "post": {
+                "operationId": "ciclos.actualizar-orden-grupo",
+                "summary": "Actualiza el orden de un grupo espec\u00edfico en el ciclo",
+                "tags": [
+                    "Ciclo"
+                ],
+                "parameters": [
+                    {
+                        "name": "ciclo",
+                        "in": "path",
+                        "required": true,
+                        "description": "The ciclo ID",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "grupo_id": {
+                                        "type": "integer"
+                                    },
+                                    "nuevo_orden": {
+                                        "type": "integer",
+                                        "minimum": 1
+                                    }
+                                },
+                                "required": [
+                                    "grupo_id",
+                                    "nuevo_orden"
+                                ]
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "enum": [
+                                                "Orden del grupo actualizado exitosamente."
+                                            ]
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/CicloResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "message",
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/academico/ciclos/{ciclo}/reordenar-grupos": {
+            "post": {
+                "operationId": "ciclos.reordenar-grupos",
+                "summary": "Reordena todos los grupos del ciclo",
+                "tags": [
+                    "Ciclo"
+                ],
+                "parameters": [
+                    {
+                        "name": "ciclo",
+                        "in": "path",
+                        "required": true,
+                        "description": "The ciclo ID",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "nuevo_orden": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "integer"
+                                        }
+                                    }
+                                },
+                                "required": [
+                                    "nuevo_orden"
+                                ]
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "enum": [
+                                                "Grupos reordenados exitosamente."
+                                            ]
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/CicloResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "message",
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/academico/ciclos/{ciclo}/cronograma": {
+            "get": {
+                "operationId": "ciclos.cronograma",
+                "summary": "Obtiene el cronograma detallado del ciclo",
+                "tags": [
+                    "Ciclo"
+                ],
+                "parameters": [
+                    {
+                        "name": "ciclo",
+                        "in": "path",
+                        "required": true,
+                        "description": "The ciclo ID",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "ciclo": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "id": {
+                                                            "type": "integer"
+                                                        },
+                                                        "nombre": {
+                                                            "type": "string"
+                                                        },
+                                                        "fecha_inicio": {
+                                                            "type": "string"
+                                                        },
+                                                        "fecha_fin": {
+                                                            "type": "string"
+                                                        },
+                                                        "fecha_fin_automatica": {
+                                                            "type": "string"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "id",
+                                                        "nombre",
+                                                        "fecha_inicio",
+                                                        "fecha_fin",
+                                                        "fecha_fin_automatica"
+                                                    ]
+                                                },
+                                                "cronograma": {
+                                                    "type": "string"
+                                                },
+                                                "resumen": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "total_grupos": {
+                                                            "type": "string"
+                                                        },
+                                                        "duracion_total_dias": {
+                                                            "type": "string"
+                                                        },
+                                                        "total_horas": {
+                                                            "type": "integer"
+                                                        },
+                                                        "horas_por_semana_promedio": {
+                                                            "anyOf": [
+                                                                {
+                                                                    "type": "string"
+                                                                },
+                                                                {
+                                                                    "type": "integer",
+                                                                    "enum": [
+                                                                        0
+                                                                    ]
+                                                                }
+                                                            ]
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "total_grupos",
+                                                        "duracion_total_dias",
+                                                        "total_horas",
+                                                        "horas_por_semana_promedio"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "ciclo",
+                                                "cronograma",
+                                                "resumen"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/academico/ciclos/{ciclo}/siguiente-orden": {
+            "get": {
+                "operationId": "ciclos.siguiente-orden",
+                "summary": "Obtiene el siguiente orden disponible para un nuevo grupo",
+                "tags": [
+                    "Ciclo"
+                ],
+                "parameters": [
+                    {
+                        "name": "ciclo",
+                        "in": "path",
+                        "required": true,
+                        "description": "The ciclo ID",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "siguiente_orden": {
+                                                    "type": "integer"
+                                                }
+                                            },
+                                            "required": [
+                                                "siguiente_orden"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
                     },
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
@@ -2260,6 +3635,49 @@
                     }
                 },
                 "responses": {
+                    "500": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "anyOf": [
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "message": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                        "Error al crear el grupo."
+                                                    ]
+                                                },
+                                                "error": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "required": [
+                                                "message",
+                                                "error"
+                                            ]
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "message": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                        "Error al asignar horarios al grupo."
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "message"
+                                            ]
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
                     "201": {
                         "description": "",
                         "content": {
@@ -2285,11 +3703,11 @@
                             }
                         }
                     },
-                    "401": {
-                        "$ref": "#/components/responses/AuthenticationException"
-                    },
                     "422": {
                         "$ref": "#/components/responses/ValidationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
                     }
                 }
             }
@@ -2956,6 +4374,359 @@
                                 }
                             }
                         }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/academico/grupos/{grupo}/horarios": {
+            "get": {
+                "operationId": "grupos.horarios.index",
+                "summary": "Obtiene los horarios de un grupo espec\u00edfico",
+                "tags": [
+                    "Grupo"
+                ],
+                "parameters": [
+                    {
+                        "name": "grupo",
+                        "in": "path",
+                        "required": true,
+                        "description": "The grupo ID",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            },
+            "post": {
+                "operationId": "grupos.horarios.store",
+                "summary": "Asigna horarios a un grupo espec\u00edfico",
+                "tags": [
+                    "Grupo"
+                ],
+                "parameters": [
+                    {
+                        "name": "grupo",
+                        "in": "path",
+                        "required": true,
+                        "description": "The grupo ID",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/StoreGrupoHorarioRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "500": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "enum": [
+                                                "Error al asignar horarios al grupo."
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "201": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "enum": [
+                                                "Horarios asignados exitosamente al grupo."
+                                            ]
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/GrupoResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "message",
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            },
+            "put": {
+                "operationId": "grupos.horarios.update",
+                "summary": "Actualiza los horarios de un grupo espec\u00edfico",
+                "tags": [
+                    "Grupo"
+                ],
+                "parameters": [
+                    {
+                        "name": "grupo",
+                        "in": "path",
+                        "required": true,
+                        "description": "The grupo ID",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateGrupoHorarioRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "enum": [
+                                                "Horarios del grupo actualizados exitosamente."
+                                            ]
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/GrupoResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "message",
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "enum": [
+                                                "Error al actualizar horarios del grupo."
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "grupos.horarios.destroy",
+                "summary": "Elimina todos los horarios de un grupo espec\u00edfico",
+                "tags": [
+                    "Grupo"
+                ],
+                "parameters": [
+                    {
+                        "name": "grupo",
+                        "in": "path",
+                        "required": true,
+                        "description": "The grupo ID",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "500": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "enum": [
+                                                "Error al eliminar horarios del grupo."
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "enum": [
+                                                "Horarios del grupo eliminados exitosamente."
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/academico/grupos/{grupo}/horarios/estadisticas": {
+            "get": {
+                "operationId": "grupos.horarios.statistics",
+                "summary": "Obtiene estad\u00edsticas de horarios de un grupo espec\u00edfico",
+                "tags": [
+                    "Grupo"
+                ],
+                "parameters": [
+                    {
+                        "name": "grupo",
+                        "in": "path",
+                        "required": true,
+                        "description": "The grupo ID",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "total_horarios": {
+                                                    "type": "string"
+                                                },
+                                                "total_horas_semana": {
+                                                    "type": "string"
+                                                },
+                                                "dias_clase": {
+                                                    "type": "string"
+                                                },
+                                                "horarios_por_dia": {
+                                                    "type": "string"
+                                                },
+                                                "areas_utilizadas": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "required": [
+                                                "total_horarios",
+                                                "total_horas_semana",
+                                                "dias_clase",
+                                                "horarios_por_dia",
+                                                "areas_utilizadas"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
                     },
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
@@ -7599,6 +9370,31 @@
                     }
                 ],
                 "responses": {
+                    "500": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "enum": [
+                                                "Error al obtener los usuarios"
+                                            ]
+                                        },
+                                        "error": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": [
+                                        "message",
+                                        "error"
+                                    ]
+                                }
+                            }
+                        }
+                    },
                     "200": {
                         "description": "Paginated set of `UserResource`",
                         "content": {
@@ -7739,7 +9535,7 @@
             },
             "post": {
                 "operationId": "users.store",
-                "summary": "Store a newly created user in storage",
+                "summary": "Almacenar un usuario reci\u00e9n creado en el almacenamiento",
                 "tags": [
                     "User"
                 ],
@@ -7952,7 +9748,7 @@
                                         "message": {
                                             "type": "string",
                                             "enum": [
-                                                "No se puede eliminar el usuario porque tiene grupos asociados."
+                                                "No se puede eliminar el usuario porque tiene relaciones asociadas (grupos, cursos, gestores, agendadores o seguimientos)."
                                             ]
                                         }
                                     },
@@ -8048,7 +9844,7 @@
                                         "message": {
                                             "type": "string",
                                             "enum": [
-                                                "No se puede eliminar permanentemente el usuario porque tiene grupos asociados."
+                                                "No se puede eliminar permanentemente el usuario porque tiene relaciones asociadas (grupos, cursos, gestores, agendadores o seguimientos)."
                                             ]
                                         }
                                     },
@@ -8088,11 +9884,23 @@
                                                 },
                                                 "profesores": {
                                                     "type": "string"
+                                                },
+                                                "cursos": {
+                                                    "type": "string"
+                                                },
+                                                "gestores": {
+                                                    "type": "string"
+                                                },
+                                                "agendadores": {
+                                                    "type": "string"
                                                 }
                                             },
                                             "required": [
                                                 "roles",
-                                                "profesores"
+                                                "profesores",
+                                                "cursos",
+                                                "gestores",
+                                                "agendadores"
                                             ]
                                         }
                                     },
@@ -8151,12 +9959,28 @@
                                                 },
                                                 "con_grupos": {
                                                     "type": "string"
+                                                },
+                                                "con_cursos": {
+                                                    "type": "string"
+                                                },
+                                                "con_gestores": {
+                                                    "type": "string"
+                                                },
+                                                "con_agendadores": {
+                                                    "type": "string"
+                                                },
+                                                "con_seguimientos": {
+                                                    "type": "string"
                                                 }
                                             },
                                             "required": [
                                                 "totales",
                                                 "por_rol",
-                                                "con_grupos"
+                                                "con_grupos",
+                                                "con_cursos",
+                                                "con_gestores",
+                                                "con_agendadores",
+                                                "con_seguimientos"
                                             ]
                                         }
                                     },
@@ -8330,6 +10154,184 @@
                     "deleted_at"
                 ],
                 "title": "AreaResource"
+            },
+            "CicloResource": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string"
+                    },
+                    "nombre": {
+                        "type": "string"
+                    },
+                    "descripcion": {
+                        "type": "string"
+                    },
+                    "fecha_inicio": {
+                        "type": "string"
+                    },
+                    "fecha_fin": {
+                        "type": "string"
+                    },
+                    "fecha_fin_automatica": {
+                        "type": "string"
+                    },
+                    "duracion_dias": {
+                        "type": "string"
+                    },
+                    "duracion_estimada": {
+                        "type": "string"
+                    },
+                    "total_horas": {
+                        "type": "string"
+                    },
+                    "horas_por_semana": {
+                        "type": "string"
+                    },
+                    "en_curso": {
+                        "type": "string"
+                    },
+                    "finalizado": {
+                        "type": "string"
+                    },
+                    "por_iniciar": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "type": "string"
+                    },
+                    "status_text": {
+                        "type": "string"
+                    },
+                    "created_at": {
+                        "type": "string"
+                    },
+                    "updated_at": {
+                        "type": "string"
+                    },
+                    "deleted_at": {
+                        "type": "string"
+                    },
+                    "sede": {
+                        "type": "object",
+                        "description": "Relaciones cargadas",
+                        "properties": {
+                            "id": {
+                                "type": "string"
+                            },
+                            "nombre": {
+                                "type": "string"
+                            },
+                            "direccion": {
+                                "type": "string"
+                            },
+                            "telefono": {
+                                "type": "string"
+                            },
+                            "email": {
+                                "type": "string"
+                            },
+                            "hora_inicio": {
+                                "type": "string"
+                            },
+                            "hora_fin": {
+                                "type": "string"
+                            },
+                            "status": {
+                                "type": "string"
+                            },
+                            "status_text": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "id",
+                            "nombre",
+                            "direccion",
+                            "telefono",
+                            "email",
+                            "hora_inicio",
+                            "hora_fin",
+                            "status",
+                            "status_text"
+                        ]
+                    },
+                    "curso": {
+                        "type": "object",
+                        "properties": {
+                            "id": {
+                                "type": "string"
+                            },
+                            "nombre": {
+                                "type": "string"
+                            },
+                            "duracion": {
+                                "type": "string"
+                            },
+                            "status": {
+                                "type": "string"
+                            },
+                            "status_text": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "id",
+                            "nombre",
+                            "duracion",
+                            "status",
+                            "status_text"
+                        ]
+                    },
+                    "grupos": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "array",
+                                "items": {
+                                    "type": "string"
+                                },
+                                "minItems": 0,
+                                "maxItems": 0,
+                                "additionalItems": false
+                            }
+                        ]
+                    },
+                    "sede_count": {
+                        "type": "integer",
+                        "description": "Contadores"
+                    },
+                    "curso_count": {
+                        "type": "integer"
+                    },
+                    "grupos_count": {
+                        "type": "integer"
+                    }
+                },
+                "required": [
+                    "id",
+                    "nombre",
+                    "descripcion",
+                    "fecha_inicio",
+                    "fecha_fin",
+                    "fecha_fin_automatica",
+                    "duracion_dias",
+                    "duracion_estimada",
+                    "total_horas",
+                    "horas_por_semana",
+                    "en_curso",
+                    "finalizado",
+                    "por_iniciar",
+                    "status",
+                    "status_text",
+                    "created_at",
+                    "updated_at",
+                    "deleted_at",
+                    "grupos"
+                ],
+                "title": "CicloResource"
             },
             "CursoResource": {
                 "type": "object",
@@ -8516,6 +10518,9 @@
                             "documento"
                         ]
                     },
+                    "horarios": {
+                        "type": "string"
+                    },
                     "sede_count": {
                         "type": "string",
                         "description": "Contadores"
@@ -8524,6 +10529,19 @@
                         "type": "string"
                     },
                     "profesor_count": {
+                        "type": "string"
+                    },
+                    "horarios_count": {
+                        "type": "string"
+                    },
+                    "total_horas_semana": {
+                        "type": "string",
+                        "description": "Informaci\u00f3n adicional de horarios"
+                    },
+                    "dias_clase": {
+                        "type": "string"
+                    },
+                    "tiene_horarios": {
                         "type": "string"
                     }
                 },
@@ -9120,6 +11138,68 @@
                 ],
                 "title": "StoreAreaRequest"
             },
+            "StoreCicloRequest": {
+                "type": "object",
+                "properties": {
+                    "sede_id": {
+                        "type": "integer"
+                    },
+                    "curso_id": {
+                        "type": "integer"
+                    },
+                    "nombre": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "descripcion": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 1000
+                    },
+                    "fecha_inicio": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "fecha_fin": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time"
+                    },
+                    "fecha_fin_automatica": {
+                        "type": [
+                            "boolean",
+                            "null"
+                        ]
+                    },
+                    "status": {
+                        "type": "integer",
+                        "enum": [
+                            "0",
+                            "1"
+                        ]
+                    },
+                    "grupos": {
+                        "type": [
+                            "array",
+                            "null"
+                        ],
+                        "items": {
+                            "type": "integer"
+                        }
+                    }
+                },
+                "required": [
+                    "sede_id",
+                    "curso_id",
+                    "nombre",
+                    "fecha_inicio"
+                ],
+                "title": "StoreCicloRequest"
+            },
             "StoreCursoRequest": {
                 "type": "object",
                 "properties": {
@@ -9152,6 +11232,60 @@
                     "tipo"
                 ],
                 "title": "StoreCursoRequest"
+            },
+            "StoreGrupoHorarioRequest": {
+                "type": "object",
+                "properties": {
+                    "horarios": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "area_id": {
+                                    "type": "integer"
+                                },
+                                "dia": {
+                                    "type": "string",
+                                    "enum": [
+                                        "lunes",
+                                        "martes",
+                                        "mi\u00e9rcoles",
+                                        "jueves",
+                                        "viernes",
+                                        "s\u00e1bado",
+                                        "domingo"
+                                    ]
+                                },
+                                "hora": {
+                                    "type": "string",
+                                    "format": "date"
+                                },
+                                "duracion_horas": {
+                                    "type": "integer",
+                                    "minimum": 1,
+                                    "maximum": 8
+                                },
+                                "status": {
+                                    "type": "integer",
+                                    "enum": [
+                                        "0",
+                                        "1"
+                                    ]
+                                }
+                            },
+                            "required": [
+                                "area_id",
+                                "dia",
+                                "hora"
+                            ]
+                        },
+                        "minItems": 1
+                    }
+                },
+                "required": [
+                    "horarios"
+                ],
+                "title": "StoreGrupoHorarioRequest"
             },
             "StoreGrupoRequest": {
                 "type": "object",
@@ -9189,6 +11323,47 @@
                             "0",
                             "1"
                         ]
+                    },
+                    "horarios": {
+                        "type": "array",
+                        "description": "Horarios opcionales",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "area_id": {
+                                    "type": "integer"
+                                },
+                                "dia": {
+                                    "type": "string",
+                                    "enum": [
+                                        "lunes",
+                                        "martes",
+                                        "mi\u00e9rcoles",
+                                        "jueves",
+                                        "viernes",
+                                        "s\u00e1bado",
+                                        "domingo"
+                                    ]
+                                },
+                                "hora": {
+                                    "type": "string",
+                                    "format": "date"
+                                },
+                                "duracion_horas": {
+                                    "type": "integer",
+                                    "minimum": 1,
+                                    "maximum": 8
+                                },
+                                "status": {
+                                    "type": "integer",
+                                    "enum": [
+                                        "0",
+                                        "1"
+                                    ]
+                                }
+                            }
+                        },
+                        "minItems": 1
                     }
                 },
                 "required": [
@@ -9527,6 +11702,13 @@
                         "items": {
                             "type": "string"
                         }
+                    },
+                    "cursos": {
+                        "type": "array",
+                        "description": "Valida que los permisos existan",
+                        "items": {
+                            "type": "integer"
+                        }
                     }
                 },
                 "required": [
@@ -9627,6 +11809,55 @@
                 },
                 "title": "UpdateAgendaRequest"
             },
+            "UpdateCicloRequest": {
+                "type": "object",
+                "properties": {
+                    "sede_id": {
+                        "type": "integer"
+                    },
+                    "curso_id": {
+                        "type": "integer"
+                    },
+                    "nombre": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "descripcion": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 1000
+                    },
+                    "fecha_inicio": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "fecha_fin": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time"
+                    },
+                    "fecha_fin_automatica": {
+                        "type": "boolean"
+                    },
+                    "status": {
+                        "type": "string"
+                    },
+                    "grupos": {
+                        "type": [
+                            "array",
+                            "null"
+                        ],
+                        "items": {
+                            "type": "integer"
+                        }
+                    }
+                },
+                "title": "UpdateCicloRequest"
+            },
             "UpdateCursoRequest": {
                 "type": "object",
                 "properties": {
@@ -9646,6 +11877,50 @@
                     }
                 },
                 "title": "UpdateCursoRequest"
+            },
+            "UpdateGrupoHorarioRequest": {
+                "type": "object",
+                "properties": {
+                    "horarios": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "id": {
+                                    "type": "integer"
+                                },
+                                "area_id": {
+                                    "type": "integer"
+                                },
+                                "dia": {
+                                    "type": "string",
+                                    "enum": [
+                                        "lunes",
+                                        "martes",
+                                        "mi\u00e9rcoles",
+                                        "jueves",
+                                        "viernes",
+                                        "s\u00e1bado",
+                                        "domingo"
+                                    ]
+                                },
+                                "hora": {
+                                    "type": "string",
+                                    "format": "date"
+                                },
+                                "status": {
+                                    "type": "integer",
+                                    "enum": [
+                                        "0",
+                                        "1"
+                                    ]
+                                }
+                            }
+                        },
+                        "minItems": 1
+                    }
+                },
+                "title": "UpdateGrupoHorarioRequest"
             },
             "UpdateGrupoRequest": {
                 "type": "object",
@@ -9961,6 +12236,12 @@
                         "items": {
                             "type": "string"
                         }
+                    },
+                    "cursos": {
+                        "type": "array",
+                        "items": {
+                            "type": "integer"
+                        }
                     }
                 },
                 "title": "UpdateUserRequest"
@@ -10007,6 +12288,34 @@
                             "additionalProperties": {}
                         }
                     },
+                    "cursos": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "additionalProperties": {}
+                        }
+                    },
+                    "gestores": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "additionalProperties": {}
+                        }
+                    },
+                    "agendadores": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "additionalProperties": {}
+                        }
+                    },
+                    "seguimientos": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "additionalProperties": {}
+                        }
+                    },
                     "created_at": {
                         "type": "string"
                     },
@@ -10019,6 +12328,18 @@
                     "grupos_count": {
                         "type": "string",
                         "description": "Contadores"
+                    },
+                    "cursos_count": {
+                        "type": "string"
+                    },
+                    "gestores_count": {
+                        "type": "string"
+                    },
+                    "agendadores_count": {
+                        "type": "string"
+                    },
+                    "seguimientos_count": {
+                        "type": "string"
                     }
                 },
                 "required": [
@@ -10029,6 +12350,10 @@
                     "roles",
                     "permissions",
                     "grupos",
+                    "cursos",
+                    "gestores",
+                    "agendadores",
+                    "seguimientos",
                     "created_at",
                     "updated_at",
                     "deleted_at"

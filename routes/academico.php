@@ -102,5 +102,17 @@ Route::middleware('auth:sanctum')->group(function () {
         // Rutas para filtros y estadísticas
         Route::get('filters', [CicloController::class, 'filters'])->name('ciclos.filters');
         Route::get('statistics', [CicloController::class, 'statistics'])->name('ciclos.statistics');
+
+        // Rutas para gestión de grupos y fechas
+        Route::post('{ciclo}/asignar-grupos', [CicloController::class, 'asignarGrupos'])->name('ciclos.asignar-grupos');
+        Route::post('{ciclo}/desasignar-grupo', [CicloController::class, 'desasignarGrupo'])->name('ciclos.desasignar-grupo');
+        Route::post('{ciclo}/calcular-fecha-fin', [CicloController::class, 'calcularFechaFin'])->name('ciclos.calcular-fecha-fin');
+        Route::get('{ciclo}/informacion-calculo', [CicloController::class, 'informacionCalculo'])->name('ciclos.informacion-calculo');
+
+        // Rutas para gestión de orden de grupos
+        Route::post('{ciclo}/actualizar-orden-grupo', [CicloController::class, 'actualizarOrdenGrupo'])->name('ciclos.actualizar-orden-grupo');
+        Route::post('{ciclo}/reordenar-grupos', [CicloController::class, 'reordenarGrupos'])->name('ciclos.reordenar-grupos');
+        Route::get('{ciclo}/cronograma', [CicloController::class, 'cronograma'])->name('ciclos.cronograma');
+        Route::get('{ciclo}/siguiente-orden', [CicloController::class, 'siguienteOrden'])->name('ciclos.siguiente-orden');
     });
 });

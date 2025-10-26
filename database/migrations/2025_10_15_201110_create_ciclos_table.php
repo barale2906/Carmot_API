@@ -22,6 +22,12 @@ return new class extends Migration
 
             $table->string('nombre')->comment('nombre del ciclo');
             $table->text('descripcion')->nullable()->comment('descripción del ciclo');
+
+            $table->date('fecha_inicio')->nullable()->comment('Fecha de inicio del ciclo');
+            $table->date('fecha_fin')->nullable()->comment('Fecha de finalización del ciclo');
+            $table->integer('duracion_dias')->nullable()->comment('Duración del ciclo en días (calculado automáticamente)');
+            $table->boolean('fecha_fin_automatica')->default(true)->comment('Indica si la fecha de fin se calcula automáticamente');
+
             $table->integer('status')->default(1)->comment('1: activo, 0: inactivo');
 
             $table->softDeletes();
@@ -37,6 +43,10 @@ return new class extends Migration
 
             $table->foreign('ciclo_id')->references('id')->on('ciclos')->onDelete('cascade');
             $table->foreign('grupo_id')->references('id')->on('grupos')->onDelete('cascade');
+
+            $table->integer('orden')->default(1)->comment('Orden secuencial en que se dictará el grupo dentro del ciclo');
+            $table->date('fecha_inicio_grupo')->nullable()->comment('Fecha de inicio específica del grupo dentro del ciclo');
+            $table->date('fecha_fin_grupo')->nullable()->comment('Fecha de fin específica del grupo dentro del ciclo');
 
             // Índice único para evitar duplicados
             $table->unique(['ciclo_id', 'grupo_id'], 'ciclo_grupo_unique');

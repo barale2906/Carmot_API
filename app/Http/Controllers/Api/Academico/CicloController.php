@@ -83,12 +83,34 @@ class CicloController extends Controller
             'curso_id' => $request->curso_id,
             'nombre' => $request->nombre,
             'descripcion' => $request->descripcion,
+            'fecha_inicio' => $request->fecha_inicio,
+            'fecha_fin' => $request->fecha_fin,
+            'fecha_fin_automatica' => $request->fecha_fin_automatica ?? true,
             'status' => $request->status ?? 1, // Por defecto estado "Activo"
         ]);
 
         // Asignar grupos al ciclo si se proporcionan
         if ($request->has('grupos') && is_array($request->grupos)) {
-            $ciclo->grupos()->attach($request->grupos);
+            // Si se proporciona orden específico
+            if ($request->has('con_orden') && $request->con_orden) {
+                $ciclo->asignarGruposConOrden($request->grupos);
+            } else {
+                // Asignar con orden automático
+                $gruposConOrden = [];
+                foreach ($request->grupos as $index => $grupoId) {
+                    $gruposConOrden[] = [
+                        'grupo_id' => $grupoId,
+                        'orden' => $index + 1
+                    ];
+                }
+                $ciclo->asignarGruposConOrden($gruposConOrden);
+            }
+
+            // Si el cálculo automático está habilitado, calcular fecha de fin
+            if ($ciclo->fecha_fin_automatica) {
+                $ciclo->actualizarFechaFin();
+                $ciclo->save();
+            }
         }
 
         $ciclo->load(['sede', 'curso', 'grupos']);
@@ -136,6 +158,9 @@ class CicloController extends Controller
             'curso_id',
             'nombre',
             'descripcion',
+            'fecha_inicio',
+            'fecha_fin',
+            'fecha_fin_automatica',
             'status',
         ]));
 
@@ -146,6 +171,12 @@ class CicloController extends Controller
             } else {
                 // Si se envía null o array vacío, desasignar todos los grupos
                 $ciclo->grupos()->detach();
+            }
+
+            // Si el cálculo automático está habilitado, recalcular fecha de fin
+            if ($ciclo->fecha_fin_automatica) {
+                $ciclo->actualizarFechaFin();
+                $ciclo->save();
             }
         }
 
@@ -328,6 +359,305 @@ class CicloController extends Controller
 
         return response()->json([
             'data' => $stats,
+        ]);
+    }
+
+    /**
+     * Asigna grupos a un ciclo.
+     *
+     * @param Request $request
+     * @param Ciclo $ciclo
+     * @return JsonResponse
+     */
+    public function asignarGrupos(Request $request, Ciclo $ciclo): JsonResponse
+    {
+        $request->validate([
+            'grupos' => 'required|array',
+            'grupos.*' => 'exists:grupos,id'
+        ]);
+
+        // Si se proporciona orden específico
+        if ($request->has('con_orden') && $request->con_orden) {
+            $request->validate([
+                'grupos' => 'required|array',
+                'grupos.*.grupo_id' => 'required|exists:grupos,id',
+                'grupos.*.orden' => 'required|integer|min:1'
+            ]);
+
+            $ciclo->asignarGruposConOrden($request->grupos);
+        } else {
+            // Asignar con orden automático
+            $gruposConOrden = [];
+            $siguienteOrden = $ciclo->getSiguienteOrden();
+
+            foreach ($request->grupos as $grupoId) {
+                $gruposConOrden[] = [
+                    'grupo_id' => $grupoId,
+                    'orden' => $siguienteOrden++
+                ];
+            }
+
+            $ciclo->asignarGruposConOrden($gruposConOrden);
+        }
+
+        // Si el cálculo automático está habilitado, recalcular fecha de fin
+        if ($ciclo->fecha_fin_automatica) {
+            $ciclo->actualizarFechaFin();
+            $ciclo->save();
+        }
+
+        $ciclo->load(['sede', 'curso', 'grupos']);
+
+        return response()->json([
+            'message' => 'Grupos asignados exitosamente.',
+            'data' => new CicloResource($ciclo),
+        ]);
+    }
+
+    /**
+     * Desasigna un grupo de un ciclo.
+     *
+     * @param Request $request
+     * @param Ciclo $ciclo
+     * @return JsonResponse
+     */
+    public function desasignarGrupo(Request $request, Ciclo $ciclo): JsonResponse
+    {
+        $request->validate([
+            'grupo_id' => 'required|exists:grupos,id'
+        ]);
+
+        $ciclo->grupos()->detach($request->grupo_id);
+
+        // Si el cálculo automático está habilitado, recalcular fecha de fin
+        if ($ciclo->fecha_fin_automatica) {
+            $ciclo->actualizarFechaFin();
+            $ciclo->save();
+        }
+
+        $ciclo->load(['sede', 'curso', 'grupos']);
+
+        return response()->json([
+            'message' => 'Grupo desasignado exitosamente.',
+            'data' => new CicloResource($ciclo),
+        ]);
+    }
+
+    /**
+     * Calcula y actualiza la fecha de fin del ciclo.
+     *
+     * @param Ciclo $ciclo
+     * @return JsonResponse
+     */
+    public function calcularFechaFin(Ciclo $ciclo): JsonResponse
+    {
+        $fechaFinCalculada = $ciclo->calcularFechaFin();
+
+        if (!$fechaFinCalculada) {
+            return response()->json([
+                'message' => 'No se pudo calcular la fecha de fin. Verifique que el ciclo tenga fecha de inicio y grupos con horarios configurados.',
+            ], 422);
+        }
+
+        $ciclo->fecha_fin = $fechaFinCalculada;
+        $ciclo->duracion_dias = $ciclo->fecha_inicio->diffInDays($fechaFinCalculada);
+        $ciclo->save();
+
+        $ciclo->load(['sede', 'curso', 'grupos']);
+
+        return response()->json([
+            'message' => 'Fecha de fin calculada exitosamente.',
+            'data' => new CicloResource($ciclo),
+        ]);
+    }
+
+    /**
+     * Obtiene información detallada del cálculo de fechas del ciclo.
+     *
+     * @param Ciclo $ciclo
+     * @return JsonResponse
+     */
+    public function informacionCalculo(Ciclo $ciclo): JsonResponse
+    {
+        $ciclo->load(['grupos.modulo', 'grupos.horarios']);
+
+        $informacion = [
+            'ciclo' => [
+                'id' => $ciclo->id,
+                'nombre' => $ciclo->nombre,
+                'fecha_inicio' => $ciclo->fecha_inicio,
+                'fecha_fin' => $ciclo->fecha_fin,
+                'fecha_fin_automatica' => $ciclo->fecha_fin_automatica,
+                'duracion_dias' => $ciclo->duracion_dias,
+            ],
+            'grupos' => $ciclo->grupos->map(function ($grupo) {
+                return [
+                    'id' => $grupo->id,
+                    'nombre' => $grupo->nombre,
+                    'modulo' => [
+                        'nombre' => $grupo->modulo->nombre ?? 'Sin módulo',
+                        'duracion' => $grupo->modulo->duracion ?? 0,
+                    ],
+                    'horarios' => $grupo->horarios->map(function ($horario) {
+                        return [
+                            'dia' => $horario->dia,
+                            'hora' => $horario->hora,
+                            'duracion_horas' => $horario->duracion_horas,
+                        ];
+                    }),
+                    'total_horas_semana' => $grupo->getTotalHorasSemanaAttribute(),
+                ];
+            }),
+            'calculos' => [
+                'total_horas' => $ciclo->getTotalHorasAttribute(),
+                'horas_por_semana' => $ciclo->getHorasPorSemanaAttribute(),
+                'semanas_estimadas' => $ciclo->getHorasPorSemanaAttribute() > 0
+                    ? ceil($ciclo->getTotalHorasAttribute() / $ciclo->getHorasPorSemanaAttribute())
+                    : 0,
+                'fecha_fin_calculada' => $ciclo->calcularFechaFin(),
+            ],
+            'estado' => [
+                'en_curso' => $ciclo->getEnCursoAttribute(),
+                'finalizado' => $ciclo->getFinalizadoAttribute(),
+                'por_iniciar' => $ciclo->getPorIniciarAttribute(),
+            ]
+        ];
+
+        return response()->json([
+            'data' => $informacion,
+        ]);
+    }
+
+    /**
+     * Actualiza el orden de un grupo específico en el ciclo.
+     *
+     * @param Request $request
+     * @param Ciclo $ciclo
+     * @return JsonResponse
+     */
+    public function actualizarOrdenGrupo(Request $request, Ciclo $ciclo): JsonResponse
+    {
+        $request->validate([
+            'grupo_id' => 'required|exists:grupos,id',
+            'nuevo_orden' => 'required|integer|min:1'
+        ]);
+
+        // Verificar que el grupo esté asignado al ciclo
+        if (!$ciclo->grupos()->where('grupo_id', $request->grupo_id)->exists()) {
+            return response()->json([
+                'message' => 'El grupo no está asignado a este ciclo.',
+            ], 422);
+        }
+
+        $actualizado = $ciclo->actualizarOrdenGrupo($request->grupo_id, $request->nuevo_orden);
+
+        if (!$actualizado) {
+            return response()->json([
+                'message' => 'No se pudo actualizar el orden del grupo.',
+            ], 422);
+        }
+
+        // Si el cálculo automático está habilitado, recalcular fecha de fin
+        if ($ciclo->fecha_fin_automatica) {
+            $ciclo->actualizarFechaFin();
+            $ciclo->save();
+        }
+
+        $ciclo->load(['sede', 'curso', 'grupos']);
+
+        return response()->json([
+            'message' => 'Orden del grupo actualizado exitosamente.',
+            'data' => new CicloResource($ciclo),
+        ]);
+    }
+
+    /**
+     * Reordena todos los grupos del ciclo.
+     *
+     * @param Request $request
+     * @param Ciclo $ciclo
+     * @return JsonResponse
+     */
+    public function reordenarGrupos(Request $request, Ciclo $ciclo): JsonResponse
+    {
+        $request->validate([
+            'nuevo_orden' => 'required|array',
+            'nuevo_orden.*' => 'integer|exists:grupos,id'
+        ]);
+
+        // Verificar que todos los grupos estén asignados al ciclo
+        $gruposAsignados = $ciclo->grupos()->pluck('grupo_id')->toArray();
+        $gruposSolicitados = $request->nuevo_orden;
+
+        if (count($gruposSolicitados) !== count($gruposAsignados) ||
+            array_diff($gruposSolicitados, $gruposAsignados)) {
+            return response()->json([
+                'message' => 'El nuevo orden debe incluir todos los grupos asignados al ciclo.',
+            ], 422);
+        }
+
+        $ciclo->reordenarGrupos($request->nuevo_orden);
+
+        // Si el cálculo automático está habilitado, recalcular fecha de fin
+        if ($ciclo->fecha_fin_automatica) {
+            $ciclo->actualizarFechaFin();
+            $ciclo->save();
+        }
+
+        $ciclo->load(['sede', 'curso', 'grupos']);
+
+        return response()->json([
+            'message' => 'Grupos reordenados exitosamente.',
+            'data' => new CicloResource($ciclo),
+        ]);
+    }
+
+    /**
+     * Obtiene el cronograma detallado del ciclo.
+     *
+     * @param Ciclo $ciclo
+     * @return JsonResponse
+     */
+    public function cronograma(Ciclo $ciclo): JsonResponse
+    {
+        $ciclo->load(['grupos.modulo', 'grupos.horarios']);
+
+        $cronograma = $ciclo->cronograma;
+
+        return response()->json([
+            'data' => [
+                'ciclo' => [
+                    'id' => $ciclo->id,
+                    'nombre' => $ciclo->nombre,
+                    'fecha_inicio' => $ciclo->fecha_inicio,
+                    'fecha_fin' => $ciclo->fecha_fin,
+                    'fecha_fin_automatica' => $ciclo->fecha_fin_automatica,
+                ],
+                'cronograma' => $cronograma,
+                'resumen' => [
+                    'total_grupos' => count($cronograma),
+                    'duracion_total_dias' => $ciclo->duracion_dias,
+                    'total_horas' => $ciclo->getTotalHorasAttribute(),
+                    'horas_por_semana_promedio' => count($cronograma) > 0
+                        ? round($ciclo->getHorasPorSemanaAttribute() / count($cronograma), 2)
+                        : 0
+                ]
+            ]
+        ]);
+    }
+
+    /**
+     * Obtiene el siguiente orden disponible para un nuevo grupo.
+     *
+     * @param Ciclo $ciclo
+     * @return JsonResponse
+     */
+    public function siguienteOrden(Ciclo $ciclo): JsonResponse
+    {
+        return response()->json([
+            'data' => [
+                'siguiente_orden' => $ciclo->getSiguienteOrden()
+            ]
         ]);
     }
 }

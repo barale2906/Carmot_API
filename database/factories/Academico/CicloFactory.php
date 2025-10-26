@@ -46,11 +46,19 @@ class CicloFactory extends Factory
             'Ciclo de especialización técnica'
         ];
 
+        // Generar fechas realistas para ciclos académicos
+        $fechaInicio = $this->faker->dateTimeBetween('now', '+3 months');
+        $fechaFin = $this->faker->dateTimeBetween($fechaInicio, '+6 months');
+
         return [
             'sede_id' => Sede::inRandomOrder()->first()?->id ?? Sede::factory(),
             'curso_id' => Curso::inRandomOrder()->first()?->id ?? Curso::factory(),
             'nombre' => $this->faker->randomElement($nombresCiclos),
             'descripcion' => $this->faker->randomElement($descripcionesCiclos),
+            'fecha_inicio' => $fechaInicio->format('Y-m-d'),
+            'fecha_fin' => $fechaFin->format('Y-m-d'),
+            'fecha_fin_automatica' => $this->faker->boolean(80), // 80% de probabilidad de ser automático
+            'duracion_dias' => $fechaInicio->diff($fechaFin)->days,
             'status' => $this->faker->randomElement([0, 1]), // 0 inactivo, 1 Activo
         ];
     }
@@ -176,12 +184,124 @@ class CicloFactory extends Factory
     }
 
     /**
+     * Estado para ciclo con fechas específicas.
+     */
+    public function conFechas(string $fechaInicio, string $fechaFin): static
+    {
+        $inicio = \Carbon\Carbon::parse($fechaInicio);
+        $fin = \Carbon\Carbon::parse($fechaFin);
+
+        return $this->state(fn (array $attributes) => [
+            'fecha_inicio' => $inicio->format('Y-m-d'),
+            'fecha_fin' => $fin->format('Y-m-d'),
+            'duracion_dias' => $inicio->diffInDays($fin),
+        ]);
+    }
+
+    /**
+     * Estado para ciclo con fecha de inicio específica.
+     */
+    public function conFechaInicio(string $fechaInicio): static
+    {
+        $inicio = \Carbon\Carbon::parse($fechaInicio);
+        $fin = $inicio->copy()->addMonths(6); // 6 meses por defecto
+
+        return $this->state(fn (array $attributes) => [
+            'fecha_inicio' => $inicio->format('Y-m-d'),
+            'fecha_fin' => $fin->format('Y-m-d'),
+            'duracion_dias' => $inicio->diffInDays($fin),
+        ]);
+    }
+
+    /**
+     * Estado para ciclo con cálculo automático de fechas.
+     */
+    public function conCalculoAutomatico(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'fecha_fin_automatica' => true,
+        ]);
+    }
+
+    /**
+     * Estado para ciclo con cálculo manual de fechas.
+     */
+    public function conCalculoManual(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'fecha_fin_automatica' => false,
+        ]);
+    }
+
+    /**
+     * Estado para ciclo que ya comenzó.
+     */
+    public function enCurso(): static
+    {
+        $fechaInicio = $this->faker->dateTimeBetween('-2 months', 'now');
+        $fechaFin = $this->faker->dateTimeBetween('now', '+4 months');
+
+        return $this->state(fn (array $attributes) => [
+            'fecha_inicio' => $fechaInicio->format('Y-m-d'),
+            'fecha_fin' => $fechaFin->format('Y-m-d'),
+            'duracion_dias' => $fechaInicio->diff($fechaFin)->days,
+        ]);
+    }
+
+    /**
+     * Estado para ciclo que ya finalizó.
+     */
+    public function finalizado(): static
+    {
+        $fechaInicio = $this->faker->dateTimeBetween('-8 months', '-6 months');
+        $fechaFin = $this->faker->dateTimeBetween('-2 months', '-1 month');
+
+        return $this->state(fn (array $attributes) => [
+            'fecha_inicio' => $fechaInicio->format('Y-m-d'),
+            'fecha_fin' => $fechaFin->format('Y-m-d'),
+            'duracion_dias' => $fechaInicio->diff($fechaFin)->days,
+        ]);
+    }
+
+    /**
+     * Estado para ciclo que está por iniciar.
+     */
+    public function porIniciar(): static
+    {
+        $fechaInicio = $this->faker->dateTimeBetween('+1 month', '+3 months');
+        $fechaFin = $this->faker->dateTimeBetween($fechaInicio, '+6 months');
+
+        return $this->state(fn (array $attributes) => [
+            'fecha_inicio' => $fechaInicio->format('Y-m-d'),
+            'fecha_fin' => $fechaFin->format('Y-m-d'),
+            'duracion_dias' => $fechaInicio->diff($fechaFin)->days,
+        ]);
+    }
+
+    /**
      * Estado para ciclo con grupos específicos.
      */
     public function conGrupos(array $gruposIds): static
     {
         return $this->afterCreating(function ($ciclo) use ($gruposIds) {
-            $ciclo->grupos()->attach($gruposIds);
+            $gruposConOrden = [];
+            foreach ($gruposIds as $index => $grupoId) {
+                $gruposConOrden[] = [
+                    'grupo_id' => $grupoId,
+                    'orden' => $index + 1
+                ];
+            }
+            $ciclo->asignarGruposConOrden($gruposConOrden);
+        });
+    }
+
+    /**
+     * Estado para ciclo con grupos y orden específico.
+     */
+    public function conGruposYOrden(array $gruposConOrden): static
+    {
+        return $this->afterCreating(function ($ciclo) use ($gruposConOrden) {
+            $ciclo->asignarGruposConOrden($gruposConOrden);
         });
     }
 
@@ -197,7 +317,22 @@ class CicloFactory extends Factory
             if ($gruposDisponibles->isNotEmpty()) {
                 $cantidadGrupos = $cantidad ?? $this->faker->numberBetween(1, min(3, $gruposDisponibles->count()));
                 $gruposSeleccionados = $gruposDisponibles->random($cantidadGrupos);
-                $ciclo->grupos()->attach($gruposSeleccionados);
+
+                // Asignar con orden secuencial
+                $gruposConOrden = [];
+                foreach ($gruposSeleccionados as $index => $grupoId) {
+                    $gruposConOrden[] = [
+                        'grupo_id' => $grupoId,
+                        'orden' => $index + 1
+                    ];
+                }
+                $ciclo->asignarGruposConOrden($gruposConOrden);
+
+                // Calcular fechas automáticamente si está habilitado
+                if ($ciclo->fecha_fin_automatica) {
+                    $ciclo->actualizarFechaFin();
+                    $ciclo->save();
+                }
             }
         });
     }
@@ -213,7 +348,22 @@ class CicloFactory extends Factory
             if ($gruposDisponibles->isNotEmpty()) {
                 $cantidad = min(5, $gruposDisponibles->count());
                 $gruposSeleccionados = $gruposDisponibles->random($cantidad);
-                $ciclo->grupos()->attach($gruposSeleccionados);
+
+                // Asignar con orden secuencial
+                $gruposConOrden = [];
+                foreach ($gruposSeleccionados as $index => $grupoId) {
+                    $gruposConOrden[] = [
+                        'grupo_id' => $grupoId,
+                        'orden' => $index + 1
+                    ];
+                }
+                $ciclo->asignarGruposConOrden($gruposConOrden);
+
+                // Calcular fechas automáticamente si está habilitado
+                if ($ciclo->fecha_fin_automatica) {
+                    $ciclo->actualizarFechaFin();
+                    $ciclo->save();
+                }
             }
         });
     }
@@ -229,7 +379,22 @@ class CicloFactory extends Factory
             if ($gruposDisponibles->isNotEmpty()) {
                 $cantidad = min(2, $gruposDisponibles->count());
                 $gruposSeleccionados = $gruposDisponibles->random($cantidad);
-                $ciclo->grupos()->attach($gruposSeleccionados);
+
+                // Asignar con orden secuencial
+                $gruposConOrden = [];
+                foreach ($gruposSeleccionados as $index => $grupoId) {
+                    $gruposConOrden[] = [
+                        'grupo_id' => $grupoId,
+                        'orden' => $index + 1
+                    ];
+                }
+                $ciclo->asignarGruposConOrden($gruposConOrden);
+
+                // Calcular fechas automáticamente si está habilitado
+                if ($ciclo->fecha_fin_automatica) {
+                    $ciclo->actualizarFechaFin();
+                    $ciclo->save();
+                }
             }
         });
     }
@@ -257,7 +422,22 @@ class CicloFactory extends Factory
             if ($gruposActivos->isNotEmpty()) {
                 $cantidad = min(3, $gruposActivos->count());
                 $gruposSeleccionados = $gruposActivos->random($cantidad);
-                $ciclo->grupos()->attach($gruposSeleccionados);
+
+                // Asignar con orden secuencial
+                $gruposConOrden = [];
+                foreach ($gruposSeleccionados as $index => $grupoId) {
+                    $gruposConOrden[] = [
+                        'grupo_id' => $grupoId,
+                        'orden' => $index + 1
+                    ];
+                }
+                $ciclo->asignarGruposConOrden($gruposConOrden);
+
+                // Calcular fechas automáticamente si está habilitado
+                if ($ciclo->fecha_fin_automatica) {
+                    $ciclo->actualizarFechaFin();
+                    $ciclo->save();
+                }
             }
         });
     }
@@ -275,7 +455,22 @@ class CicloFactory extends Factory
             if ($gruposJornada->isNotEmpty()) {
                 $cantidad = min(3, $gruposJornada->count());
                 $gruposSeleccionados = $gruposJornada->random($cantidad);
-                $ciclo->grupos()->attach($gruposSeleccionados);
+
+                // Asignar con orden secuencial
+                $gruposConOrden = [];
+                foreach ($gruposSeleccionados as $index => $grupoId) {
+                    $gruposConOrden[] = [
+                        'grupo_id' => $grupoId,
+                        'orden' => $index + 1
+                    ];
+                }
+                $ciclo->asignarGruposConOrden($gruposConOrden);
+
+                // Calcular fechas automáticamente si está habilitado
+                if ($ciclo->fecha_fin_automatica) {
+                    $ciclo->actualizarFechaFin();
+                    $ciclo->save();
+                }
             }
         });
     }
@@ -310,6 +505,70 @@ class CicloFactory extends Factory
     public function conGruposFinDeSemana(): static
     {
         return $this->conGruposJornada(3);
+    }
+
+    /**
+     * Estado para ciclo completo con todos los datos.
+     */
+    public function completo(): static
+    {
+        return $this->afterCreating(function ($ciclo) {
+            // Asignar grupos con orden y calcular fechas automáticamente
+            $gruposDisponibles = Grupo::where('sede_id', $ciclo->sede_id)->pluck('id');
+
+            if ($gruposDisponibles->isNotEmpty()) {
+                $cantidad = min(4, $gruposDisponibles->count());
+                $gruposSeleccionados = $gruposDisponibles->random($cantidad);
+
+                $gruposConOrden = [];
+                foreach ($gruposSeleccionados as $index => $grupoId) {
+                    $gruposConOrden[] = [
+                        'grupo_id' => $grupoId,
+                        'orden' => $index + 1
+                    ];
+                }
+                $ciclo->asignarGruposConOrden($gruposConOrden);
+
+                // Calcular fechas automáticamente si está habilitado
+                if ($ciclo->fecha_fin_automatica) {
+                    $ciclo->actualizarFechaFin();
+                    $ciclo->save();
+                }
+            }
+        });
+    }
+
+    /**
+     * Estado para ciclo con cronograma realista.
+     */
+    public function conCronogramaRealista(): static
+    {
+        return $this->afterCreating(function ($ciclo) {
+            // Crear un cronograma realista con fechas calculadas
+            $gruposDisponibles = Grupo::where('sede_id', $ciclo->sede_id)
+                ->with('modulo')
+                ->get();
+
+            if ($gruposDisponibles->isNotEmpty()) {
+                $cantidad = min(3, $gruposDisponibles->count());
+                $gruposSeleccionados = $gruposDisponibles->random($cantidad);
+
+                $gruposConOrden = [];
+                foreach ($gruposSeleccionados as $index => $grupo) {
+                    $gruposConOrden[] = [
+                        'grupo_id' => $grupo->id,
+                        'orden' => $index + 1
+                    ];
+                }
+                $ciclo->asignarGruposConOrden($gruposConOrden);
+
+                // Calcular fechas automáticamente
+                if ($ciclo->fecha_fin_automatica) {
+                    $ciclo->actualizarFechaFin();
+                    $ciclo->save();
+                }
+            }
+        });
     }
 
     /**

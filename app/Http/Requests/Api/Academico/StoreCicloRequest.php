@@ -30,6 +30,9 @@ class StoreCicloRequest extends FormRequest
             'curso_id' => 'required|integer|exists:cursos,id',
             'nombre' => 'required|string|max:255|unique:ciclos,nombre',
             'descripcion' => 'nullable|string|max:1000',
+            'fecha_inicio' => 'required|date|after_or_equal:today',
+            'fecha_fin' => 'nullable|date|after:fecha_inicio',
+            'fecha_fin_automatica' => 'nullable|boolean',
             'grupos' => 'nullable|array',
             'grupos.*' => 'integer|exists:grupos,id',
             'status' => self::getStatusValidationRule(),
@@ -56,6 +59,12 @@ class StoreCicloRequest extends FormRequest
             'nombre.unique' => 'Ya existe un ciclo con este nombre.',
             'descripcion.string' => 'La descripción debe ser una cadena de texto.',
             'descripcion.max' => 'La descripción no puede tener más de 1000 caracteres.',
+            'fecha_inicio.required' => 'La fecha de inicio es obligatoria.',
+            'fecha_inicio.date' => 'La fecha de inicio debe ser una fecha válida.',
+            'fecha_inicio.after_or_equal' => 'La fecha de inicio debe ser igual o posterior a hoy.',
+            'fecha_fin.date' => 'La fecha de fin debe ser una fecha válida.',
+            'fecha_fin.after' => 'La fecha de fin debe ser posterior a la fecha de inicio.',
+            'fecha_fin_automatica.boolean' => 'El cálculo automático de fecha de fin debe ser verdadero o falso.',
             'grupos.array' => 'Los grupos deben ser un array.',
             'grupos.*.integer' => 'Cada grupo debe ser un número entero.',
             'grupos.*.exists' => 'Uno o más grupos seleccionados no existen.',
@@ -73,6 +82,9 @@ class StoreCicloRequest extends FormRequest
             'sede_id' => 'sede',
             'curso_id' => 'curso',
             'descripcion' => 'descripción',
+            'fecha_inicio' => 'fecha de inicio',
+            'fecha_fin' => 'fecha de fin',
+            'fecha_fin_automatica' => 'cálculo automático de fecha de fin',
         ];
     }
 }
