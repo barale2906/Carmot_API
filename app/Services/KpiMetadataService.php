@@ -42,17 +42,18 @@ class KpiMetadataService
 
         $columns = Schema::getColumnListing($tableName);
         $fieldDetails = [];
+        $configuredFields = $modelConfig['fields'] ?? [];
 
         foreach ($columns as $columnName) {
-            $allowedFields = $modelConfig['fields'] ?? [];
-            if ($allowedFields && !in_array($columnName, $allowedFields)) {
+            // Verificar si el campo está permitido en la configuración
+            if (!array_key_exists($columnName, $configuredFields)) {
                 continue;
             }
 
             $fieldDetails[] = [
                 'name' => $columnName,
                 'type' => Schema::getColumnType($tableName, $columnName),
-                'display_name' => ucwords(str_replace('_', ' ', $columnName)),
+                'display_name' => $configuredFields[$columnName], // Usar el alias del config
             ];
         }
 
@@ -69,21 +70,10 @@ class KpiMetadataService
         try {
             Log::info('=== INICIO getAvailableKpiModels ===');
 
-            // Configuración hardcodeada temporal para debug
-            $config = [
-                1 => [
-                    'class' => \App\Models\Academico\Grupo::class,
-                    'display_name' => 'Grupos por sede',
-                    'fields' => ['id', 'sede_id', 'inscritos', 'modulo_id', 'profesor_id', 'status', 'created_at', 'updated_at']
-                ],
-                2 => [
-                    'class' => \App\Models\Academico\Modulo::class,
-                    'display_name' => 'Modulos por sede',
-                    'fields' => ['id', 'sede_id', 'nombre', 'status', 'created_at', 'updated_at']
-                ]
-            ];
+            // Obtener configuración desde el archivo config/kpis.php
+            $config = config('kpis.available_kpi_models', []);
 
-            Log::info('Using hardcoded config:', $config);
+            Log::info('Using config from kpis.php:', $config);
 
             $models = [];
             foreach ($config as $modelId => $modelConfig) {
