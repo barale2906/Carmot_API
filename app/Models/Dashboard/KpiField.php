@@ -17,7 +17,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property int $kpi_id ID del KPI al que pertenece este campo
  * @property string $field_name Nombre del campo en la base de datos (ej. "total_amount", "status")
  * @property string $display_name Nombre amigable para mostrar al usuario (ej. "Monto Total", "Estado")
- * @property string $field_type Tipo de dato del campo (numeric, string, date, boolean)
+ * @property string $field_type Tipo de dato del campo (numeric, integer, biginteger, string, text, date, datetime, timestamp, time, year, boolean, tinyint, decimal, float, double, json, longtext, mediumtext, char, varchar)
  * @property string|null $operation Operación a realizar (sum, count, avg, min, max, where, group_by)
  * @property string|null $operator Operador para condiciones where (=, >, <, LIKE, IN)
  * @property string|null $value Valor a comparar si operation es where

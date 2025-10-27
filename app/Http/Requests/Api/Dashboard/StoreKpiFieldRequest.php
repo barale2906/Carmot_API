@@ -33,7 +33,7 @@ class StoreKpiFieldRequest extends FormRequest
             'kpi_id' => 'required|exists:kpis,id',
             'field_name' => 'required|string|max:255',
             'display_name' => 'required|string|max:255',
-            'field_type' => 'required|in:numeric,string,date,boolean',
+            'field_type' => 'required|in:numeric,integer,biginteger,string,text,date,datetime,timestamp,time,year,boolean,tinyint,decimal,float,double,json,longtext,mediumtext,char,varchar',
             'operation' => 'nullable|in:sum,count,avg,min,max,where,group_by',
             'operator' => 'nullable|string|max:10',
             'value' => 'nullable|string|max:500',
@@ -57,7 +57,7 @@ class StoreKpiFieldRequest extends FormRequest
             'display_name.required' => 'El nombre de visualización es obligatorio.',
             'display_name.max' => 'El nombre de visualización no puede exceder 255 caracteres.',
             'field_type.required' => 'El tipo de campo es obligatorio.',
-            'field_type.in' => 'El tipo de campo debe ser: numeric, string, date o boolean.',
+            'field_type.in' => 'El tipo de campo debe ser uno de los siguientes: numeric, integer, biginteger, string, text, date, datetime, timestamp, time, year, boolean, tinyint, decimal, float, double, json, longtext, mediumtext, char, varchar.',
             'operation.in' => 'La operación debe ser: sum, count, avg, min, max, where o group_by.',
             'operator.max' => 'El operador no puede exceder 10 caracteres.',
             'value.max' => 'El valor no puede exceder 500 caracteres.',
@@ -150,10 +150,22 @@ class StoreKpiFieldRequest extends FormRequest
     private function getAllowedOperationsForFieldType(string $fieldType): array
     {
         return match ($fieldType) {
-            'numeric' => ['sum', 'count', 'avg', 'min', 'max', 'where'],
-            'string', 'text' => ['count', 'where'],
+            // Tipos numéricos - permiten operaciones matemáticas
+            'numeric', 'integer', 'biginteger', 'decimal', 'float', 'double', 'tinyint' => ['sum', 'count', 'avg', 'min', 'max', 'where'],
+
+            // Tipos de texto - solo conteo y filtros
+            'string', 'text', 'longtext', 'mediumtext', 'char', 'varchar' => ['count', 'where'],
+
+            // Tipos de fecha - conteo y filtros
+            'date', 'datetime', 'timestamp', 'time', 'year' => ['count', 'where'],
+
+            // Tipos booleanos - conteo y filtros
             'boolean' => ['count', 'where'],
-            'date', 'datetime' => ['count', 'where'],
+
+            // Tipos JSON - solo conteo (no operaciones matemáticas)
+            'json' => ['count', 'where'],
+
+            // Por defecto - solo conteo
             default => ['count']
         };
     }

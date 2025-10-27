@@ -19,7 +19,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property string|null $description Descripción detallada del KPI
  * @property string|null $unit Unidad de medida (ej. "USD", "%", "unidades")
  * @property bool $is_active Indica si el KPI está activo
- * @property string $calculation_type Tipo de cálculo ('predefined', 'custom_fields', 'sql_query')
+ * @property string $calculation_type Tipo de cálculo ('predefined', 'custom_fields')
  * @property string|null $base_model Modelo Eloquent base para el cálculo
  * @property \Carbon\Carbon $created_at Fecha de creación
  * @property \Carbon\Carbon $updated_at Fecha de última actualización

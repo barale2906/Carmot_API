@@ -1030,11 +1030,127 @@ const operators = [
 ### Tipos de Campo
 ```javascript
 const fieldTypes = [
-  { value: 'numeric', label: 'Numérico' },
-  { value: 'string', label: 'Texto' },
-  { value: 'date', label: 'Fecha' },
-  { value: 'boolean', label: 'Booleano' }
+  // Tipos numéricos
+  { value: 'numeric', label: 'Numérico', description: 'Número decimal genérico' },
+  { value: 'integer', label: 'Entero', description: 'Número entero' },
+  { value: 'biginteger', label: 'Entero Grande', description: 'Número entero de gran tamaño' },
+  { value: 'decimal', label: 'Decimal', description: 'Número decimal con precisión específica' },
+  { value: 'float', label: 'Flotante', description: 'Número de punto flotante' },
+  { value: 'double', label: 'Doble Precisión', description: 'Número de doble precisión' },
+  { value: 'tinyint', label: 'Entero Pequeño', description: 'Número entero pequeño (0-255)' },
+  
+  // Tipos de texto
+  { value: 'string', label: 'Texto', description: 'Cadena de texto corta' },
+  { value: 'text', label: 'Texto Largo', description: 'Cadena de texto larga' },
+  { value: 'longtext', label: 'Texto Muy Largo', description: 'Cadena de texto muy larga' },
+  { value: 'mediumtext', label: 'Texto Mediano', description: 'Cadena de texto mediana' },
+  { value: 'char', label: 'Carácter Fijo', description: 'Cadena de longitud fija' },
+  { value: 'varchar', label: 'Texto Variable', description: 'Cadena de longitud variable' },
+  
+  // Tipos de fecha
+  { value: 'date', label: 'Fecha', description: 'Solo fecha (YYYY-MM-DD)' },
+  { value: 'datetime', label: 'Fecha y Hora', description: 'Fecha y hora completa' },
+  { value: 'timestamp', label: 'Marca de Tiempo', description: 'Marca de tiempo Unix' },
+  { value: 'time', label: 'Hora', description: 'Solo hora (HH:MM:SS)' },
+  { value: 'year', label: 'Año', description: 'Solo año (YYYY)' },
+  
+  // Tipos especiales
+  { value: 'boolean', label: 'Booleano', description: 'Verdadero o falso' },
+  { value: 'json', label: 'JSON', description: 'Datos en formato JSON' }
 ];
+```
+
+### Operaciones Disponibles por Tipo de Campo
+
+| Tipo de Campo | Operaciones Disponibles | Descripción |
+|---------------|------------------------|-------------|
+| **Numéricos** (`numeric`, `integer`, `biginteger`, `decimal`, `float`, `double`, `tinyint`) | `sum`, `count`, `avg`, `min`, `max`, `where` | Permiten todas las operaciones matemáticas |
+| **Texto** (`string`, `text`, `longtext`, `mediumtext`, `char`, `varchar`) | `count`, `where` | Solo conteo y filtros |
+| **Fechas** (`date`, `datetime`, `timestamp`, `time`, `year`) | `count`, `where` | Solo conteo y filtros |
+| **Booleanos** (`boolean`) | `count`, `where` | Solo conteo y filtros |
+| **JSON** (`json`) | `count`, `where` | Solo conteo y filtros |
+
+### Ejemplos de Uso por Tipo
+
+**Tipos Numéricos:**
+```javascript
+// Suma de inscritos
+{
+  field_name: "inscritos",
+  field_type: "integer",
+  operation: "sum"
+}
+
+// Promedio de calificaciones
+{
+  field_name: "calificacion",
+  field_type: "decimal",
+  operation: "avg"
+}
+
+// Máximo de capacidad
+{
+  field_name: "capacidad_maxima",
+  field_type: "integer",
+  operation: "max"
+}
+```
+
+**Tipos de Texto:**
+```javascript
+// Conteo de grupos por nombre
+{
+  field_name: "nombre",
+  field_type: "string",
+  operation: "count"
+}
+
+// Filtro por estado
+{
+  field_name: "estado",
+  field_type: "varchar",
+  operation: "where",
+  operator: "=",
+  value: "activo"
+}
+```
+
+**Tipos de Fecha:**
+```javascript
+// Conteo por fecha de creación
+{
+  field_name: "created_at",
+  field_type: "datetime",
+  operation: "count"
+}
+
+// Filtro por rango de fechas
+{
+  field_name: "fecha_inicio",
+  field_type: "date",
+  operation: "where",
+  operator: ">=",
+  value: "2024-01-01"
+}
+```
+
+**Tipos JSON:**
+```javascript
+// Conteo de registros con datos JSON
+{
+  field_name: "configuracion",
+  field_type: "json",
+  operation: "count"
+}
+
+// Filtro por propiedad JSON
+{
+  field_name: "metadata",
+  field_type: "json",
+  operation: "where",
+  operator: "LIKE",
+  value: "%\"activo\":true%"
+}
 ```
 
 ### Tipos de Filtro

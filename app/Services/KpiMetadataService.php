@@ -52,7 +52,7 @@ class KpiMetadataService
 
             $fieldDetails[] = [
                 'name' => $columnName,
-                'type' => Schema::getColumnType($tableName, $columnName),
+                'type' => $this->mapDatabaseTypeToLaravelType(Schema::getColumnType($tableName, $columnName)),
                 'display_name' => $configuredFields[$columnName], // Usar el alias del config
             ];
         }
@@ -196,5 +196,51 @@ class KpiMetadataService
         }
 
         return $models;
+    }
+
+    /**
+     * Mapea los tipos de base de datos a los tipos de Laravel esperados por los requests.
+     *
+     * @param string $databaseType Tipo de columna de la base de datos
+     * @return string Tipo de Laravel correspondiente
+     */
+    private function mapDatabaseTypeToLaravelType(string $databaseType): string
+    {
+        $typeMapping = [
+            // Tipos numéricos
+            'bigint' => 'biginteger',
+            'int' => 'integer',
+            'integer' => 'integer',
+            'tinyint' => 'tinyint',
+            'smallint' => 'integer',
+            'mediumint' => 'integer',
+            'decimal' => 'decimal',
+            'float' => 'float',
+            'double' => 'double',
+            'numeric' => 'numeric',
+
+            // Tipos de texto
+            'varchar' => 'varchar',
+            'char' => 'char',
+            'text' => 'text',
+            'mediumtext' => 'mediumtext',
+            'longtext' => 'longtext',
+            'string' => 'string',
+
+            // Tipos de fecha
+            'date' => 'date',
+            'datetime' => 'datetime',
+            'timestamp' => 'timestamp',
+            'time' => 'time',
+            'year' => 'year',
+
+            // Tipos especiales
+            'boolean' => 'boolean',
+            'bool' => 'boolean',
+            'tinyint(1)' => 'boolean', // MySQL boolean es tinyint(1)
+            'json' => 'json',
+        ];
+
+        return $typeMapping[$databaseType] ?? 'string'; // Por defecto string si no se encuentra
     }
 }
