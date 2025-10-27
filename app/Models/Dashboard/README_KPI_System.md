@@ -68,21 +68,38 @@ const fields = await fetch(`/api/dashboard/kpi-metadata/models/${modelId}/fields
 
 ### 2. Crear un KPI
 
-#### Paso 1: Crear KPI Básico
+El sistema de KPIs permite crear indicadores de rendimiento de dos formas diferentes, cada una diseñada para diferentes niveles de complejidad y casos de uso.
+
+#### 📊 **Tipos de Cálculo Disponibles**
+
+| Tipo | Descripción | ¿Necesita campos? | Cuándo usar |
+|------|-------------|------------------|-------------|
+| **`predefined`** | Cálculos automáticos predefinidos | ❌ **NO** | Conteos simples, métricas básicas |
+| **`custom_fields`** | Cálculos personalizados con campos específicos | ✅ **SÍ** | KPIs con filtros, operaciones específicas |
+
+---
+
+#### 🎯 **Tipo 1: `predefined` - KPIs Automáticos**
+
+**Para qué sirve:** Conteos simples y métricas básicas sin necesidad de configurar campos.
+
+**Ejemplo:** "Total de grupos en el sistema"
+
 ```javascript
 const kpiData = {
-  name: "Total de Grupos Activos",
-  code: "total_grupos_activos",
-  description: "Número total de grupos activos en el sistema",
+  name: "Total de Grupos",
+  code: "total_grupos",
+  description: "Número total de grupos registrados en el sistema",
   unit: "grupos",
   is_active: true,
-  calculation_type: "custom_fields",
-  base_model: 1, // ID del modelo en config/kpis.php
+  calculation_type: "predefined",  // ← Tipo automático
+  base_model: 1,  // ID del modelo Grupos
   default_period_type: "monthly",
   use_custom_time_range: false
+  // ← NO se especifican campos (kpi_fields)
 };
 
-const kpi = await fetch('/api/dashboard/kpis', {
+const response = await fetch('/api/dashboard/kpis', {
   method: 'POST',
   headers: {
     'Content-Type': 'application/json',
@@ -92,49 +109,716 @@ const kpi = await fetch('/api/dashboard/kpis', {
 });
 ```
 
-#### Paso 2: Agregar Campos al KPI
+**Resultado:** El sistema automáticamente contará todos los grupos del modelo especificado.
+
+---
+
+#### 🔧 **Tipo 2: `custom_fields` - KPIs Personalizados**
+
+**Para qué sirve:** KPIs con filtros específicos, operaciones matemáticas y control total sobre el cálculo.
+
+**Ejemplo A: Conteo con filtro simple**
 ```javascript
-// Campo de filtro
-const filterField = {
-  kpi_id: kpi.id,
-  field_name: "status",
-  display_name: "Estado",
-  field_type: "numeric",
-  operation: "where",
-  operator: "=",
-  value: "1", // 1 = activo
-  is_required: true,
-  order: 1
+const kpiData = {
+  name: "Grupos Activos",
+  code: "grupos_activos",
+  description: "Número de grupos con estado activo",
+  unit: "grupos",
+  is_active: true,
+  calculation_type: "custom_fields",  // ← Tipo personalizado
+  base_model: 1,
+  default_period_type: "monthly",
+  use_custom_time_range: false,
+  kpi_fields: [
+    {
+      field_name: "status",
+      display_name: "Estado",
+      field_type: "numeric",
+      operation: "where",  // ← Filtrar por condición
+      operator: "=",
+      value: "1",  // 1 = activo
+      is_required: true,
+      order: 1
+    },
+    {
+      field_name: "id",
+      display_name: "ID",
+      field_type: "numeric",
+      operation: "count",  // ← Contar registros que cumplan el filtro
+      is_required: true,
+      order: 2
+    }
+  ]
+};
+```
+
+**Ejemplo B: Suma de valores**
+```javascript
+const kpiData = {
+  name: "Total de Inscritos",
+  code: "total_inscritos",
+  description: "Suma total de inscritos en todos los grupos",
+  unit: "estudiantes",
+  is_active: true,
+  calculation_type: "custom_fields",
+  base_model: 1,
+  default_period_type: "monthly",
+  kpi_fields: [
+    {
+      field_name: "inscritos",
+      display_name: "Inscritos",
+      field_type: "numeric",
+      operation: "sum",  // ← Sumar valores del campo
+      is_required: true,
+      order: 1
+    }
+  ]
+};
+```
+
+**Ejemplo C: Promedio con filtros múltiples**
+```javascript
+const kpiData = {
+  name: "Promedio de Inscritos por Grupo Activo",
+  code: "promedio_inscritos_activos",
+  description: "Promedio de inscritos en grupos activos",
+  unit: "estudiantes",
+  is_active: true,
+  calculation_type: "custom_fields",
+  base_model: 1,
+  default_period_type: "monthly",
+  kpi_fields: [
+    {
+      field_name: "status",
+      display_name: "Estado",
+      field_type: "numeric",
+      operation: "where",
+      operator: "=",
+      value: "1",  // Solo grupos activos
+      is_required: true,
+      order: 1
+    },
+    {
+      field_name: "inscritos",
+      display_name: "Inscritos",
+      field_type: "numeric",
+      operation: "avg",  // ← Calcular promedio
+      is_required: true,
+      order: 2
+    }
+  ]
+};
+```
+
+**Ejemplo D: Múltiples filtros**
+```javascript
+const kpiData = {
+  name: "Grupos Activos por Sede Específica",
+  code: "grupos_activos_sede_principal",
+  description: "Grupos activos en la sede principal",
+  unit: "grupos",
+  is_active: true,
+  calculation_type: "custom_fields",
+  base_model: 1,
+  default_period_type: "monthly",
+  kpi_fields: [
+    {
+      field_name: "status",
+      display_name: "Estado",
+      field_type: "numeric",
+      operation: "where",
+      operator: "=",
+      value: "1",  // Estado activo
+      is_required: true,
+      order: 1
+    },
+    {
+      field_name: "sede_id",
+      display_name: "Sede",
+      field_type: "numeric",
+      operation: "where",
+      operator: "=",
+      value: "1",  // Sede principal
+      is_required: true,
+      order: 2
+    },
+    {
+      field_name: "id",
+      display_name: "ID",
+      field_type: "numeric",
+      operation: "count",
+      is_required: true,
+      order: 3
+    }
+  ]
+};
+```
+
+---
+
+#### 🚀 **Flujo Completo: Crear KPI con Campos**
+
+**Paso 1: Crear el KPI básico**
+```javascript
+const createKpi = async () => {
+  const kpiData = {
+    name: "Grupos Activos por Módulo",
+    code: "grupos_activos_modulo",
+    description: "Conteo de grupos activos agrupados por módulo",
+    unit: "grupos",
+    is_active: true,
+    calculation_type: "custom_fields",
+    base_model: 1,
+    default_period_type: "monthly",
+    use_custom_time_range: false
+  };
+
+  const response = await fetch('/api/dashboard/kpis', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + token
+    },
+    body: JSON.stringify(kpiData)
+  });
+
+  const kpi = await response.json();
+  return kpi.data;
+};
+```
+
+**Paso 2: Agregar campos de configuración**
+```javascript
+const addKpiFields = async (kpiId) => {
+  const fields = [
+    {
+      kpi_id: kpiId,
+      field_name: "status",
+      display_name: "Estado",
+      field_type: "numeric",
+      operation: "where",
+      operator: "=",
+      value: "1",
+      is_required: true,
+      order: 1
+    },
+    {
+      kpi_id: kpiId,
+      field_name: "modulo_id",
+      display_name: "Módulo",
+      field_type: "numeric",
+      operation: "group_by",  // ← Agrupar por módulo
+      is_required: true,
+      order: 2
+    },
+    {
+      kpi_id: kpiId,
+      field_name: "id",
+      display_name: "ID",
+      field_type: "numeric",
+      operation: "count",
+      is_required: true,
+      order: 3
+    }
+  ];
+
+  // Crear cada campo
+  for (const field of fields) {
+    await fetch('/api/dashboard/kpi-fields', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + token
+      },
+      body: JSON.stringify(field)
+    });
+  }
+};
+```
+
+**Paso 3: Usar el KPI completo**
+```javascript
+const createCompleteKpi = async () => {
+  try {
+    // Crear KPI
+    const kpi = await createKpi();
+    
+    // Agregar campos
+    await addKpiFields(kpi.id);
+    
+    console.log('KPI creado exitosamente:', kpi);
+    return kpi;
+  } catch (error) {
+    console.error('Error creando KPI:', error);
+  }
+};
+```
+
+---
+
+#### 📋 **Operaciones Disponibles para Campos**
+
+| Operación | Descripción | Ejemplo de uso |
+|-----------|-------------|----------------|
+| **`count`** | Contar registros | Total de grupos |
+| **`sum`** | Sumar valores | Total de inscritos |
+| **`avg`** | Promedio | Promedio de inscritos |
+| **`min`** | Valor mínimo | Mínimo de inscritos |
+| **`max`** | Valor máximo | Máximo de inscritos |
+| **`where`** | Filtrar por condición | Solo grupos activos |
+| **`group_by`** | Agrupar por campo | Agrupar por sede |
+
+---
+
+#### 🎨 **Interfaz de Usuario Recomendada**
+
+**Para desarrolladores frontend, aquí tienes un ejemplo de cómo estructurar la UI:**
+
+```jsx
+// Componente React para crear KPIs
+const KpiCreator = () => {
+  const [step, setStep] = useState(1);
+  const [kpiData, setKpiData] = useState({
+    name: '',
+    code: '',
+    description: '',
+    unit: '',
+    calculation_type: 'predefined', // ← Valor por defecto
+    base_model: null,
+    default_period_type: 'monthly'
+  });
+  const [fields, setFields] = useState([]);
+
+  const calculationTypes = [
+    { value: 'predefined', label: 'Automático', description: 'Cálculo simple sin configuración' },
+    { value: 'custom_fields', label: 'Personalizado', description: 'Con filtros y operaciones específicas' }
+  ];
+
+  return (
+    <div className="kpi-creator">
+      <div className="step-indicator">
+        <span className={step >= 1 ? 'active' : ''}>1. Información Básica</span>
+        <span className={step >= 2 ? 'active' : ''}>2. Configuración</span>
+        <span className={step >= 3 ? 'active' : ''}>3. Campos</span>
+      </div>
+
+      {step === 1 && (
+        <BasicInfoStep 
+          data={kpiData} 
+          onChange={setKpiData}
+          calculationTypes={calculationTypes}
+        />
+      )}
+
+      {step === 2 && kpiData.calculation_type === 'custom_fields' && (
+        <FieldsConfigStep 
+          fields={fields}
+          onChange={setFields}
+          baseModel={kpiData.base_model}
+        />
+      )}
+
+      {step === 3 && (
+        <ReviewStep 
+          kpiData={kpiData}
+          fields={fields}
+          onSubmit={createKpi}
+        />
+      )}
+    </div>
+  );
+};
+```
+
+**Ejemplo de componente para selección de tipo de cálculo:**
+```jsx
+const CalculationTypeSelector = ({ value, onChange }) => {
+  const types = [
+    {
+      value: 'predefined',
+      title: 'Automático',
+      description: 'Perfecto para conteos simples',
+      icon: '⚡',
+      example: 'Total de grupos'
+    },
+    {
+      value: 'custom_fields',
+      title: 'Personalizado',
+      description: 'Con filtros y operaciones específicas',
+      icon: '🔧',
+      example: 'Grupos activos por sede'
+    }
+  ];
+
+  return (
+    <div className="calculation-types">
+      <h3>¿Cómo quieres calcular tu KPI?</h3>
+      <div className="type-cards">
+        {types.map(type => (
+          <div 
+            key={type.value}
+            className={`type-card ${value === type.value ? 'selected' : ''}`}
+            onClick={() => onChange(type.value)}
+          >
+            <div className="type-icon">{type.icon}</div>
+            <h4>{type.title}</h4>
+            <p>{type.description}</p>
+            <small>Ejemplo: {type.example}</small>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+```
+
+---
+
+#### ✅ **Validaciones Importantes**
+
+**Para el frontend, asegúrate de validar:**
+
+```javascript
+const validateKpiForm = (data) => {
+  const errors = {};
+
+  // Validaciones básicas
+  if (!data.name?.trim()) {
+    errors.name = 'El nombre es obligatorio';
+  }
+
+  if (!data.code?.trim()) {
+    errors.code = 'El código es obligatorio';
+  } else if (!/^[a-z0-9_]+$/.test(data.code)) {
+    errors.code = 'Solo letras minúsculas, números y guiones bajos';
+  }
+
+  if (!data.calculation_type) {
+    errors.calculation_type = 'Debe seleccionar un tipo de cálculo';
+  }
+
+  if (!data.base_model) {
+    errors.base_model = 'Debe seleccionar un modelo base';
+  }
+
+  // Validaciones específicas por tipo
+  if (data.calculation_type === 'custom_fields') {
+    if (!data.kpi_fields || data.kpi_fields.length === 0) {
+      errors.fields = 'Debe agregar al menos un campo';
+    } else {
+      // Verificar que haya al menos una operación principal
+      const hasMainOperation = data.kpi_fields.some(field => 
+        ['sum', 'count', 'avg', 'min', 'max'].includes(field.operation)
+      );
+      
+      if (!hasMainOperation) {
+        errors.fields = 'Debe tener al menos un campo con operación principal (sum, count, avg, min, max)';
+      }
+    }
+  }
+
+  return errors;
+};
+```
+
+---
+
+#### 🎯 **Resumen para Desarrolladores Frontend**
+
+1. **`predefined`**: Más simple, solo necesita información básica
+2. **`custom_fields`**: Más flexible, permite filtros y operaciones específicas
+
+**Recomendación:** Comienza con `predefined` para casos simples, y usa `custom_fields` para casos más complejos con filtros y operaciones específicas.
+
+---
+
+#### 🎯 **Guía Rápida para Usuarios Finales**
+
+**¿Qué tipo de KPI necesitas crear?**
+
+| Tu necesidad | Tipo recomendado | Ejemplo |
+|--------------|------------------|---------|
+| "Quiero saber cuántos grupos hay" | `predefined` | Total de grupos |
+| "Quiero contar solo grupos activos" | `custom_fields` | Grupos con status = 1 |
+| "Quiero sumar todos los inscritos" | `custom_fields` | Suma del campo inscritos |
+| "Quiero el promedio de inscritos" | `custom_fields` | Promedio del campo inscritos |
+| "Quiero grupos activos por sede" | `custom_fields` | Filtro + agrupación |
+| "Quiero un cálculo complejo" | `custom_fields` | Ratios y porcentajes con operaciones |
+
+**Pasos simples para crear un KPI:**
+
+1. **Elige el tipo** → `predefined` (fácil) o `custom_fields` (flexible)
+2. **Selecciona el modelo** → Grupos, Módulos, Ciclos, etc.
+3. **Configura campos** → Solo si elegiste `custom_fields`
+4. **¡Listo!** → Tu KPI está creado
+
+---
+
+#### 📝 **Plantillas de KPIs Comunes**
+
+**Para el frontend, puedes ofrecer estas plantillas predefinidas:**
+
+```javascript
+const kpiTemplates = {
+  // Plantilla 1: Conteo simple
+  simple_count: {
+    name: "Total de {model_name}",
+    code: "total_{model_code}",
+    calculation_type: "predefined",
+    description: "Conteo total de {model_name} en el sistema"
+  },
+
+  // Plantilla 2: Conteo con filtro
+  filtered_count: {
+    name: "{model_name} Activos",
+    code: "{model_code}_activos",
+    calculation_type: "custom_fields",
+    description: "Conteo de {model_name} con estado activo",
+    kpi_fields: [
+      {
+        field_name: "status",
+        operation: "where",
+        operator: "=",
+        value: "1"
+      },
+      {
+        field_name: "id",
+        operation: "count"
+      }
+    ]
+  },
+
+  // Plantilla 3: Suma de valores
+  sum_values: {
+    name: "Total de {field_display_name}",
+    code: "total_{field_name}",
+    calculation_type: "custom_fields",
+    description: "Suma total de {field_display_name}",
+    kpi_fields: [
+      {
+        field_name: "{field_name}",
+        operation: "sum"
+      }
+    ]
+  },
+
+  // Plantilla 4: Promedio con filtro
+  average_filtered: {
+    name: "Promedio de {field_display_name} (Activos)",
+    code: "promedio_{field_name}_activos",
+    calculation_type: "custom_fields",
+    description: "Promedio de {field_display_name} en registros activos",
+    kpi_fields: [
+      {
+        field_name: "status",
+        operation: "where",
+        operator: "=",
+        value: "1"
+      },
+      {
+        field_name: "{field_name}",
+        operation: "avg"
+      }
+    ]
+  }
 };
 
-// Campo de cálculo
-const calculationField = {
-  kpi_id: kpi.id,
-  field_name: "id",
-  display_name: "ID",
-  field_type: "numeric",
-  operation: "count",
-  is_required: true,
-  order: 2
+// Función para aplicar plantilla
+const applyTemplate = (template, variables) => {
+  let result = JSON.parse(JSON.stringify(template));
+  
+  // Reemplazar variables en strings
+  const replaceVariables = (obj) => {
+    for (let key in obj) {
+      if (typeof obj[key] === 'string') {
+        obj[key] = obj[key].replace(/\{(\w+)\}/g, (match, varName) => {
+          return variables[varName] || match;
+        });
+      } else if (typeof obj[key] === 'object' && obj[key] !== null) {
+        replaceVariables(obj[key]);
+      }
+    }
+  };
+  
+  replaceVariables(result);
+  return result;
 };
 
-await fetch('/api/dashboard/kpi-fields', {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-    'Authorization': 'Bearer ' + token
-  },
-  body: JSON.stringify(filterField)
+// Ejemplo de uso
+const grupoTemplate = applyTemplate(kpiTemplates.filtered_count, {
+  model_name: "Grupos",
+  model_code: "grupos"
 });
+```
 
-await fetch('/api/dashboard/kpi-fields', {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-    'Authorization': 'Bearer ' + token
-  },
-  body: JSON.stringify(calculationField)
-});
+---
+
+#### 🎨 **Componente de Asistente de KPIs**
+
+```jsx
+const KpiWizard = () => {
+  const [step, setStep] = useState(1);
+  const [selectedTemplate, setSelectedTemplate] = useState(null);
+  const [kpiData, setKpiData] = useState({});
+
+  const templates = [
+    {
+      id: 'simple_count',
+      title: 'Conteo Simple',
+      description: 'Contar todos los registros',
+      icon: '🔢',
+      example: 'Total de grupos: 150'
+    },
+    {
+      id: 'filtered_count',
+      title: 'Conteo con Filtro',
+      description: 'Contar registros que cumplan una condición',
+      icon: '🔍',
+      example: 'Grupos activos: 120'
+    },
+    {
+      id: 'sum_values',
+      title: 'Suma de Valores',
+      description: 'Sumar valores de un campo',
+      icon: '➕',
+      example: 'Total inscritos: 2,500'
+    },
+    {
+      id: 'average_filtered',
+      title: 'Promedio con Filtro',
+      description: 'Promedio de valores con condición',
+      icon: '📊',
+      example: 'Promedio inscritos por grupo: 20'
+    }
+  ];
+
+  const handleTemplateSelect = (templateId) => {
+    setSelectedTemplate(templateId);
+    setStep(2);
+  };
+
+  const handleModelSelect = (modelId) => {
+    const template = kpiTemplates[selectedTemplate];
+    const modelConfig = getModelConfig(modelId);
+    
+    const variables = {
+      model_name: modelConfig.display_name,
+      model_code: modelConfig.display_name.toLowerCase().replace(/\s+/g, '_'),
+      field_name: 'inscritos', // Campo por defecto
+      field_display_name: 'Inscritos'
+    };
+
+    const kpiTemplate = applyTemplate(template, variables);
+    setKpiData({
+      ...kpiTemplate,
+      base_model: modelId,
+      default_period_type: 'monthly',
+      use_custom_time_range: false
+    });
+    
+    setStep(3);
+  };
+
+  return (
+    <div className="kpi-wizard">
+      <div className="wizard-header">
+        <h2>Crear Nuevo KPI</h2>
+        <div className="step-indicator">
+          <span className={step >= 1 ? 'active' : ''}>1. Plantilla</span>
+          <span className={step >= 2 ? 'active' : ''}>2. Modelo</span>
+          <span className={step >= 3 ? 'active' : ''}>3. Configurar</span>
+        </div>
+      </div>
+
+      {step === 1 && (
+        <div className="template-selection">
+          <h3>¿Qué tipo de KPI quieres crear?</h3>
+          <div className="template-grid">
+            {templates.map(template => (
+              <div 
+                key={template.id}
+                className="template-card"
+                onClick={() => handleTemplateSelect(template.id)}
+              >
+                <div className="template-icon">{template.icon}</div>
+                <h4>{template.title}</h4>
+                <p>{template.description}</p>
+                <small className="example">{template.example}</small>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {step === 2 && (
+        <div className="model-selection">
+          <h3>Selecciona el modelo base</h3>
+          <ModelSelector onSelect={handleModelSelect} />
+        </div>
+      )}
+
+      {step === 3 && (
+        <div className="kpi-configuration">
+          <h3>Configuración del KPI</h3>
+          <KpiConfigForm 
+            data={kpiData}
+            onChange={setKpiData}
+            onSubmit={createKpi}
+          />
+        </div>
+      )}
+    </div>
+  );
+};
+```
+
+---
+
+#### 🚀 **Ejemplos de Uso en la Vida Real**
+
+**Caso 1: Director Académico**
+```javascript
+// "Quiero saber cuántos grupos activos tenemos por sede"
+const kpiData = {
+  name: "Grupos Activos por Sede",
+  code: "grupos_activos_sede",
+  calculation_type: "custom_fields",
+  base_model: 1, // Grupos
+  kpi_fields: [
+    { field_name: "status", operation: "where", operator: "=", value: "1" },
+    { field_name: "sede_id", operation: "group_by" },
+    { field_name: "id", operation: "count" }
+  ]
+};
+```
+
+**Caso 2: Coordinador de Admisiones**
+```javascript
+// "Quiero el total de estudiantes inscritos"
+const kpiData = {
+  name: "Total de Estudiantes Inscritos",
+  code: "total_estudiantes_inscritos",
+  calculation_type: "custom_fields",
+  base_model: 1, // Grupos
+  kpi_fields: [
+    { field_name: "inscritos", operation: "sum" }
+  ]
+};
+```
+
+**Caso 3: Gerente de Operaciones**
+```javascript
+// "Quiero el promedio de inscritos por grupo activo"
+const kpiData = {
+  name: "Promedio de Inscritos por Grupo Activo",
+  code: "promedio_inscritos_grupo_activo",
+  calculation_type: "custom_fields",
+  base_model: 1, // Grupos
+  kpi_fields: [
+    { field_name: "status", operation: "where", operator: "=", value: "1" },
+    { field_name: "inscritos", operation: "avg" }
+  ]
+};
 ```
 
 ### 3. Crear Dashboard con Gráficos
