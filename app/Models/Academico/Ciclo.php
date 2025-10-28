@@ -6,6 +6,7 @@ use App\Models\Configuracion\Sede;
 use App\Traits\HasActiveStatus;
 use App\Traits\HasCicloFilterScopes;
 use App\Traits\HasFilterScopes;
+use App\Traits\HasGenericScopes;
 use App\Traits\HasRelationScopes;
 use App\Traits\HasSortingScopes;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -36,7 +37,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  */
 class Ciclo extends Model
 {
-    use HasFactory, SoftDeletes, HasFilterScopes, HasCicloFilterScopes, HasSortingScopes, HasRelationScopes, HasActiveStatus {
+    use HasFactory, SoftDeletes, HasGenericScopes, HasFilterScopes, HasCicloFilterScopes, HasSortingScopes, HasRelationScopes, HasActiveStatus {
         HasCicloFilterScopes::scopeWithFilters insteadof HasFilterScopes;
     }
 

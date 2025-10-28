@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Dashboard\Kpi;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
+use App\Services\DynamicFilterService;
 
 /**
  * Servicio KpiService
@@ -47,20 +48,46 @@ class KpiService
         }
 
         // Si no hay relaciones, usar el método tradicional
-        return $this->calculateKpiTraditional($kpi, $tenantId, $startDate, $endDate);
+        return $this->calculateKpiTraditional($kpi, $tenantId, $startDate, $endDate, []);
     }
 
     /**
-     * Calcula el valor de un KPI usando su rango de tiempo por defecto.
+     * Calcula el valor de un KPI para una tarjeta de dashboard específica.
      *
      * @param int $kpiId ID del KPI a calcular
-     * @param int|null $tenantId ID del tenant (opcional, puede ser null)
+     * @param int $cardId ID de la tarjeta de dashboard
+     * @param int|null $tenantId ID del tenant (opcional)
      * @return float|null Valor calculado del KPI o null si no se puede calcular
-     * @throws \Illuminate\Database\Eloquent\ModelNotFoundException Si el KPI no existe
      */
-    public function getKpiValueWithDefaultRange(int $kpiId, ?int $tenantId = null): ?float
+    public function getKpiValueForCard(int $kpiId, int $cardId, ?int $tenantId = null): ?float
     {
-        return $this->getKpiValue($kpiId, $tenantId);
+        $kpi = Kpi::with(['kpiFields', 'fieldRelations.fieldA', 'fieldRelations.fieldB'])->findOrFail($kpiId);
+        $card = \App\Models\Dashboard\DashboardCard::findOrFail($cardId);
+
+        if (!$kpi->hasValidBaseModel()) {
+            return null;
+        }
+
+        // Usar fechas de la tarjeta si están definidas, sino usar las fechas por defecto del KPI
+        $startDate = $card->period_start_date ? Carbon::parse($card->period_start_date) : null;
+        $endDate = $card->period_end_date ? Carbon::parse($card->period_end_date) : null;
+
+        // Si no hay fechas específicas, usar el rango por defecto del KPI
+        if ($startDate === null || $endDate === null) {
+            $defaultRange = $kpi->getDefaultTimeRange();
+            $startDate = $startDate ?? $defaultRange['start'];
+            $endDate = $endDate ?? $defaultRange['end'];
+        }
+
+        // Verificar si hay relaciones entre campos
+        $activeRelations = $kpi->fieldRelations()->where('is_active', true)->orderBy('order')->get();
+
+        if ($activeRelations->isNotEmpty()) {
+            return $this->calculateKpiWithRelations($kpi, $activeRelations, $tenantId, $startDate, $endDate, $card->getFilters());
+        }
+
+        // Si no hay relaciones, usar el método tradicional con filtros de la tarjeta
+        return $this->calculateKpiTraditional($kpi, $tenantId, $startDate, $endDate, $card->getFilters());
     }
 
     /**
@@ -70,9 +97,10 @@ class KpiService
      * @param int|null $tenantId
      * @param Carbon $startDate
      * @param Carbon $endDate
+     * @param array $additionalFilters Filtros adicionales de la dashboard card
      * @return float|null
      */
-    private function calculateKpiTraditional($kpi, ?int $tenantId, Carbon $startDate, Carbon $endDate): ?float
+    private function calculateKpiTraditional($kpi, ?int $tenantId, Carbon $startDate, Carbon $endDate, array $additionalFilters = []): ?float
     {
         $modelClass = $kpi->getBaseModelClass();
         $query = $modelClass::query();
@@ -80,6 +108,12 @@ class KpiService
         // Aplicar filtro de tenant si está disponible
         if ($tenantId && method_exists($modelClass, 'where')) {
             $query->where('tenant_id', $tenantId);
+        }
+
+        // Para KPIs predefined sin campos, usar COUNT por defecto
+        if ($kpi->calculation_type === 'predefined' && $kpi->kpiFields->isEmpty()) {
+            $query->whereBetween('created_at', [$startDate, $endDate]);
+            return $query->count();
         }
 
         $mainOperationField = null;
@@ -104,6 +138,12 @@ class KpiService
 
         // Aplicar filtro de fechas
         $query->whereBetween('created_at', [$startDate, $endDate]);
+
+        // Aplicar filtros adicionales de la dashboard card usando DynamicFilterService
+        if (!empty($additionalFilters)) {
+            $dynamicFilterService = new DynamicFilterService();
+            $query = $dynamicFilterService->applyFilters($query, $additionalFilters);
+        }
 
         // Ejecutar la operación principal
         return $this->executeMainOperation($query, $mainOperation, $mainOperationField);

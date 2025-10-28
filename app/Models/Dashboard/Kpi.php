@@ -104,34 +104,35 @@ class Kpi extends Model
         }
 
         // Si no tiene rango personalizado, usar el tipo de periodo por defecto
-        $now = \Carbon\Carbon::now();
+        // Tomar el día anterior como fecha final y retroceder el período correspondiente
+        $yesterday = \Carbon\Carbon::now()->subDay();
 
         switch ($this->default_period_type) {
             case 'daily':
                 return [
-                    'start' => $now->copy()->startOfDay(),
-                    'end' => $now->copy()->endOfDay()
+                    'start' => $yesterday->copy()->startOfDay(),
+                    'end' => $yesterday->copy()->endOfDay()
                 ];
             case 'weekly':
                 return [
-                    'start' => $now->copy()->startOfWeek(),
-                    'end' => $now->copy()->endOfWeek()
+                    'start' => $yesterday->copy()->subWeek()->addDay()->startOfDay(),
+                    'end' => $yesterday->copy()->endOfDay()
                 ];
             case 'monthly':
                 return [
-                    'start' => $now->copy()->startOfMonth(),
-                    'end' => $now->copy()->endOfMonth()
+                    'start' => $yesterday->copy()->subMonth()->addDay()->startOfDay(),
+                    'end' => $yesterday->copy()->endOfDay()
                 ];
             case 'yearly':
                 return [
-                    'start' => $now->copy()->startOfYear(),
-                    'end' => $now->copy()->endOfYear()
+                    'start' => $yesterday->copy()->subYear()->addDay()->startOfDay(),
+                    'end' => $yesterday->copy()->endOfDay()
                 ];
             default:
-                // Por defecto, último mes
+                // Por defecto, último año (más amplio para incluir datos de migraciones/seeders)
                 return [
-                    'start' => $now->copy()->subMonth(),
-                    'end' => $now
+                    'start' => $yesterday->copy()->subYear()->addDay()->startOfDay(),
+                    'end' => $yesterday->copy()->endOfDay()
                 ];
         }
     }

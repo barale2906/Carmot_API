@@ -86,8 +86,9 @@ class DashboardController extends Controller
         $dashboardData = $dashboard->toArray();
 
         foreach ($dashboardData['dashboard_cards'] as &$card) {
-            $startDate = $card['period_start_date'] ? Carbon::parse($card['period_start_date']) : Carbon::now()->subMonth();
-            $endDate = $card['period_end_date'] ? Carbon::parse($card['period_end_date']) : Carbon::now();
+            // Usar fechas de la tarjeta si están definidas, sino usar las fechas por defecto del KPI
+            $startDate = $card['period_start_date'] ? Carbon::parse($card['period_start_date']) : null;
+            $endDate = $card['period_end_date'] ? Carbon::parse($card['period_end_date']) : null;
 
             $card['kpi_value'] = $this->kpiService->getKpiValue(
                 $card['kpi_id'],
