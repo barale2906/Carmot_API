@@ -19,12 +19,21 @@ return new class extends Migration
             $table->text('description')->nullable()->comment('Descripción del KPI.');
             $table->string('unit')->nullable()->comment('Unidad de medida (ej. "USD", "%").');
             $table->boolean('is_active')->default(true)->comment('Habilita/deshabilita el KPI.');
-            $table->string('calculation_type')->default('predefined')->comment("Tipo de cálculo ('predefined', 'custom_fields').");
-            $table->integer('base_model')->nullable()->comment('ID del modelo en la configuración de KPIs base para el cálculo (ej. App\Models\Academico\Matricula)');
-            $table->string('default_period_type')->nullable()->comment('Tipo de periodo por defecto (daily, weekly, monthly, yearly, custom)');
-            $table->date('default_period_start_date')->nullable()->comment('Fecha de inicio del periodo por defecto');
-            $table->date('default_period_end_date')->nullable()->comment('Fecha de fin del periodo por defecto');
-            $table->boolean('use_custom_time_range')->default(false)->comment('Si el KPI debe usar un rango de tiempo personalizado');
+
+
+            $table->integer('numerator_model')->nullable()->comment('ID del modelo para el numerador (referencia a config/kpis.php)');
+            $table->string('numerator_field')->nullable()->comment('Campo del numerador');
+            $table->string('numerator_operation')->default('count')->comment('Operación del numerador (count, sum, avg, max, min)');
+            $table->integer('denominator_model')->nullable()->comment('ID del modelo para el denominador (referencia a config/kpis.php)');
+            $table->string('denominator_field')->nullable()->comment('Campo del denominador');
+            $table->string('denominator_operation')->default('count')->comment('Operación del denominador (count, sum, avg, max, min)');
+            $table->integer('calculation_factor')->default(1)->comment('Factor de cálculo (*1, *100, *1000, etc. o cualquier otro numero que se desee multiplicar)');
+            $table->float('target_value')->nullable()->comment('Meta del indicador.');
+            $table->string('date_field')->default('created_at')->comment('Campo de fecha para calcular el KPI (default: created_at)');
+            $table->string('period_type')->default('monthly')->comment('Tipo de periodo (daily, weekly, monthly, quarterly, yearly)');
+            $table->string('chart_type')->nullable()->comment('Tipo de gráfico (bar, pie, line, area, scatter)');
+            $table->json('chart_schema')->nullable()->comment('JSON con esquema del gráfico para ECharts');
+
             $table->softDeletes();
             $table->timestamps();
         });

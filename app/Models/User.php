@@ -95,7 +95,12 @@ class User extends Authenticatable
         return $this->hasMany(\App\Models\Academico\Grupo::class, 'profesor_id');
     }
 
-    //Grupos que imparte el profesor
+    /**
+     * Dashboards creados por el usuario.
+     * Un usuario puede crear múltiples dashboards.
+     *
+     * @return HasMany
+     */
     public function dashboards(): HasMany
     {
         return $this->hasMany(\App\Models\Dashboard\Dashboard::class, 'user_id');

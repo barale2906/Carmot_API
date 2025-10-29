@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\Api\Dashboard;
 
+use App\Http\Resources\Api\Dashboard\KpiResource;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 

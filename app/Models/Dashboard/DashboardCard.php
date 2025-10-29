@@ -24,11 +24,10 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property int $x_position Posición horizontal en el grid
  * @property int $y_position Posición vertical en el grid
  * @property string|null $period_type Tipo de periodo (daily, weekly, monthly, yearly)
- * @property string|null $period_start_date Fecha de inicio del periodo personalizado
- * @property string|null $period_end_date Fecha de fin del periodo personalizado
- * @property array|null $custom_field_values Valores personalizados para campos del KPI
+ *
  * @property string|null $chart_type Tipo de gráfico (bar, pie, line, area, scatter)
  * @property array|null $chart_parameters Parámetros específicos del gráfico
+ * @property array|null $chart_schema JSON con esquema del gráfico para ECharts
  * @property string|null $group_by Campo por el cual agrupar los datos
  * @property array|null $filters Filtros dinámicos a aplicar a los datos
  * @property int $order Orden de visualización de la tarjeta
@@ -51,8 +50,7 @@ class DashboardCard extends Model
     protected $fillable = [
         'dashboard_id', 'kpi_id', 'title', 'background_color', 'text_color',
         'width', 'height', 'x_position', 'y_position', 'period_type',
-        'period_start_date', 'period_end_date', 'custom_field_values', 'order',
-        'chart_type', 'chart_parameters', 'group_by', 'filters'
+        'order', 'chart_type', 'chart_parameters', 'chart_schema', 'group_by', 'filters'
     ];
 
     /**
@@ -61,10 +59,8 @@ class DashboardCard extends Model
      * @var array<string, string>
      */
     protected $casts = [
-        'custom_field_values' => 'array',
-        'period_start_date' => 'date',
-        'period_end_date' => 'date',
         'chart_parameters' => 'array',
+        'chart_schema' => 'array',
         'filters' => 'array',
     ];
 
@@ -160,4 +156,57 @@ class DashboardCard extends Model
         $validTypes = ['bar', 'pie', 'line', 'area', 'scatter'];
         return in_array($this->chart_type, $validTypes);
     }
+
+    /**
+     * Obtiene el esquema del gráfico con valores por defecto.
+     *
+     * @return array
+     */
+    public function getChartSchema(): array
+    {
+        return $this->chart_schema ?? [];
+    }
+
+    /**
+     * Verifica si la tarjeta tiene esquema de gráfico configurado.
+     *
+     * @return bool True si tiene esquema de gráfico
+     */
+    public function hasChartSchema(): bool
+    {
+        return !empty($this->chart_schema);
+    }
+
+    /**
+     * Obtiene el título de la tarjeta o el nombre del KPI como fallback.
+     *
+     * @return string
+     */
+    public function getDisplayTitle(): string
+    {
+        return $this->title ?? $this->kpi->name ?? 'Sin título';
+    }
+
+    /**
+     * Obtiene el color de fondo con valor por defecto.
+     *
+     * @return string
+     */
+    public function getBackgroundColor(): string
+    {
+        return $this->background_color ?? '#ffffff';
+    }
+
+    /**
+     * Obtiene el color del texto con valor por defecto.
+     *
+     * @return string
+     */
+    public function getTextColor(): string
+    {
+        return $this->text_color ?? '#000000';
+    }
+
+    // El periodo por defecto se toma del KPI o será provisto por el usuario en la vista.
+    // Para compatibilidad, se puede usar $this->kpi->getDefaultTimeRange() desde el servicio/controlador.
 }

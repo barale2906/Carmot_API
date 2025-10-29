@@ -7,6 +7,9 @@ use App\Http\Resources\Api\Dashboard\DashboardCardResource;
 use App\Http\Requests\Api\Dashboard\StoreDashboardCardRequest;
 use App\Http\Requests\Api\Dashboard\UpdateDashboardCardRequest;
 use App\Models\Dashboard\DashboardCard;
+use App\Http\Requests\Api\Dashboard\KpiComputeRequest;
+use App\Http\Resources\Api\Dashboard\KpiComputeResource;
+use App\Services\KpiCalculationService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 
@@ -18,6 +21,9 @@ use Illuminate\Http\JsonResponse;
  */
 class DashboardCardController extends Controller
 {
+    public function __construct(private readonly KpiCalculationService $kpiService)
+    {
+    }
     /**
      * Obtiene una lista paginada de tarjetas de dashboard.
      *
@@ -147,5 +153,39 @@ class DashboardCardController extends Controller
         $card->update($validated);
 
         return (new DashboardCardResource($card))->response();
+    }
+
+    /**
+     * Calcula los datos de una tarjeta usando su configuración por defecto,
+     * permitiendo overrides via query params.
+     *
+     * @param KpiComputeRequest $request
+     * @param int $id
+     * @return JsonResponse
+     */
+    public function compute(KpiComputeRequest $request, int $id): JsonResponse
+    {
+        $card = DashboardCard::with('kpi')->findOrFail($id);
+        $kpi = $card->kpi;
+
+        // Construir opciones priorizando query > card > kpi
+        $opts = $request->validated();
+        if (empty($opts['period_type']) && !empty($card->period_type)) {
+            $opts['period_type'] = $card->period_type;
+        }
+        if (empty($opts['group_by']) && !empty($card->group_by)) {
+            $opts['group_by'] = $card->group_by;
+        }
+        // Mezcla de filtros: card (base) + query (override)
+        $opts['filters'] = array_merge($card->filters ?? [], $opts['filters'] ?? []);
+
+        $result = $this->kpiService->compute($kpi, $opts);
+
+        // Si la card tiene chart_schema propio, mezclarlo con el chart resultante
+        if (!empty($card->chart_schema) && is_array($card->chart_schema)) {
+            $result['chart'] = array_merge($result['chart'] ?? [], $card->chart_schema);
+        }
+
+        return (new KpiComputeResource($result))->response();
     }
 }

@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  *
  * Representa un indicador clave de rendimiento (KPI) en el sistema.
  * Los KPIs definen métricas que se pueden calcular y mostrar en dashboards.
+ * Cada KPI se calcula como: (numerador / denominador) * factor_calculo
  *
  * @property int $id Identificador único del KPI
  * @property string $name Nombre del KPI (ej. "Ventas Totales", "Nuevos Clientes")
@@ -19,13 +20,22 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property string|null $description Descripción detallada del KPI
  * @property string|null $unit Unidad de medida (ej. "USD", "%", "unidades")
  * @property bool $is_active Indica si el KPI está activo
- * @property string $calculation_type Tipo de cálculo ('predefined', 'custom_fields')
- * @property string|null $base_model Modelo Eloquent base para el cálculo
+ * @property int|null $numerator_model ID del modelo para el numerador (referencia a config/kpis.php)
+ * @property string|null $numerator_field Campo del numerador
+ * @property string $numerator_operation Operación del numerador (count, sum, avg, max, min)
+ * @property int|null $denominator_model ID del modelo para el denominador (referencia a config/kpis.php)
+ * @property string|null $denominator_field Campo del denominador
+ * @property string $denominator_operation Operación del denominador (count, sum, avg, max, min)
+ * @property float $calculation_factor Factor de cálculo (*1, *100, *1000, etc.)
+ * @property float|null $target_value Meta del indicador (nullable)
+ * @property string $date_field Campo de fecha para control (default: created_at)
+ * @property string $period_type Tipo de periodo (daily, weekly, monthly, quarterly, yearly)
+ * @property string|null $chart_type Tipo de gráfico (bar, pie, line, area, scatter)
+ * @property array|null $chart_schema JSON con esquema del gráfico para ECharts
  * @property \Carbon\Carbon $created_at Fecha de creación
  * @property \Carbon\Carbon $updated_at Fecha de última actualización
  * @property \Carbon\Carbon|null $deleted_at Fecha de eliminación (soft delete)
  *
- * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\Dashboard\KpiField[] $kpiFields Campos de configuración del KPI
  * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\Dashboard\DashboardCard[] $dashboardCards Tarjetas de dashboard que usan este KPI
  */
 class Kpi extends Model
@@ -39,8 +49,10 @@ class Kpi extends Model
      */
     protected $fillable = [
         'name', 'code', 'description', 'unit', 'is_active',
-        'calculation_type', 'base_model', 'default_period_type',
-        'default_period_start_date', 'default_period_end_date', 'use_custom_time_range'
+        'numerator_model', 'numerator_field', 'numerator_operation',
+        'denominator_model', 'denominator_field', 'denominator_operation',
+        'calculation_factor', 'target_value', 'date_field', 'period_type',
+        'chart_type', 'chart_schema'
     ];
 
     /**
@@ -50,10 +62,11 @@ class Kpi extends Model
      */
     protected $casts = [
         'is_active' => 'boolean',
-        'base_model' => 'integer',
-        'default_period_start_date' => 'date',
-        'default_period_end_date' => 'date',
-        'use_custom_time_range' => 'boolean',
+        'numerator_model' => 'integer',
+        'denominator_model' => 'integer',
+        'calculation_factor' => 'float',
+        'target_value' => 'float',
+        'chart_schema' => 'array',
     ];
 
     /**
@@ -69,23 +82,17 @@ class Kpi extends Model
 
     /**
      * Obtiene el rango de fechas por defecto del KPI.
+     * Según el documento, si no hay definición de período, toma la fecha inmediatamente anterior
+     * y hace una regresión de tiempo con base en el período definido.
      *
      * @return array{start: \Carbon\Carbon, end: \Carbon\Carbon}
      */
     public function getDefaultTimeRange(): array
     {
-        if ($this->use_custom_time_range && $this->default_period_start_date && $this->default_period_end_date) {
-            return [
-                'start' => $this->default_period_start_date,
-                'end' => $this->default_period_end_date
-            ];
-        }
-
-        // Si no tiene rango personalizado, usar el tipo de periodo por defecto
         // Tomar el día anterior como fecha final y retroceder el período correspondiente
         $yesterday = \Carbon\Carbon::now()->subDay();
 
-        switch ($this->default_period_type) {
+        switch ($this->period_type) {
             case 'daily':
                 return [
                     'start' => $yesterday->copy()->startOfDay(),
@@ -99,6 +106,11 @@ class Kpi extends Model
             case 'monthly':
                 return [
                     'start' => $yesterday->copy()->subMonth()->addDay()->startOfDay(),
+                    'end' => $yesterday->copy()->endOfDay()
+                ];
+            case 'quarterly':
+                return [
+                    'start' => $yesterday->copy()->subMonths(3)->addDay()->startOfDay(),
                     'end' => $yesterday->copy()->endOfDay()
                 ];
             case 'yearly':
@@ -122,64 +134,303 @@ class Kpi extends Model
      */
     public function hasTimeRange(): bool
     {
-        return $this->use_custom_time_range || !empty($this->default_period_type);
+        return !empty($this->period_type);
     }
 
     /**
-     * Obtiene la configuración del modelo base desde config/kpis.php.
+     * Obtiene la configuración del modelo numerador desde config/kpis.php.
      *
      * @return array|null
      */
-    public function getBaseModelConfig(): ?array
+    public function getNumeratorModelConfig(): ?array
     {
-        if (!$this->base_model) {
+        if (!$this->numerator_model) {
             return null;
         }
 
-        return config("kpis.available_kpi_models.{$this->base_model}");
+        return config("kpis.available_kpi_models.{$this->numerator_model}");
     }
 
     /**
-     * Obtiene la clase del modelo base.
+     * Obtiene la configuración del modelo denominador desde config/kpis.php.
+     *
+     * @return array|null
+     */
+    public function getDenominatorModelConfig(): ?array
+    {
+        if (!$this->denominator_model) {
+            return null;
+        }
+
+        return config("kpis.available_kpi_models.{$this->denominator_model}");
+    }
+
+    /**
+     * Obtiene la clase del modelo numerador.
      *
      * @return string|null
      */
-    public function getBaseModelClass(): ?string
+    public function getNumeratorModelClass(): ?string
     {
-        $config = $this->getBaseModelConfig();
+        $config = $this->getNumeratorModelConfig();
         return $config['class'] ?? null;
     }
 
     /**
-     * Obtiene el nombre de visualización del modelo base.
+     * Obtiene la clase del modelo denominador.
      *
      * @return string|null
      */
-    public function getBaseModelDisplayName(): ?string
+    public function getDenominatorModelClass(): ?string
     {
-        $config = $this->getBaseModelConfig();
+        $config = $this->getDenominatorModelConfig();
+        return $config['class'] ?? null;
+    }
+
+    /**
+     * Obtiene el nombre de visualización del modelo numerador.
+     *
+     * @return string|null
+     */
+    public function getNumeratorModelDisplayName(): ?string
+    {
+        $config = $this->getNumeratorModelConfig();
         return $config['display_name'] ?? null;
     }
 
     /**
-     * Obtiene los campos permitidos del modelo base.
+     * Obtiene el nombre de visualización del modelo denominador.
      *
-     * @return array
+     * @return string|null
      */
-    public function getBaseModelFields(): array
+    public function getDenominatorModelDisplayName(): ?string
     {
-        $config = $this->getBaseModelConfig();
-        return array_keys($config['fields'] ?? []);
+        $config = $this->getDenominatorModelConfig();
+        return $config['display_name'] ?? null;
     }
 
     /**
-     * Verifica si el modelo base está configurado correctamente.
+     * Obtiene los campos permitidos del modelo numerador.
+     *
+     * @return array
+     */
+    public function getNumeratorModelFields(): array
+    {
+        $config = $this->getNumeratorModelConfig();
+        return $config['fields'] ?? [];
+    }
+
+    /**
+     * Obtiene los campos permitidos del modelo denominador.
+     *
+     * @return array
+     */
+    public function getDenominatorModelFields(): array
+    {
+        $config = $this->getDenominatorModelConfig();
+        return $config['fields'] ?? [];
+    }
+
+    /**
+     * Obtiene el nombre del campo numerador para mostrar.
+     *
+     * @return string|null
+     */
+    public function getNumeratorFieldDisplayName(): ?string
+    {
+        $fields = $this->getNumeratorModelFields();
+        return $fields[$this->numerator_field] ?? $this->numerator_field;
+    }
+
+    /**
+     * Obtiene el nombre del campo denominador para mostrar.
+     *
+     * @return string|null
+     */
+    public function getDenominatorFieldDisplayName(): ?string
+    {
+        $fields = $this->getDenominatorModelFields();
+        return $fields[$this->denominator_field] ?? $this->denominator_field;
+    }
+
+    /**
+     * Verifica si el modelo numerador está configurado correctamente.
      *
      * @return bool
      */
-    public function hasValidBaseModel(): bool
+    public function hasValidNumeratorModel(): bool
     {
-        $config = $this->getBaseModelConfig();
+        $config = $this->getNumeratorModelConfig();
         return $config && isset($config['class']) && class_exists($config['class']);
+    }
+
+    /**
+     * Verifica si el modelo denominador está configurado correctamente.
+     *
+     * @return bool
+     */
+    public function hasValidDenominatorModel(): bool
+    {
+        $config = $this->getDenominatorModelConfig();
+        return $config && isset($config['class']) && class_exists($config['class']);
+    }
+
+    /**
+     * Verifica si el campo numerador es válido para el modelo seleccionado.
+     *
+     * @return bool
+     */
+    public function hasValidNumeratorField(): bool
+    {
+        if (!$this->numerator_field || !$this->hasValidNumeratorModel()) {
+            return false;
+        }
+
+        $fields = $this->getNumeratorModelFields();
+        return array_key_exists($this->numerator_field, $fields);
+    }
+
+    /**
+     * Verifica si el campo denominador es válido para el modelo seleccionado.
+     *
+     * @return bool
+     */
+    public function hasValidDenominatorField(): bool
+    {
+        if (!$this->denominator_field || !$this->hasValidDenominatorModel()) {
+            return false;
+        }
+
+        $fields = $this->getDenominatorModelFields();
+        return array_key_exists($this->denominator_field, $fields);
+    }
+
+    /**
+     * Verifica si la operación numerador es válida.
+     *
+     * @return bool
+     */
+    public function hasValidNumeratorOperation(): bool
+    {
+        $validOperations = ['count', 'sum', 'avg', 'max', 'min'];
+        return in_array($this->numerator_operation, $validOperations);
+    }
+
+    /**
+     * Verifica si la operación denominador es válida.
+     *
+     * @return bool
+     */
+    public function hasValidDenominatorOperation(): bool
+    {
+        $validOperations = ['count', 'sum', 'avg', 'max', 'min'];
+        return in_array($this->denominator_operation, $validOperations);
+    }
+
+    /**
+     * Verifica si el KPI está completamente configurado y es válido.
+     *
+     * @return bool
+     */
+    public function isFullyConfigured(): bool
+    {
+        return $this->hasValidNumeratorModel() &&
+               $this->hasValidNumeratorField() &&
+               $this->hasValidNumeratorOperation() &&
+               $this->hasValidDenominatorModel() &&
+               $this->hasValidDenominatorField() &&
+               $this->hasValidDenominatorOperation();
+    }
+
+    /**
+     * Verifica si el KPI tiene una meta definida.
+     *
+     * @return bool
+     */
+    public function hasTarget(): bool
+    {
+        return !is_null($this->target_value);
+    }
+
+    /**
+     * Obtiene el campo de fecha para control, por defecto 'created_at'.
+     *
+     * @return string
+     */
+    public function getDateField(): string
+    {
+        return $this->date_field ?? 'created_at';
+    }
+
+    /**
+     * Obtiene el esquema del gráfico con valores por defecto.
+     *
+     * @return array
+     */
+    public function getChartSchema(): array
+    {
+        return $this->chart_schema ?? [];
+    }
+
+    /**
+     * Verifica si el KPI tiene configuración de gráfico.
+     *
+     * @return bool
+     */
+    public function hasChartConfiguration(): bool
+    {
+        return !empty($this->chart_type) && !empty($this->chart_schema);
+    }
+
+    /**
+     * Obtiene una descripción legible de cómo se calcula el KPI.
+     *
+     * @return string
+     */
+    public function getCalculationDescription(): string
+    {
+        if (!$this->isFullyConfigured()) {
+            return 'KPI no configurado completamente';
+        }
+
+        $numeratorModel = $this->getNumeratorModelDisplayName();
+        $numeratorField = $this->getNumeratorFieldDisplayName();
+        $numeratorOp = strtoupper($this->numerator_operation);
+
+        $denominatorModel = $this->getDenominatorModelDisplayName();
+        $denominatorField = $this->getDenominatorFieldDisplayName();
+        $denominatorOp = strtoupper($this->denominator_operation);
+
+        $description = "({$numeratorOp} de '{$numeratorField}' en {$numeratorModel}) / ";
+        $description .= "({$denominatorOp} de '{$denominatorField}' en {$denominatorModel})";
+
+        if ($this->calculation_factor != 1) {
+            $description .= " × {$this->calculation_factor}";
+        }
+
+        return $description;
+    }
+
+    /**
+     * Obtiene la fórmula matemática del KPI.
+     *
+     * @return string
+     */
+    public function getCalculationFormula(): string
+    {
+        if (!$this->isFullyConfigured()) {
+            return 'KPI no configurado';
+        }
+
+        $numerator = "{$this->numerator_operation}({$this->numerator_field})";
+        $denominator = "{$this->denominator_operation}({$this->denominator_field})";
+
+        $formula = "({$numerator} / {$denominator})";
+
+        if ($this->calculation_factor != 1) {
+            $formula .= " × {$this->calculation_factor}";
+        }
+
+        return $formula;
     }
 }

@@ -19,7 +19,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property int|null $tenant_id ID del tenant (opcional para sistemas multi-tenant)
  * @property int $user_id ID del usuario propietario del dashboard
  * @property string $name Nombre del dashboard (ej. "Dashboard de Ventas Q3")
- * @property bool $is_default Indica si es el dashboard predeterminado
+ * @property bool $is_default Indica si es un dashboard general (true) o personal (false)
  * @property \Carbon\Carbon $created_at Fecha de creación
  * @property \Carbon\Carbon $updated_at Fecha de última actualización
  * @property \Carbon\Carbon|null $deleted_at Fecha de eliminación (soft delete)
@@ -67,6 +67,22 @@ class Dashboard extends Model
     public function dashboardCards(): HasMany
     {
         return $this->hasMany(DashboardCard::class);
+    }
+
+    /**
+     * Indica si es un dashboard general (visible a todos los usuarios).
+     */
+    public function isGeneral(): bool
+    {
+        return $this->is_default === true;
+    }
+
+    /**
+     * Indica si es un dashboard personal (del usuario propietario).
+     */
+    public function isPersonal(): bool
+    {
+        return $this->is_default === false;
     }
 
     /**

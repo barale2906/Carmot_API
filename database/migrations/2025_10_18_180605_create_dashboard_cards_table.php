@@ -28,10 +28,9 @@ return new class extends Migration
             $table->integer('x_position')->default(0)->comment('Posición horizontal del card en el grid del dashboard.');
             $table->integer('y_position')->default(0)->comment('Posición vertical del card en el grid del dashboard');
             $table->string('period_type')->nullable()->comment('Tipo de periodo (ej. "daily", "weekly", "monthly", "yearly")');
-            $table->date('period_start_date')->nullable()->comment('Fecha de inicio del periodo personalizado');
-            $table->date('period_end_date')->nullable()->comment('Fecha de fin del periodo personalizado');
-            $table->json('custom_field_values')->nullable()->comment('Valores específicos para campos configurables del KPI (ej. {"product_id": 123}).');
+
             $table->integer('order')->default(0)->comment('Orden del card (ej. 0, 1, 2)');
+            $table->json('chart_schema')->nullable()->comment('JSON con esquema del gráfico para ECharts');
             $table->softDeletes();
 
             $table->timestamps();
