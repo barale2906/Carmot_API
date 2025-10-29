@@ -57,17 +57,6 @@ class Kpi extends Model
     ];
 
     /**
-     * Relación con KpiField (uno a muchos).
-     * Un KPI puede tener múltiples campos de configuración.
-     *
-     * @return HasMany
-     */
-    public function kpiFields(): HasMany
-    {
-        return $this->hasMany(KpiField::class);
-    }
-
-    /**
      * Relación con DashboardCard (uno a muchos).
      * Un KPI puede ser usado en múltiples tarjetas de dashboard.
      *
@@ -76,17 +65,6 @@ class Kpi extends Model
     public function dashboardCards(): HasMany
     {
         return $this->hasMany(DashboardCard::class);
-    }
-
-    /**
-     * Relación con KpiFieldRelation (uno a muchos).
-     * Un KPI puede tener múltiples relaciones entre campos.
-     *
-     * @return HasMany
-     */
-    public function fieldRelations(): HasMany
-    {
-        return $this->hasMany(KpiFieldRelation::class);
     }
 
     /**
@@ -191,7 +169,7 @@ class Kpi extends Model
     public function getBaseModelFields(): array
     {
         $config = $this->getBaseModelConfig();
-        return $config['fields'] ?? [];
+        return array_keys($config['fields'] ?? []);
     }
 
     /**

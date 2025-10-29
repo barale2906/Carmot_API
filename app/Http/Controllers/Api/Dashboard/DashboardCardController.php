@@ -7,8 +7,6 @@ use App\Http\Resources\Api\Dashboard\DashboardCardResource;
 use App\Http\Requests\Api\Dashboard\StoreDashboardCardRequest;
 use App\Http\Requests\Api\Dashboard\UpdateDashboardCardRequest;
 use App\Models\Dashboard\DashboardCard;
-use App\Services\KpiService;
-use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 
@@ -20,13 +18,6 @@ use Illuminate\Http\JsonResponse;
  */
 class DashboardCardController extends Controller
 {
-    protected $kpiService;
-
-    public function __construct(KpiService $kpiService)
-    {
-        $this->kpiService = $kpiService;
-    }
-
     /**
      * Obtiene una lista paginada de tarjetas de dashboard.
      *
@@ -35,7 +26,7 @@ class DashboardCardController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $query = DashboardCard::with(['dashboard', 'kpi.kpiFields']);
+        $query = DashboardCard::with(['dashboard', 'kpi']);
 
         // Filtrar por dashboard específico
         if ($request->has('dashboard_id')) {
@@ -71,31 +62,18 @@ class DashboardCardController extends Controller
         $validated = $request->validated();
         $card = DashboardCard::create($validated);
 
-        return (new DashboardCardResource($card->load(['dashboard', 'kpi.kpiFields'])))->response()->setStatusCode(201);
+        return (new DashboardCardResource($card->load(['dashboard', 'kpi'])))->response()->setStatusCode(201);
     }
 
     /**
-     * Obtiene una tarjeta de dashboard específica con su valor de KPI calculado.
+     * Obtiene una tarjeta de dashboard específica.
      *
      * @param int $id ID de la tarjeta
-     * @return JsonResponse Tarjeta encontrada con valor de KPI
+     * @return JsonResponse Tarjeta encontrada
      */
     public function show(int $id): JsonResponse
     {
-        $card = DashboardCard::with(['dashboard', 'kpi.kpiFields'])->findOrFail($id);
-
-        // Calcular el valor del KPI si hay fechas definidas
-        if ($card->period_start_date && $card->period_end_date) {
-            $startDate = Carbon::parse($card->period_start_date);
-            $endDate = Carbon::parse($card->period_end_date);
-
-            $card->kpi_value = $this->kpiService->getKpiValue(
-                $card->kpi_id,
-                $card->dashboard->tenant_id,
-                $startDate,
-                $endDate
-            );
-        }
+        $card = DashboardCard::with(['dashboard', 'kpi'])->findOrFail($id);
 
         return (new DashboardCardResource($card))->response();
     }
@@ -113,7 +91,7 @@ class DashboardCardController extends Controller
         $validated = $request->validated();
         $card->update($validated);
 
-        return (new DashboardCardResource($card->load(['dashboard', 'kpi.kpiFields'])))->response();
+        return (new DashboardCardResource($card->load(['dashboard', 'kpi'])))->response();
     }
 
     /**
@@ -139,25 +117,10 @@ class DashboardCardController extends Controller
     public function getByDashboard(int $dashboardId): JsonResponse
     {
         $cards = DashboardCard::where('dashboard_id', $dashboardId)
-            ->with(['kpi.kpiFields'])
+            ->with(['kpi'])
             ->orderBy('order')
             ->orderBy('id')
             ->get();
-
-        // Calcular valores de KPIs para cada tarjeta
-        foreach ($cards as $card) {
-            if ($card->period_start_date && $card->period_end_date) {
-                $startDate = Carbon::parse($card->period_start_date);
-                $endDate = Carbon::parse($card->period_end_date);
-
-                $card->kpi_value = $this->kpiService->getKpiValue(
-                    $card->kpi_id,
-                    $card->dashboard->tenant_id ?? null,
-                    $startDate,
-                    $endDate
-                );
-            }
-        }
 
         return DashboardCardResource::collection($cards)->response();
     }

@@ -74,7 +74,7 @@ class ValidateKpiSecurity
             throw new \InvalidArgumentException("Configuración no válida para el modelo base del KPI.");
         }
 
-        $allowedFields = $modelConfig['fields'];
+        $allowedFields = array_keys($modelConfig['fields']);
 
         if (!in_array($fieldName, $allowedFields)) {
             throw new \InvalidArgumentException("El campo '{$fieldName}' no está permitido para este modelo.");

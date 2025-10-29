@@ -7,8 +7,6 @@ use App\Http\Resources\Api\Dashboard\DashboardResource;
 use App\Http\Requests\Api\Dashboard\StoreDashboardRequest;
 use App\Http\Requests\Api\Dashboard\UpdateDashboardRequest;
 use App\Models\Dashboard\Dashboard;
-use App\Services\KpiService;
-use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 
@@ -20,12 +18,6 @@ use Illuminate\Http\JsonResponse;
  */
 class DashboardController extends Controller
 {
-    protected $kpiService;
-
-    public function __construct(KpiService $kpiService)
-    {
-        $this->kpiService = $kpiService;
-    }
 
     /**
      * Obtiene una lista paginada de dashboards.
@@ -37,9 +29,24 @@ class DashboardController extends Controller
     {
         $query = Dashboard::with(['user', 'dashboardCards.kpi']);
 
-        // Filtrar por usuario
-        if ($request->has('user_id')) {
-            $query->where('user_id', $request->user_id);
+        // Filtrar por usuario autenticado - mostrar dashboards default O del usuario autenticado
+        $authenticatedUser = $request->user();
+        $authenticatedUserId = $authenticatedUser?->id;
+
+        if ($authenticatedUserId) {
+            // Si es superusuario, puede ver todos los dashboards
+            if ($authenticatedUser->hasRole('superusuario')) {
+                // Los superusuarios ven todos los dashboards sin restricciones
+            } else {
+                // Usuarios normales ven dashboards default O sus propios dashboards
+                $query->where(function ($q) use ($authenticatedUserId) {
+                    $q->where('is_default', true)
+                      ->orWhere('user_id', $authenticatedUserId);
+                });
+            }
+        } else {
+            // Si no hay usuario autenticado, mostrar solo los dashboards default
+            $query->where('is_default', true);
         }
 
         // Filtrar por tenant
@@ -73,30 +80,15 @@ class DashboardController extends Controller
     }
 
     /**
-     * Obtiene un dashboard específico con valores de KPIs calculados.
+     * Obtiene un dashboard específico.
      *
      * @param int $dashboardId ID del dashboard
      * @return JsonResponse Dashboard encontrado
      */
     public function show(int $dashboardId): JsonResponse
     {
-        $dashboard = Dashboard::with(['dashboardCards.kpi.kpiFields'])
+        $dashboard = Dashboard::with(['dashboardCards.kpi'])
             ->findOrFail($dashboardId);
-
-        $dashboardData = $dashboard->toArray();
-
-        foreach ($dashboardData['dashboard_cards'] as &$card) {
-            // Usar fechas de la tarjeta si están definidas, sino usar las fechas por defecto del KPI
-            $startDate = $card['period_start_date'] ? Carbon::parse($card['period_start_date']) : null;
-            $endDate = $card['period_end_date'] ? Carbon::parse($card['period_end_date']) : null;
-
-            $card['kpi_value'] = $this->kpiService->getKpiValue(
-                $card['kpi_id'],
-                $dashboard->tenant_id,
-                $startDate,
-                $endDate
-            );
-        }
 
         return (new DashboardResource($dashboard))->response();
     }
@@ -150,7 +142,7 @@ class DashboardController extends Controller
      */
     public function exportPdf(int $dashboardId)
     {
-        $dashboard = Dashboard::with(['dashboardCards.kpi.kpiFields'])
+        $dashboard = Dashboard::with(['dashboardCards.kpi'])
             ->findOrFail($dashboardId);
 
         // TODO: Implementar generación de PDF

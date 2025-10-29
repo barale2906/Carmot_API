@@ -42,6 +42,12 @@ class UpdateDashboardCardRequest extends FormRequest
             'period_end_date' => 'nullable|date|after_or_equal:period_start_date',
             'custom_field_values' => 'nullable|array',
             'order' => 'integer|min:0',
+
+            // Campos de configuración de gráfico
+            'chart_type' => 'nullable|in:bar,pie,line,area,scatter',
+            'chart_parameters' => 'nullable|array',
+            'group_by' => 'nullable|string|max:255',
+            'filters' => 'nullable|array',
         ];
     }
 
@@ -66,6 +72,12 @@ class UpdateDashboardCardRequest extends FormRequest
             'period_end_date.after_or_equal' => 'La fecha de fin debe ser posterior o igual a la fecha de inicio.',
             'order.integer' => 'El orden debe ser un número entero.',
             'order.min' => 'El orden debe ser mayor o igual a 0.',
+
+            // Mensajes de configuración de gráfico
+            'chart_type.in' => 'El tipo de gráfico debe ser: bar, pie, line, area o scatter.',
+            'chart_parameters.array' => 'Los parámetros del gráfico deben ser un array.',
+            'group_by.max' => 'El campo de agrupación no puede exceder 255 caracteres.',
+            'filters.array' => 'Los filtros deben ser un array.',
         ];
     }
 }
