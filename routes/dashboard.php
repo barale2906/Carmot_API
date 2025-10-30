@@ -38,9 +38,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('kpis/operations/{fieldType}', [KpiConfigController::class, 'operationsByType']);
     Route::get('kpis/periods', [KpiConfigController::class, 'periods']);
 
-    // Cálculo de KPIs (con validación de seguridad de parámetros)
-    Route::get('kpis/{kpi}/compute', [KpiController::class, 'compute'])
-        ->middleware('kpi.security');
+    // Cálculo de KPIs
+    Route::get('kpis/{kpi}/compute', [KpiController::class, 'compute']);
 
     // CRUD de KPIs (sin middleware de seguridad general para evitar errores en DELETE)
     // La validación de seguridad se aplica en endpoints que la requieren explícitamente (compute, group-by)

@@ -239,7 +239,8 @@ class Kpi extends Model
     public function getNumeratorFieldDisplayName(): ?string
     {
         $fields = $this->getNumeratorModelFields();
-        return $fields[$this->numerator_field] ?? $this->numerator_field;
+        $value = $fields[$this->numerator_field] ?? $this->numerator_field;
+        return is_array($value) ? ($value['label'] ?? $this->numerator_field) : $value;
     }
 
     /**
@@ -250,7 +251,8 @@ class Kpi extends Model
     public function getDenominatorFieldDisplayName(): ?string
     {
         $fields = $this->getDenominatorModelFields();
-        return $fields[$this->denominator_field] ?? $this->denominator_field;
+        $value = $fields[$this->denominator_field] ?? $this->denominator_field;
+        return is_array($value) ? ($value['label'] ?? $this->denominator_field) : $value;
     }
 
     /**
@@ -334,12 +336,25 @@ class Kpi extends Model
      */
     public function isFullyConfigured(): bool
     {
-        return $this->hasValidNumeratorModel() &&
-               $this->hasValidNumeratorField() &&
-               $this->hasValidNumeratorOperation() &&
-               $this->hasValidDenominatorModel() &&
-               $this->hasValidDenominatorField() &&
-               $this->hasValidDenominatorOperation();
+        // Configuración mínima: numerador válido siempre
+        $numeratorOk = $this->hasValidNumeratorModel() &&
+                       $this->hasValidNumeratorField() &&
+                       $this->hasValidNumeratorOperation();
+
+        // Denominador opcional: si NO hay modelo, se considera KPI de solo numerador
+        // Nota: denominator_operation tiene default 'count', por eso no lo usamos para decidir
+        $hasDenominatorData = !empty($this->denominator_model);
+
+        if (!$hasDenominatorData) {
+            return $numeratorOk;
+        }
+
+        // Si hay datos de denominador, entonces deben ser válidos
+        $denominatorOk = $this->hasValidDenominatorModel() &&
+                         $this->hasValidDenominatorField() &&
+                         $this->hasValidDenominatorOperation();
+
+        return $numeratorOk && $denominatorOk;
     }
 
     /**
@@ -397,6 +412,16 @@ class Kpi extends Model
         $numeratorField = $this->getNumeratorFieldDisplayName();
         $numeratorOp = strtoupper($this->numerator_operation);
 
+        $hasDenominator = !empty($this->denominator_model);
+
+        if (!$hasDenominator) {
+            $description = "{$numeratorOp} de '{$numeratorField}' en {$numeratorModel}";
+            if ($this->calculation_factor != 1) {
+                $description .= " × {$this->calculation_factor}";
+            }
+            return $description;
+        }
+
         $denominatorModel = $this->getDenominatorModelDisplayName();
         $denominatorField = $this->getDenominatorFieldDisplayName();
         $denominatorOp = strtoupper($this->denominator_operation);
@@ -423,8 +448,18 @@ class Kpi extends Model
         }
 
         $numerator = "{$this->numerator_operation}({$this->numerator_field})";
-        $denominator = "{$this->denominator_operation}({$this->denominator_field})";
 
+        $hasDenominator = !empty($this->denominator_model);
+
+        if (!$hasDenominator) {
+            $formula = $numerator;
+            if ($this->calculation_factor != 1) {
+                $formula .= " × {$this->calculation_factor}";
+            }
+            return $formula;
+        }
+
+        $denominator = "{$this->denominator_operation}({$this->denominator_field})";
         $formula = "({$numerator} / {$denominator})";
 
         if ($this->calculation_factor != 1) {

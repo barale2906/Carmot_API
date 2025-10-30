@@ -56,17 +56,34 @@ class KpiCalculationService
             $groupLimit
         );
 
-        $denominator = $this->aggregate(
-            $kpi->getDenominatorModelClass(),
-            $kpi->denominator_operation,
-            $kpi->denominator_field,
-            $dateField,
-            $start,
-            $end,
-            $filters,
-            $groupBy,
-            $groupLimit
-        );
+        // Determinar si hay denominador configurado; si no, usar 1 como base
+        // Consideramos solo la presencia de denominator_model, ya que operation tiene default 'count'
+        $hasDenominator = !empty($kpi->denominator_model);
+
+        if ($hasDenominator) {
+            $denominator = $this->aggregate(
+                $kpi->getDenominatorModelClass(),
+                $kpi->denominator_operation,
+                $kpi->denominator_field,
+                $dateField,
+                $start,
+                $end,
+                $filters,
+                // No agrupar denominador: usar denominador escalar para todo el rango
+                null,
+                0
+            );
+        } else {
+            // Si está agrupado, construir un array con 1.0 por cada clave del numerador; si no, 1.0 escalar
+            if (is_array($numerator)) {
+                $denominator = [];
+                foreach (array_keys($numerator) as $key) {
+                    $denominator[$key] = 1.0;
+                }
+            } else {
+                $denominator = 1.0;
+            }
+        }
 
         $factor = (float)($kpi->calculation_factor ?? 1);
 
@@ -99,10 +116,40 @@ class KpiCalculationService
             ];
         }
 
+        // Numerador agrupado y denominador escalar
+        if (is_array($numerator) && !is_array($denominator)) {
+            $series = [];
+            $d = (float)$denominator;
+            foreach ($numerator as $key => $numVal) {
+                $n = (float)$numVal;
+                $v = $d !== 0.0 ? ($n / $d) * $factor : 0.0;
+                $series[] = [
+                    'group' => (string)$key,
+                    'numerator' => $n,
+                    'denominator' => $d,
+                    'value' => $v,
+                ];
+            }
+
+            $chart = $this->buildChartFromSeries($kpi, $series);
+
+            return [
+                'is_grouped' => true,
+                'factor' => $factor,
+                'formula' => $kpi->getCalculationFormula(),
+                'description' => $kpi->getCalculationDescription(),
+                'range' => ['start' => $start, 'end' => $end],
+                'series' => $series,
+                'chart' => $chart,
+            ];
+        }
+
         // Agregación simple (escalares)
         $n = (float)$numerator;
         $d = (float)$denominator;
         $value = $d !== 0.0 ? ($n / $d) * $factor : 0.0;
+
+        $chart = $this->buildChartFromValue($kpi, $value);
 
         return [
             'is_grouped' => false,
@@ -113,6 +160,7 @@ class KpiCalculationService
             'formula' => $kpi->getCalculationFormula(),
             'description' => $kpi->getCalculationDescription(),
             'range' => ['start' => $start, 'end' => $end],
+            'chart' => $chart,
         ];
     }
 
@@ -292,6 +340,107 @@ class KpiCalculationService
         // yAxis merge
         if (isset($schema['yAxis']) && is_array($schema['yAxis'])) {
             $merged['yAxis'] = array_merge(['type' => 'value'], $schema['yAxis']);
+        }
+
+        return $merged;
+    }
+
+    /**
+     * Construye un gráfico básico cuando el KPI no está agrupado (valor único),
+     * utilizando el chart_type del KPI y mezclándolo con chart_schema si existe.
+     *
+     * @param Kpi $kpi
+     * @param float $value
+     * @return array<string, mixed>|null
+     */
+    private function buildChartFromValue(Kpi $kpi, float $value): ?array
+    {
+        if (empty($kpi->chart_type)) {
+            return null;
+        }
+
+        $type = $kpi->chart_type;
+
+        switch ($type) {
+            case 'pie':
+                $base = [
+                    'title' => ['text' => $kpi->name],
+                    'tooltip' => ['trigger' => 'item'],
+                    'series' => [[
+                        'name' => $kpi->name,
+                        'type' => 'pie',
+                        'radius' => '50%',
+                        'data' => [[
+                            'name' => $kpi->name,
+                            'value' => $value,
+                        ]],
+                    ]],
+                ];
+                break;
+            case 'line':
+            case 'area':
+                $series = [
+                    'name' => $kpi->name,
+                    'type' => 'line',
+                    'data' => [$value],
+                ];
+                if ($type === 'area') {
+                    $series['areaStyle'] = new \stdClass();
+                }
+                $base = [
+                    'tooltip' => ['trigger' => 'axis'],
+                    'xAxis' => [
+                        'type' => 'category',
+                        'data' => [$kpi->name],
+                    ],
+                    'yAxis' => [
+                        'type' => 'value',
+                    ],
+                    'series' => [ $series ],
+                    'legend' => ['data' => [$kpi->name]],
+                    'title' => ['text' => $kpi->name],
+                ];
+                break;
+            case 'bar':
+            default:
+                $base = [
+                    'tooltip' => ['trigger' => 'axis'],
+                    'xAxis' => [
+                        'type' => 'category',
+                        'data' => [$kpi->name],
+                    ],
+                    'yAxis' => [
+                        'type' => 'value',
+                    ],
+                    'series' => [[
+                        'name' => $kpi->name,
+                        'type' => 'bar',
+                        'data' => [$value],
+                    ]],
+                    'legend' => ['data' => [$kpi->name]],
+                    'title' => ['text' => $kpi->name],
+                ];
+                break;
+        }
+
+        // Mezclar con chart_schema del KPI si existe
+        $schema = $kpi->getChartSchema();
+        if (!is_array($schema) || empty($schema)) {
+            return $base;
+        }
+
+        $merged = array_merge($base, $schema);
+
+        if (isset($schema['series']) && is_array($schema['series'])) {
+            $first = $schema['series'][0] ?? [];
+            $merged['series'][0] = array_merge($base['series'][0], $first);
+        }
+
+        if (isset($schema['xAxis']) && is_array($schema['xAxis']) && isset($base['xAxis'])) {
+            $merged['xAxis'] = array_merge($base['xAxis'], $schema['xAxis']);
+        }
+        if (isset($schema['yAxis']) && is_array($schema['yAxis']) && isset($base['yAxis'])) {
+            $merged['yAxis'] = array_merge($base['yAxis'], $schema['yAxis']);
         }
 
         return $merged;

@@ -27,9 +27,10 @@ class StoreKpiRequest extends FormRequest
             'numerator_field' => 'nullable|string',
             'numerator_operation' => 'required|in:count,sum,avg,max,min',
 
-            'denominator_model' => 'required|integer',
+            // Denominador opcional
+            'denominator_model' => 'nullable|integer',
             'denominator_field' => 'nullable|string',
-            'denominator_operation' => 'required|in:count,sum,avg,max,min',
+            'denominator_operation' => 'nullable|in:count,sum,avg,max,min',
 
             'calculation_factor' => 'nullable|numeric',
             'target_value' => 'nullable|numeric',
@@ -39,5 +40,18 @@ class StoreKpiRequest extends FormRequest
             'chart_type' => 'nullable|in:bar,pie,line,area,scatter',
             'chart_schema' => 'nullable|array',
         ];
+    }
+    
+    public function withValidator($validator): void
+    {
+        $validator->after(function ($validator) {
+            $hasDenModel = $this->filled('denominator_model');
+            $hasDenOp = $this->filled('denominator_operation');
+
+            // Si se envía denominator_model, exigir denominator_operation válida
+            if ($hasDenModel && !$hasDenOp) {
+                $validator->errors()->add('denominator_operation', 'La operación del denominador es obligatoria cuando se especifica un modelo.');
+            }
+        });
     }
 }
