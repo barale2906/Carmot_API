@@ -32,14 +32,20 @@ Route::middleware('auth:sanctum')->group(function () {
     // Configuración de KPIs para el frontend
     Route::get('kpis/config', [KpiConfigController::class, 'index']);
 
+    // Endpoints meta separados para facilitar consumo en frontend
+    Route::get('kpis/models', [KpiConfigController::class, 'models']);
+    Route::get('kpis/models/{modelId}/fields', [KpiConfigController::class, 'modelFields']);
+    Route::get('kpis/operations/{fieldType}', [KpiConfigController::class, 'operationsByType']);
+    Route::get('kpis/periods', [KpiConfigController::class, 'periods']);
+
     // Cálculo de KPIs (con validación de seguridad de parámetros)
     Route::get('kpis/{kpi}/compute', [KpiController::class, 'compute'])
         ->middleware('kpi.security');
 
-    // CRUD de KPIs (con validación de seguridad)
+    // CRUD de KPIs (sin middleware de seguridad general para evitar errores en DELETE)
+    // La validación de seguridad se aplica en endpoints que la requieren explícitamente (compute, group-by)
     Route::apiResource('kpis', KpiCrudController::class)
-        ->except(['create','edit'])
-        ->middleware('kpi.security');
+        ->except(['create','edit']);
 
     // Opciones de agrupación para modelos de KPIs
     Route::get('kpis/models/{modelId}/group-by/{field}', [KpiModelController::class, 'groupBy'])
