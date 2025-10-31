@@ -37,9 +37,8 @@ class UpdateDashboardCardRequest extends FormRequest
             'height' => 'integer|min:1|max:12',
             'x_position' => 'integer|min:0',
             'y_position' => 'integer|min:0',
-            'period_type' => 'nullable|in:daily,weekly,monthly,yearly,custom',
-            'period_start_date' => 'nullable|date',
-            'period_end_date' => 'nullable|date|after_or_equal:period_start_date',
+            // Periodo sin fechas persistidas; overrides por query en compute
+            'period_type' => 'nullable|in:daily,weekly,monthly,quarterly,yearly',
             'custom_field_values' => 'nullable|array',
             'order' => 'integer|min:0',
 
@@ -68,8 +67,7 @@ class UpdateDashboardCardRequest extends FormRequest
             'height.max' => 'La altura no puede exceder 12.',
             'x_position.min' => 'La posición X debe ser mayor o igual a 0.',
             'y_position.min' => 'La posición Y debe ser mayor o igual a 0.',
-            'period_type.in' => 'El tipo de periodo debe ser: daily, weekly, monthly, yearly o custom.',
-            'period_end_date.after_or_equal' => 'La fecha de fin debe ser posterior o igual a la fecha de inicio.',
+            'period_type.in' => 'El tipo de periodo debe ser: daily, weekly, monthly, quarterly o yearly.',
             'order.integer' => 'El orden debe ser un número entero.',
             'order.min' => 'El orden debe ser mayor o igual a 0.',
 

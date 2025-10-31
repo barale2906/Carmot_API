@@ -26,6 +26,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Rutas para tarjetas de dashboard
     Route::apiResource('dashboard-cards', \App\Http\Controllers\Api\Dashboard\DashboardCardController::class);
+    // Listar cards de un dashboard específico
+    Route::get('dashboards/{dashboardId}/cards', [\App\Http\Controllers\Api\Dashboard\DashboardCardController::class, 'getByDashboard']);
     Route::get('dashboard-cards/{card}/compute', [\App\Http\Controllers\Api\Dashboard\DashboardCardController::class, 'compute'])
         ->middleware('kpi.security');
 

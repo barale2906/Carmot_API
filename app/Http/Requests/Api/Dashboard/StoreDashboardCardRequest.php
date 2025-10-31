@@ -33,7 +33,7 @@ class StoreDashboardCardRequest extends FormRequest
             // Campos básicos de la tarjeta
             'dashboard_id' => 'required|exists:dashboards,id',
             'kpi_id' => 'required|exists:kpis,id',
-            'title' => 'required|string|max:255',
+            'title' => 'nullable|string|max:255',
             'background_color' => 'nullable|string|max:7|regex:/^#[0-9A-Fa-f]{6}$/',
             'text_color' => 'nullable|string|max:7|regex:/^#[0-9A-Fa-f]{6}$/',
             'width' => 'integer|min:1|max:12',
@@ -42,35 +42,33 @@ class StoreDashboardCardRequest extends FormRequest
             'y_position' => 'integer|min:0',
             'order' => 'integer|min:0',
 
-            // Campos de periodo
-            'period_type' => 'nullable|in:daily,weekly,monthly,yearly,custom',
-            'period_start_date' => 'nullable|date|required_if:period_type,custom',
-            'period_end_date' => 'nullable|date|required_if:period_type,custom|after_or_equal:period_start_date',
+            // Campos de periodo (sin fechas persistidas; overrides por query en compute)
+            'period_type' => 'nullable|in:daily,weekly,monthly,quarterly,yearly',
 
-            // Campos de gráficos
-            'chart_type' => 'required|in:bar,pie,line,area,scatter',
-            'chart_parameters' => 'array',
-            'chart_parameters.orientation' => 'required_if:chart_type,bar|in:vertical,horizontal',
-            'chart_parameters.stacked' => 'boolean',
-            'chart_parameters.show_values' => 'boolean',
-            'chart_parameters.show_percentages' => 'boolean',
-            'chart_parameters.show_legend' => 'boolean',
-            'chart_parameters.legend_position' => 'in:top,bottom,left,right',
-            'chart_parameters.donut' => 'boolean',
-            'chart_parameters.donut_size' => 'numeric|min:0|max:1',
-            'chart_parameters.smooth' => 'boolean',
-            'chart_parameters.show_points' => 'boolean',
-            'chart_parameters.fill_area' => 'boolean',
-            'chart_parameters.show_grid' => 'boolean',
-            'chart_parameters.y_axis_min' => 'numeric',
-            'chart_parameters.y_axis_max' => 'numeric',
-            'chart_parameters.opacity' => 'numeric|min:0|max:1',
-            'chart_parameters.gradient' => 'boolean',
-            'chart_parameters.point_size' => 'integer|min:1|max:20',
-            'chart_parameters.show_trend_line' => 'boolean',
+            // Campos de gráficos (opcionales; el gráfico se genera desde el KPI y se puede sobreescribir con chart_schema)
+            'chart_type' => 'nullable|in:bar,pie,line,area,scatter',
+            'chart_parameters' => 'nullable|array',
+            'chart_parameters.orientation' => 'nullable|in:vertical,horizontal',
+            'chart_parameters.stacked' => 'nullable|boolean',
+            'chart_parameters.show_values' => 'nullable|boolean',
+            'chart_parameters.show_percentages' => 'nullable|boolean',
+            'chart_parameters.show_legend' => 'nullable|boolean',
+            'chart_parameters.legend_position' => 'nullable|in:top,bottom,left,right',
+            'chart_parameters.donut' => 'nullable|boolean',
+            'chart_parameters.donut_size' => 'nullable|numeric|min:0|max:1',
+            'chart_parameters.smooth' => 'nullable|boolean',
+            'chart_parameters.show_points' => 'nullable|boolean',
+            'chart_parameters.fill_area' => 'nullable|boolean',
+            'chart_parameters.show_grid' => 'nullable|boolean',
+            'chart_parameters.y_axis_min' => 'nullable|numeric',
+            'chart_parameters.y_axis_max' => 'nullable|numeric',
+            'chart_parameters.opacity' => 'nullable|numeric|min:0|max:1',
+            'chart_parameters.gradient' => 'nullable|boolean',
+            'chart_parameters.point_size' => 'nullable|integer|min:1|max:20',
+            'chart_parameters.show_trend_line' => 'nullable|boolean',
 
-            // Campo de agrupación
-            'group_by' => 'required|string|max:255',
+            // Campo de agrupación (opcional; puede venir por query en compute)
+            'group_by' => 'nullable|string|max:255',
 
             // Filtros dinámicos
             'filters' => 'array',
@@ -114,15 +112,10 @@ class StoreDashboardCardRequest extends FormRequest
             'y_position.min' => 'La posición Y debe ser mayor o igual a 0.',
 
             // Mensajes de periodo
-            'period_type.in' => 'El tipo de periodo debe ser: daily, weekly, monthly, yearly o custom.',
-            'period_start_date.required_if' => 'La fecha de inicio es obligatoria cuando el tipo de periodo es custom.',
-            'period_end_date.required_if' => 'La fecha de fin es obligatoria cuando el tipo de periodo es custom.',
-            'period_end_date.after_or_equal' => 'La fecha de fin debe ser posterior o igual a la fecha de inicio.',
+            'period_type.in' => 'El tipo de periodo debe ser: daily, weekly, monthly, quarterly o yearly.',
 
             // Mensajes de gráficos
-            'chart_type.required' => 'El tipo de gráfico es obligatorio.',
             'chart_type.in' => 'El tipo de gráfico debe ser: bar, pie, line, area o scatter.',
-            'chart_parameters.orientation.required_if' => 'La orientación es obligatoria para gráficos de barras.',
             'chart_parameters.orientation.in' => 'La orientación debe ser vertical u horizontal.',
             'chart_parameters.legend_position.in' => 'La posición de la leyenda debe ser: top, bottom, left o right.',
             'chart_parameters.donut_size.min' => 'El tamaño del donut debe ser mayor o igual a 0.',
@@ -133,7 +126,6 @@ class StoreDashboardCardRequest extends FormRequest
             'chart_parameters.point_size.max' => 'El tamaño del punto no puede exceder 20.',
 
             // Mensajes de agrupación
-            'group_by.required' => 'El campo de agrupación es obligatorio.',
             'group_by.max' => 'El campo de agrupación no puede exceder 255 caracteres.',
 
             // Mensajes de filtros
@@ -155,14 +147,12 @@ class StoreDashboardCardRequest extends FormRequest
     public function withValidator($validator): void
     {
         $validator->after(function ($validator) {
-            // Validar parámetros específicos por tipo de gráfico
-            $this->validateChartParameters($validator);
+            // No exigimos parámetros específicos por tipo de gráfico al crear
 
             // Validar filtros dinámicos
             $this->validateFilters($validator);
 
-            // Validar período personalizado
-            $this->validateCustomPeriod($validator);
+            // Ya no validamos períodos personalizados persistidos en la tarjeta
         });
     }
 
@@ -174,27 +164,10 @@ class StoreDashboardCardRequest extends FormRequest
      */
     private function validateChartParameters($validator): void
     {
-        $chartType = $this->chart_type;
+        // Validaciones suaves solo si se proporcionan parámetros
         $parameters = $this->chart_parameters ?? [];
-
-        switch ($chartType) {
-            case 'bar':
-                if (!isset($parameters['orientation'])) {
-                    $validator->errors()->add('chart_parameters.orientation', 'La orientación es obligatoria para gráficos de barras.');
-                }
-                break;
-
-            case 'pie':
-                if (isset($parameters['donut_size']) && ($parameters['donut_size'] < 0 || $parameters['donut_size'] > 1)) {
-                    $validator->errors()->add('chart_parameters.donut_size', 'El tamaño del donut debe estar entre 0 y 1.');
-                }
-                break;
-
-            case 'scatter':
-                if (!isset($parameters['x_field']) || !isset($parameters['y_field'])) {
-                    $validator->errors()->add('chart_parameters', 'Los gráficos de dispersión requieren campos X e Y.');
-                }
-                break;
+        if (isset($parameters['donut_size']) && ($parameters['donut_size'] < 0 || $parameters['donut_size'] > 1)) {
+            $validator->errors()->add('chart_parameters.donut_size', 'El tamaño del donut debe estar entre 0 y 1.');
         }
     }
 
@@ -237,14 +210,5 @@ class StoreDashboardCardRequest extends FormRequest
      * @param \Illuminate\Validation\Validator $validator
      * @return void
      */
-    private function validateCustomPeriod($validator): void
-    {
-        if ($this->period_type === 'custom') {
-            if (!$this->period_start_date || !$this->period_end_date) {
-                $validator->errors()->add('period_type', 'El período personalizado requiere fechas de inicio y fin.');
-            } elseif ($this->period_start_date >= $this->period_end_date) {
-                $validator->errors()->add('period_end_date', 'La fecha de fin debe ser posterior a la fecha de inicio.');
-            }
-        }
-    }
+    // Eliminada validación de período personalizado: las fechas se pasan por query a compute
 }
