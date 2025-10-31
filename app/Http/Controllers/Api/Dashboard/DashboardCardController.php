@@ -170,20 +170,51 @@ class DashboardCardController extends Controller
 
         // Construir opciones priorizando query > card > kpi
         $opts = $request->validated();
-        if (empty($opts['period_type']) && !empty($card->period_type)) {
-            $opts['period_type'] = $card->period_type;
+        
+        // Solo usar valores de la card si no vienen en la request o están vacíos
+        // Si el parámetro viene en la request con un valor válido, usarlo; si no, usar el de la card
+        if (!$request->has('period_type') || empty($request->input('period_type'))) {
+            if (!empty($card->period_type)) {
+                $opts['period_type'] = $card->period_type;
+            }
         }
-        if (empty($opts['group_by']) && !empty($card->group_by)) {
-            $opts['group_by'] = $card->group_by;
+        
+        if (!$request->has('group_by') || empty($request->input('group_by'))) {
+            if (!empty($card->group_by)) {
+                $opts['group_by'] = $card->group_by;
+            }
         }
-        // Mezcla de filtros: card (base) + query (override)
-        $opts['filters'] = array_merge($card->filters ?? [], $opts['filters'] ?? []);
+        
+        // Mezcla de filtros: query (override) > card (base)
+        // Si la request tiene filtros, mezclarlos (request sobreescribe card)
+        // Si la request no tiene filtros, usar solo los de la card
+        $cardFilters = $card->filters ?? [];
+        $requestFilters = $opts['filters'] ?? [];
+        
+        if ($request->has('filters')) {
+            // Si viene explícitamente (aunque sea vacío), usar los de la request mezclados con los de la card
+            // array_merge hace que los filtros de la request sobreescriban los de la card cuando hay keys duplicados
+            $opts['filters'] = array_merge($cardFilters, $requestFilters);
+        } else {
+            // Si no viene en la request, usar solo los de la card
+            $opts['filters'] = $cardFilters;
+        }
 
         $result = $this->kpiService->compute($kpi, $opts);
 
-        // Si la card tiene chart_schema propio, mezclarlo con el chart resultante
-        if (!empty($card->chart_schema) && is_array($card->chart_schema)) {
-            $result['chart'] = array_merge($result['chart'] ?? [], $card->chart_schema);
+        // Priorizar chart_schema: request > card > resultado del servicio
+        $chartSchemaToApply = null;
+        if (isset($opts['chart_schema']) && is_array($opts['chart_schema']) && !empty($opts['chart_schema'])) {
+            // Si viene en la request, usar ese (prioridad más alta)
+            $chartSchemaToApply = $opts['chart_schema'];
+        } elseif (!empty($card->chart_schema) && is_array($card->chart_schema)) {
+            // Si no viene en la request pero la card tiene uno, usar el de la card
+            $chartSchemaToApply = $card->chart_schema;
+        }
+
+        // Aplicar el chart_schema si existe
+        if ($chartSchemaToApply !== null) {
+            $result['chart'] = array_merge($result['chart'] ?? [], $chartSchemaToApply);
         }
 
         return (new KpiComputeResource($result))->response();

@@ -17,6 +17,49 @@ class KpiComputeRequest extends FormRequest
         return true;
     }
 
+    /**
+     * Prepara los datos para la validación.
+     * Convierte chart_schema de string JSON a array si es necesario.
+     */
+    protected function prepareForValidation(): void
+    {
+        if ($this->has('chart_schema')) {
+            $chartSchema = $this->input('chart_schema');
+
+            // Si es null, no hacer nada
+            if (is_null($chartSchema)) {
+                return;
+            }
+
+            // Si ya es array, mantenerlo
+            if (is_array($chartSchema)) {
+                return;
+            }
+
+            $converted = null;
+
+            // Si es string JSON, parsearlo a array
+            if (is_string($chartSchema)) {
+                $decoded = json_decode($chartSchema, true);
+                if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                    $converted = $decoded;
+                }
+            }
+            // Si es un objeto (stdClass u otro), convertirlo a array recursivamente
+            elseif (is_object($chartSchema)) {
+                $array = json_decode(json_encode($chartSchema), true);
+                if (is_array($array)) {
+                    $converted = $array;
+                }
+            }
+
+            // Si se convirtió exitosamente, actualizar el request
+            if ($converted !== null) {
+                $this->merge(['chart_schema' => $converted]);
+            }
+        }
+    }
+
     public function rules(): array
     {
         /**
@@ -36,6 +79,8 @@ class KpiComputeRequest extends FormRequest
             'filters' => 'nullable|array',
             'group_by' => 'nullable|string',
             'group_limit' => 'nullable|integer|min:1|max:1000',
+            'chart_schema' => 'nullable|array',
+            'ignore_stored_schema' => 'nullable|boolean', // Flag para ignorar el chart_schema guardado
         ];
     }
 }

@@ -31,6 +31,7 @@ class KpiController extends Controller
      * - filters[]: Mapa de filtros de igualdad
      * - group_by: Campo para agrupar resultados
      * - group_limit: Límite de grupos devueltos
+     * - chart_schema: Esquema del gráfico para sobrescribir el del KPI
      *
      * @param KpiComputeRequest $request
      * @param Kpi $kpi
@@ -38,7 +39,10 @@ class KpiController extends Controller
      */
     public function compute(KpiComputeRequest $request, Kpi $kpi): JsonResponse
     {
-        $result = $this->service->compute($kpi, $request->validated());
+        $opts = $request->validated();
+        
+        // El servicio ahora maneja el chart_schema de las opciones con prioridad sobre el del KPI
+        $result = $this->service->compute($kpi, $opts);
 
         return (new KpiComputeResource($result))
             ->response()

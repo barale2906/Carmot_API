@@ -87,6 +87,17 @@ class KpiCalculationService
 
         $factor = (float)($kpi->calculation_factor ?? 1);
 
+        // Determinar si debe ignorar el chart_schema guardado
+        // Si viene el flag ignore_stored_schema (cualquier valor), NO usar el chart guardado
+        // Si NO viene el flag, usar el chart guardado (comportamiento por defecto)
+        $ignoreStoredSchema = isset($options['ignore_stored_schema']) &&
+                             $options['ignore_stored_schema'] !== null &&
+                             $options['ignore_stored_schema'] !== '';
+
+        // Si el flag está presente, NO usar el chart guardado (activar edición)
+        // Si el flag NO está presente, usar el chart guardado
+        $shouldUseStoredSchema = !$ignoreStoredSchema;
+
         // Si hay group_by, construir series por grupo
         if (is_array($numerator) && is_array($denominator)) {
             $series = [];
@@ -103,7 +114,7 @@ class KpiCalculationService
                 ];
             }
 
-            $chart = $this->buildChartFromSeries($kpi, $series);
+            $chart = $this->buildChartFromSeries($kpi, $series, $shouldUseStoredSchema);
 
             return [
                 'is_grouped' => true,
@@ -131,7 +142,7 @@ class KpiCalculationService
                 ];
             }
 
-            $chart = $this->buildChartFromSeries($kpi, $series);
+            $chart = $this->buildChartFromSeries($kpi, $series, $shouldUseStoredSchema);
 
             return [
                 'is_grouped' => true,
@@ -149,7 +160,7 @@ class KpiCalculationService
         $d = (float)$denominator;
         $value = $d !== 0.0 ? ($n / $d) * $factor : 0.0;
 
-        $chart = $this->buildChartFromValue($kpi, $value);
+        $chart = $this->buildChartFromValue($kpi, $value, $shouldUseStoredSchema);
 
         return [
             'is_grouped' => false,
@@ -281,9 +292,10 @@ class KpiCalculationService
      *
      * @param Kpi $kpi
      * @param array<int, array{group: string, numerator: float, denominator: float, value: float}> $series
+     * @param bool $shouldUseStoredSchema Si debe usar el schema guardado del KPI
      * @return array<string, mixed>|null
      */
-    private function buildChartFromSeries(Kpi $kpi, array $series): ?array
+    private function buildChartFromSeries(Kpi $kpi, array $series, bool $shouldUseStoredSchema = true): ?array
     {
         if (empty($kpi->chart_type)) {
             return null;
@@ -310,36 +322,52 @@ class KpiCalculationService
             'title' => ['text' => $kpi->name],
         ];
 
-        // Mezclar con chart_schema definido en el KPI, dándole prioridad a este último
+        // Si hay parámetros dinámicos, NO usar el chart_schema guardado
+        // Retornar solo el chart base con los datos nuevos
+        if (!$shouldUseStoredSchema) {
+            return $base;
+        }
+
+        // Si NO hay parámetros dinámicos, usar el chart_schema guardado del KPI si existe
+        if (empty($kpi->chart_schema)) {
+            return $base;
+        }
+
         $schema = $kpi->getChartSchema();
         if (!is_array($schema) || empty($schema)) {
             return $base;
         }
 
-        // Merge superficial (nivel 1) y específico para series[0]
+        // Merge inteligente: preservar datos y categorías generados dinámicamente
+        // Solo aplicar estilos y configuraciones del schema
         $merged = array_merge($base, $schema);
 
-        if (isset($schema['series']) && is_array($schema['series'])) {
-            // Si el schema define series, respetarlas pero asegurando data/categorías del cálculo
-            $first = $schema['series'][0] ?? [];
-            $merged['series'][0] = array_merge([
+        // PRESERVAR datos nuevos en series (NUNCA sobrescribir data)
+        if (isset($merged['series'][0])) {
+            $merged['series'][0] = array_merge($merged['series'][0], [
+                'name' => $kpi->name,
+                'type' => $kpi->chart_type,
+                'data' => $data, // SIEMPRE usar los datos nuevos generados
+            ]);
+        } else {
+            $merged['series'] = [[
                 'name' => $kpi->name,
                 'type' => $kpi->chart_type,
                 'data' => $data,
-            ], $first);
+            ]];
         }
 
-        // xAxis merge
-        if (isset($schema['xAxis']) && is_array($schema['xAxis'])) {
-            $merged['xAxis'] = array_merge([
+        // PRESERVAR categorías nuevas en xAxis (NUNCA sobrescribir data)
+        if (isset($merged['xAxis']) && is_array($merged['xAxis'])) {
+            $merged['xAxis'] = array_merge($merged['xAxis'], [
+                'type' => 'category',
+                'data' => $categories, // SIEMPRE usar las categorías nuevas generadas
+            ]);
+        } else {
+            $merged['xAxis'] = [
                 'type' => 'category',
                 'data' => $categories,
-            ], $schema['xAxis']);
-        }
-
-        // yAxis merge
-        if (isset($schema['yAxis']) && is_array($schema['yAxis'])) {
-            $merged['yAxis'] = array_merge(['type' => 'value'], $schema['yAxis']);
+            ];
         }
 
         return $merged;
@@ -351,9 +379,10 @@ class KpiCalculationService
      *
      * @param Kpi $kpi
      * @param float $value
+     * @param bool $shouldUseStoredSchema Si debe usar el schema guardado del KPI
      * @return array<string, mixed>|null
      */
-    private function buildChartFromValue(Kpi $kpi, float $value): ?array
+    private function buildChartFromValue(Kpi $kpi, float $value, bool $shouldUseStoredSchema = true): ?array
     {
         if (empty($kpi->chart_type)) {
             return null;
@@ -423,7 +452,17 @@ class KpiCalculationService
                 break;
         }
 
-        // Mezclar con chart_schema del KPI si existe
+        // Si hay parámetros dinámicos, NO usar el chart_schema guardado
+        // Retornar solo el chart base con el valor nuevo
+        if (!$shouldUseStoredSchema) {
+            return $base;
+        }
+
+        // Si NO hay parámetros dinámicos, usar el chart_schema guardado del KPI si existe
+        if (empty($kpi->chart_schema)) {
+            return $base;
+        }
+
         $schema = $kpi->getChartSchema();
         if (!is_array($schema) || empty($schema)) {
             return $base;
@@ -431,9 +470,13 @@ class KpiCalculationService
 
         $merged = array_merge($base, $schema);
 
-        if (isset($schema['series']) && is_array($schema['series'])) {
-            $first = $schema['series'][0] ?? [];
-            $merged['series'][0] = array_merge($base['series'][0], $first);
+        // PRESERVAR el valor nuevo en series (NUNCA sobrescribir data)
+        if (isset($merged['series'][0])) {
+            // Preservar data original del base
+            $originalData = $base['series'][0]['data'] ?? [$value];
+            $merged['series'][0] = array_merge($merged['series'][0], [
+                'data' => $originalData, // SIEMPRE usar el valor nuevo generado
+            ]);
         }
 
         if (isset($schema['xAxis']) && is_array($schema['xAxis']) && isset($base['xAxis'])) {
