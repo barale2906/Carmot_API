@@ -159,8 +159,27 @@ class DashboardCardController extends Controller
      * Calcula los datos de una tarjeta usando su configuración por defecto,
      * permitiendo overrides via query params.
      *
+     * Parámetros soportados (query):
+     * - period_type: daily|weekly|monthly|quarterly|yearly
+     * - start_date, end_date: Rango de fechas (Y-m-d)
+     * - date_field: Campo de fecha a usar para el filtrado
+     * - filters[]: Mapa de filtros de igualdad
+     * - group_by: Campo para agrupar resultados
+     * - group_limit: Límite de grupos devueltos
+     * - chart_schema: Esquema del gráfico para sobrescribir (opcional)
+     * - ignore_stored_schema: Flag booleano para controlar el uso del chart_schema guardado.
+     *   - Si está presente: Ignora el chart_schema guardado del KPI y genera el chart
+     *     con los datos nuevos según los parámetros enviados (útil cuando se edita el DashboardCard).
+     *   - Si NO está presente: Usa el chart_schema guardado del KPI (comportamiento por defecto).
+     *
+     * Ejemplos:
+     * - GET /api/dashboard/dashboard-cards/2/compute?group_by=sede_id&ignore_stored_schema=1
+     *   (Genera chart con datos nuevos, ignora el guardado)
+     * - GET /api/dashboard/dashboard-cards/2/compute
+     *   (Usa el chart_schema guardado del KPI)
+     *
      * @param KpiComputeRequest $request
-     * @param int $id
+     * @param int $id ID de la tarjeta del dashboard
      * @return JsonResponse
      */
     public function compute(KpiComputeRequest $request, int $id): JsonResponse

@@ -9,6 +9,18 @@ use Illuminate\Foundation\Http\FormRequest;
  *
  * Valida parámetros de entrada para el endpoint de cálculo de KPIs,
  * incluyendo periodo, rango de fechas, campo de fecha, filtros y agrupación.
+ *
+ * Parámetros soportados:
+ * - period_type: Preset de periodo (daily|weekly|monthly|quarterly|yearly)
+ * - start_date, end_date: Rango de fechas válido (Y-m-d)
+ * - date_field: Nombre del campo de fecha para el filtrado
+ * - filters: Mapa de filtros de igualdad [campo => valor]
+ * - group_by: Campo por el cual agrupar resultados
+ * - group_limit: Límite máximo de grupos (1-1000)
+ * - chart_schema: Esquema del gráfico para sobrescribir el del KPI (opcional)
+ * - ignore_stored_schema: Flag booleano para ignorar el chart_schema guardado del KPI.
+ *   Si está presente, genera el chart con los datos nuevos según los parámetros enviados.
+ *   Si NO está presente, usa el chart_schema guardado del KPI (comportamiento por defecto).
  */
 class KpiComputeRequest extends FormRequest
 {
@@ -70,6 +82,8 @@ class KpiComputeRequest extends FormRequest
          * - filters: mapa de filtros de igualdad
          * - group_by: campo por el cual agrupar
          * - group_limit: límite máximo de grupos
+         * - chart_schema: esquema del gráfico (opcional)
+         * - ignore_stored_schema: flag para ignorar el chart_schema guardado del KPI
          */
         return [
             'period_type' => 'nullable|in:daily,weekly,monthly,quarterly,yearly',

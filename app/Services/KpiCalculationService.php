@@ -28,7 +28,11 @@ class KpiCalculationService
      *   'date_field' => 'created_at',
      *   'filters' => [campo => valor],
      *   'group_by' => 'campo_para_agrupar',
-     *   'group_limit' => int
+     *   'group_limit' => int,
+     *   'chart_schema' => array, // Opcional: esquema del gráfico para sobrescribir
+     *   'ignore_stored_schema' => bool // Si está presente, ignora el chart_schema guardado del KPI
+     *                                   // y genera el chart con los datos nuevos.
+     *                                   // Si NO está presente, usa el chart_schema guardado (por defecto).
      * ]
      * @return array<string, mixed>
      */
@@ -290,10 +294,12 @@ class KpiCalculationService
      * Construye estructura básica de opciones de ECharts a partir de series agrupadas.
      * Retorna null si no hay información suficiente de gráfico.
      *
-     * @param Kpi $kpi
-     * @param array<int, array{group: string, numerator: float, denominator: float, value: float}> $series
-     * @param bool $shouldUseStoredSchema Si debe usar el schema guardado del KPI
-     * @return array<string, mixed>|null
+     * @param Kpi $kpi Modelo del KPI
+     * @param array<int, array{group: string, numerator: float, denominator: float, value: float}> $series Series de datos agrupados
+     * @param bool $shouldUseStoredSchema Si debe usar el schema guardado del KPI.
+     *   - true: Usa el chart_schema guardado del KPI (comportamiento por defecto)
+     *   - false: Genera el chart solo con los datos nuevos, sin aplicar el chart_schema guardado
+     * @return array<string, mixed>|null Opciones de ECharts o null si no hay chart_type
      */
     private function buildChartFromSeries(Kpi $kpi, array $series, bool $shouldUseStoredSchema = true): ?array
     {
@@ -377,10 +383,12 @@ class KpiCalculationService
      * Construye un gráfico básico cuando el KPI no está agrupado (valor único),
      * utilizando el chart_type del KPI y mezclándolo con chart_schema si existe.
      *
-     * @param Kpi $kpi
-     * @param float $value
-     * @param bool $shouldUseStoredSchema Si debe usar el schema guardado del KPI
-     * @return array<string, mixed>|null
+     * @param Kpi $kpi Modelo del KPI
+     * @param float $value Valor único calculado del KPI
+     * @param bool $shouldUseStoredSchema Si debe usar el schema guardado del KPI.
+     *   - true: Usa el chart_schema guardado del KPI (comportamiento por defecto)
+     *   - false: Genera el chart solo con el valor nuevo, sin aplicar el chart_schema guardado
+     * @return array<string, mixed>|null Opciones de ECharts o null si no hay chart_type
      */
     private function buildChartFromValue(Kpi $kpi, float $value, bool $shouldUseStoredSchema = true): ?array
     {

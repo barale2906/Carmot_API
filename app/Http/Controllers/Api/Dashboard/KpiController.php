@@ -31,7 +31,17 @@ class KpiController extends Controller
      * - filters[]: Mapa de filtros de igualdad
      * - group_by: Campo para agrupar resultados
      * - group_limit: Límite de grupos devueltos
-     * - chart_schema: Esquema del gráfico para sobrescribir el del KPI
+     * - chart_schema: Esquema del gráfico para sobrescribir el del KPI (opcional)
+     * - ignore_stored_schema: Flag booleano para controlar el uso del chart_schema guardado.
+     *   - Si está presente: Ignora el chart_schema guardado del KPI y genera el chart
+     *     con los datos nuevos según los parámetros enviados (útil cuando se edita un DashboardCard).
+     *   - Si NO está presente: Usa el chart_schema guardado del KPI (comportamiento por defecto).
+     *
+     * Ejemplos:
+     * - GET /api/dashboard/kpis/1/compute?group_by=sede_id&ignore_stored_schema=1
+     *   (Genera chart con datos nuevos, ignora el guardado)
+     * - GET /api/dashboard/kpis/1/compute
+     *   (Usa el chart_schema guardado del KPI)
      *
      * @param KpiComputeRequest $request
      * @param Kpi $kpi
