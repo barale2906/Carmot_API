@@ -29,6 +29,15 @@ class Topico extends Model
     }
 
     /**
+     * Temas asociados al tópico (relación muchos a muchos).
+     */
+    public function temas(): BelongsToMany
+    {
+        return $this->belongsToMany(Tema::class, 'tema_topico')
+                    ->withTimestamps();
+    }
+
+    /**
      * Scope para filtrar por búsqueda de nombre y descripción.
      */
     public function scopeSearch($query, $search)
@@ -80,7 +89,8 @@ class Topico extends Model
     protected function getAllowedRelations(): array
     {
         return [
-            'modulos'
+            'modulos',
+            'temas'
         ];
     }
 
@@ -89,7 +99,7 @@ class Topico extends Model
      */
     protected function getDefaultRelations(): array
     {
-        return ['modulos'];
+        return ['modulos', 'temas'];
     }
 
     /**
@@ -97,6 +107,38 @@ class Topico extends Model
      */
     protected function getCountableRelations(): array
     {
-        return ['modulos'];
+        return ['modulos', 'temas'];
+    }
+
+    /**
+     * Calcula la duración del tópico sumando las duraciones de los temas asociados.
+     *
+     * @param array|null $temaIds IDs de los temas a considerar. Si es null, usa los temas actualmente asociados.
+     * @return float Duración total en horas
+     */
+    public function calcularDuracionDesdeTemas(?array $temaIds = null): float
+    {
+        if ($temaIds === null) {
+            // Si no se proporcionan IDs, usar los temas actualmente asociados
+            $temas = $this->temas;
+        } else {
+            // Si se proporcionan IDs, obtener esos temas específicos
+            $temas = Tema::whereIn('id', $temaIds)->get();
+        }
+
+        // Sumar las duraciones de todos los temas
+        return $temas->sum('duracion');
+    }
+
+    /**
+     * Actualiza la duración del tópico basándose en los temas asociados.
+     *
+     * @param array|null $temaIds IDs de los temas a considerar. Si es null, usa los temas actualmente asociados.
+     * @return bool True si se actualizó correctamente
+     */
+    public function actualizarDuracionDesdeTemas(?array $temaIds = null): bool
+    {
+        $duracionCalculada = $this->calcularDuracionDesdeTemas($temaIds);
+        return $this->update(['duracion' => $duracionCalculada]);
     }
 }

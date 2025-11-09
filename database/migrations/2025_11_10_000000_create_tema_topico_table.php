@@ -11,15 +11,14 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('modulos', function (Blueprint $table) {
+        Schema::create('tema_topico', function (Blueprint $table) {
             $table->id();
-
-            $table->string('nombre')->comment('nombre del modulo');
-            $table->double('duracion')->default(0)->comment('duración del modulo en horas');
-            $table->integer('status')->default(1)->comment('0 inactivo, 1 Activo');
-            $table->softDeletes();
-
+            $table->foreignId('tema_id')->constrained('temas')->onDelete('cascade');
+            $table->foreignId('topico_id')->constrained('topicos')->onDelete('cascade');
             $table->timestamps();
+
+            // Índices únicos para evitar duplicados
+            $table->unique(['tema_id', 'topico_id']);
         });
     }
 
@@ -28,6 +27,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('modulos');
+        Schema::dropIfExists('tema_topico');
     }
 };
+

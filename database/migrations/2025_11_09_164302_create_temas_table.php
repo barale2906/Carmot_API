@@ -11,12 +11,12 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('topicos', function (Blueprint $table) {
+        Schema::create('temas', function (Blueprint $table) {
             $table->id();
 
-            $table->string('nombre')->comment('nombre del topico');
-            $table->text('descripcion')->comment('descripcion del topico');
-            $table->double('duracion')->default(0)->comment('duracion del topico en horas');
+            $table->string('nombre')->comment('nombre del tema');
+            $table->text('descripcion')->comment('descripcion del tema');
+            $table->double('duracion')->comment('duracion del tema en horas');
             $table->integer('status')->default(1)->comment('0 inactivo, 1 Activo');
 
             $table->softDeletes();
@@ -29,6 +29,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('topicos');
+        Schema::dropIfExists('temas');
     }
 };

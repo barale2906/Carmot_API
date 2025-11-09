@@ -72,19 +72,35 @@ class TopicoController extends Controller
      */
     public function store(StoreTopicoRequest $request): JsonResponse
     {
+        // Calcular duración automáticamente si se proporcionan temas
+        $duracion = $request->duracion;
+        if ($request->has('tema_ids') && is_array($request->tema_ids) && count($request->tema_ids) > 0) {
+            // Calcular duración sumando las duraciones de los temas
+            $temas = \App\Models\Academico\Tema::whereIn('id', $request->tema_ids)->get();
+            $duracion = $temas->sum('duracion');
+        } elseif ($duracion === null) {
+            // Si no se proporciona duración ni temas, establecer en 0
+            $duracion = 0;
+        }
+
         $topico = Topico::create([
             'nombre' => $request->nombre,
             'descripcion' => $request->descripcion,
-            'duracion' => $request->duracion,
+            'duracion' => $duracion,
             'status' => $request->status ?? 1, // Por defecto estado "Activo"
         ]);
+
+        // Asociar temas si se proporcionan
+        if ($request->has('tema_ids') && is_array($request->tema_ids)) {
+            $topico->temas()->attach($request->tema_ids);
+        }
 
         // Asociar módulos si se proporcionan
         if ($request->has('modulo_ids') && is_array($request->modulo_ids)) {
             $topico->modulos()->attach($request->modulo_ids);
         }
 
-        $topico->load(['modulos']);
+        $topico->load(['modulos', 'temas']);
 
         return response()->json([
             'message' => 'Tópico creado exitosamente.',
@@ -124,19 +140,54 @@ class TopicoController extends Controller
      */
     public function update(UpdateTopicoRequest $request, Topico $topico): JsonResponse
     {
-        $topico->update($request->only([
-            'nombre',
-            'descripcion',
-            'duracion',
-            'status',
-        ]));
+        // Determinar si se actualizarán los temas (incluye array vacío)
+        $actualizarTemas = $request->has('tema_ids');
+
+        // Si se actualizan los temas (incluso si es array vacío), recalcular la duración automáticamente
+        if ($actualizarTemas) {
+            $temaIds = is_array($request->tema_ids) ? $request->tema_ids : [];
+
+            if (count($temaIds) > 0) {
+                // Si hay temas, calcular duración sumando las duraciones de los temas
+                $temas = \App\Models\Academico\Tema::whereIn('id', $temaIds)->get();
+                $duracionCalculada = $temas->sum('duracion');
+            } else {
+                // Si no hay temas (array vacío), establecer duración en 0
+                $duracionCalculada = 0;
+            }
+
+            // Actualizar con la duración calculada (ignorar la duración enviada si existe)
+            $topico->update([
+                'nombre' => $request->nombre,
+                'descripcion' => $request->descripcion,
+                'duracion' => $duracionCalculada,
+                'status' => $request->status ?? $topico->status,
+            ]);
+
+            // Sincronizar temas (puede ser array vacío para eliminar todos los temas)
+            $topico->temas()->sync($temaIds);
+        } else {
+            // Si no se actualizan los temas, usar la duración proporcionada o mantener la actual
+            $datosActualizacion = $request->only([
+                'nombre',
+                'descripcion',
+                'status',
+            ]);
+
+            // Solo actualizar duración si se proporciona explícitamente
+            if ($request->has('duracion')) {
+                $datosActualizacion['duracion'] = $request->duracion;
+            }
+
+            $topico->update($datosActualizacion);
+        }
 
         // Actualizar módulos si se proporcionan
         if ($request->has('modulo_ids') && is_array($request->modulo_ids)) {
             $topico->modulos()->sync($request->modulo_ids);
         }
 
-        $topico->load(['modulos']);
+        $topico->load(['modulos', 'temas']);
 
         return response()->json([
             'message' => 'Tópico actualizado exitosamente.',

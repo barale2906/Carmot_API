@@ -36,10 +36,12 @@ class UpdateTopicoRequest extends FormRequest
                 Rule::unique('topicos', 'nombre')->ignore($topicoId)
             ],
             'descripcion' => 'required|string|max:1000',
-            'duracion' => 'required|integer|min:1|max:999',
+            'duracion' => 'sometimes|numeric|min:0|max:999',
             'status' => self::getStatusValidationRule(),
             'modulo_ids' => 'sometimes|array',
             'modulo_ids.*' => 'integer|exists:modulos,id',
+            'tema_ids' => 'sometimes|array',
+            'tema_ids.*' => 'integer|exists:temas,id',
         ];
     }
 
@@ -58,13 +60,15 @@ class UpdateTopicoRequest extends FormRequest
             'descripcion.required' => 'La descripción del tópico es obligatoria.',
             'descripcion.string' => 'La descripción del tópico debe ser una cadena de texto.',
             'descripcion.max' => 'La descripción del tópico no puede tener más de 1000 caracteres.',
-            'duracion.required' => 'La duración del tópico es obligatoria.',
-            'duracion.integer' => 'La duración del tópico debe ser un número entero.',
-            'duracion.min' => 'La duración del tópico debe ser al menos 1 minuto.',
-            'duracion.max' => 'La duración del tópico no puede ser mayor a 999 minutos.',
+            'duracion.numeric' => 'La duración del tópico debe ser un número.',
+            'duracion.min' => 'La duración del tópico debe ser al menos 0 horas.',
+            'duracion.max' => 'La duración del tópico no puede ser mayor a 999 horas.',
             'modulo_ids.array' => 'Los módulos deben ser un array.',
             'modulo_ids.*.integer' => 'Cada módulo debe ser un número entero.',
             'modulo_ids.*.exists' => 'Uno o más módulos seleccionados no existen.',
+            'tema_ids.array' => 'Los temas deben ser un array.',
+            'tema_ids.*.integer' => 'Cada tema debe ser un número entero.',
+            'tema_ids.*.exists' => 'Uno o más temas seleccionados no existen.',
         ], self::getStatusValidationMessages());
     }
 }
