@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\Academico\CicloController;
 use App\Http\Controllers\Api\Academico\CursoController;
 use App\Http\Controllers\Api\Academico\GrupoController;
+use App\Http\Controllers\Api\Academico\MatriculaController;
 use App\Http\Controllers\Api\Academico\ModuloController;
 use App\Http\Controllers\Api\Academico\ProgramacionController;
 use App\Http\Controllers\Api\Academico\TopicoController;
@@ -135,5 +136,20 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('{programacion}/asignar-grupos', [ProgramacionController::class, 'asignarGrupos'])->name('programaciones.asignar-grupos');
         Route::post('{programacion}/desasignar-grupo', [ProgramacionController::class, 'desasignarGrupo'])->name('programaciones.desasignar-grupo');
         Route::get('{programacion}/cronograma', [ProgramacionController::class, 'cronograma'])->name('programaciones.cronograma');
+    });
+
+    // Rutas principales de matrículas (CRUD estándar)
+    Route::apiResource('matriculas', MatriculaController::class);
+
+    // Rutas adicionales para funcionalidades específicas de matrículas
+    Route::prefix('matriculas')->group(function () {
+        // Rutas para manejo de soft delete
+        Route::post('{id}/restore', [MatriculaController::class, 'restore'])->name('matriculas.restore');
+        Route::delete('{id}/force-delete', [MatriculaController::class, 'forceDelete'])->name('matriculas.force-delete');
+        Route::get('trashed', [MatriculaController::class, 'trashed'])->name('matriculas.trashed');
+
+        // Rutas para filtros y estadísticas
+        Route::get('filters', [MatriculaController::class, 'filters'])->name('matriculas.filters');
+        Route::get('statistics', [MatriculaController::class, 'statistics'])->name('matriculas.statistics');
     });
 });

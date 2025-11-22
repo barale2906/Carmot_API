@@ -348,6 +348,29 @@ class RolesAndPermissionsSeeder extends Seeder
                     ])->syncRoles([$Superusuario,$financiero,$coordinador]);
 
 
+        // Create permissions matriculas
+        Permission::create([
+                    'name'=>'aca_matriculas',
+                    'descripcion'=>'ver matriculas',
+                    //'modulo'=>'configuracion'
+                    ])->syncRoles([$Superusuario,$financiero,$coordinador]);
+        Permission::create([
+                    'name'=>'aca_matriculaCrear',
+                    'descripcion'=>'crear matricula',
+                    //'modulo'=>'configuracion'
+                    ])->syncRoles([$Superusuario,$financiero,$coordinador]);
+        Permission::create([
+                    'name'=>'aca_matriculaEditar',
+                    'descripcion'=>'editar matricula',
+                    //'modulo'=>'configuracion'
+                    ])->syncRoles([$Superusuario,$financiero,$coordinador]);
+        Permission::create([
+                    'name'=>'aca_matriculaInactivar',
+                    'descripcion'=>'inactivar matricula',
+                    //'modulo'=>'configuracion'
+                    ])->syncRoles([$Superusuario,$financiero,$coordinador]);
+
+
             }
 
 

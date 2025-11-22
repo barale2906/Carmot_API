@@ -16,8 +16,9 @@ class DatabaseSeeder extends Seeder
             RolesAndPermissionsSeeder::class,
             UserSeeder::class,
             CursoSeeder::class,
-            ModuloSeeder::class,
+            TemaSeeder::class,
             TopicoSeeder::class,
+            ModuloSeeder::class,
             ReferidoSeeder::class,
             SeguimientoSeeder::class,
             AgendaSeeder::class,
@@ -27,8 +28,8 @@ class DatabaseSeeder extends Seeder
             AreaSeeder::class,
             GrupoSeeder::class,
             CicloSeeder::class,
-            TemaSeeder::class,
             ProgramacionSeeder::class,
+            MatriculaSeeder::class,
         ]);
         // \App\Models\User::factory(10)->create();
 
