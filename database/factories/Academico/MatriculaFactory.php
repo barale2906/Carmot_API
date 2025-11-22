@@ -10,10 +10,12 @@ use Illuminate\Database\Eloquent\Factories\Factory;
 /**
  * Factory para crear matrículas con relaciones.
  *
+ * Nota: Los contadores de inscritos en ciclos y grupos se actualizan automáticamente
+ * mediante eventos del modelo Matricula cuando se crean matrículas activas (status = 1).
+ *
  * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\Academico\Matricula>
  */
 class MatriculaFactory extends Factory
-{
     /**
      * Define el estado por defecto del modelo.
      *

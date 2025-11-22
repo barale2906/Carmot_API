@@ -27,6 +27,7 @@ return new class extends Migration
             $table->date('fecha_fin')->nullable()->comment('Fecha de finalización del ciclo');
             $table->integer('duracion_dias')->nullable()->comment('Duración del ciclo en días (calculado automáticamente)');
             $table->boolean('fecha_fin_automatica')->default(true)->comment('Indica si la fecha de fin se calcula automáticamente');
+            $table->integer('inscritos')->nullable()->comment('Cantidad de estudiantes inscritos al ciclo');
 
             $table->integer('status')->default(1)->comment('1: activo, 0: inactivo');
 

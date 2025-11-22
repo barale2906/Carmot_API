@@ -36,7 +36,8 @@ class CicloController extends Controller
     {
         // Preparar filtros
         $filters = $request->only([
-            'search', 'status', 'sede_id', 'curso_id', 'include_trashed', 'only_trashed'
+            'search', 'status', 'sede_id', 'curso_id', 'include_trashed', 'only_trashed',
+            'inscritos_min', 'inscritos_max', 'inscritos_range'
         ]);
 
         // Preparar relaciones
@@ -86,6 +87,7 @@ class CicloController extends Controller
             'fecha_inicio' => $request->fecha_inicio,
             'fecha_fin' => $request->fecha_fin,
             'fecha_fin_automatica' => $request->fecha_fin_automatica ?? true,
+            'inscritos' => $request->inscritos,
             'status' => $request->status ?? 1, // Por defecto estado "Activo"
         ]);
 
@@ -161,6 +163,7 @@ class CicloController extends Controller
             'fecha_inicio',
             'fecha_fin',
             'fecha_fin_automatica',
+            'inscritos',
             'status',
         ]));
 

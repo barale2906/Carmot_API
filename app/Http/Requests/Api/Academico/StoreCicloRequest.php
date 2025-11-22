@@ -33,6 +33,7 @@ class StoreCicloRequest extends FormRequest
             'fecha_inicio' => 'required|date|after_or_equal:today',
             'fecha_fin' => 'nullable|date|after:fecha_inicio',
             'fecha_fin_automatica' => 'nullable|boolean',
+            'inscritos' => 'nullable|integer|min:0',
             'grupos' => 'nullable|array',
             'grupos.*' => 'integer|exists:grupos,id',
             'status' => self::getStatusValidationRule(),
@@ -65,6 +66,8 @@ class StoreCicloRequest extends FormRequest
             'fecha_fin.date' => 'La fecha de fin debe ser una fecha válida.',
             'fecha_fin.after' => 'La fecha de fin debe ser posterior a la fecha de inicio.',
             'fecha_fin_automatica.boolean' => 'El cálculo automático de fecha de fin debe ser verdadero o falso.',
+            'inscritos.integer' => 'El número de inscritos debe ser un número entero.',
+            'inscritos.min' => 'El número de inscritos no puede ser negativo.',
             'grupos.array' => 'Los grupos deben ser un array.',
             'grupos.*.integer' => 'Cada grupo debe ser un número entero.',
             'grupos.*.exists' => 'Uno o más grupos seleccionados no existen.',
@@ -85,6 +88,7 @@ class StoreCicloRequest extends FormRequest
             'fecha_inicio' => 'fecha de inicio',
             'fecha_fin' => 'fecha de fin',
             'fecha_fin_automatica' => 'cálculo automático de fecha de fin',
+            'inscritos' => 'inscritos',
         ];
     }
 }

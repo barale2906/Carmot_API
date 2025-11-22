@@ -325,4 +325,123 @@ class Matricula extends Model
     {
         return $this->status === 1;
     }
+
+    /**
+     * Incrementa el contador de inscritos en el ciclo y sus grupos.
+     *
+     * @param int|null $cicloId ID del ciclo (opcional, usa el ciclo_id del modelo si no se proporciona)
+     * @return void
+     */
+    protected function incrementarInscritos(?int $cicloId = null): void
+    {
+        $cicloId = $cicloId ?? $this->ciclo_id;
+
+        if (!$cicloId) {
+            return;
+        }
+
+        $ciclo = Ciclo::with('grupos')->find($cicloId);
+        if (!$ciclo) {
+            return;
+        }
+
+        // Incrementar inscritos en el ciclo
+        $ciclo->increment('inscritos');
+
+        // Incrementar inscritos en todos los grupos del ciclo
+        foreach ($ciclo->grupos as $grupo) {
+            $grupo->increment('inscritos');
+        }
+    }
+
+    /**
+     * Decrementa el contador de inscritos en el ciclo y sus grupos.
+     *
+     * @param int|null $cicloId ID del ciclo (opcional, usa el ciclo_id del modelo si no se proporciona)
+     * @return void
+     */
+    protected function decrementarInscritos(?int $cicloId = null): void
+    {
+        $cicloId = $cicloId ?? $this->ciclo_id;
+
+        if (!$cicloId) {
+            return;
+        }
+
+        $ciclo = Ciclo::with('grupos')->find($cicloId);
+        if (!$ciclo) {
+            return;
+        }
+
+        // Decrementar inscritos en el ciclo (asegurarse de que no sea negativo)
+        if ($ciclo->inscritos > 0) {
+            $ciclo->decrement('inscritos');
+        }
+
+        // Decrementar inscritos en todos los grupos del ciclo
+        foreach ($ciclo->grupos as $grupo) {
+            if ($grupo->inscritos > 0) {
+                $grupo->decrement('inscritos');
+            }
+        }
+    }
+
+    /**
+     * Boot del modelo para eventos automáticos.
+     */
+    protected static function boot()
+    {
+        parent::boot();
+
+        // Cuando se crea una matrícula activa, incrementar inscritos
+        static::created(function ($matricula) {
+            if ($matricula->status === 1) {
+                $matricula->incrementarInscritos();
+            }
+        });
+
+        // Cuando se actualiza una matrícula
+        static::updated(function ($matricula) {
+            $statusAnterior = $matricula->getOriginal('status');
+            $statusNuevo = $matricula->status;
+            $cicloAnterior = $matricula->getOriginal('ciclo_id');
+            $cicloNuevo = $matricula->ciclo_id;
+
+            // Si cambió el ciclo
+            if ($cicloAnterior !== $cicloNuevo) {
+                // Si estaba activa en el ciclo anterior, decrementar
+                if ($statusAnterior === 1 && $cicloAnterior) {
+                    $matricula->decrementarInscritos($cicloAnterior);
+                }
+                // Si está activa en el ciclo nuevo, incrementar
+                if ($statusNuevo === 1 && $cicloNuevo) {
+                    $matricula->incrementarInscritos($cicloNuevo);
+                }
+            } else {
+                // Si solo cambió el status
+                // De activo a inactivo/anulado: decrementar
+                if ($statusAnterior === 1 && $statusNuevo !== 1) {
+                    $matricula->decrementarInscritos();
+                }
+                // De inactivo/anulado a activo: incrementar
+                if ($statusAnterior !== 1 && $statusNuevo === 1) {
+                    $matricula->incrementarInscritos();
+                }
+            }
+        });
+
+        // Cuando se elimina una matrícula (soft delete), decrementar si estaba activa
+        static::deleted(function ($matricula) {
+            if ($matricula->status === 1) {
+                $matricula->decrementarInscritos();
+            }
+        });
+
+        // Cuando se restaura una matrícula, incrementar si está activa
+        static::restored(function ($matricula) {
+            if ($matricula->status === 1) {
+                $matricula->incrementarInscritos();
+            }
+        });
+    }
 }

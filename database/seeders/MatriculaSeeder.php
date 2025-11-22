@@ -13,6 +13,9 @@ class MatriculaSeeder extends Seeder
 {
     /**
      * Ejecuta los seeders de la base de datos.
+     *
+     * Nota: Los contadores de inscritos en ciclos y grupos se actualizan automáticamente
+     * mediante eventos del modelo Matricula cuando se crean matrículas activas (status = 1).
      */
     public function run(): void
     {

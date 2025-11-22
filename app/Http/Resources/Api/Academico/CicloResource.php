@@ -26,6 +26,7 @@ class CicloResource extends JsonResource
             'fecha_fin_automatica' => $this->fecha_fin_automatica,
             'duracion_dias' => $this->duracion_dias,
             'duracion_estimada' => $this->duracion_estimada,
+            'inscritos' => $this->inscritos,
             'total_horas' => $this->total_horas,
             'horas_por_semana' => $this->horas_por_semana,
             'en_curso' => $this->en_curso,

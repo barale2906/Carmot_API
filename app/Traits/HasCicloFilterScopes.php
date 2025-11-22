@@ -128,6 +128,55 @@ trait HasCicloFilterScopes
     }
 
     /**
+     * Scope para filtrar por rango de inscritos.
+     *
+     * @param Builder $query
+     * @param int $min
+     * @param int $max
+     * @return Builder
+     */
+    public function scopeByInscritosRange(Builder $query, int $min, int $max): Builder
+    {
+        return $query->whereBetween('inscritos', [$min, $max]);
+    }
+
+    /**
+     * Scope para filtrar por ciclos con pocos inscritos.
+     *
+     * @param Builder $query
+     * @param int $limite
+     * @return Builder
+     */
+    public function scopePocosInscritos(Builder $query, int $limite = 10): Builder
+    {
+        return $query->where('inscritos', '<=', $limite);
+    }
+
+    /**
+     * Scope para filtrar por ciclos con muchos inscritos.
+     *
+     * @param Builder $query
+     * @param int $limite
+     * @return Builder
+     */
+    public function scopeMuchosInscritos(Builder $query, int $limite = 30): Builder
+    {
+        return $query->where('inscritos', '>=', $limite);
+    }
+
+    /**
+     * Scope para filtrar por ciclos con inscritos mínimos.
+     *
+     * @param Builder $query
+     * @param int $min
+     * @return Builder
+     */
+    public function scopeConInscritosMinimos(Builder $query, int $min): Builder
+    {
+        return $query->where('inscritos', '>=', $min);
+    }
+
+    /**
      * Scope para aplicar múltiples filtros de manera dinámica.
      *
      * @param Builder $query
@@ -154,6 +203,15 @@ trait HasCicloFilterScopes
             })
             ->when(isset($filters['sin_grupos']) && $filters['sin_grupos'], function ($q) {
                 return $q->sinGrupos();
+            })
+            ->when(isset($filters['inscritos_min']) && $filters['inscritos_min'] !== null, function ($q) use ($filters) {
+                return $q->conInscritosMinimos($filters['inscritos_min']);
+            })
+            ->when(isset($filters['inscritos_max']) && $filters['inscritos_max'] !== null, function ($q) use ($filters) {
+                return $q->where('inscritos', '<=', $filters['inscritos_max']);
+            })
+            ->when(isset($filters['inscritos_range']) && is_array($filters['inscritos_range']) && count($filters['inscritos_range']) === 2, function ($q) use ($filters) {
+                return $q->byInscritosRange($filters['inscritos_range'][0], $filters['inscritos_range'][1]);
             })
             ->when(isset($filters['include_trashed']) && $filters['include_trashed'], function ($q) {
                 return $q->withTrashed();

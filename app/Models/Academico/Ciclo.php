@@ -26,6 +26,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property string $descripcion Descripción del ciclo
  * @property int $sede_id ID de la sede a la que pertenece
  * @property int $curso_id ID del curso al que pertenece
+ * @property int|null $inscritos Cantidad de estudiantes inscritos al ciclo
  * @property int $status Estado del ciclo (1: Activo, 0: Inactivo)
  * @property \Carbon\Carbon $created_at Fecha de creación
  * @property \Carbon\Carbon $updated_at Fecha de última actualización
@@ -56,6 +57,7 @@ class Ciclo extends Model
         'fecha_fin' => 'date',
         'duracion_dias' => 'integer',
         'fecha_fin_automatica' => 'boolean',
+        'inscritos' => 'integer',
     ];
 
     /**
@@ -113,6 +115,7 @@ class Ciclo extends Model
             'status',
             'sede_id',
             'curso_id',
+            'inscritos',
             'created_at',
             'updated_at'
         ];

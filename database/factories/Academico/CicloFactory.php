@@ -59,6 +59,7 @@ class CicloFactory extends Factory
             'fecha_fin' => $fechaFin->format('Y-m-d'),
             'fecha_fin_automatica' => $this->faker->boolean(80), // 80% de probabilidad de ser automático
             'duracion_dias' => $fechaInicio->diff($fechaFin)->days,
+            'inscritos' => $this->faker->numberBetween(0, 50), // Número aleatorio de inscritos entre 0 y 50
             'status' => $this->faker->randomElement([0, 1]), // 0 inactivo, 1 Activo
         ];
     }
