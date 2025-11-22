@@ -12,13 +12,14 @@ use App\Models\Academico\Grupo;
 use App\Models\Configuracion\Horario;
 use App\Traits\HasActiveStatus;
 use App\Traits\HasGrupoHorarios;
+use App\Traits\HasJornadaStatus;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 
 class GrupoController extends Controller
 {
-    use HasActiveStatus, HasGrupoHorarios;
+    use HasActiveStatus, HasGrupoHorarios, HasJornadaStatus;
 
     /**
      * Constructor del controlador.
@@ -316,15 +317,16 @@ class GrupoController extends Controller
         $modulos = \App\Models\Academico\Modulo::select('id', 'nombre')->get();
         $profesores = \App\Models\User::role('profesor')->select('id', 'name')->get();
 
+        $jornadaOptions = self::getJornadaOptions();
+        $jornadaOptionsFormatted = [];
+        foreach ($jornadaOptions as $value => $label) {
+            $jornadaOptionsFormatted[] = ['value' => $value, 'label' => $label];
+        }
+
         return response()->json([
             'data' => [
                 'status_options' => self::getActiveStatusOptions(),
-                'jornada_options' => [
-                    ['value' => 0, 'label' => 'Mañana'],
-                    ['value' => 1, 'label' => 'Tarde'],
-                    ['value' => 2, 'label' => 'Noche'],
-                    ['value' => 3, 'label' => 'Fin de semana'],
-                ],
+                'jornada_options' => $jornadaOptionsFormatted,
                 'sedes' => $sedes,
                 'modulos' => $modulos,
                 'profesores' => $profesores,
@@ -349,12 +351,12 @@ class GrupoController extends Controller
                 'activos' => Grupo::where('status', 1)->count(),
                 'inactivos' => Grupo::where('status', 0)->count(),
             ],
-            'por_jornada' => [
-                'manana' => Grupo::where('jornada', 0)->count(),
-                'tarde' => Grupo::where('jornada', 1)->count(),
-                'noche' => Grupo::where('jornada', 2)->count(),
-                'fin_semana' => Grupo::where('jornada', 3)->count(),
-            ],
+            'por_jornada' => collect(self::getJornadaOptions())->map(function ($label, $value) {
+                return [
+                    'jornada' => $label,
+                    'total' => Grupo::where('jornada', $value)->count()
+                ];
+            })->values(),
             'por_inscritos' => [
                 'pocos' => Grupo::where('inscritos', '<=', 10)->count(),
                 'medios' => Grupo::whereBetween('inscritos', [11, 20])->count(),

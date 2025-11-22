@@ -4,12 +4,14 @@ namespace App\Http\Requests\Api\Academico;
 
 use App\Traits\HasActiveStatus;
 use App\Traits\HasActiveStatusValidation;
+use App\Traits\HasJornadaStatus;
+use App\Traits\HasJornadaStatusValidation;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class UpdateGrupoRequest extends FormRequest
 {
-    use HasActiveStatus, HasActiveStatusValidation;
+    use HasActiveStatus, HasActiveStatusValidation, HasJornadaStatus, HasJornadaStatusValidation;
 
     /**
      * Determina si el usuario está autorizado para hacer esta solicitud.
@@ -39,7 +41,7 @@ class UpdateGrupoRequest extends FormRequest
                 Rule::unique('grupos', 'nombre')->ignore($grupoId)
             ],
             'inscritos' => 'sometimes|integer|min:0|max:50',
-            'jornada' => 'sometimes|integer|in:0,1,2,3',
+            'jornada' => self::getJornadaValidationRuleOptional(),
             'status' => self::getStatusValidationRule(),
         ];
     }
@@ -64,9 +66,7 @@ class UpdateGrupoRequest extends FormRequest
             'inscritos.integer' => 'El número de inscritos debe ser un número entero.',
             'inscritos.min' => 'El número de inscritos no puede ser menor a 0.',
             'inscritos.max' => 'El número de inscritos no puede ser mayor a 50.',
-            'jornada.integer' => 'La jornada debe ser un número entero.',
-            'jornada.in' => 'La jornada debe ser: 0 (Mañana), 1 (Tarde), 2 (Noche) o 3 (Fin de semana).',
-        ], self::getStatusValidationMessages());
+        ], array_merge(self::getStatusValidationMessages(), self::getJornadaValidationMessages()));
     }
 
     /**

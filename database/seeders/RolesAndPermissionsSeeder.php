@@ -324,5 +324,31 @@ class RolesAndPermissionsSeeder extends Seeder
                     'descripcion'=>'inactivar tema',
                     //'modulo'=>'configuracion'
                     ])->syncRoles([$Superusuario,$financiero,$coordinador]);
+
+        // Create permissions programacion
+        Permission::create([
+                    'name'=>'aca_programaciones',
+                    'descripcion'=>'ver programaciones',
+                    //'modulo'=>'configuracion'
+                    ])->syncRoles([$Superusuario,$financiero,$coordinador]);
+        Permission::create([
+                    'name'=>'aca_programacionCrear',
+                    'descripcion'=>'crear programacion',
+                    //'modulo'=>'configuracion'
+                    ])->syncRoles([$Superusuario,$financiero,$coordinador]);
+        Permission::create([
+                    'name'=>'aca_programacionEditar',
+                    'descripcion'=>'editar programacion',
+                    //'modulo'=>'configuracion'
+                    ])->syncRoles([$Superusuario,$financiero,$coordinador]);
+        Permission::create([
+                    'name'=>'aca_programacionInactivar',
+                    'descripcion'=>'inactivar programacion',
+                    //'modulo'=>'configuracion'
+                    ])->syncRoles([$Superusuario,$financiero,$coordinador]);
+
+
             }
+
+
 }

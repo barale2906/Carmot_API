@@ -4,11 +4,13 @@ namespace App\Http\Requests\Api\Academico;
 
 use App\Traits\HasActiveStatus;
 use App\Traits\HasActiveStatusValidation;
+use App\Traits\HasJornadaStatus;
+use App\Traits\HasJornadaStatusValidation;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreGrupoRequest extends FormRequest
 {
-    use HasActiveStatus, HasActiveStatusValidation;
+    use HasActiveStatus, HasActiveStatusValidation, HasJornadaStatus, HasJornadaStatusValidation;
 
     /**
      * Determina si el usuario está autorizado para hacer esta solicitud.
@@ -31,7 +33,7 @@ class StoreGrupoRequest extends FormRequest
             'profesor_id' => 'required|integer|exists:users,id',
             'nombre' => 'required|string|max:255|unique:grupos,nombre',
             'inscritos' => 'required|integer|min:0|max:50',
-            'jornada' => 'required|integer|in:0,1,2,3',
+            'jornada' => self::getJornadaValidationRule(),
             'status' => self::getStatusValidationRule(),
 
             // Horarios opcionales
@@ -69,9 +71,6 @@ class StoreGrupoRequest extends FormRequest
             'inscritos.integer' => 'El número de inscritos debe ser un número entero.',
             'inscritos.min' => 'El número de inscritos no puede ser menor a 0.',
             'inscritos.max' => 'El número de inscritos no puede ser mayor a 50.',
-            'jornada.required' => 'La jornada es obligatoria.',
-            'jornada.integer' => 'La jornada debe ser un número entero.',
-            'jornada.in' => 'La jornada debe ser: 0 (Mañana), 1 (Tarde), 2 (Noche) o 3 (Fin de semana).',
 
             // Mensajes para horarios
             'horarios.array' => 'Los horarios deben ser un arreglo.',
@@ -89,7 +88,7 @@ class StoreGrupoRequest extends FormRequest
             'horarios.*.duracion_horas.max' => 'La duración no puede ser mayor a 8 horas.',
             'horarios.*.status.integer' => 'El estado debe ser un número entero.',
             'horarios.*.status.in' => 'El estado debe ser 0 (Inactivo) o 1 (Activo).',
-        ], self::getStatusValidationMessages());
+        ], array_merge(self::getStatusValidationMessages(), self::getJornadaValidationMessages()));
     }
 
     /**

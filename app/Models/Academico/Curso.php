@@ -59,6 +59,14 @@ class Curso extends Model
     }
 
     /**
+     * Programaciones asociadas al curso (relación uno a muchos).
+     */
+    public function programaciones(): HasMany
+    {
+        return $this->hasMany(Programacion::class);
+    }
+
+    /**
      * Scope para filtrar por búsqueda de nombre (sobrescribe el del trait).
      */
     public function scopeSearch($query, $search)
@@ -139,7 +147,8 @@ class Curso extends Model
             'referidos',
             'estudiantes',
             'modulos',
-            'ciclos'
+            'ciclos',
+            'programaciones'
         ];
     }
 
@@ -156,6 +165,6 @@ class Curso extends Model
      */
     protected function getCountableRelations(): array
     {
-        return ['referidos', 'estudiantes', 'modulos', 'ciclos'];
+        return ['referidos', 'estudiantes', 'modulos', 'ciclos', 'programaciones'];
     }
 }

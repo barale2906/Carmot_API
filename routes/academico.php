@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\Academico\CicloController;
 use App\Http\Controllers\Api\Academico\CursoController;
 use App\Http\Controllers\Api\Academico\GrupoController;
 use App\Http\Controllers\Api\Academico\ModuloController;
+use App\Http\Controllers\Api\Academico\ProgramacionController;
 use App\Http\Controllers\Api\Academico\TopicoController;
 use Illuminate\Support\Facades\Route;
 
@@ -114,5 +115,25 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('{ciclo}/reordenar-grupos', [CicloController::class, 'reordenarGrupos'])->name('ciclos.reordenar-grupos');
         Route::get('{ciclo}/cronograma', [CicloController::class, 'cronograma'])->name('ciclos.cronograma');
         Route::get('{ciclo}/siguiente-orden', [CicloController::class, 'siguienteOrden'])->name('ciclos.siguiente-orden');
+    });
+
+    // Rutas principales de programaciones (CRUD estándar)
+    Route::apiResource('programaciones', ProgramacionController::class);
+
+    // Rutas adicionales para funcionalidades específicas de programaciones
+    Route::prefix('programaciones')->group(function () {
+        // Rutas para manejo de soft delete
+        Route::post('{id}/restore', [ProgramacionController::class, 'restore'])->name('programaciones.restore');
+        Route::delete('{id}/force-delete', [ProgramacionController::class, 'forceDelete'])->name('programaciones.force-delete');
+        Route::get('trashed', [ProgramacionController::class, 'trashed'])->name('programaciones.trashed');
+
+        // Rutas para filtros y estadísticas
+        Route::get('filters', [ProgramacionController::class, 'filters'])->name('programaciones.filters');
+        Route::get('statistics', [ProgramacionController::class, 'statistics'])->name('programaciones.statistics');
+
+        // Rutas para gestión de grupos y fechas
+        Route::post('{programacion}/asignar-grupos', [ProgramacionController::class, 'asignarGrupos'])->name('programaciones.asignar-grupos');
+        Route::post('{programacion}/desasignar-grupo', [ProgramacionController::class, 'desasignarGrupo'])->name('programaciones.desasignar-grupo');
+        Route::get('{programacion}/cronograma', [ProgramacionController::class, 'cronograma'])->name('programaciones.cronograma');
     });
 });

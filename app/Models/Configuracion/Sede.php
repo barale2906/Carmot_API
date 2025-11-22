@@ -109,6 +109,17 @@ class Sede extends Model
     }
 
     /**
+     * Relación con Programacion (uno a muchos).
+     * Una sede puede tener múltiples programaciones.
+     *
+     * @return HasMany
+     */
+    public function programaciones(): HasMany
+    {
+        return $this->hasMany(\App\Models\Academico\Programacion::class);
+    }
+
+    /**
      * Obtiene las relaciones permitidas para este modelo.
      * Sobrescribe el método del trait HasRelationScopes.
      *
@@ -121,7 +132,8 @@ class Sede extends Model
             'areas',
             'horarios',
             'grupos',
-            'ciclos'
+            'ciclos',
+            'programaciones'
         ];
     }
 
@@ -150,7 +162,8 @@ class Sede extends Model
             'areas',
             'horarios',
             'grupos',
-            'ciclos'
+            'ciclos',
+            'programaciones'
         ];
     }
 

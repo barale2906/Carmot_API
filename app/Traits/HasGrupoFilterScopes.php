@@ -129,13 +129,14 @@ trait HasGrupoFilterScopes
 
     /**
      * Scope para filtrar por grupos de fin de semana.
+     * Incluye tanto "Fin de semana mañana" (3) como "Fin de semana tarde" (4).
      *
      * @param Builder $query
      * @return Builder
      */
     public function scopeFinDeSemana(Builder $query): Builder
     {
-        return $query->where('jornada', 3);
+        return $query->whereIn('jornada', [3, 4]);
     }
 
     /**

@@ -9,6 +9,7 @@ use App\Traits\HasActiveStatus;
 use App\Traits\HasFilterScopes;
 use App\Traits\HasGenericScopes;
 use App\Traits\HasGrupoFilterScopes;
+use App\Traits\HasJornadaStatus;
 use App\Traits\HasRelationScopes;
 use App\Traits\HasSortingScopes;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -20,7 +21,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Grupo extends Model
 {
-    use HasFactory, SoftDeletes, HasFilterScopes, HasGenericScopes, HasGrupoFilterScopes, HasSortingScopes, HasRelationScopes, HasActiveStatus {
+    use HasFactory, SoftDeletes, HasFilterScopes, HasGenericScopes, HasGrupoFilterScopes, HasSortingScopes, HasRelationScopes, HasActiveStatus, HasJornadaStatus {
         HasGrupoFilterScopes::scopeWithFilters insteadof HasFilterScopes;
     }
 
@@ -84,6 +85,20 @@ class Grupo extends Model
     }
 
     /**
+     * Relación con Programacion (muchos a muchos).
+     * Un grupo puede pertenecer a múltiples programaciones.
+     * La tabla pivot incluye las fechas de inicio y fin específicas del grupo en cada programación.
+     *
+     * @return BelongsToMany
+     */
+    public function programaciones(): BelongsToMany
+    {
+        return $this->belongsToMany(Programacion::class, 'programacion_grupo')
+            ->withPivot(['fecha_inicio_grupo', 'fecha_fin_grupo'])
+            ->withTimestamps();
+    }
+
+    /**
      * Relación con Horario (uno a muchos).
      * Un grupo puede tener múltiples horarios específicos.
      * Los horarios específicos del grupo tienen tipo = false.
@@ -132,7 +147,8 @@ class Grupo extends Model
             'modulo',
             'profesor',
             'ciclos',
-            'horarios'
+            'horarios',
+            'programaciones'
         ];
     }
 
@@ -149,25 +165,9 @@ class Grupo extends Model
      */
     protected function getCountableRelations(): array
     {
-        return ['ciclos', 'horarios'];
+        return ['ciclos', 'horarios', 'programaciones'];
     }
 
-    /**
-     * Obtiene el nombre de la jornada.
-     *
-     * @return string
-     */
-    public function getJornadaNombreAttribute(): string
-    {
-        $jornadas = [
-            0 => 'Mañana',
-            1 => 'Tarde',
-            2 => 'Noche',
-            3 => 'Fin de semana'
-        ];
-
-        return $jornadas[$this->jornada] ?? 'Desconocida';
-    }
 
     /**
      * Obtiene el total de horas de clase por semana del grupo.
