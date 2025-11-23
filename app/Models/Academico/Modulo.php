@@ -50,6 +50,15 @@ class Modulo extends Model
     }
 
     /**
+     * Esquemas de calificación asociados al módulo (relación uno a muchos).
+     * Un módulo puede tener múltiples esquemas de calificación.
+     */
+    public function esquemasCalificacion(): HasMany
+    {
+        return $this->hasMany(EsquemaCalificacion::class);
+    }
+
+    /**
      * Scope para filtrar por búsqueda de nombre.
      */
     public function scopeSearch($query, $search)

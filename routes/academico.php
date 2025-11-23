@@ -2,9 +2,11 @@
 
 use App\Http\Controllers\Api\Academico\CicloController;
 use App\Http\Controllers\Api\Academico\CursoController;
+use App\Http\Controllers\Api\Academico\EsquemaCalificacionController;
 use App\Http\Controllers\Api\Academico\GrupoController;
 use App\Http\Controllers\Api\Academico\MatriculaController;
 use App\Http\Controllers\Api\Academico\ModuloController;
+use App\Http\Controllers\Api\Academico\NotaEstudianteController;
 use App\Http\Controllers\Api\Academico\ProgramacionController;
 use App\Http\Controllers\Api\Academico\TopicoController;
 use Illuminate\Support\Facades\Route;
@@ -151,5 +153,39 @@ Route::middleware('auth:sanctum')->group(function () {
         // Rutas para filtros y estadísticas
         Route::get('filters', [MatriculaController::class, 'filters'])->name('matriculas.filters');
         Route::get('statistics', [MatriculaController::class, 'statistics'])->name('matriculas.statistics');
+    });
+
+    // Rutas principales de esquemas de calificación (CRUD estándar)
+    Route::apiResource('esquemas-calificacion', EsquemaCalificacionController::class);
+
+    // Rutas adicionales para funcionalidades específicas de esquemas de calificación
+    Route::prefix('esquemas-calificacion')->group(function () {
+        // Rutas para manejo de soft delete
+        Route::post('{id}/restore', [EsquemaCalificacionController::class, 'restore'])->name('esquemas-calificacion.restore');
+
+        // Ruta para obtener esquema activo por módulo y grupo
+        Route::get('modulo/{moduloId}/grupo/{grupoId?}', [EsquemaCalificacionController::class, 'getByModuloGrupo'])->name('esquemas-calificacion.by-modulo-grupo');
+    });
+
+    // Rutas principales de notas de estudiantes (CRUD estándar)
+    Route::apiResource('notas-estudiantes', NotaEstudianteController::class);
+
+    // Rutas adicionales para funcionalidades específicas de notas
+    Route::prefix('notas-estudiantes')->group(function () {
+        // Rutas para manejo de soft delete
+        Route::post('{id}/restore', [NotaEstudianteController::class, 'restore'])->name('notas-estudiantes.restore');
+
+        // Ruta para registro masivo de notas
+        Route::post('masivo', [NotaEstudianteController::class, 'storeMasivo'])->name('notas-estudiantes.masivo');
+
+        // Ruta para calcular nota final
+        Route::get('estudiante/{estudianteId}/modulo/{moduloId}/nota-final', [NotaEstudianteController::class, 'calcularNotaFinal'])->name('notas-estudiantes.calcular-nota-final');
+        Route::get('estudiante/{estudianteId}/modulo/{moduloId}/grupo/{grupoId}/nota-final', [NotaEstudianteController::class, 'calcularNotaFinal'])->name('notas-estudiantes.calcular-nota-final-grupo');
+
+        // Ruta para sabana de notas del estudiante
+        Route::get('estudiante/{estudianteId}/sabana', [NotaEstudianteController::class, 'sabanaEstudiante'])->name('notas-estudiantes.sabana-estudiante');
+
+        // Ruta para sabana de notas grupal
+        Route::get('grupo/{grupoId}/modulo/{moduloId}/sabana', [NotaEstudianteController::class, 'sabanaGrupal'])->name('notas-estudiantes.sabana-grupal');
     });
 });

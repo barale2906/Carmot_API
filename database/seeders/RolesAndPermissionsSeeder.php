@@ -370,6 +370,50 @@ class RolesAndPermissionsSeeder extends Seeder
                     //'modulo'=>'configuracion'
                     ])->syncRoles([$Superusuario,$financiero,$coordinador]);
 
+        // Create permissions esquemas de calificación
+        Permission::create([
+                    'name'=>'aca_esquemas',
+                    'descripcion'=>'ver esquemas de calificación',
+                    //'modulo'=>'academico'
+                    ])->syncRoles([$Superusuario,$financiero,$coordinador,$profesor]);
+        Permission::create([
+                    'name'=>'aca_esquemaCrear',
+                    'descripcion'=>'crear esquema de calificación',
+                    //'modulo'=>'academico'
+                    ])->syncRoles([$Superusuario,$financiero,$coordinador,$profesor]);
+        Permission::create([
+                    'name'=>'aca_esquemaEditar',
+                    'descripcion'=>'editar esquema de calificación',
+                    //'modulo'=>'academico'
+                    ])->syncRoles([$Superusuario,$financiero,$coordinador,$profesor]);
+        Permission::create([
+                    'name'=>'aca_esquemaInactivar',
+                    'descripcion'=>'inactivar esquema de calificación',
+                    //'modulo'=>'academico'
+                    ])->syncRoles([$Superusuario,$financiero,$coordinador]);
+
+        // Create permissions notas de estudiantes
+        Permission::create([
+                    'name'=>'aca_notas',
+                    'descripcion'=>'ver notas de estudiantes',
+                    //'modulo'=>'academico'
+                    ])->syncRoles([$Superusuario,$financiero,$coordinador,$profesor,$alumno]);
+        Permission::create([
+                    'name'=>'aca_notaCrear',
+                    'descripcion'=>'crear nota de estudiante',
+                    //'modulo'=>'academico'
+                    ])->syncRoles([$Superusuario,$financiero,$coordinador,$profesor]);
+        Permission::create([
+                    'name'=>'aca_notaEditar',
+                    'descripcion'=>'editar nota de estudiante',
+                    //'modulo'=>'academico'
+                    ])->syncRoles([$Superusuario,$financiero,$coordinador,$profesor]);
+        Permission::create([
+                    'name'=>'aca_notaInactivar',
+                    'descripcion'=>'inactivar nota de estudiante',
+                    //'modulo'=>'academico'
+                    ])->syncRoles([$Superusuario,$financiero,$coordinador]);
+
 
             }
 

@@ -16,6 +16,7 @@ use Illuminate\Database\Eloquent\Factories\Factory;
  * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\Academico\Matricula>
  */
 class MatriculaFactory extends Factory
+{
     /**
      * Define el estado por defecto del modelo.
      *

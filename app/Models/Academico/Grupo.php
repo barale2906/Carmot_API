@@ -2,6 +2,7 @@
 
 namespace App\Models\Academico;
 
+use App\Models\Academico\EsquemaCalificacion;
 use App\Models\Configuracion\Sede;
 use App\Models\Configuracion\Horario;
 use App\Models\User;
@@ -108,6 +109,17 @@ class Grupo extends Model
     public function horarios(): HasMany
     {
         return $this->hasMany(Horario::class, 'grupo_id')->where('tipo', false);
+    }
+
+    /**
+     * Relación con EsquemaCalificacion (uno a muchos).
+     * Un grupo puede tener múltiples esquemas de calificación.
+     *
+     * @return HasMany
+     */
+    public function esquemasCalificacion(): HasMany
+    {
+        return $this->hasMany(EsquemaCalificacion::class);
     }
 
     /**

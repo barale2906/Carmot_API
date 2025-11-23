@@ -30,6 +30,9 @@ class DatabaseSeeder extends Seeder
             CicloSeeder::class,
             ProgramacionSeeder::class,
             MatriculaSeeder::class,
+            EsquemaCalificacionSeeder::class,
+            NotaEstudianteSeeder::class,
+            TipoNotaEsquemaSeeder::class,
         ]);
         // \App\Models\User::factory(10)->create();
 
