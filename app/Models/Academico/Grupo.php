@@ -123,6 +123,28 @@ class Grupo extends Model
     }
 
     /**
+     * Relación con AsistenciaClaseProgramada (uno a muchos).
+     * Un grupo puede tener múltiples clases programadas.
+     *
+     * @return HasMany
+     */
+    public function clasesProgramadas(): HasMany
+    {
+        return $this->hasMany(AsistenciaClaseProgramada::class);
+    }
+
+    /**
+     * Relación con Asistencia (uno a muchos).
+     * Un grupo puede tener múltiples asistencias registradas.
+     *
+     * @return HasMany
+     */
+    public function asistencias(): HasMany
+    {
+        return $this->hasMany(Asistencia::class);
+    }
+
+    /**
      * Scope para filtrar por búsqueda de nombre.
      */
     public function scopeSearch($query, $search)
@@ -160,7 +182,9 @@ class Grupo extends Model
             'profesor',
             'ciclos',
             'horarios',
-            'programaciones'
+            'programaciones',
+            'clasesProgramadas',
+            'asistencias'
         ];
     }
 

@@ -414,6 +414,43 @@ class RolesAndPermissionsSeeder extends Seeder
                     //'modulo'=>'academico'
                     ])->syncRoles([$Superusuario,$financiero,$coordinador]);
 
+        // Create permissions asistencias de estudiantes
+        Permission::create([
+            'name'=>'aca_asistencias',
+            'descripcion'=>'ver asistencias de estudiantes',
+            //'modulo'=>'academico'
+            ])->syncRoles([$Superusuario,$financiero,$coordinador,$profesor,$alumno]);
+        Permission::create([
+                    'name'=>'aca_asistenciaCrear',
+                    'descripcion'=>'crear asistencia de estudiante',
+                    //'modulo'=>'academico'
+                    ])->syncRoles([$Superusuario,$financiero,$coordinador,$profesor]);
+        Permission::create([
+                    'name'=>'aca_asistenciaEditar',
+                    'descripcion'=>'editar asistencia de estudiante',
+                    //'modulo'=>'academico'
+                    ])->syncRoles([$Superusuario,$financiero,$coordinador,$profesor]);
+        Permission::create([
+                    'name'=>'aca_asistenciaInactivar',
+                    'descripcion'=>'inactivar asistencia de estudiante',
+                    //'modulo'=>'academico'
+                    ])->syncRoles([$Superusuario,$financiero,$coordinador]);
+        Permission::create([
+                    'name'=>'aca_asistenciaReportes',
+                    'descripcion'=>'ver reportes de asistencia',
+                    //'modulo'=>'academico'
+                    ])->syncRoles([$Superusuario,$financiero,$coordinador,$profesor]);
+        Permission::create([
+                    'name'=>'aca_claseProgramar',
+                    'descripcion'=>'programar clases de asistencia',
+                    //'modulo'=>'academico'
+                    ])->syncRoles([$Superusuario,$financiero,$coordinador,$profesor]);
+        Permission::create([
+                    'name'=>'aca_configuracionAsistencia',
+                    'descripcion'=>'configurar topes mínimos de asistencia',
+                    //'modulo'=>'academico'
+                    ])->syncRoles([$Superusuario,$financiero,$coordinador]);
+
 
             }
 

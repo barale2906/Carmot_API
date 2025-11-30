@@ -67,6 +67,22 @@ class Curso extends Model
     }
 
     /**
+     * Asistencias asociadas al curso (relación uno a muchos).
+     */
+    public function asistencias(): HasMany
+    {
+        return $this->hasMany(Asistencia::class);
+    }
+
+    /**
+     * Configuraciones de asistencia asociadas al curso (relación uno a muchos).
+     */
+    public function configuracionesAsistencia(): HasMany
+    {
+        return $this->hasMany(AsistenciaConfiguracion::class);
+    }
+
+    /**
      * Scope para filtrar por búsqueda de nombre (sobrescribe el del trait).
      */
     public function scopeSearch($query, $search)
@@ -148,7 +164,9 @@ class Curso extends Model
             'estudiantes',
             'modulos',
             'ciclos',
-            'programaciones'
+            'programaciones',
+            'asistencias',
+            'configuracionesAsistencia'
         ];
     }
 

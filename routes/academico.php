@@ -1,5 +1,8 @@
 <?php
 
+use App\Http\Controllers\Api\Academico\AsistenciaClaseProgramadaController;
+use App\Http\Controllers\Api\Academico\AsistenciaConfiguracionController;
+use App\Http\Controllers\Api\Academico\AsistenciaController;
 use App\Http\Controllers\Api\Academico\CicloController;
 use App\Http\Controllers\Api\Academico\CursoController;
 use App\Http\Controllers\Api\Academico\EsquemaCalificacionController;
@@ -188,4 +191,35 @@ Route::middleware('auth:sanctum')->group(function () {
         // Ruta para sabana de notas grupal
         Route::get('grupo/{grupoId}/modulo/{moduloId}/sabana', [NotaEstudianteController::class, 'sabanaGrupal'])->name('notas-estudiantes.sabana-grupal');
     });
+
+    // Rutas principales de asistencias (CRUD estándar)
+    Route::apiResource('asistencias', AsistenciaController::class);
+
+    // Rutas adicionales para funcionalidades específicas de asistencias
+    Route::prefix('asistencias')->group(function () {
+        // Rutas para manejo de soft delete
+        Route::post('{id}/restore', [AsistenciaController::class, 'restore'])->name('asistencias.restore');
+
+        // Ruta para registro masivo de asistencias
+        Route::post('masivo', [AsistenciaController::class, 'storeMasivo'])->name('asistencias.masivo');
+
+        // Ruta para lista de asistencia por grupo
+        Route::get('lista-asistencia/{grupoId}', [AsistenciaController::class, 'listaAsistencia'])->name('asistencias.lista-asistencia');
+
+        // Rutas para reportes
+        Route::get('reporte/estudiante/{id}', [AsistenciaController::class, 'reporteEstudiante'])->name('asistencias.reporte-estudiante');
+        Route::get('reporte/grupo/{grupoId}', [AsistenciaController::class, 'reporteGrupo'])->name('asistencias.reporte-grupo');
+    });
+
+    // Rutas principales de clases programadas (CRUD estándar)
+    Route::apiResource('asistencia-clases-programadas', AsistenciaClaseProgramadaController::class);
+
+    // Rutas adicionales para funcionalidades específicas de clases programadas
+    Route::prefix('asistencia-clases-programadas')->group(function () {
+        // Ruta para generar clases automáticamente
+        Route::post('generar-automaticas', [AsistenciaClaseProgramadaController::class, 'generarAutomaticas'])->name('asistencia-clases-programadas.generar-automaticas');
+    });
+
+    // Rutas principales de configuraciones de asistencia (CRUD estándar)
+    Route::apiResource('asistencia-configuraciones', AsistenciaConfiguracionController::class);
 });

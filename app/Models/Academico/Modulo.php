@@ -59,6 +59,24 @@ class Modulo extends Model
     }
 
     /**
+     * Asistencias asociadas al módulo (relación uno a muchos).
+     * Un módulo puede tener múltiples asistencias registradas.
+     */
+    public function asistencias(): HasMany
+    {
+        return $this->hasMany(Asistencia::class);
+    }
+
+    /**
+     * Configuraciones de asistencia asociadas al módulo (relación uno a muchos).
+     * Un módulo puede tener múltiples configuraciones de asistencia.
+     */
+    public function configuracionesAsistencia(): HasMany
+    {
+        return $this->hasMany(AsistenciaConfiguracion::class);
+    }
+
+    /**
      * Scope para filtrar por búsqueda de nombre.
      */
     public function scopeSearch($query, $search)
@@ -107,7 +125,9 @@ class Modulo extends Model
         return [
             'cursos',
             'topicos',
-            'grupos'
+            'grupos',
+            'asistencias',
+            'configuracionesAsistencia'
         ];
     }
 

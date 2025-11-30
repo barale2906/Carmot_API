@@ -4,10 +4,16 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 
+use App\Models\Academico\Asistencia;
+use App\Models\Academico\AsistenciaClaseProgramada;
 use App\Models\Academico\Curso;
+use App\Models\Academico\Grupo;
+use App\Models\Academico\Matricula;
+use App\Models\Academico\NotaEstudiante;
 use App\Models\Crm\Agenda;
 use App\Models\Crm\Referido;
 use App\Models\Crm\Seguimiento;
+use App\Models\Dashboard\Dashboard;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -92,7 +98,7 @@ class User extends Authenticatable
     //Grupos que imparte el profesor
     public function grupos(): HasMany
     {
-        return $this->hasMany(\App\Models\Academico\Grupo::class, 'profesor_id');
+        return $this->hasMany(Grupo::class, 'profesor_id');
     }
 
     /**
@@ -103,6 +109,48 @@ class User extends Authenticatable
      */
     public function dashboards(): HasMany
     {
-        return $this->hasMany(\App\Models\Dashboard\Dashboard::class, 'user_id');
+        return $this->hasMany(Dashboard::class, 'user_id');
+    }
+
+    // Matrículas del estudiante
+    public function matriculas(): HasMany
+    {
+        return $this->hasMany(Matricula::class, 'estudiante_id');
+    }
+
+    // Matrículas realizadas por el usuario
+    public function matriculasRealizadas(): HasMany
+    {
+        return $this->hasMany(Matricula::class, 'matriculado_por_id');
+    }
+
+    // Notas del estudiante
+    public function notasEstudiantes(): HasMany
+    {
+        return $this->hasMany(NotaEstudiante::class, 'estudiante_id');
+    }
+
+    // Notas registradas por el usuario
+    public function notasRegistradas(): HasMany
+    {
+        return $this->hasMany(NotaEstudiante::class, 'registrado_por_id');
+    }
+
+    // Asistencias del estudiante
+    public function asistencias(): HasMany
+    {
+        return $this->hasMany(Asistencia::class, 'estudiante_id');
+    }
+
+    // Asistencias registradas por el usuario
+    public function asistenciasRegistradas(): HasMany
+    {
+        return $this->hasMany(Asistencia::class, 'registrado_por_id');
+    }
+
+    // Clases programadas creadas por el usuario
+    public function clasesProgramadas(): HasMany
+    {
+        return $this->hasMany(AsistenciaClaseProgramada::class, 'creado_por_id');
     }
 }

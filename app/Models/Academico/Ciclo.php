@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
@@ -97,6 +98,28 @@ class Ciclo extends Model
     }
 
     /**
+     * Relación con AsistenciaClaseProgramada (uno a muchos).
+     * Un ciclo puede tener múltiples clases programadas.
+     *
+     * @return HasMany
+     */
+    public function clasesProgramadas(): HasMany
+    {
+        return $this->hasMany(AsistenciaClaseProgramada::class);
+    }
+
+    /**
+     * Relación con Asistencia (uno a muchos).
+     * Un ciclo puede tener múltiples asistencias registradas.
+     *
+     * @return HasMany
+     */
+    public function asistencias(): HasMany
+    {
+        return $this->hasMany(Asistencia::class);
+    }
+
+    /**
      * Scope para filtrar por búsqueda de nombre.
      */
     public function scopeSearch($query, $search)
@@ -129,7 +152,9 @@ class Ciclo extends Model
         return [
             'sede',
             'curso',
-            'grupos'
+            'grupos',
+            'clasesProgramadas',
+            'asistencias'
         ];
     }
 
@@ -396,5 +421,27 @@ class Ciclo extends Model
         }
 
         return $cronograma;
+    }
+
+    /**
+     * Scope para filtrar ciclos activos y vigentes.
+     * Un ciclo está activo y vigente si:
+     * - status = 1 (activo)
+     * - fecha_inicio <= hoy
+     * - fecha_fin es NULL o fecha_fin >= hoy
+     *
+     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    public function scopeActivosVigentes($query)
+    {
+        $hoy = now()->toDateString();
+
+        return $query->where('status', 1)
+            ->where('fecha_inicio', '<=', $hoy)
+            ->where(function ($q) use ($hoy) {
+                $q->whereNull('fecha_fin')
+                  ->orWhere('fecha_fin', '>=', $hoy);
+            });
     }
 }
