@@ -266,135 +266,135 @@ Después de ejecutar los comandos, verifica que se hayan creado los siguientes a
 
 ### 2. Crear Trait de Estados
 
--   [ ] Crear archivo `app/Traits/Financiero/HasListaPrecioStatus.php`
--   [ ] Implementar método `getStatusOptions()` con los 4 estados (Inactiva, En Proceso, Aprobada, Activa)
--   [ ] Implementar método `getStatusText(?int $status)` con documentación PHPDoc en español
--   [ ] Implementar método `getStatusTextAttribute()` con documentación PHPDoc en español
--   [ ] Implementar método `getStatusValidationRule()` con documentación PHPDoc en español
--   [ ] Implementar método `getStatusValidationMessages()` con documentación PHPDoc en español
--   [ ] Implementar scope `scopeInactiva($query)` con documentación PHPDoc en español
--   [ ] Implementar scope `scopeEnProceso($query)` con documentación PHPDoc en español
--   [ ] Implementar scope `scopeAprobada($query)` con documentación PHPDoc en español
--   [ ] Implementar scope `scopeActiva($query)` con documentación PHPDoc en español
--   [ ] Agregar bloque de documentación de clase con descripción en español
--   [ ] Verificar que todos los métodos tengan documentación PHPDoc completa
+-   [x] Crear archivo `app/Traits/Financiero/HasListaPrecioStatus.php`
+-   [x] Implementar método `getStatusOptions()` con los 4 estados (Inactiva, En Proceso, Aprobada, Activa)
+-   [x] Implementar método `getStatusText(?int $status)` con documentación PHPDoc en español
+-   [x] Implementar método `getStatusTextAttribute()` con documentación PHPDoc en español
+-   [x] Implementar método `getStatusValidationRule()` con documentación PHPDoc en español
+-   [x] Implementar método `getStatusValidationMessages()` con documentación PHPDoc en español
+-   [x] Implementar scope `scopeInactiva($query)` con documentación PHPDoc en español
+-   [x] Implementar scope `scopeEnProceso($query)` con documentación PHPDoc en español
+-   [x] Implementar scope `scopeAprobada($query)` con documentación PHPDoc en español
+-   [x] Implementar scope `scopeActiva($query)` con documentación PHPDoc en español
+-   [x] Agregar bloque de documentación de clase con descripción en español
+-   [x] Verificar que todos los métodos tengan documentación PHPDoc completa
 
 ## Fase 2: Migraciones de Base de Datos
 
 ### 3. Crear migración para `lp_tipos_producto`
 
--   [ ] Crear migración: `php artisan make:migration create_lp_tipos_producto_table`
--   [ ] Definir estructura de tabla según diseño:
-    -   [ ] Campo `id` (BIGINT UNSIGNED, PRIMARY KEY, AUTO_INCREMENT)
-    -   [ ] Campo `nombre` (VARCHAR(255), NOT NULL, comentario en español)
-    -   [ ] Campo `codigo` (VARCHAR(50), UNIQUE, NOT NULL, comentario en español)
-    -   [ ] Campo `es_financiable` (BOOLEAN, DEFAULT FALSE, comentario en español)
-    -   [ ] Campo `descripcion` (TEXT, NULL)
-    -   [ ] Campo `status` (TINYINT, DEFAULT 1, comentario en español)
-    -   [ ] Campos `created_at`, `updated_at` (TIMESTAMP, NULL)
-    -   [ ] Campo `deleted_at` (TIMESTAMP, NULL) para soft deletes
--   [ ] Agregar índice `idx_codigo` en campo `codigo`
--   [ ] Agregar índice `idx_status` en campo `status`
--   [ ] Configurar engine InnoDB y charset utf8mb4
--   [ ] Agregar comentarios en español en todos los campos
--   [ ] Verificar sintaxis de la migración
+-   [x] Crear migración: `php artisan make:migration create_lp_tipos_producto_table`
+-   [x] Definir estructura de tabla según diseño:
+    -   [x] Campo `id` (BIGINT UNSIGNED, PRIMARY KEY, AUTO_INCREMENT)
+    -   [x] Campo `nombre` (VARCHAR(255), NOT NULL, comentario en español)
+    -   [x] Campo `codigo` (VARCHAR(50), UNIQUE, NOT NULL, comentario en español)
+    -   [x] Campo `es_financiable` (BOOLEAN, DEFAULT FALSE, comentario en español)
+    -   [x] Campo `descripcion` (TEXT, NULL)
+    -   [x] Campo `status` (TINYINT, DEFAULT 1, comentario en español)
+    -   [x] Campos `created_at`, `updated_at` (TIMESTAMP, NULL)
+    -   [x] Campo `deleted_at` (TIMESTAMP, NULL) para soft deletes
+-   [x] Agregar índice `idx_codigo` en campo `codigo`
+-   [x] Agregar índice `idx_status` en campo `status`
+-   [x] Configurar engine InnoDB y charset utf8mb4 (manejado automáticamente por Laravel)
+-   [x] Agregar comentarios en español en todos los campos
+-   [x] Verificar sintaxis de la migración
 
 ### 4. Crear migración para `lp_productos`
 
--   [ ] Crear migración: `php artisan make:migration create_lp_productos_table`
--   [ ] Definir estructura de tabla según diseño:
-    -   [ ] Campo `id` (BIGINT UNSIGNED, PRIMARY KEY, AUTO_INCREMENT)
-    -   [ ] Campo `tipo_producto_id` (BIGINT UNSIGNED, NOT NULL, FK a lp_tipos_producto)
-    -   [ ] Campo `nombre` (VARCHAR(255), NOT NULL, comentario en español)
-    -   [ ] Campo `codigo` (VARCHAR(100), UNIQUE, NULL, comentario en español)
-    -   [ ] Campo `descripcion` (TEXT, NULL)
-    -   [ ] Campo `referencia_id` (BIGINT UNSIGNED, NULL, comentario en español)
-    -   [ ] Campo `referencia_tipo` (ENUM('curso', 'modulo'), NULL, comentario en español)
-    -   [ ] Campo `status` (TINYINT, DEFAULT 1, comentario en español)
-    -   [ ] Campos `created_at`, `updated_at` (TIMESTAMP, NULL)
-    -   [ ] Campo `deleted_at` (TIMESTAMP, NULL) para soft deletes
--   [ ] Agregar foreign key `tipo_producto_id` -> `lp_tipos_producto(id)` ON DELETE RESTRICT
--   [ ] Agregar índice `idx_tipo_producto` en `tipo_producto_id`
--   [ ] Agregar índice compuesto `idx_referencia` en (`referencia_id`, `referencia_tipo`)
--   [ ] Agregar índice `idx_status` en `status`
--   [ ] Agregar índice `idx_codigo` en `codigo`
--   [ ] Configurar engine InnoDB y charset utf8mb4
--   [ ] Agregar comentarios en español en todos los campos
--   [ ] Verificar sintaxis de la migración
+-   [x] Crear migración: `php artisan make:migration create_lp_productos_table`
+-   [x] Definir estructura de tabla según diseño:
+    -   [x] Campo `id` (BIGINT UNSIGNED, PRIMARY KEY, AUTO_INCREMENT)
+    -   [x] Campo `tipo_producto_id` (BIGINT UNSIGNED, NOT NULL, FK a lp_tipos_producto)
+    -   [x] Campo `nombre` (VARCHAR(255), NOT NULL, comentario en español)
+    -   [x] Campo `codigo` (VARCHAR(100), UNIQUE, NULL, comentario en español)
+    -   [x] Campo `descripcion` (TEXT, NULL)
+    -   [x] Campo `referencia_id` (BIGINT UNSIGNED, NULL, comentario en español)
+    -   [x] Campo `referencia_tipo` (ENUM('curso', 'modulo'), NULL, comentario en español)
+    -   [x] Campo `status` (TINYINT, DEFAULT 1, comentario en español)
+    -   [x] Campos `created_at`, `updated_at` (TIMESTAMP, NULL)
+    -   [x] Campo `deleted_at` (TIMESTAMP, NULL) para soft deletes
+-   [x] Agregar foreign key `tipo_producto_id` -> `lp_tipos_producto(id)` ON DELETE RESTRICT
+-   [x] Agregar índice `idx_tipo_producto` en `tipo_producto_id`
+-   [x] Agregar índice compuesto `idx_referencia` en (`referencia_id`, `referencia_tipo`)
+-   [x] Agregar índice `idx_status` en `status`
+-   [x] Agregar índice `idx_codigo` en `codigo`
+-   [x] Configurar engine InnoDB y charset utf8mb4 (manejado automáticamente por Laravel)
+-   [x] Agregar comentarios en español en todos los campos
+-   [x] Verificar sintaxis de la migración
 
 ### 5. Crear migración para `lp_listas_precios`
 
--   [ ] Crear migración: `php artisan make:migration create_lp_listas_precios_table`
--   [ ] Definir estructura de tabla según diseño:
-    -   [ ] Campo `id` (BIGINT UNSIGNED, PRIMARY KEY, AUTO_INCREMENT)
-    -   [ ] Campo `nombre` (VARCHAR(255), NOT NULL, comentario en español)
-    -   [ ] Campo `codigo` (VARCHAR(100), UNIQUE, NULL, comentario en español)
-    -   [ ] Campo `fecha_inicio` (DATE, NOT NULL, comentario en español)
-    -   [ ] Campo `fecha_fin` (DATE, NOT NULL, comentario en español)
-    -   [ ] Campo `descripcion` (TEXT, NULL)
-    -   [ ] Campo `status` (TINYINT, DEFAULT 1, comentario con los 4 estados en español)
-    -   [ ] Campos `created_at`, `updated_at` (TIMESTAMP, NULL)
-    -   [ ] Campo `deleted_at` (TIMESTAMP, NULL) para soft deletes
--   [ ] Agregar índice compuesto `idx_fechas` en (`fecha_inicio`, `fecha_fin`)
--   [ ] Agregar índice `idx_status` en `status`
--   [ ] Agregar índice `idx_codigo` en `codigo`
--   [ ] Agregar CHECK constraint: `fecha_fin >= fecha_inicio`
--   [ ] Configurar engine InnoDB y charset utf8mb4
--   [ ] Agregar comentarios en español en todos los campos
--   [ ] Verificar sintaxis de la migración
+-   [x] Crear migración: `php artisan make:migration create_lp_listas_precios_table`
+-   [x] Definir estructura de tabla según diseño:
+    -   [x] Campo `id` (BIGINT UNSIGNED, PRIMARY KEY, AUTO_INCREMENT)
+    -   [x] Campo `nombre` (VARCHAR(255), NOT NULL, comentario en español)
+    -   [x] Campo `codigo` (VARCHAR(100), UNIQUE, NULL, comentario en español)
+    -   [x] Campo `fecha_inicio` (DATE, NOT NULL, comentario en español)
+    -   [x] Campo `fecha_fin` (DATE, NOT NULL, comentario en español)
+    -   [x] Campo `descripcion` (TEXT, NULL)
+    -   [x] Campo `status` (TINYINT, DEFAULT 1, comentario con los 4 estados en español)
+    -   [x] Campos `created_at`, `updated_at` (TIMESTAMP, NULL)
+    -   [x] Campo `deleted_at` (TIMESTAMP, NULL) para soft deletes
+-   [x] Agregar índice compuesto `idx_fechas` en (`fecha_inicio`, `fecha_fin`)
+-   [x] Agregar índice `idx_status` en `status`
+-   [x] Agregar índice `idx_codigo` en `codigo`
+-   [x] Agregar CHECK constraint: `fecha_fin >= fecha_inicio`
+-   [x] Configurar engine InnoDB y charset utf8mb4 (manejado automáticamente por Laravel)
+-   [x] Agregar comentarios en español en todos los campos
+-   [x] Verificar sintaxis de la migración
 
 ### 6. Crear migración para `lp_lista_precio_poblacion`
 
--   [ ] Crear migración: `php artisan make:migration create_lp_lista_precio_poblacion_table`
--   [ ] Definir estructura de tabla según diseño:
-    -   [ ] Campo `id` (BIGINT UNSIGNED, PRIMARY KEY, AUTO_INCREMENT)
-    -   [ ] Campo `lista_precio_id` (BIGINT UNSIGNED, NOT NULL, FK a lp_listas_precios)
-    -   [ ] Campo `poblacion_id` (BIGINT UNSIGNED, NOT NULL, FK a poblacions)
-    -   [ ] Campos `created_at`, `updated_at` (TIMESTAMP, NULL)
--   [ ] Agregar foreign key `lista_precio_id` -> `lp_listas_precios(id)` ON DELETE CASCADE
--   [ ] Agregar foreign key `poblacion_id` -> `poblacions(id)` ON DELETE CASCADE
--   [ ] Agregar unique constraint `uk_lista_poblacion` en (`lista_precio_id`, `poblacion_id`)
--   [ ] Agregar índice `idx_lista_precio` en `lista_precio_id`
--   [ ] Agregar índice `idx_poblacion` en `poblacion_id`
--   [ ] Configurar engine InnoDB y charset utf8mb4
--   [ ] Verificar sintaxis de la migración
+-   [x] Crear migración: `php artisan make:migration create_lp_lista_precio_poblacion_table`
+-   [x] Definir estructura de tabla según diseño:
+    -   [x] Campo `id` (BIGINT UNSIGNED, PRIMARY KEY, AUTO_INCREMENT)
+    -   [x] Campo `lista_precio_id` (BIGINT UNSIGNED, NOT NULL, FK a lp_listas_precios)
+    -   [x] Campo `poblacion_id` (BIGINT UNSIGNED, NOT NULL, FK a poblacions)
+    -   [x] Campos `created_at`, `updated_at` (TIMESTAMP, NULL)
+-   [x] Agregar foreign key `lista_precio_id` -> `lp_listas_precios(id)` ON DELETE CASCADE
+-   [x] Agregar foreign key `poblacion_id` -> `poblacions(id)` ON DELETE CASCADE
+-   [x] Agregar unique constraint `uk_lista_poblacion` en (`lista_precio_id`, `poblacion_id`)
+-   [x] Agregar índice `idx_lista_precio` en `lista_precio_id`
+-   [x] Agregar índice `idx_poblacion` en `poblacion_id`
+-   [x] Configurar engine InnoDB y charset utf8mb4 (manejado automáticamente por Laravel)
+-   [x] Verificar sintaxis de la migración
 
 ### 7. Crear migración para `lp_precios_producto`
 
--   [ ] Crear migración: `php artisan make:migration create_lp_precios_producto_table`
--   [ ] Definir estructura de tabla según diseño:
-    -   [ ] Campo `id` (BIGINT UNSIGNED, PRIMARY KEY, AUTO_INCREMENT)
-    -   [ ] Campo `lista_precio_id` (BIGINT UNSIGNED, NOT NULL, FK a lp_listas_precios)
-    -   [ ] Campo `producto_id` (BIGINT UNSIGNED, NOT NULL, FK a lp_productos)
-    -   [ ] Campo `precio_contado` (DECIMAL(15,2), NOT NULL, DEFAULT 0.00, comentario en español)
-    -   [ ] Campo `precio_total` (DECIMAL(15,2), NULL, comentario en español)
-    -   [ ] Campo `matricula` (DECIMAL(15,2), NOT NULL, DEFAULT 0.00, comentario en español)
-    -   [ ] Campo `numero_cuotas` (INT, NULL, comentario en español)
-    -   [ ] Campo `valor_cuota` (DECIMAL(15,2), NULL, comentario en español)
-    -   [ ] Campo `observaciones` (TEXT, NULL)
-    -   [ ] Campos `created_at`, `updated_at` (TIMESTAMP, NULL)
-    -   [ ] Campo `deleted_at` (TIMESTAMP, NULL) para soft deletes
--   [ ] Agregar foreign key `lista_precio_id` -> `lp_listas_precios(id)` ON DELETE CASCADE
--   [ ] Agregar foreign key `producto_id` -> `lp_productos(id)` ON DELETE CASCADE
--   [ ] Agregar unique constraint `uk_lista_producto` en (`lista_precio_id`, `producto_id`)
--   [ ] Agregar índice `idx_lista_precio` en `lista_precio_id`
--   [ ] Agregar índice `idx_producto` en `producto_id`
--   [ ] Agregar CHECK constraint: `precio_contado >= 0`
--   [ ] Agregar CHECK constraint: `precio_total IS NULL OR precio_total >= 0`
--   [ ] Agregar CHECK constraint: `matricula >= 0`
--   [ ] Agregar CHECK constraint: `numero_cuotas IS NULL OR numero_cuotas > 0`
--   [ ] Agregar CHECK constraint: `valor_cuota IS NULL OR valor_cuota >= 0`
--   [ ] Configurar engine InnoDB y charset utf8mb4
--   [ ] Agregar comentarios en español en todos los campos
--   [ ] Verificar sintaxis de la migración
+-   [x] Crear migración: `php artisan make:migration create_lp_precios_producto_table`
+-   [x] Definir estructura de tabla según diseño:
+    -   [x] Campo `id` (BIGINT UNSIGNED, PRIMARY KEY, AUTO_INCREMENT)
+    -   [x] Campo `lista_precio_id` (BIGINT UNSIGNED, NOT NULL, FK a lp_listas_precios)
+    -   [x] Campo `producto_id` (BIGINT UNSIGNED, NOT NULL, FK a lp_productos)
+    -   [x] Campo `precio_contado` (DECIMAL(15,2), NOT NULL, DEFAULT 0.00, comentario en español)
+    -   [x] Campo `precio_total` (DECIMAL(15,2), NULL, comentario en español)
+    -   [x] Campo `matricula` (DECIMAL(15,2), NOT NULL, DEFAULT 0.00, comentario en español)
+    -   [x] Campo `numero_cuotas` (INT, NULL, comentario en español)
+    -   [x] Campo `valor_cuota` (DECIMAL(15,2), NULL, comentario en español)
+    -   [x] Campo `observaciones` (TEXT, NULL)
+    -   [x] Campos `created_at`, `updated_at` (TIMESTAMP, NULL)
+    -   [x] Campo `deleted_at` (TIMESTAMP, NULL) para soft deletes
+-   [x] Agregar foreign key `lista_precio_id` -> `lp_listas_precios(id)` ON DELETE CASCADE
+-   [x] Agregar foreign key `producto_id` -> `lp_productos(id)` ON DELETE CASCADE
+-   [x] Agregar unique constraint `uk_lista_producto` en (`lista_precio_id`, `producto_id`)
+-   [x] Agregar índice `idx_lista_precio` en `lista_precio_id`
+-   [x] Agregar índice `idx_producto` en `producto_id`
+-   [x] Agregar CHECK constraint: `precio_contado >= 0`
+-   [x] Agregar CHECK constraint: `precio_total IS NULL OR precio_total >= 0`
+-   [x] Agregar CHECK constraint: `matricula >= 0`
+-   [x] Agregar CHECK constraint: `numero_cuotas IS NULL OR numero_cuotas > 0`
+-   [x] Agregar CHECK constraint: `valor_cuota IS NULL OR valor_cuota >= 0`
+-   [x] Configurar engine InnoDB y charset utf8mb4 (manejado automáticamente por Laravel)
+-   [x] Agregar comentarios en español en todos los campos
+-   [x] Verificar sintaxis de la migración
 
 ### 8. Ejecutar migraciones
 
--   [ ] Verificar que todas las migraciones estén correctamente ordenadas
--   [ ] Ejecutar migraciones: `php artisan migrate`
--   [ ] Verificar que no haya errores en la ejecución
--   [ ] Verificar que todas las tablas se hayan creado correctamente
--   [ ] Verificar que todos los índices y foreign keys estén creados
+-   [x] Verificar que todas las migraciones estén correctamente ordenadas
+-   [x] Ejecutar migraciones: `php artisan migrate`
+-   [x] Verificar que no haya errores en la ejecución
+-   [x] Verificar que todas las tablas se hayan creado correctamente
+-   [x] Verificar que todos los índices y foreign keys estén creados
 
 ## Fase 3: Modelos Eloquent
 
