@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\Financiero\ConceptoPago\ConceptoPagoController;
 use App\Http\Controllers\Api\Financiero\Lp\LpListaPrecioController;
 use App\Http\Controllers\Api\Financiero\Lp\LpPrecioProductoController;
 use App\Http\Controllers\Api\Financiero\Lp\LpProductoController;
@@ -54,6 +55,21 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::get('obtener-precio', [LpPrecioProductoController::class, 'obtenerPrecio'])
                 ->name('precios-producto.obtener-precio');
         });
+    });
+
+    // Grupo de rutas para Conceptos de Pago
+    // Rutas principales de conceptos de pago (CRUD estándar)
+    Route::apiResource('conceptos-pago', ConceptoPagoController::class);
+
+    // Rutas adicionales para funcionalidades específicas de conceptos de pago
+    Route::prefix('conceptos-pago')->group(function () {
+        // Ruta para obtener los tipos disponibles
+        Route::get('tipos', [ConceptoPagoController::class, 'obtenerTipos'])
+            ->name('conceptos-pago.tipos');
+
+        // Ruta para agregar un nuevo tipo al sistema
+        Route::post('tipos/agregar', [ConceptoPagoController::class, 'agregarTipo'])
+            ->name('conceptos-pago.agregar-tipo');
     });
 });
 

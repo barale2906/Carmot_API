@@ -543,5 +543,27 @@ class RolesAndPermissionsSeeder extends Seeder
                     'descripcion'=>'inactivar precio de producto',
                     //'modulo'=>'financiero'
                     ])->syncRoles([$Superusuario,$financiero,$coordinador]);
+
+        // Create permissions conceptos de pago
+        Permission::create([
+                    'name'=>'fin_conceptos_pago',
+                    'descripcion'=>'ver conceptos de pago',
+                    //'modulo'=>'financiero'
+                    ])->syncRoles([$Superusuario,$financiero,$coordinador]);
+        Permission::create([
+                    'name'=>'fin_conceptoPagoCrear',
+                    'descripcion'=>'crear concepto de pago',
+                    //'modulo'=>'financiero'
+                    ])->syncRoles([$Superusuario,$financiero,$coordinador]);
+        Permission::create([
+                    'name'=>'fin_conceptoPagoEditar',
+                    'descripcion'=>'editar concepto de pago',
+                    //'modulo'=>'financiero'
+                    ])->syncRoles([$Superusuario,$financiero,$coordinador]);
+        Permission::create([
+                    'name'=>'fin_conceptoPagoInactivar',
+                    'descripcion'=>'inactivar concepto de pago',
+                    //'modulo'=>'financiero'
+                    ])->syncRoles([$Superusuario,$financiero,$coordinador]);
     }
 }

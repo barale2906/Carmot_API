@@ -41,6 +41,7 @@ class DatabaseSeeder extends Seeder
             LpProductoSeeder::class,
             LpListaPrecioSeeder::class,
             LpPrecioProductoSeeder::class,
+            ConceptoPagoSeeder::class,
         ]);
         // \App\Models\User::factory(10)->create();
 
