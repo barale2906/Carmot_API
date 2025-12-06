@@ -13,26 +13,6 @@ namespace App\Traits\Financiero;
 trait HasListaPrecioStatus
 {
     /**
-     * Constante para el estado Inactiva.
-     */
-    const STATUS_INACTIVA = 0;
-
-    /**
-     * Constante para el estado En Proceso.
-     */
-    const STATUS_EN_PROCESO = 1;
-
-    /**
-     * Constante para el estado Aprobada.
-     */
-    const STATUS_APROBADA = 2;
-
-    /**
-     * Constante para el estado Activa.
-     */
-    const STATUS_ACTIVA = 3;
-
-    /**
      * Obtiene las opciones de estado para Lista de Precios.
      *
      * Retorna un array asociativo con los estados disponibles:
@@ -46,10 +26,10 @@ trait HasListaPrecioStatus
     public static function getStatusOptions(): array
     {
         return [
-            self::STATUS_INACTIVA => 'Inactiva',
-            self::STATUS_EN_PROCESO => 'En Proceso',
-            self::STATUS_APROBADA => 'Aprobada',
-            self::STATUS_ACTIVA => 'Activa',
+            0 => 'Inactiva',
+            1 => 'En Proceso',
+            2 => 'Aprobada',
+            3 => 'Activa',
         ];
     }
 
@@ -124,7 +104,7 @@ trait HasListaPrecioStatus
      */
     public function scopeInactiva($query)
     {
-        return $query->where('status', self::STATUS_INACTIVA);
+        return $query->where('status', 0);
     }
 
     /**
@@ -135,7 +115,7 @@ trait HasListaPrecioStatus
      */
     public function scopeEnProceso($query)
     {
-        return $query->where('status', self::STATUS_EN_PROCESO);
+        return $query->where('status', 1);
     }
 
     /**
@@ -146,7 +126,7 @@ trait HasListaPrecioStatus
      */
     public function scopeAprobada($query)
     {
-        return $query->where('status', self::STATUS_APROBADA);
+        return $query->where('status', 2);
     }
 
     /**
@@ -157,7 +137,7 @@ trait HasListaPrecioStatus
      */
     public function scopeActiva($query)
     {
-        return $query->where('status', self::STATUS_ACTIVA);
+        return $query->where('status', 3);
     }
 }
 
