@@ -13,6 +13,10 @@ class Kernel extends ConsoleKernel
     protected function schedule(Schedule $schedule): void
     {
         // $schedule->command('inspire')->hourly();
+
+        // Comando para gestionar automáticamente los estados de las listas de precios
+        // Activa listas aprobadas e inactiva listas vencidas diariamente
+        $schedule->command('financiero:gestionar-listas-precios')->daily();
     }
 
     /**

@@ -451,8 +451,97 @@ class RolesAndPermissionsSeeder extends Seeder
                     //'modulo'=>'academico'
                     ])->syncRoles([$Superusuario,$financiero,$coordinador]);
 
+        // Create permissions tipos de producto (Listas de Precios)
+        Permission::create([
+                    'name'=>'fin_lp_tipos_producto',
+                    'descripcion'=>'ver tipos de producto',
+                    //'modulo'=>'financiero'
+                    ])->syncRoles([$Superusuario,$financiero,$coordinador]);
+        Permission::create([
+                    'name'=>'fin_lp_tipoProductoCrear',
+                    'descripcion'=>'crear tipo de producto',
+                    //'modulo'=>'financiero'
+                    ])->syncRoles([$Superusuario,$financiero,$coordinador]);
+        Permission::create([
+                    'name'=>'fin_lp_tipoProductoEditar',
+                    'descripcion'=>'editar tipo de producto',
+                    //'modulo'=>'financiero'
+                    ])->syncRoles([$Superusuario,$financiero,$coordinador]);
+        Permission::create([
+                    'name'=>'fin_lp_tipoProductoInactivar',
+                    'descripcion'=>'inactivar tipo de producto',
+                    //'modulo'=>'financiero'
+                    ])->syncRoles([$Superusuario,$financiero,$coordinador]);
 
-            }
+        // Create permissions productos (Listas de Precios)
+        Permission::create([
+                    'name'=>'fin_lp_productos',
+                    'descripcion'=>'ver productos',
+                    //'modulo'=>'financiero'
+                    ])->syncRoles([$Superusuario,$financiero,$coordinador]);
+        Permission::create([
+                    'name'=>'fin_lp_productoCrear',
+                    'descripcion'=>'crear producto',
+                    //'modulo'=>'financiero'
+                    ])->syncRoles([$Superusuario,$financiero,$coordinador]);
+        Permission::create([
+                    'name'=>'fin_lp_productoEditar',
+                    'descripcion'=>'editar producto',
+                    //'modulo'=>'financiero'
+                    ])->syncRoles([$Superusuario,$financiero,$coordinador]);
+        Permission::create([
+                    'name'=>'fin_lp_productoInactivar',
+                    'descripcion'=>'inactivar producto',
+                    //'modulo'=>'financiero'
+                    ])->syncRoles([$Superusuario,$financiero,$coordinador]);
 
+        // Create permissions listas de precios
+        Permission::create([
+                    'name'=>'fin_lp_listas_precios',
+                    'descripcion'=>'ver listas de precios',
+                    //'modulo'=>'financiero'
+                    ])->syncRoles([$Superusuario,$financiero,$coordinador]);
+        Permission::create([
+                    'name'=>'fin_lp_listaPrecioCrear',
+                    'descripcion'=>'crear lista de precios',
+                    //'modulo'=>'financiero'
+                    ])->syncRoles([$Superusuario,$financiero,$coordinador]);
+        Permission::create([
+                    'name'=>'fin_lp_listaPrecioEditar',
+                    'descripcion'=>'editar lista de precios',
+                    //'modulo'=>'financiero'
+                    ])->syncRoles([$Superusuario,$financiero,$coordinador]);
+        Permission::create([
+                    'name'=>'fin_lp_listaPrecioInactivar',
+                    'descripcion'=>'inactivar lista de precios',
+                    //'modulo'=>'financiero'
+                    ])->syncRoles([$Superusuario,$financiero,$coordinador]);
+        Permission::create([
+                    'name'=>'fin_lp_listaPrecioAprobar',
+                    'descripcion'=>'aprobar lista de precios',
+                    //'modulo'=>'financiero'
+                    ])->syncRoles([$Superusuario,$financiero,$coordinador]);
 
+        // Create permissions precios de productos
+        Permission::create([
+                    'name'=>'fin_lp_precios_producto',
+                    'descripcion'=>'ver precios de productos',
+                    //'modulo'=>'financiero'
+                    ])->syncRoles([$Superusuario,$financiero,$coordinador]);
+        Permission::create([
+                    'name'=>'fin_lp_precioProductoCrear',
+                    'descripcion'=>'crear precio de producto',
+                    //'modulo'=>'financiero'
+                    ])->syncRoles([$Superusuario,$financiero,$coordinador]);
+        Permission::create([
+                    'name'=>'fin_lp_precioProductoEditar',
+                    'descripcion'=>'editar precio de producto',
+                    //'modulo'=>'financiero'
+                    ])->syncRoles([$Superusuario,$financiero,$coordinador]);
+        Permission::create([
+                    'name'=>'fin_lp_precioProductoInactivar',
+                    'descripcion'=>'inactivar precio de producto',
+                    //'modulo'=>'financiero'
+                    ])->syncRoles([$Superusuario,$financiero,$coordinador]);
+    }
 }
