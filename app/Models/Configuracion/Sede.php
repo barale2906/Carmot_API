@@ -2,6 +2,7 @@
 
 namespace App\Models\Configuracion;
 
+use App\Models\Financiero\Descuento\Descuento;
 use App\Traits\HasSedeFilterScopes;
 use App\Traits\HasRelationScopes;
 use App\Traits\HasSortingScopes;
@@ -33,6 +34,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property-read \App\Models\Configuracion\Poblacion $poblacion Población a la que pertenece
  * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\Configuracion\Area[] $areas Áreas asignadas a la sede
  * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\Configuracion\Horario[] $horarios Horarios de atención de la sede
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, Descuento> $descuentos Descuentos asociados a esta sede
  * @property-read \Carbon\CarbonInterval|null $duracion Duración entre hora_inicio y hora_fin
  * @property-read float|null $duracion_en_horas Duración en horas
  * @property-read int|null $duracion_en_minutos Duración en minutos
@@ -73,6 +75,23 @@ class Sede extends Model
     public function areas(): BelongsToMany
     {
         return $this->belongsToMany(Area::class, 'area_sede');
+    }
+
+    /**
+     * Relación con Descuentos (muchos a muchos).
+     * Una sede puede tener múltiples descuentos asociados.
+     * La relación se establece a través de la tabla pivot descuento_sede.
+     *
+     * @return BelongsToMany
+     */
+    public function descuentos(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            Descuento::class,
+            'descuento_sede',
+            'sede_id',
+            'descuento_id'
+        )->withTimestamps();
     }
 
     /**
@@ -133,7 +152,8 @@ class Sede extends Model
             'horarios',
             'grupos',
             'ciclos',
-            'programaciones'
+            'programaciones',
+            'descuentos'
         ];
     }
 
@@ -163,7 +183,8 @@ class Sede extends Model
             'horarios',
             'grupos',
             'ciclos',
-            'programaciones'
+            'programaciones',
+            'descuentos'
         ];
     }
 

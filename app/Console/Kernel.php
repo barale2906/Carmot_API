@@ -17,6 +17,10 @@ class Kernel extends ConsoleKernel
         // Comando para gestionar automáticamente los estados de las listas de precios
         // Activa listas aprobadas e inactiva listas vencidas diariamente
         $schedule->command('financiero:gestionar-listas-precios')->daily();
+
+        // Comando para gestionar automáticamente los estados de los descuentos
+        // Activa descuentos aprobados e inactiva descuentos vencidos diariamente
+        $schedule->command('financiero:gestionar-descuentos')->daily();
     }
 
     /**

@@ -565,5 +565,42 @@ class RolesAndPermissionsSeeder extends Seeder
                     'descripcion'=>'inactivar concepto de pago',
                     //'modulo'=>'financiero'
                     ])->syncRoles([$Superusuario,$financiero,$coordinador]);
+
+        // Create permissions descuentos
+        Permission::create([
+                    'name'=>'fin_descuentos',
+                    'descripcion'=>'ver descuentos',
+                    //'modulo'=>'financiero'
+                    ])->syncRoles([$Superusuario,$financiero,$coordinador]);
+        Permission::create([
+                    'name'=>'fin_descuentoCrear',
+                    'descripcion'=>'crear descuento',
+                    //'modulo'=>'financiero'
+                    ])->syncRoles([$Superusuario,$financiero,$coordinador]);
+        Permission::create([
+                    'name'=>'fin_descuentoEditar',
+                    'descripcion'=>'editar descuento',
+                    //'modulo'=>'financiero'
+                    ])->syncRoles([$Superusuario,$financiero,$coordinador]);
+        Permission::create([
+                    'name'=>'fin_descuentoInactivar',
+                    'descripcion'=>'inactivar descuento',
+                    //'modulo'=>'financiero'
+                    ])->syncRoles([$Superusuario,$financiero,$coordinador]);
+        Permission::create([
+                    'name'=>'fin_descuentoAprobar',
+                    'descripcion'=>'aprobar descuento',
+                    //'modulo'=>'financiero'
+                    ])->syncRoles([$Superusuario,$financiero]);
+        Permission::create([
+                    'name'=>'fin_descuentoAplicar',
+                    'descripcion'=>'aplicar descuento',
+                    //'modulo'=>'financiero'
+                    ])->syncRoles([$Superusuario,$financiero,$coordinador,$auxiliar]);
+        Permission::create([
+                    'name'=>'fin_descuentoHistorial',
+                    'descripcion'=>'ver historial de descuentos aplicados',
+                    //'modulo'=>'financiero'
+                    ])->syncRoles([$Superusuario,$financiero,$coordinador]);
     }
 }

@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\Financiero\ConceptoPago\ConceptoPagoController;
+use App\Http\Controllers\Api\Financiero\Descuento\DescuentoController;
 use App\Http\Controllers\Api\Financiero\Lp\LpListaPrecioController;
 use App\Http\Controllers\Api\Financiero\Lp\LpPrecioProductoController;
 use App\Http\Controllers\Api\Financiero\Lp\LpProductoController;
@@ -70,6 +71,25 @@ Route::middleware('auth:sanctum')->group(function () {
         // Ruta para agregar un nuevo tipo al sistema
         Route::post('tipos/agregar', [ConceptoPagoController::class, 'agregarTipo'])
             ->name('conceptos-pago.agregar-tipo');
+    });
+
+    // Grupo de rutas para Descuentos
+    // Rutas principales de descuentos (CRUD estándar)
+    Route::apiResource('descuentos', DescuentoController::class);
+
+    // Rutas adicionales para funcionalidades específicas de descuentos
+    Route::prefix('descuentos')->group(function () {
+        // Ruta para aprobar un descuento (cambiar de "en proceso" a "aprobado")
+        Route::post('{id}/aprobar', [DescuentoController::class, 'aprobar'])
+            ->name('descuentos.aprobar');
+
+        // Ruta para aplicar descuentos a un precio
+        Route::post('aplicar', [DescuentoController::class, 'aplicarDescuento'])
+            ->name('descuentos.aplicar');
+
+        // Ruta para obtener el historial de descuentos aplicados
+        Route::get('historial', [DescuentoController::class, 'historial'])
+            ->name('descuentos.historial');
     });
 });
 

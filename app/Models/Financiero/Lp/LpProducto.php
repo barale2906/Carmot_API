@@ -4,6 +4,7 @@ namespace App\Models\Financiero\Lp;
 
 use App\Models\Academico\Curso;
 use App\Models\Academico\Modulo;
+use App\Models\Financiero\Descuento\Descuento;
 use App\Traits\HasActiveStatus;
 use App\Traits\HasFilterScopes;
 use App\Traits\HasGenericScopes;
@@ -40,6 +41,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property-read \App\Models\Academico\Curso|\App\Models\Academico\Modulo|null $referencia Referencia polimórfica al curso o módulo
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Financiero\Lp\LpPrecioProducto> $precios Precios del producto en diferentes listas
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Financiero\Lp\LpListaPrecio> $listasPrecios Listas de precios donde aparece el producto
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, Descuento> $descuentos Descuentos asociados a este producto
  */
 class LpProducto extends Model
 {
@@ -116,6 +118,23 @@ class LpProducto extends Model
     }
 
     /**
+     * Relación con Descuentos (muchos a muchos).
+     * Un producto puede tener múltiples descuentos asociados.
+     * La relación se establece a través de la tabla pivot descuento_producto.
+     *
+     * @return BelongsToMany
+     */
+    public function descuentos(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            Descuento::class,
+            'descuento_producto',
+            'producto_id',
+            'descuento_id'
+        )->withTimestamps();
+    }
+
+    /**
      * Verifica si el producto es financiable.
      * Un producto es financiable si su tipo de producto tiene la propiedad es_financiable en true.
      *
@@ -155,7 +174,8 @@ class LpProducto extends Model
             'tipoProducto',
             'referencia',
             'precios',
-            'listasPrecios'
+            'listasPrecios',
+            'descuentos'
         ];
     }
 
@@ -178,7 +198,8 @@ class LpProducto extends Model
     {
         return [
             'precios',
-            'listasPrecios'
+            'listasPrecios',
+            'descuentos'
         ];
     }
 }
