@@ -147,3 +147,6 @@ class LpTipoProductoFactory extends Factory
     }
 }
 
+
+
+
