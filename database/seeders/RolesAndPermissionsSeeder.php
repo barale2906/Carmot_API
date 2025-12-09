@@ -602,5 +602,42 @@ class RolesAndPermissionsSeeder extends Seeder
                     'descripcion'=>'ver historial de descuentos aplicados',
                     //'modulo'=>'financiero'
                     ])->syncRoles([$Superusuario,$financiero,$coordinador]);
+
+        // Create permissions Recibos de Pago
+        Permission::create([
+                    'name'=>'fin_recibos_pago',
+                    'descripcion'=>'ver recibos de pago',
+                    //'modulo'=>'financiero'
+                    ])->syncRoles([$Superusuario,$financiero,$coordinador,$auxiliar]);
+        Permission::create([
+                    'name'=>'fin_reciboPagoCrear',
+                    'descripcion'=>'crear recibo de pago',
+                    //'modulo'=>'financiero'
+                    ])->syncRoles([$Superusuario,$financiero,$coordinador,$auxiliar]);
+        Permission::create([
+                    'name'=>'fin_reciboPagoEditar',
+                    'descripcion'=>'editar recibo de pago',
+                    //'modulo'=>'financiero'
+                    ])->syncRoles([$Superusuario,$financiero,$coordinador]);
+        Permission::create([
+                    'name'=>'fin_reciboPagoAnular',
+                    'descripcion'=>'anular recibo de pago',
+                    //'modulo'=>'financiero'
+                    ])->syncRoles([$Superusuario,$financiero,$coordinador]);
+        Permission::create([
+                    'name'=>'fin_reciboPagoCerrar',
+                    'descripcion'=>'cerrar recibo de pago',
+                    //'modulo'=>'financiero'
+                    ])->syncRoles([$Superusuario,$financiero,$coordinador]);
+        Permission::create([
+                    'name'=>'fin_reciboPagoReportes',
+                    'descripcion'=>'ver reportes de recibos de pago',
+                    //'modulo'=>'financiero'
+                    ])->syncRoles([$Superusuario,$financiero,$coordinador]);
+        Permission::create([
+                    'name'=>'fin_reciboPagoPDF',
+                    'descripcion'=>'generar PDF de recibo de pago',
+                    //'modulo'=>'financiero'
+                    ])->syncRoles([$Superusuario,$financiero,$coordinador,$auxiliar,$alumno]);
     }
 }

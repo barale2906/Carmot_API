@@ -14,6 +14,7 @@ use App\Models\Crm\Agenda;
 use App\Models\Crm\Referido;
 use App\Models\Crm\Seguimiento;
 use App\Models\Dashboard\Dashboard;
+use App\Models\Financiero\ReciboPago\ReciboPago;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -152,5 +153,27 @@ class User extends Authenticatable
     public function clasesProgramadas(): HasMany
     {
         return $this->hasMany(AsistenciaClaseProgramada::class, 'creado_por_id');
+    }
+
+    /**
+     * Relación con RecibosPago como Estudiante (uno a muchos).
+     * Un estudiante puede tener múltiples recibos de pago.
+     *
+     * @return HasMany
+     */
+    public function recibosPagoComoEstudiante(): HasMany
+    {
+        return $this->hasMany(ReciboPago::class, 'estudiante_id');
+    }
+
+    /**
+     * Relación con RecibosPago como Cajero (uno a muchos).
+     * Un cajero puede generar múltiples recibos de pago.
+     *
+     * @return HasMany
+     */
+    public function recibosPagoComoCajero(): HasMany
+    {
+        return $this->hasMany(ReciboPago::class, 'cajero_id');
     }
 }

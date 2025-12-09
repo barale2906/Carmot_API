@@ -5,6 +5,7 @@ namespace App\Models\Financiero\Lp;
 use App\Models\Academico\Curso;
 use App\Models\Academico\Modulo;
 use App\Models\Financiero\Descuento\Descuento;
+use App\Models\Financiero\ReciboPago\ReciboPago;
 use App\Traits\HasActiveStatus;
 use App\Traits\HasFilterScopes;
 use App\Traits\HasGenericScopes;
@@ -135,6 +136,24 @@ class LpProducto extends Model
     }
 
     /**
+     * Relación con RecibosPago (muchos a muchos).
+     * Un producto puede estar en múltiples recibos de pago.
+     * La relación se establece a través de la tabla pivot recibo_pago_producto.
+     *
+     * @return BelongsToMany
+     */
+    public function recibosPago(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            ReciboPago::class,
+            'recibo_pago_producto',
+            'producto_id',
+            'recibo_pago_id'
+        )->withPivot(['cantidad', 'precio_unitario', 'subtotal'])
+         ->withTimestamps();
+    }
+
+    /**
      * Verifica si el producto es financiable.
      * Un producto es financiable si su tipo de producto tiene la propiedad es_financiable en true.
      *
@@ -175,7 +194,8 @@ class LpProducto extends Model
             'referencia',
             'precios',
             'listasPrecios',
-            'descuentos'
+            'descuentos',
+            'recibosPago'
         ];
     }
 

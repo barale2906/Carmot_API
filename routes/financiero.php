@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\Financiero\Lp\LpListaPrecioController;
 use App\Http\Controllers\Api\Financiero\Lp\LpPrecioProductoController;
 use App\Http\Controllers\Api\Financiero\Lp\LpProductoController;
 use App\Http\Controllers\Api\Financiero\Lp\LpTipoProductoController;
+use App\Http\Controllers\Api\Financiero\ReciboPago\ReciboPagoController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -90,6 +91,33 @@ Route::middleware('auth:sanctum')->group(function () {
         // Ruta para obtener el historial de descuentos aplicados
         Route::get('historial', [DescuentoController::class, 'historial'])
             ->name('descuentos.historial');
+    });
+
+    // Grupo de rutas para Recibos de Pago
+    // Rutas principales de recibos de pago (CRUD estándar)
+    Route::apiResource('recibos-pago', ReciboPagoController::class);
+
+    // Rutas adicionales para funcionalidades específicas de recibos de pago
+    Route::prefix('recibos-pago')->group(function () {
+        // Ruta para anular un recibo de pago
+        Route::post('{reciboPago}/anular', [ReciboPagoController::class, 'anular'])
+            ->name('recibos-pago.anular');
+
+        // Ruta para cerrar un recibo de pago
+        Route::post('{reciboPago}/cerrar', [ReciboPagoController::class, 'cerrar'])
+            ->name('recibos-pago.cerrar');
+
+        // Ruta para generar PDF del recibo
+        Route::get('{reciboPago}/pdf', [ReciboPagoController::class, 'generarPDF'])
+            ->name('recibos-pago.pdf');
+
+        // Ruta para enviar recibo por correo electrónico
+        Route::post('{reciboPago}/enviar-email', [ReciboPagoController::class, 'enviarEmail'])
+            ->name('recibos-pago.enviar-email');
+
+        // Ruta para generar reportes
+        Route::get('reportes', [ReciboPagoController::class, 'reportes'])
+            ->name('recibos-pago.reportes');
     });
 });
 

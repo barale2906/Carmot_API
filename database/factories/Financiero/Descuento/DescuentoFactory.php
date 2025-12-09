@@ -35,6 +35,24 @@ class DescuentoFactory extends Factory
         // Generar código de descuento opcional (50% de probabilidad)
         $codigoDescuento = fake()->boolean(50) ? fake()->unique()->regexify('[A-Z0-9]{8,15}') : null;
 
+        // Seleccionar tipo de activación primero
+        $tipoActivacion = fake()->randomElement([
+            Descuento::ACTIVACION_PAGO_ANTICIPADO,
+            Descuento::ACTIVACION_PROMOCION_MATRICULA,
+            Descuento::ACTIVACION_CODIGO_PROMOCIONAL
+        ]);
+
+        // Si es pago anticipado, siempre debe tener dias_anticipacion
+        // Si es código promocional, debe tener código_descuento
+        $diasAnticipacion = null;
+        if ($tipoActivacion === Descuento::ACTIVACION_PAGO_ANTICIPADO) {
+            $diasAnticipacion = fake()->numberBetween(1, 30);
+            $codigoDescuento = null; // No puede tener código si es pago anticipado
+        } elseif ($tipoActivacion === Descuento::ACTIVACION_CODIGO_PROMOCIONAL) {
+            $codigoDescuento = $codigoDescuento ?? fake()->unique()->regexify('[A-Z0-9]{8,15}');
+            $diasAnticipacion = null;
+        }
+
         return [
             'nombre' => fake()->sentence(3),
             'codigo_descuento' => $codigoDescuento,
@@ -49,12 +67,8 @@ class DescuentoFactory extends Factory
                 Descuento::APLICACION_MATRICULA,
                 Descuento::APLICACION_CUOTA
             ]),
-            'tipo_activacion' => fake()->randomElement([
-                Descuento::ACTIVACION_PAGO_ANTICIPADO,
-                Descuento::ACTIVACION_PROMOCION_MATRICULA,
-                Descuento::ACTIVACION_CODIGO_PROMOCIONAL
-            ]),
-            'dias_anticipacion' => fake()->optional()->numberBetween(1, 30),
+            'tipo_activacion' => $tipoActivacion,
+            'dias_anticipacion' => $diasAnticipacion,
             'permite_acumulacion' => fake()->boolean(30), // 30% de probabilidad de ser true
             'fecha_inicio' => $fechaInicio,
             'fecha_fin' => $fechaFin,

@@ -4,6 +4,7 @@ namespace App\Models\Financiero\Lp;
 
 use App\Models\Configuracion\Poblacion;
 use App\Models\Financiero\Descuento\Descuento;
+use App\Models\Financiero\ReciboPago\ReciboPago;
 use App\Traits\Financiero\HasListaPrecioStatus;
 use App\Traits\HasFilterScopes;
 use App\Traits\HasGenericScopes;
@@ -255,6 +256,23 @@ class LpListaPrecio extends Model
     }
 
     /**
+     * Relación con RecibosPago (muchos a muchos).
+     * Una lista de precios puede estar en múltiples recibos de pago.
+     * La relación se establece a través de la tabla pivot recibo_pago_lista_precio.
+     *
+     * @return BelongsToMany
+     */
+    public function recibosPago(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            ReciboPago::class,
+            'recibo_pago_lista_precio',
+            'lista_precio_id',
+            'recibo_pago_id'
+        )->withTimestamps();
+    }
+
+    /**
      * Obtiene las relaciones permitidas para este modelo.
      *
      * @return array<string>
@@ -267,7 +285,8 @@ class LpListaPrecio extends Model
             'productos',
             'descuentos',
             'preciosProductos.producto',
-            'preciosProductos.producto.tipoProducto'
+            'preciosProductos.producto.tipoProducto',
+            'recibosPago'
         ];
     }
 

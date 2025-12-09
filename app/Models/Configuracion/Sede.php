@@ -3,6 +3,7 @@
 namespace App\Models\Configuracion;
 
 use App\Models\Financiero\Descuento\Descuento;
+use App\Models\Financiero\ReciboPago\ReciboPago;
 use App\Traits\HasSedeFilterScopes;
 use App\Traits\HasRelationScopes;
 use App\Traits\HasSortingScopes;
@@ -139,6 +140,17 @@ class Sede extends Model
     }
 
     /**
+     * Relación con RecibosPago (uno a muchos).
+     * Una sede puede tener múltiples recibos de pago.
+     *
+     * @return HasMany
+     */
+    public function recibosPago(): HasMany
+    {
+        return $this->hasMany(ReciboPago::class);
+    }
+
+    /**
      * Obtiene las relaciones permitidas para este modelo.
      * Sobrescribe el método del trait HasRelationScopes.
      *
@@ -153,7 +165,8 @@ class Sede extends Model
             'grupos',
             'ciclos',
             'programaciones',
-            'descuentos'
+            'descuentos',
+            'recibosPago'
         ];
     }
 

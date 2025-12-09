@@ -2,6 +2,7 @@
 
 namespace App\Models\Academico;
 
+use App\Models\Financiero\ReciboPago\ReciboPago;
 use App\Models\User;
 use App\Traits\HasActiveStatus;
 use App\Traits\HasFilterScopes;
@@ -10,6 +11,7 @@ use App\Traits\HasSortingScopes;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
@@ -127,6 +129,17 @@ class Matricula extends Model
     public function comercial(): BelongsTo
     {
         return $this->belongsTo(User::class, 'comercial_id');
+    }
+
+    /**
+     * Relación con RecibosPago (uno a muchos).
+     * Una matrícula puede tener múltiples recibos de pago asociados.
+     *
+     * @return HasMany
+     */
+    public function recibosPago(): HasMany
+    {
+        return $this->hasMany(ReciboPago::class);
     }
 
     /**
@@ -282,7 +295,8 @@ class Matricula extends Model
             'ciclo',
             'estudiante',
             'matriculadoPor',
-            'comercial'
+            'comercial',
+            'recibosPago'
         ];
     }
 

@@ -8,6 +8,7 @@ use App\Traits\HasRelationScopes;
 use App\Traits\HasSortingScopes;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
@@ -99,13 +100,33 @@ class ConceptoPago extends Model
     }
 
     /**
+     * Relación con RecibosPago (muchos a muchos).
+     * Un concepto de pago puede estar en múltiples recibos de pago.
+     * La relación se establece a través de la tabla pivot recibo_pago_concepto_pago.
+     *
+     * @return BelongsToMany
+     */
+    public function recibosPago(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            \App\Models\Financiero\ReciboPago\ReciboPago::class,
+            'recibo_pago_concepto_pago',
+            'concepto_pago_id',
+            'recibo_pago_id'
+        )->withPivot(['valor', 'tipo', 'producto', 'cantidad', 'unitario', 'subtotal', 'id_relacional', 'observaciones'])
+         ->withTimestamps();
+    }
+
+    /**
      * Obtiene las relaciones permitidas para este modelo.
      *
      * @return array<string>
      */
     protected function getAllowedRelations(): array
     {
-        return [];
+        return [
+            'recibosPago'
+        ];
     }
 
     /**

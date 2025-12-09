@@ -220,6 +220,24 @@ class Descuento extends Model
     }
 
     /**
+     * Relación con RecibosPago (muchos a muchos).
+     * Un descuento puede estar aplicado en múltiples recibos de pago.
+     * La relación se establece a través de la tabla pivot recibo_pago_descuento.
+     *
+     * @return BelongsToMany
+     */
+    public function recibosPago(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            \App\Models\Financiero\ReciboPago\ReciboPago::class,
+            'recibo_pago_descuento',
+            'descuento_id',
+            'recibo_pago_id'
+        )->withPivot(['valor_descuento', 'valor_original', 'valor_final'])
+         ->withTimestamps();
+    }
+
+    /**
      * Verifica si el descuento está vigente en una fecha específica.
      * Un descuento está vigente si está activo (status = 3) y la fecha está dentro del rango de vigencia.
      *
@@ -477,7 +495,8 @@ class Descuento extends Model
             'poblaciones',
             'descuentosAplicados',
             'listasPrecios.poblaciones',
-            'productos.tipoProducto'
+            'productos.tipoProducto',
+            'recibosPago'
         ];
     }
 
