@@ -16,7 +16,7 @@ class UserResource extends JsonResource
     {
         return [
             'id' => $this->id,
-            'name' => is_array($this->name) ? $this->name['es'] ?? $this->name['en'] ?? reset($this->name) : $this->name,
+            'name' => $this->name,
             'email' => $this->email,
             'documento' => $this->documento,
             /** @var array<string> */

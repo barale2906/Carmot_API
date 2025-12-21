@@ -48,7 +48,7 @@ class User extends Authenticatable
      * @var array<int, string>
      */
     public $translatable = [
-        'name',
+        // 'name' removido - el nombre del usuario no debe ser traducible
     ];
 
     /**
