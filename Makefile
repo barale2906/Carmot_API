@@ -39,7 +39,7 @@ wait-db:
 show-urls:
 	@echo ''; echo -e '$(GREEN)=> Acceso:$(NC)'; \
 	echo -e '   API:  http://localhost:8000'; \
-	echo -e '   API:  http://localhost:8000/api'; \
+	echo -e '   API:  http://localhost:8000/docs/api'; \
 	echo ''; echo -e '$(GREEN)=> Base de datos:$(NC)'; \
 	echo -e '   Host: localhost:3306'; \
 	echo -e '   User: root / root'; \
