@@ -47,6 +47,49 @@ Procesamiento robusto de trabajos en segundo plano (Queues).
 
 Transmisión de eventos en tiempo real (Broadcasting).
 
+## Configuración con Docker (Ubuntu / desarrollo)
+
+El proyecto está preparado para ejecutarse con Docker siguiendo la guía de desarrollo. **No es necesario instalar PHP ni MySQL en el sistema.**
+
+### Primer arranque
+
+```bash
+# 1. Copiar configuración Docker (si no existe .env)
+cp .env.docker .env
+
+# 2. Iniciar contenedores
+make up
+
+# 3. Generar APP_KEY y ejecutar migraciones
+make artisan key:generate
+make artisan migrate
+
+# 4. (Opcional) Ejecutar seeders
+make artisan db:seed
+```
+
+### Flujo diario
+
+| Momento      | Comando      | Descripción                                                |
+|--------------|--------------|------------------------------------------------------------|
+| **Fin del día**  | `make stop`  | Detiene contenedores sin borrar volúmenes (datos se conservan) |
+| **Inicio del día** | `make start` | Arranca los contenedores existentes                        |
+
+### Comandos útiles
+
+```bash
+make artisan migrate        # Migraciones
+make artisan db:seed        # Seeders
+make composer install       # Dependencias PHP
+make app                    # Entrar al contenedor
+make show-urls              # Ver URLs de acceso
+```
+
+- **API**: http://localhost:8000
+- **MySQL**: localhost:3306 (root / root, base de datos: carmot_api)
+
+---
+
 Aprendiendo a Usar la API y Laravel
 Para los desarrolladores que deseen integrar o contribuir a esta API, Laravel cuenta con una documentación extensa y completa, así como una biblioteca de tutoriales en video, lo que facilita enormemente el inicio con el framework.
 
