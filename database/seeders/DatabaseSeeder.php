@@ -31,7 +31,7 @@ class DatabaseSeeder extends Seeder
             ProgramacionSeeder::class,
             MatriculaSeeder::class,
             EsquemaCalificacionSeeder::class,
-            //NotaEstudianteSeeder::class,
+            NotaEstudianteSeeder::class,
             TipoNotaEsquemaSeeder::class,
             AsistenciaConfiguracionSeeder::class,
             AsistenciaClaseProgramadaSeeder::class,
