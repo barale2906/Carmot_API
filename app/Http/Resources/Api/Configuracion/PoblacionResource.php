@@ -21,6 +21,7 @@ class PoblacionResource extends JsonResource
             'nombre' => $this->nombre,
             'latitud' => $this->latitud,
             'longitud' => $this->longitud,
+            'status' => $this->status,
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
         ];

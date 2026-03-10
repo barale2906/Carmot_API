@@ -16,6 +16,7 @@ class PoblacionController extends Controller
     public function __construct()
     {
         $this->middleware('permission:co_poblaciones')->only(['index', 'show']);
+        $this->middleware('permission:co_poblacionInactivar')->only(['toggleStatus']);
     }
 
     /**
@@ -27,7 +28,7 @@ class PoblacionController extends Controller
     public function index(Request $request): JsonResponse
     {
         // Preparar filtros
-        $filters = $request->only(['search', 'pais', 'provincia']);
+        $filters = $request->only(['search', 'pais', 'provincia', 'status']);
 
         // Preparar relaciones (poblaciones no tienen relaciones complejas)
         $relations = $request->has('with')
@@ -78,6 +79,29 @@ class PoblacionController extends Controller
     }
 
     /**
+     * Activa o inactiva una población (toggle de estado).
+     *
+     * Cambia el campo status: 0 (inactivo) ↔ 1 (activo).
+     *
+     * @param Poblacion $poblacion
+     * @return JsonResponse
+     */
+    public function toggleStatus(Poblacion $poblacion): JsonResponse
+    {
+        $poblacion->status = $poblacion->status === 1 ? 0 : 1;
+        $poblacion->save();
+
+        $mensaje = $poblacion->status === 1
+            ? 'Población activada correctamente.'
+            : 'Población inactivada correctamente.';
+
+        return response()->json([
+            'data' => new PoblacionResource($poblacion),
+            'message' => $mensaje,
+        ]);
+    }
+
+    /**
      * Obtiene las opciones de filtros disponibles.
      *
      * @return JsonResponse
@@ -104,7 +128,9 @@ class PoblacionController extends Controller
     {
         $stats = [
             'totales' => [
-                'total' => Poblacion::count(),
+                'total'     => Poblacion::count(),
+                'activas'   => Poblacion::where('status', 1)->count(),
+                'inactivas' => Poblacion::where('status', 0)->count(),
             ],
             'por_pais' => Poblacion::selectRaw('pais, count(*) as total')
                 ->groupBy('pais')

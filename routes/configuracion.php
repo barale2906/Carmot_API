@@ -32,12 +32,14 @@ Route::middleware('auth:sanctum')->group(function () {
         ->name('users.force-delete');
     Route::apiResource('users', UserController::class);
 
-    // Rutas de poblaciones (solo lectura)
+    // Rutas de poblaciones
     Route::prefix('poblaciones')->group(function () {
         Route::get('filters/options', [PoblacionController::class, 'filters'])
             ->name('poblaciones.filters');
         Route::get('statistics', [PoblacionController::class, 'statistics'])
             ->name('poblaciones.statistics');
+        Route::patch('{poblacion}/toggle-status', [PoblacionController::class, 'toggleStatus'])
+            ->name('poblaciones.toggle-status');
     });
     Route::get('poblaciones', [PoblacionController::class, 'index'])
         ->name('poblaciones.index');

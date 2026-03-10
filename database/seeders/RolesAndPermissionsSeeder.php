@@ -192,6 +192,11 @@ class RolesAndPermissionsSeeder extends Seeder
             'descripcion'=>'ver poblaciones',
             //'modulo'=>'configuracion'
             ])->syncRoles([$Superusuario,$financiero,$coordinador,$auxiliar]);
+        Permission::create([
+            'name'=>'co_poblacionInactivar',
+            'descripcion'=>'activar/inactivar poblacion',
+            //'modulo'=>'configuracion'
+            ])->syncRoles([$Superusuario,$financiero,$coordinador]);
 
         // Create permissions sede
         Permission::create([

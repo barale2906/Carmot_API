@@ -41,6 +41,18 @@ trait HasPoblacionFilterScopes
     }
 
     /**
+     * Scope para filtrar por estado (activo/inactivo).
+     *
+     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @param int $status  0 = inactivo, 1 = activo
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    public function scopeByStatus($query, $status)
+    {
+        return $query->where('status', (int) $status);
+    }
+
+    /**
      * Scope para aplicar múltiples filtros de manera dinámica.
      *
      * @param \Illuminate\Database\Eloquent\Builder $query
@@ -58,6 +70,9 @@ trait HasPoblacionFilterScopes
             })
             ->when(isset($filters['provincia']) && $filters['provincia'], function ($q) use ($filters) {
                 return $q->byProvincia($filters['provincia']);
+            })
+            ->when(isset($filters['status']) && $filters['status'] !== null && $filters['status'] !== '', function ($q) use ($filters) {
+                return $q->byStatus($filters['status']);
             });
     }
 }
