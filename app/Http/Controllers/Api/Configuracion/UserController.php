@@ -28,7 +28,9 @@ class UserController extends Controller
      * Mostrar una lista de usuarios.
      * @queryParam page int Número de página. Ejemplo: 1
      * @queryParam per_page int Número de elementos por página. Ejemplo: 15
-     * @queryParam search string Buscar usuarios por nombre o correo electrónico. Ejemplo: John Doe
+     * @queryParam search string Buscar usuarios por nombre, correo o documento. Ejemplo: John Doe
+     * @queryParam role string Filtrar por nombre de rol. Ejemplo: profesor
+     * @queryParam with string Relaciones a cargar separadas por coma. Ejemplo: roles,cursos
      *
      * @apiResourceCollection App\Http\Resources\UserResource
      * @apiResourceModel App\Models\User
@@ -40,7 +42,7 @@ class UserController extends Controller
         try {
             $query = User::query();
 
-            if ($request->has('search') && !empty($request->input('search'))) {
+            if ($request->filled('search')) {
                 $search = $request->input('search');
                 $query->where(function($q) use ($search) {
                     $q->where('name', 'like', "%{$search}%")
@@ -49,9 +51,13 @@ class UserController extends Controller
                 });
             }
 
+            if ($request->filled('role')) {
+                $query->role($request->input('role'));
+            }
+
             // Preparar relaciones - básicas por defecto
             $relations = $request->has('with')
-                ? explode(',', $request->with)
+                ? explode(',', $request->input('with'))
                 : ['roles', 'permissions', 'grupos', 'cursos', 'gestores', 'agendadores', 'seguimientos'];
 
             $users = $query->with($relations)->paginate($request->input('per_page', 15));
@@ -254,8 +260,8 @@ class UserController extends Controller
         $roles = \Spatie\Permission\Models\Role::select('id', 'name')->get();
         $profesores = User::role('profesor')->select('id', 'name')->get();
         $cursos = \App\Models\Academico\Curso::select('id', 'nombre')->get();
-        $gestores = User::role('gestor')->select('id', 'name')->get();
-        $agendadores = User::role('agendador')->select('id', 'name')->get();
+        $gestores = User::whereHas('gestores')->select('id', 'name')->get();
+        $agendadores = User::whereHas('agendadores')->select('id', 'name')->get();
 
         return response()->json([
             'data' => [
@@ -282,37 +288,37 @@ class UserController extends Controller
                 'eliminados' => User::onlyTrashed()->count(),
             ],
             'por_rol' => User::with('roles')
-                ->selectRaw('id, count(model_has_roles.role_id) as total_roles')
+                ->selectRaw('users.id, count(model_has_roles.role_id) as total_roles')
                 ->leftJoin('model_has_roles', 'users.id', '=', 'model_has_roles.model_id')
                 ->groupBy('users.id')
                 ->having('total_roles', '>', 0)
                 ->get(),
             'con_grupos' => User::with('grupos')
-                ->selectRaw('id, count(grupos.id) as total_grupos')
+                ->selectRaw('users.id, count(grupos.id) as total_grupos')
                 ->leftJoin('grupos', 'users.id', '=', 'grupos.profesor_id')
                 ->groupBy('users.id')
                 ->having('total_grupos', '>', 0)
                 ->get(),
             'con_cursos' => User::with('cursos')
-                ->selectRaw('id, count(curso_user.curso_id) as total_cursos')
+                ->selectRaw('users.id, count(curso_user.curso_id) as total_cursos')
                 ->leftJoin('curso_user', 'users.id', '=', 'curso_user.user_id')
                 ->groupBy('users.id')
                 ->having('total_cursos', '>', 0)
                 ->get(),
             'con_gestores' => User::with('gestores')
-                ->selectRaw('id, count(referidos.id) as total_gestores')
+                ->selectRaw('users.id, count(referidos.id) as total_gestores')
                 ->leftJoin('referidos', 'users.id', '=', 'referidos.gestor_id')
                 ->groupBy('users.id')
                 ->having('total_gestores', '>', 0)
                 ->get(),
             'con_agendadores' => User::with('agendadores')
-                ->selectRaw('id, count(agendas.id) as total_agendadores')
+                ->selectRaw('users.id, count(agendas.id) as total_agendadores')
                 ->leftJoin('agendas', 'users.id', '=', 'agendas.agendador_id')
                 ->groupBy('users.id')
                 ->having('total_agendadores', '>', 0)
                 ->get(),
             'con_seguimientos' => User::with('seguimientos')
-                ->selectRaw('id, count(seguimientos.id) as total_seguimientos')
+                ->selectRaw('users.id, count(seguimientos.id) as total_seguimientos')
                 ->leftJoin('seguimientos', 'users.id', '=', 'seguimientos.seguidor_id')
                 ->groupBy('users.id')
                 ->having('total_seguimientos', '>', 0)
