@@ -122,9 +122,12 @@ class TopicoController extends Controller
             ? explode(',', $request->with)
             : ['modulos'];
 
-        // Cargar relaciones y contadores usando el modelo
+        // Cargar relaciones y contadores
         $topico->load($relations);
-        $topico->loadCount(['modulos']);
+        $counts = array_intersect(['modulos', 'temas'], $relations);
+        if (! empty($counts)) {
+            $topico->loadCount($counts);
+        }
 
         return response()->json([
             'data' => new TopicoResource($topico),
@@ -332,7 +335,7 @@ class TopicoController extends Controller
                 'inactivos' => Topico::where('status', 0)->count(),
             ],
             'con_modulos' => Topico::with('modulos')
-                ->selectRaw('id, count(topico_modulo.modulo_id) as total_modulos')
+                ->selectRaw('topicos.id, count(topico_modulo.modulo_id) as total_modulos')
                 ->leftJoin('topico_modulo', 'topicos.id', '=', 'topico_modulo.topico_id')
                 ->groupBy('topicos.id')
                 ->having('total_modulos', '>', 0)

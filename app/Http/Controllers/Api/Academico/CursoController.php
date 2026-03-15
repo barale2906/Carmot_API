@@ -293,7 +293,7 @@ class CursoController extends Controller
                 return [$text => Curso::where('tipo', $tipo)->count()];
             }),
             'con_referidos' => Curso::with('referidos')
-                ->selectRaw('id, count(referidos.id) as total_referidos')
+                ->selectRaw('cursos.id, count(referidos.id) as total_referidos')
                 ->leftJoin('referidos', 'cursos.id', '=', 'referidos.curso_id')
                 ->groupBy('cursos.id')
                 ->having('total_referidos', '>', 0)

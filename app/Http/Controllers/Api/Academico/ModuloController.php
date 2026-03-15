@@ -294,13 +294,13 @@ class ModuloController extends Controller
                 'inactivos' => Modulo::where('status', 0)->count(),
             ],
             'con_cursos' => Modulo::with('cursos')
-                ->selectRaw('id, count(modulo_curso.curso_id) as total_cursos')
+                ->selectRaw('modulos.id, count(modulo_curso.curso_id) as total_cursos')
                 ->leftJoin('modulo_curso', 'modulos.id', '=', 'modulo_curso.modulo_id')
                 ->groupBy('modulos.id')
                 ->having('total_cursos', '>', 0)
                 ->get(),
             'con_grupos' => Modulo::with('grupos')
-                ->selectRaw('id, count(grupos.id) as total_grupos')
+                ->selectRaw('modulos.id, count(grupos.id) as total_grupos')
                 ->leftJoin('grupos', 'modulos.id', '=', 'grupos.modulo_id')
                 ->groupBy('modulos.id')
                 ->having('total_grupos', '>', 0)

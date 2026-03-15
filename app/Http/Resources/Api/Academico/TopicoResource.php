@@ -44,8 +44,26 @@ class TopicoResource extends JsonResource
                 });
             }),
 
+            'temas' => $this->whenLoaded('temas', function () {
+                return $this->temas->map(function ($tema) {
+                    return [
+                        'id' => $tema->id,
+                        'nombre' => $tema->nombre,
+                        'descripcion' => $tema->descripcion,
+                        'duracion' => $tema->duracion,
+                        'status' => $tema->status,
+                        'status_text' => self::getActiveStatusText($tema->status),
+                        'pivot' => [
+                            'created_at' => $tema->pivot->created_at?->format('Y-m-d H:i:s'),
+                            'updated_at' => $tema->pivot->updated_at?->format('Y-m-d H:i:s'),
+                        ],
+                    ];
+                });
+            }),
+
             // Contadores
             'modulos_count' => $this->when(isset($this->modulos_count), $this->modulos_count),
+            'temas_count' => $this->when(isset($this->temas_count), $this->temas_count),
         ];
     }
 }

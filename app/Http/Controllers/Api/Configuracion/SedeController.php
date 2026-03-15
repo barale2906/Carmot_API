@@ -353,7 +353,7 @@ class SedeController extends Controller
                     ];
                 }),
             'con_grupos' => Sede::with('grupos')
-                ->selectRaw('id, count(grupos.id) as total_grupos')
+                ->selectRaw('sedes.id, count(grupos.id) as total_grupos')
                 ->leftJoin('grupos', 'sedes.id', '=', 'grupos.sede_id')
                 ->groupBy('sedes.id')
                 ->having('total_grupos', '>', 0)
