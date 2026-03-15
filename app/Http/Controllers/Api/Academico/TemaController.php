@@ -290,7 +290,7 @@ class TemaController extends Controller
                 'inactivos' => Tema::where('status', 0)->count(),
             ],
             'con_topicos' => Tema::with('topicos')
-                ->selectRaw('id, count(tema_topico.topico_id) as total_topicos')
+                ->selectRaw('temas.id, count(tema_topico.topico_id) as total_topicos')
                 ->leftJoin('tema_topico', 'temas.id', '=', 'tema_topico.tema_id')
                 ->groupBy('temas.id')
                 ->having('total_topicos', '>', 0)
