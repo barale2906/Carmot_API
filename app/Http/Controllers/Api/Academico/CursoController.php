@@ -7,6 +7,7 @@ use App\Http\Requests\Api\Academico\StoreCursoRequest;
 use App\Http\Requests\Api\Academico\UpdateCursoRequest;
 use App\Http\Resources\Api\Academico\CursoResource;
 use App\Models\Academico\Curso;
+use App\Models\Academico\Modulo;
 use App\Traits\HasActiveStatus;
 use App\Traits\HasTipo;
 use Illuminate\Http\Request;
@@ -72,14 +73,23 @@ class CursoController extends Controller
      */
     public function store(StoreCursoRequest $request): JsonResponse
     {
+        $duracion = $request->duracion ?? 0;
+        if ($request->has('modulo_ids') && is_array($request->modulo_ids) && count($request->modulo_ids) > 0) {
+            $duracion = Modulo::whereIn('id', $request->modulo_ids)->sum('duracion');
+        }
+
         $curso = Curso::create([
             'nombre' => $request->nombre,
-            'duracion' => $request->duracion,
+            'duracion' => $duracion,
             'tipo' => $request->tipo,
             'status' => $request->status ?? 1, // Por defecto estado "Activo"
         ]);
 
-        $curso->load(['referidos', 'estudiantes']);
+        if ($request->has('modulo_ids') && is_array($request->modulo_ids)) {
+            $curso->modulos()->attach($request->modulo_ids);
+        }
+
+        $curso->load(['referidos', 'estudiantes', 'modulos']);
 
         return response()->json([
             'message' => 'Curso creado exitosamente.',
@@ -103,7 +113,8 @@ class CursoController extends Controller
 
         // Cargar relaciones y contadores usando el modelo
         $curso->load($relations);
-        $curso->loadCount(['referidos', 'estudiantes']);
+        $counts = array_values(array_intersect(['referidos', 'estudiantes', 'modulos'], $relations));
+        $curso->loadCount($counts);
 
         return response()->json([
             'data' => new CursoResource($curso),
@@ -119,14 +130,20 @@ class CursoController extends Controller
      */
     public function update(UpdateCursoRequest $request, Curso $curso): JsonResponse
     {
-        $curso->update($request->only([
-            'nombre',
-            'duracion',
-            'tipo',
-            'status',
-        ]));
+        $updateData = $request->only(['nombre', 'tipo', 'status']);
 
-        $curso->load(['referidos', 'estudiantes']);
+        if ($request->has('modulo_ids') && is_array($request->modulo_ids)) {
+            $curso->modulos()->sync($request->modulo_ids);
+            $updateData['duracion'] = count($request->modulo_ids) > 0
+                ? Modulo::whereIn('id', $request->modulo_ids)->sum('duracion')
+                : ($request->duracion ?? $curso->duracion);
+        } elseif ($request->has('duracion')) {
+            $updateData['duracion'] = $request->duracion;
+        }
+
+        $curso->update($updateData);
+
+        $curso->load(['referidos', 'estudiantes', 'modulos']);
 
         return response()->json([
             'message' => 'Curso actualizado exitosamente.',

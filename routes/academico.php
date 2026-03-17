@@ -48,6 +48,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('trashed', [ModuloController::class, 'trashed'])->name('modulos.trashed');
         Route::get('filters', [ModuloController::class, 'filters'])->name('modulos.filters');
         Route::get('statistics', [ModuloController::class, 'statistics'])->name('modulos.statistics');
+        Route::get('{modulo}/arbol', [ModuloController::class, 'arbol'])->name('modulos.arbol');
         Route::post('{id}/restore', [ModuloController::class, 'restore'])->name('modulos.restore');
         Route::delete('{id}/force-delete', [ModuloController::class, 'forceDelete'])->name('modulos.force-delete');
     });

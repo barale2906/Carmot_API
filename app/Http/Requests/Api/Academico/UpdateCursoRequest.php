@@ -38,6 +38,8 @@ class UpdateCursoRequest extends FormRequest
             'duracion' => 'sometimes|numeric|min:0',
             'tipo' => 'sometimes|integer|' . self::getTipoValidationRule(),
             'status' => self::getStatusValidationRule(),
+            'modulo_ids' => 'sometimes|array',
+            'modulo_ids.*' => 'integer|exists:modulos,id',
         ];
     }
 
@@ -54,6 +56,9 @@ class UpdateCursoRequest extends FormRequest
             'nombre.unique' => 'Ya existe un curso con este nombre.',
             'duracion.numeric' => 'La duración del curso debe ser un número.',
             'duracion.min' => 'La duración del curso debe ser mayor o igual a 0.',
+            'modulo_ids.array' => 'Los módulos deben ser un array.',
+            'modulo_ids.*.integer' => 'Cada módulo debe ser un número entero.',
+            'modulo_ids.*.exists' => 'Uno o más módulos seleccionados no existen.',
             'tipo.integer' => 'El tipo debe ser un número entero.',
             'tipo.in' => 'El tipo debe ser uno de los valores válidos: ' . implode(', ', array_map(function($key, $value) { return "$key ($value)"; }, array_keys(self::getTipoOptions()), self::getTipoOptions())) . '.',
         ], self::getStatusValidationMessages());

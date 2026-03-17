@@ -19,6 +19,7 @@ class ModuloResource extends JsonResource
         return [
             'id' => $this->id,
             'nombre' => $this->nombre,
+            'duracion' => (float) $this->duracion,
             'status' => $this->status,
             'status_text' => self::getActiveStatusText($this->status),
             'created_at' => $this->created_at?->format('Y-m-d H:i:s'),
@@ -65,9 +66,27 @@ class ModuloResource extends JsonResource
                 });
             }),
 
+            'topicos' => $this->whenLoaded('topicos', function () {
+                return $this->topicos->map(function ($topico) {
+                    return [
+                        'id' => $topico->id,
+                        'nombre' => $topico->nombre,
+                        'descripcion' => $topico->descripcion,
+                        'duracion' => $topico->duracion,
+                        'status' => $topico->status,
+                        'status_text' => self::getActiveStatusText($topico->status),
+                        'pivot' => [
+                            'created_at' => $topico->pivot->created_at?->format('Y-m-d H:i:s'),
+                            'updated_at' => $topico->pivot->updated_at?->format('Y-m-d H:i:s'),
+                        ],
+                    ];
+                });
+            }),
+
             // Contadores
             'cursos_count' => $this->when(isset($this->cursos_count), $this->cursos_count),
             'grupos_count' => $this->when(isset($this->grupos_count), $this->grupos_count),
+            'topicos_count' => $this->when(isset($this->topicos_count), $this->topicos_count),
         ];
     }
 }

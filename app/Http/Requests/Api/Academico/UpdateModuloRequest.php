@@ -37,6 +37,8 @@ class UpdateModuloRequest extends FormRequest
             'status' => self::getStatusValidationRule(),
             'curso_ids' => 'sometimes|array',
             'curso_ids.*' => 'integer|exists:cursos,id',
+            'topico_ids' => 'sometimes|array',
+            'topico_ids.*' => 'integer|exists:topicos,id',
         ];
     }
 
@@ -54,6 +56,9 @@ class UpdateModuloRequest extends FormRequest
             'curso_ids.array' => 'Los cursos deben ser un array.',
             'curso_ids.*.integer' => 'Cada curso debe ser un número entero.',
             'curso_ids.*.exists' => 'Uno o más cursos seleccionados no existen.',
+            'topico_ids.array' => 'Los tópicos deben ser un array.',
+            'topico_ids.*.integer' => 'Cada tópico debe ser un número entero.',
+            'topico_ids.*.exists' => 'Uno o más tópicos seleccionados no existen.',
         ], self::getStatusValidationMessages());
     }
 }

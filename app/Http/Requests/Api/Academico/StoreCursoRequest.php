@@ -27,9 +27,11 @@ class StoreCursoRequest extends FormRequest
     {
         return [
             'nombre' => 'required|string|max:255|unique:cursos,nombre',
-            'duracion' => 'required|numeric|min:0',
+            'duracion' => 'required_without:modulo_ids|nullable|numeric|min:0',
             'tipo' => 'required|integer|' . self::getTipoValidationRule(),
             'status' => self::getStatusValidationRule(),
+            'modulo_ids' => 'sometimes|array',
+            'modulo_ids.*' => 'integer|exists:modulos,id',
         ];
     }
 
@@ -45,9 +47,12 @@ class StoreCursoRequest extends FormRequest
             'nombre.string' => 'El nombre del curso debe ser una cadena de texto.',
             'nombre.max' => 'El nombre del curso no puede tener más de 255 caracteres.',
             'nombre.unique' => 'Ya existe un curso con este nombre.',
-            'duracion.required' => 'La duración del curso es obligatoria.',
+            'duracion.required_without' => 'La duración es obligatoria cuando no se especifican módulos.',
             'duracion.numeric' => 'La duración del curso debe ser un número.',
             'duracion.min' => 'La duración del curso debe ser mayor o igual a 0.',
+            'modulo_ids.array' => 'Los módulos deben ser un array.',
+            'modulo_ids.*.integer' => 'Cada módulo debe ser un número entero.',
+            'modulo_ids.*.exists' => 'Uno o más módulos seleccionados no existen.',
             'tipo.required' => 'El tipo del curso es obligatorio.',
             'tipo.integer' => 'El tipo debe ser un número entero.',
             'tipo.in' => 'El tipo debe ser uno de los valores válidos: ' . implode(', ', array_map(function($key, $value) { return "$key ($value)"; }, array_keys(self::getTipoOptions()), self::getTipoOptions())) . '.',

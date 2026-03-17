@@ -7,6 +7,7 @@ use App\Http\Requests\Api\Academico\StoreModuloRequest;
 use App\Http\Requests\Api\Academico\UpdateModuloRequest;
 use App\Http\Resources\Api\Academico\ModuloResource;
 use App\Models\Academico\Modulo;
+use App\Models\Academico\Topico;
 use App\Traits\HasActiveStatus;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
@@ -19,7 +20,7 @@ class ModuloController extends Controller
      */
     public function __construct()
     {
-        $this->middleware('permission:aca_modulos')->only(['index', 'show', 'filters', 'statistics']);
+        $this->middleware('permission:aca_modulos')->only(['index', 'show', 'arbol', 'filters', 'statistics']);
         $this->middleware('permission:aca_moduloCrear')->only(['store']);
         $this->middleware('permission:aca_moduloEditar')->only(['update']);
         $this->middleware('permission:aca_moduloInactivar')->only(['destroy', 'restore', 'forceDelete', 'trashed']);
@@ -39,12 +40,13 @@ class ModuloController extends Controller
         // Preparar relaciones
         $relations = $request->has('with')
             ? explode(',', $request->with)
-            : ['cursos', 'grupos'];
+            : ['cursos', 'grupos', 'topicos'];
 
         // Verificar si incluir contadores
         $includeCounts = $request->has('with') && (
             str_contains($request->with, 'cursos') ||
-            str_contains($request->with, 'grupos')
+            str_contains($request->with, 'grupos') ||
+            str_contains($request->with, 'topicos')
         );
 
         // Construir query usando scopes
@@ -74,9 +76,16 @@ class ModuloController extends Controller
      */
     public function store(StoreModuloRequest $request): JsonResponse
     {
+        // Calcular duración desde tópicos si se proporcionan
+        $duracion = 0;
+        if ($request->has('topico_ids') && is_array($request->topico_ids) && count($request->topico_ids) > 0) {
+            $duracion = Topico::whereIn('id', $request->topico_ids)->sum('duracion');
+        }
+
         $modulo = Modulo::create([
             'nombre' => $request->nombre,
             'status' => $request->status ?? 1, // Por defecto estado "Activo"
+            'duracion' => $duracion,
         ]);
 
         // Asociar cursos si se proporcionan
@@ -84,7 +93,12 @@ class ModuloController extends Controller
             $modulo->cursos()->attach($request->curso_ids);
         }
 
-        $modulo->load(['cursos']);
+        // Asociar tópicos si se proporcionan
+        if ($request->has('topico_ids') && is_array($request->topico_ids)) {
+            $modulo->topicos()->attach($request->topico_ids);
+        }
+
+        $modulo->load(['cursos', 'topicos']);
 
         return response()->json([
             'message' => 'Módulo creado exitosamente.',
@@ -104,11 +118,11 @@ class ModuloController extends Controller
         // Preparar relaciones
         $relations = $request->has('with')
             ? explode(',', $request->with)
-            : ['cursos', 'grupos'];
+            : ['cursos', 'grupos', 'topicos'];
 
         // Cargar relaciones y contadores usando el modelo
         $modulo->load($relations);
-        $modulo->loadCount(['cursos', 'grupos']);
+        $modulo->loadCount(['cursos', 'grupos', 'topicos']);
 
         return response()->json([
             'data' => new ModuloResource($modulo),
@@ -124,17 +138,28 @@ class ModuloController extends Controller
      */
     public function update(UpdateModuloRequest $request, Modulo $modulo): JsonResponse
     {
-        $modulo->update($request->only([
-            'nombre',
-            'status',
-        ]));
+        $updateData = $request->only(['nombre', 'status']);
+
+        // Recalcular duración desde tópicos si se proporcionan topico_ids
+        if ($request->has('topico_ids') && is_array($request->topico_ids)) {
+            $updateData['duracion'] = count($request->topico_ids) > 0
+                ? Topico::whereIn('id', $request->topico_ids)->sum('duracion')
+                : 0;
+        }
+
+        $modulo->update($updateData);
 
         // Actualizar cursos si se proporcionan
         if ($request->has('curso_ids') && is_array($request->curso_ids)) {
             $modulo->cursos()->sync($request->curso_ids);
         }
 
-        $modulo->load(['cursos']);
+        // Actualizar tópicos si se proporcionan
+        if ($request->has('topico_ids') && is_array($request->topico_ids)) {
+            $modulo->topicos()->sync($request->topico_ids);
+        }
+
+        $modulo->load(['cursos', 'topicos']);
 
         return response()->json([
             'message' => 'Módulo actualizado exitosamente.',
@@ -232,12 +257,13 @@ class ModuloController extends Controller
         // Preparar relaciones
         $relations = $request->has('with')
             ? explode(',', $request->with)
-            : ['cursos', 'grupos'];
+            : ['cursos', 'grupos', 'topicos'];
 
         // Verificar si incluir contadores
         $includeCounts = $request->has('with') && (
             str_contains($request->with, 'cursos') ||
-            str_contains($request->with, 'grupos')
+            str_contains($request->with, 'grupos') ||
+            str_contains($request->with, 'topicos')
         );
 
         // Construir query usando scopes (solo eliminados)
@@ -272,6 +298,51 @@ class ModuloController extends Controller
             'data' => [
                 'status_options' => self::getActiveStatusOptions(),
                 'modulos' => $modulos,
+            ],
+        ]);
+    }
+
+    /**
+     * Obtiene el módulo con su estructura en árbol (tópicos y temas).
+     *
+     * @param Modulo $modulo
+     * @return JsonResponse
+     */
+    public function arbol(Modulo $modulo): JsonResponse
+    {
+        $modulo->load(['topicos.temas' => function ($query) {
+            $query->orderByPivot('created_at');
+        }]);
+
+        $topicos = $modulo->topicos->map(function ($topico) {
+            return [
+                'id' => $topico->id,
+                'nombre' => $topico->nombre,
+                'descripcion' => $topico->descripcion,
+                'duracion' => (float) $topico->duracion,
+                'status' => $topico->status,
+                'status_text' => self::getActiveStatusText($topico->status),
+                'temas' => $topico->temas->map(function ($tema) {
+                    return [
+                        'id' => $tema->id,
+                        'nombre' => $tema->nombre,
+                        'descripcion' => $tema->descripcion,
+                        'duracion' => (float) $tema->duracion,
+                        'status' => $tema->status,
+                        'status_text' => self::getActiveStatusText($tema->status),
+                    ];
+                })->values(),
+            ];
+        });
+
+        return response()->json([
+            'data' => [
+                'id' => $modulo->id,
+                'nombre' => $modulo->nombre,
+                'duracion' => (float) $modulo->duracion,
+                'status' => $modulo->status,
+                'status_text' => self::getActiveStatusText($modulo->status),
+                'topicos' => $topicos->values(),
             ],
         ]);
     }

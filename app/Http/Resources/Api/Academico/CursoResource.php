@@ -57,9 +57,26 @@ class CursoResource extends JsonResource
                 });
             }),
 
+            'modulos' => $this->whenLoaded('modulos', function () {
+                return $this->modulos->map(function ($modulo) {
+                    return [
+                        'id' => $modulo->id,
+                        'nombre' => $modulo->nombre,
+                        'duracion' => (float) $modulo->duracion,
+                        'status' => $modulo->status,
+                        'status_text' => self::getActiveStatusText($modulo->status),
+                        'pivot' => [
+                            'created_at' => $modulo->pivot->created_at?->format('Y-m-d H:i:s'),
+                            'updated_at' => $modulo->pivot->updated_at?->format('Y-m-d H:i:s'),
+                        ],
+                    ];
+                });
+            }),
+
             // Contadores
             'referidos_count' => $this->when(isset($this->referidos_count), $this->referidos_count),
             'estudiantes_count' => $this->when(isset($this->estudiantes_count), $this->estudiantes_count),
+            'modulos_count' => $this->when(isset($this->modulos_count), $this->modulos_count),
         ];
     }
 
