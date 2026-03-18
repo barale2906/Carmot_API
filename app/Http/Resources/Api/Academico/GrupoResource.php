@@ -64,10 +64,10 @@ class GrupoResource extends JsonResource
                         'hora' => $horario->hora?->format('H:i:s'),
                         'duracion_horas' => $horario->duracion_horas,
                         'hora_fin' => $horario->hora ? $horario->hora->addHours($horario->duracion_horas)->format('H:i:s') : null,
-                        'area' => $horario->whenLoaded('area', [
+                        'area' => $horario->relationLoaded('area') && $horario->area ? [
                             'id' => $horario->area->id,
                             'nombre' => $horario->area->nombre,
-                        ]),
+                        ] : null,
                         'status' => $horario->status,
                         'status_text' => self::getActiveStatusText($horario->status),
                     ];

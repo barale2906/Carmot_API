@@ -78,6 +78,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Rutas de horarios (rutas específicas antes del apiResource para evitar conflictos con {horario})
     Route::prefix('horarios')->group(function () {
+        Route::get('semanario', [HorarioController::class, 'semanario'])
+            ->name('horarios.semanario');
         Route::get('trashed', [HorarioController::class, 'trashed'])
             ->name('horarios.trashed');
         Route::get('filters/options', [HorarioController::class, 'filters'])

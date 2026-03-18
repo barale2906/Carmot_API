@@ -30,6 +30,8 @@ class HorarioResource extends JsonResource
             'periodo_text' => $this->periodo ? 'Inicio' : 'Fin',
             'dia' => $this->dia,
             'hora' => $this->hora?->format('H:i:s'),
+            'duracion_horas' => $this->duracion_horas ?? 1,
+            'hora_fin' => $this->hora ? $this->hora->copy()->addHours($this->duracion_horas ?? 1)->format('H:i:s') : null,
             'status' => $this->status,
             'status_text' => self::getActiveStatusText($this->status),
             'created_at' => $this->created_at?->format('Y-m-d H:i:s'),

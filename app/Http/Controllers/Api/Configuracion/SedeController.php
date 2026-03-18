@@ -88,13 +88,11 @@ class SedeController extends Controller
             'poblacion_id' => $request->poblacion_id,
         ]);
 
-        // Asignar áreas si se proporcionan
-        if ($request->has('areas') && is_array($request->areas)) {
-            $sede->areas()->attach($request->areas);
-        }
+        // Asignar áreas (obligatorio al crear)
+        $sede->areas()->attach($request->areas);
 
-        // Crear horarios si se proporcionan
-        if ($request->has('horarios') && is_array($request->horarios)) {
+        // Crear horarios: si se proporcionan, usarlos; si no, generar para cada área con hora_inicio/hora_fin de la sede
+        if ($request->filled('horarios')) {
             foreach ($request->horarios as $horarioData) {
                 $sede->horarios()->create([
                     'area_id' => $horarioData['area_id'],
@@ -107,6 +105,8 @@ class SedeController extends Controller
                     'status' => 1,
                 ]);
             }
+        } else {
+            $this->generarHorariosDesdeSede($sede);
         }
 
         $sede->load(['poblacion', 'areas', 'horarios']);
@@ -169,29 +169,24 @@ class SedeController extends Controller
             }
         }
 
-        // Actualizar horarios si se proporcionan
-        if ($request->has('horarios')) {
-            if (is_array($request->horarios)) {
-                // Eliminar horarios existentes
-                $sede->horarios()->delete();
-
-                // Crear nuevos horarios
-                foreach ($request->horarios as $horarioData) {
-                    $sede->horarios()->create([
-                        'area_id' => $horarioData['area_id'],
-                        'dia' => $horarioData['dia'],
-                        'hora' => $horarioData['hora'],
-                        'tipo' => $horarioData['tipo'] ?? true,
-                        'periodo' => $horarioData['periodo'] ?? true,
-                        'grupo_id' => $horarioData['grupo_id'] ?? null,
-                        'grupo_nombre' => $horarioData['grupo_nombre'] ?? null,
-                        'status' => 1,
-                    ]);
-                }
-            } else {
-                // Si se envía null o vacío, eliminar todos los horarios
-                $sede->horarios()->delete();
+        // Actualizar horarios: si se proporcionan, usarlos; si no vienen o vienen vacíos, generar para cada área con hora_inicio/hora_fin de la sede
+        if ($request->filled('horarios')) {
+            $sede->horarios()->delete();
+            foreach ($request->horarios as $horarioData) {
+                $sede->horarios()->create([
+                    'area_id' => $horarioData['area_id'],
+                    'dia' => $horarioData['dia'],
+                    'hora' => $horarioData['hora'],
+                    'tipo' => $horarioData['tipo'] ?? true,
+                    'periodo' => $horarioData['periodo'] ?? true,
+                    'grupo_id' => $horarioData['grupo_id'] ?? null,
+                    'grupo_nombre' => $horarioData['grupo_nombre'] ?? null,
+                    'status' => 1,
+                ]);
             }
+        } else {
+            $sede->horarios()->delete();
+            $this->generarHorariosDesdeSede($sede);
         }
 
         $sede->load(['poblacion', 'areas', 'horarios']);
@@ -307,6 +302,54 @@ class SedeController extends Controller
                 'to' => $sedes->lastItem(),
             ],
         ]);
+    }
+
+    /**
+     * Genera horarios de sede para cada área usando hora_inicio y hora_fin de la sede.
+     * Crea un registro de apertura (periodo=true) y cierre (periodo=false) por cada día de la semana.
+     *
+     * @param Sede $sede
+     * @return void
+     */
+    private function generarHorariosDesdeSede(Sede $sede): void
+    {
+        if (!$sede->hora_inicio || !$sede->hora_fin) {
+            return;
+        }
+
+        $areas = $sede->areas;
+        if ($areas->isEmpty()) {
+            return;
+        }
+
+        $dias = ['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo'];
+        $horaInicio = $sede->hora_inicio->format('H:i:s');
+        $horaFin = $sede->hora_fin->format('H:i:s');
+
+        foreach ($areas as $area) {
+            foreach ($dias as $dia) {
+                $sede->horarios()->create([
+                    'area_id' => $area->id,
+                    'dia' => $dia,
+                    'hora' => $horaInicio,
+                    'tipo' => true,
+                    'periodo' => true,
+                    'grupo_id' => null,
+                    'grupo_nombre' => null,
+                    'status' => 1,
+                ]);
+                $sede->horarios()->create([
+                    'area_id' => $area->id,
+                    'dia' => $dia,
+                    'hora' => $horaFin,
+                    'tipo' => true,
+                    'periodo' => false,
+                    'grupo_id' => null,
+                    'grupo_nombre' => null,
+                    'status' => 1,
+                ]);
+            }
+        }
     }
 
     /**

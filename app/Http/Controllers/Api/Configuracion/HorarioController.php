@@ -20,7 +20,7 @@ class HorarioController extends Controller
     public function __construct()
     {
         $this->middleware('auth:sanctum');
-        $this->middleware('permission:co_horarios')->only(['index', 'show', 'filters', 'statistics']);
+        $this->middleware('permission:co_horarios')->only(['index', 'show', 'filters', 'statistics', 'semanario']);
         $this->middleware('permission:co_horarioCrear')->only(['store']);
         $this->middleware('permission:co_horarioEditar')->only(['update']);
         $this->middleware('permission:co_horarioInactivar')->only(['destroy', 'restore', 'forceDelete', 'trashed']);
@@ -268,6 +268,94 @@ class HorarioController extends Controller
                 'total' => $horarios->total(),
                 'from' => $horarios->firstItem(),
                 'to' => $horarios->lastItem(),
+            ],
+        ]);
+    }
+
+    /**
+     * Obtiene el semanario de un área para dibujar ocupación y disponibilidad.
+     *
+     * Requiere sede_id y area_id. Devuelve por cada día de la semana:
+     * - disponibilidad: ventana de horario de atención (inicio/fin)
+     * - ocupados: bloques ocupados por grupos con hora_inicio, hora_fin y grupo_nombre
+     *
+     * @param Request $request Parámetros: sede_id (requerido), area_id (requerido)
+     * @return JsonResponse
+     */
+    public function semanario(Request $request): JsonResponse
+    {
+        $request->validate([
+            'sede_id' => 'required|integer|exists:sedes,id',
+            'area_id' => 'required|integer|exists:areas,id',
+        ], [
+            'sede_id.required' => 'La sede es obligatoria.',
+            'sede_id.exists' => 'La sede seleccionada no existe.',
+            'area_id.required' => 'El área es obligatoria.',
+            'area_id.exists' => 'El área seleccionada no existe.',
+        ]);
+
+        $sede = Sede::findOrFail($request->sede_id);
+        $area = Area::findOrFail($request->area_id);
+
+        $horarios = Horario::where('sede_id', $request->sede_id)
+            ->where('area_id', $request->area_id)
+            ->where('status', 1)
+            ->orderBy('dia')
+            ->orderBy('hora')
+            ->get();
+
+        $dias = ['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo'];
+        $porDia = [];
+
+        foreach ($dias as $dia) {
+            $horariosSede = $horarios->where('dia', $dia)->where('tipo', true);
+            $horariosGrupo = $horarios->where('dia', $dia)->where('tipo', false);
+
+            // Disponibilidad: horarios de sede (inicio/fin) o fallback a sede general
+            $inicio = $horariosSede->where('periodo', true)->first()?->hora;
+            $fin = $horariosSede->where('periodo', false)->first()?->hora;
+
+            if (!$inicio || !$fin) {
+                $inicio = $sede->hora_inicio;
+                $fin = $sede->hora_fin;
+            }
+
+            $ocupados = $horariosGrupo->map(function ($h) {
+                $duracion = $h->duracion_horas ?? 1;
+                $horaFin = $h->hora ? $h->hora->copy()->addHours($duracion) : null;
+
+                return [
+                    'id' => $h->id,
+                    'hora_inicio' => $h->hora?->format('H:i:s'),
+                    'hora_fin' => $horaFin?->format('H:i:s'),
+                    'duracion_horas' => $duracion,
+                    'grupo_id' => $h->grupo_id,
+                    'grupo_nombre' => $h->grupo_nombre,
+                ];
+            })->values();
+
+            $porDia[$dia] = [
+                'disponible' => [
+                    'inicio' => $inicio?->format('H:i:s'),
+                    'fin' => $fin?->format('H:i:s'),
+                ],
+                'ocupados' => $ocupados,
+            ];
+        }
+
+        return response()->json([
+            'data' => [
+                'sede' => [
+                    'id' => $sede->id,
+                    'nombre' => $sede->nombre,
+                    'hora_inicio' => $sede->hora_inicio?->format('H:i:s'),
+                    'hora_fin' => $sede->hora_fin?->format('H:i:s'),
+                ],
+                'area' => [
+                    'id' => $area->id,
+                    'nombre' => $area->nombre,
+                ],
+                'por_dia' => $porDia,
             ],
         ]);
     }

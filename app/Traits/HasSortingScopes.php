@@ -15,9 +15,10 @@ trait HasSortingScopes
     public function scopeWithSorting($query, $sortBy = 'created_at', $sortDirection = 'desc')
     {
         $allowedSortFields = $this->getAllowedSortFields();
+        $direction = in_array(strtolower((string) $sortDirection), ['asc', 'desc']) ? strtolower($sortDirection) : 'desc';
 
-        if (in_array($sortBy, $allowedSortFields)) {
-            return $query->orderBy($sortBy, $sortDirection);
+        if ($sortBy && in_array($sortBy, $allowedSortFields)) {
+            return $query->orderBy($sortBy, $direction);
         }
 
         return $query->orderBy('created_at', 'desc');
