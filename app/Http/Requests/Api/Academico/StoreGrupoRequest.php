@@ -7,6 +7,7 @@ use App\Traits\HasActiveStatusValidation;
 use App\Traits\HasJornadaStatus;
 use App\Traits\HasJornadaStatusValidation;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreGrupoRequest extends FormRequest
 {
@@ -31,7 +32,7 @@ class StoreGrupoRequest extends FormRequest
             'sede_id' => 'required|integer|exists:sedes,id',
             'modulo_id' => 'required|integer|exists:modulos,id',
             'profesor_id' => 'required|integer|exists:users,id',
-            'nombre' => 'required|string|max:255|unique:grupos,nombre',
+            'nombre' => ['required', 'string', 'max:255', Rule::unique('grupos', 'nombre')->whereNull('deleted_at')],
             'inscritos' => 'required|integer|min:0|max:50',
             'jornada' => self::getJornadaValidationRule(),
             'status' => self::getStatusValidationRule(),

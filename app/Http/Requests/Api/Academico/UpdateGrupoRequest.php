@@ -6,6 +6,7 @@ use App\Traits\HasActiveStatus;
 use App\Traits\HasActiveStatusValidation;
 use App\Traits\HasJornadaStatus;
 use App\Traits\HasJornadaStatusValidation;
+use App\Models\Academico\Grupo;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -28,7 +29,8 @@ class UpdateGrupoRequest extends FormRequest
      */
     public function rules(): array
     {
-        $grupoId = $this->route('grupo')->id;
+        $routeGrupo = $this->route('grupo');
+        $grupoId = $routeGrupo instanceof Grupo ? $routeGrupo->getKey() : (int) $routeGrupo;
 
         return [
             'sede_id' => 'sometimes|integer|exists:sedes,id',
@@ -38,7 +40,7 @@ class UpdateGrupoRequest extends FormRequest
                 'sometimes',
                 'string',
                 'max:255',
-                Rule::unique('grupos', 'nombre')->ignore($grupoId)
+                Rule::unique('grupos', 'nombre')->ignore($grupoId, 'id')->whereNull('deleted_at'),
             ],
             'inscritos' => 'sometimes|integer|min:0|max:50',
             'jornada' => self::getJornadaValidationRuleOptional(),
