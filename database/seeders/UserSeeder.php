@@ -23,6 +23,14 @@ class UserSeeder extends Seeder
             //'rol_id'=>1
         ])->assignRole('superusuario');
 
+        User::factory()->create([
+            'name' => 'Daniel Nastar',
+            'email' => 'danielnastar@gmail.com',
+            'documento'=>10215300,
+            'password' => Hash::make('10203040'),
+            //'rol_id'=>1
+        ])->assignRole('superusuario');
+
         $roles = Role::whereIn('name', ['financiero', 'coordinador', 'profesor','alumno'])->get(); // O roles específicos
 
         User::factory(10)->create()->each(function ($user) use ($roles) {
