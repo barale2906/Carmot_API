@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Api\Financiero\Lp;
 
+use App\Models\Financiero\Lp\LpListaPrecio;
 use App\Services\Financiero\LpPrecioProductoService;
 use App\Traits\Financiero\HasListaPrecioStatus;
 use Carbon\Carbon;
@@ -40,17 +41,20 @@ class UpdateLpListaPrecioRequest extends FormRequest
      */
     public function rules(): array
     {
-        $listaPrecioId = $this->route('lp_lista_precio') ?? $this->route('lista_precio');
+        $lista = $this->resolvedListaPrecio();
+
+        $codigoRules = ['sometimes', 'nullable', 'string', 'max:100'];
+        if ($lista !== null) {
+            $codigoRules[] = Rule::unique('lp_listas_precios', 'codigo')
+                ->whereNull('deleted_at')
+                ->ignoreModel($lista);
+        } else {
+            $codigoRules[] = Rule::unique('lp_listas_precios', 'codigo')->whereNull('deleted_at');
+        }
 
         return [
             'nombre' => 'sometimes|string|max:255',
-            'codigo' => [
-                'sometimes',
-                'nullable',
-                'string',
-                'max:100',
-                Rule::unique('lp_listas_precios', 'codigo')->ignore($listaPrecioId)
-            ],
+            'codigo' => $codigoRules,
             'fecha_inicio' => 'sometimes|date',
             'fecha_fin' => [
                 'sometimes',
@@ -78,9 +82,8 @@ class UpdateLpListaPrecioRequest extends FormRequest
     public function withValidator($validator): void
     {
         $validator->after(function ($validator) {
-            $listaPrecioId = $this->route('lp_lista_precio') ?? $this->route('lista_precio');
-            $listaPrecio = is_object($listaPrecioId) ? $listaPrecioId : null;
-            $listaPrecioId = is_object($listaPrecioId) ? $listaPrecio->id : $listaPrecioId;
+            $listaPrecio = $this->resolvedListaPrecio();
+            $listaPrecioId = $listaPrecio?->id;
 
             // Obtener fechas actuales o las nuevas si se están actualizando
             $fechaInicio = $this->filled('fecha_inicio')
@@ -119,6 +122,38 @@ class UpdateLpListaPrecioRequest extends FormRequest
                 }
             }
         });
+    }
+
+    /**
+     * Resuelve la lista de precios desde la ruta.
+     *
+     * El nombre del parámetro depende de cómo Laravel registre el apiResource
+     * (p. ej. listas_precio, listas_precios) y del type-hint (lpListaPrecio).
+     * Recorremos todos los parámetros y, si hace falta, resolvemos por ID numérico.
+     */
+    private function resolvedListaPrecio(): ?LpListaPrecio
+    {
+        $route = $this->route();
+        if ($route === null) {
+            return null;
+        }
+
+        foreach ($route->parameters() as $value) {
+            if ($value instanceof LpListaPrecio) {
+                return $value;
+            }
+        }
+
+        foreach ($route->parameters() as $value) {
+            if (is_numeric($value)) {
+                $model = LpListaPrecio::query()->find((int) $value);
+                if ($model !== null) {
+                    return $model;
+                }
+            }
+        }
+
+        return null;
     }
 
     /**

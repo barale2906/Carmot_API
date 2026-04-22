@@ -44,17 +44,6 @@ class LpProductoController extends Controller
     public function index(Request $request): JsonResponse
     {
         try {
-            // Preparar filtros
-            $filters = $request->only([
-                'search',
-                'status',
-                'tipo_producto_id',
-                'referencia_tipo',
-                'codigo',
-                'include_trashed',
-                'only_trashed'
-            ]);
-
             // Preparar relaciones
             $relations = $request->has('with')
                 ? explode(',', $request->with)
@@ -84,6 +73,10 @@ class LpProductoController extends Controller
 
             if ($request->filled('referencia_tipo')) {
                 $query->where('referencia_tipo', $request->string('referencia_tipo'));
+            }
+
+            if ($request->filled('referencia_id')) {
+                $query->where('referencia_id', $request->integer('referencia_id'));
             }
 
             if ($request->filled('codigo')) {

@@ -195,29 +195,41 @@ class MenuController extends Controller
 
         // Financiero - módulo con varios submenús
         if ($this->hasAnyPermission($user, [
-            'fin_productos', 'fin_listas_precios', 'fin_conceptos_pago', 'fin_recibos_pago'
+            'fin_lp_tipos_producto', 'fin_lp_productos', 'fin_lp_listas_precios',
+            'fin_conceptos_pago', 'fin_recibos_pago'
         ])) {
             $financieroChildren = [];
 
+            // Tipos de producto
+            if ($user->can('fin_lp_tipos_producto')) {
+                $financieroChildren[] = [
+                    'id' => 'financiero-tipos-producto',
+                    'title' => 'Tipos de producto',
+                    'icon' => 'category',
+                    'route' => '/financiero/tipos-producto',
+                    'permission' => 'fin_lp_tipos_producto',
+                ];
+            }
+
             // Productos
-            if ($user->can('fin_productos')) {
+            if ($user->can('fin_lp_productos')) {
                 $financieroChildren[] = [
                     'id' => 'financiero-productos',
                     'title' => 'Productos',
                     'icon' => 'inventory_2',
                     'route' => '/financiero/productos',
-                    'permission' => 'fin_productos',
+                    'permission' => 'fin_lp_productos',
                 ];
             }
 
             // Listas de precios
-            if ($user->can('fin_listas_precios')) {
+            if ($user->can('fin_lp_listas_precios')) {
                 $financieroChildren[] = [
                     'id' => 'financiero-listas-precios',
                     'title' => 'Listas de precios',
                     'icon' => 'list_alt',
                     'route' => '/financiero/listas-precios',
-                    'permission' => 'fin_listas_precios',
+                    'permission' => 'fin_lp_listas_precios',
                 ];
             }
 

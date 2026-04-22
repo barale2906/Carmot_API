@@ -68,11 +68,11 @@ class LpPrecioProductoSeeder extends Seeder
                     $esFinanciable = $producto->esFinanciable();
 
                     if ($esFinanciable) {
-                        // Crear precio para producto financiable
-                        $precioContado = fake()->randomFloat(2, 500000, 5000000);
-                        $precioTotal = fake()->randomFloat(2, $precioContado * 1.1, $precioContado * 1.3);
+                        // precio_contado = matricula + precio_total
+                        $precioTotal = fake()->randomFloat(2, 500000, 5000000);
                         $matricula = fake()->randomFloat(2, $precioTotal * 0.1, $precioTotal * 0.3);
-                        $numeroCuotas = fake()->numberBetween(6, 24);
+                        $precioContado = round($matricula + $precioTotal, 2);
+                        $numeroCuotas = fake()->numberBetween(1, 24);
 
                         $precioProducto = LpPrecioProducto::create([
                             'lista_precio_id' => $listaPrecio->id,

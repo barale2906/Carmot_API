@@ -131,5 +131,26 @@ class LpPrecioProductoService
 
         return $query->count() === 0;
     }
+
+    /**
+     * Comprueba la regla de negocio: precio de contado = matrícula + precio total financiado.
+     * Usa redondeo a 2 decimales y tolerancia de un centavo por flotantes.
+     */
+    public function precioContadoCuadraConFinanciacion(float $precioContado, float $matricula, float $precioTotal): bool
+    {
+        $esperado = round($matricula + $precioTotal, 2);
+        $contado = round($precioContado, 2);
+
+        return abs($contado - $esperado) <= 0.01;
+    }
+
+    /**
+     * Mensaje de validación cuando no se cumple precio_contado = matricula + precio_total.
+     */
+    public function mensajePrecioContadoFinanciacion(): string
+    {
+        return 'El precio de contado debe ser igual a la matrícula más el precio total financiado (precio_contado = matricula + precio_total). '
+            .'Equivalencias: matricula = precio_contado - precio_total; precio_total = precio_contado - matricula.';
+    }
 }
 

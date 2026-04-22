@@ -2,7 +2,9 @@
 
 namespace App\Http\Requests\Api\Financiero\Lp;
 
+use App\Models\Financiero\Lp\LpPrecioProducto;
 use App\Models\Financiero\Lp\LpProducto;
+use App\Services\Financiero\LpPrecioProductoService;
 use Illuminate\Foundation\Http\FormRequest;
 
 /**
@@ -45,8 +47,7 @@ class UpdateLpPrecioProductoRequest extends FormRequest
                 'numeric',
                 'min:0',
                 function ($attribute, $value, $fail) {
-                    $precioProducto = $this->route('lp_precio_producto');
-                    $precioProducto = is_object($precioProducto) ? $precioProducto : null;
+                    $precioProducto = $this->resolvedLpPrecioProducto();
                     $productoId = $this->input('producto_id') ?? ($precioProducto ? $precioProducto->producto_id : null);
                     if ($productoId) {
                         $producto = LpProducto::find($productoId);
@@ -63,8 +64,7 @@ class UpdateLpPrecioProductoRequest extends FormRequest
                 'integer',
                 'min:1',
                 function ($attribute, $value, $fail) {
-                    $precioProducto = $this->route('lp_precio_producto');
-                    $precioProducto = is_object($precioProducto) ? $precioProducto : null;
+                    $precioProducto = $this->resolvedLpPrecioProducto();
                     $productoId = $this->input('producto_id') ?? ($precioProducto ? $precioProducto->producto_id : null);
                     if ($productoId) {
                         $producto = LpProducto::find($productoId);
@@ -88,8 +88,7 @@ class UpdateLpPrecioProductoRequest extends FormRequest
     public function withValidator($validator): void
     {
         $validator->after(function ($validator) {
-            $precioProducto = $this->route('lp_precio_producto');
-            $precioProducto = is_object($precioProducto) ? $precioProducto : null;
+            $precioProducto = $this->resolvedLpPrecioProducto();
 
             $productoId = $this->input('producto_id') ?? ($precioProducto ? $precioProducto->producto_id : null);
 
@@ -99,24 +98,67 @@ class UpdateLpPrecioProductoRequest extends FormRequest
                 if ($producto && $producto->esFinanciable()) {
                     // Para productos financiables, validar campos requeridos si se están actualizando
                     $precioTotal = $this->input('precio_total') ?? ($precioProducto ? $precioProducto->precio_total : null);
-                    $numeroCuotas = $this->input('numero_cuotas') ?? ($precioProducto ? $precioProducto->numero_cuotas : null);
                     $matricula = $this->input('matricula') ?? ($precioProducto ? $precioProducto->matricula : null);
+                    $precioContado = $this->input('precio_contado') ?? ($precioProducto ? $precioProducto->precio_contado : null);
 
                     if ($this->filled('precio_total') && !$precioTotal) {
                         $validator->errors()->add('precio_total', 'El precio total es obligatorio para productos financiables.');
                     }
 
-                    if ($this->filled('numero_cuotas') && (!$numeroCuotas || $numeroCuotas <= 0)) {
-                        $validator->errors()->add('numero_cuotas', 'El número de cuotas es obligatorio y debe ser mayor a 0 para productos financiables.');
+                    // Validar que precio_total >= matricula si ambos están presentes
+                    if ($precioTotal !== null && $matricula !== null && (float) $precioTotal < (float) $matricula) {
+                        $validator->errors()->add('precio_total', 'El precio total debe ser mayor o igual a la matrícula.');
                     }
 
-                    // Validar que precio_total >= matricula si ambos están presentes
-                    if ($precioTotal && $matricula && $precioTotal < $matricula) {
-                        $validator->errors()->add('precio_total', 'El precio total debe ser mayor o igual a la matrícula.');
+                    // Estado combinado (payload + registro) para productos financiables
+                    if ($precioProducto && $precioContado !== null && $precioTotal !== null && $matricula !== null) {
+                        $service = app(LpPrecioProductoService::class);
+                        if (!$service->precioContadoCuadraConFinanciacion(
+                            (float) $precioContado,
+                            (float) $matricula,
+                            (float) $precioTotal
+                        )) {
+                            $validator->errors()->add('precio_contado', $service->mensajePrecioContadoFinanciacion());
+                        }
+                    }
+
+                    $numeroCuotasFinal = $this->has('numero_cuotas')
+                        ? $this->input('numero_cuotas')
+                        : ($precioProducto ? $precioProducto->numero_cuotas : null);
+                    if ($numeroCuotasFinal === null || (int) $numeroCuotasFinal <= 0) {
+                        $validator->errors()->add('numero_cuotas', 'El número de cuotas debe ser mayor a 0 para productos financiables.');
                     }
                 }
             }
         });
+    }
+
+    /**
+     * Modelo de precio en ruta (apiResource puede usar distinto nombre de parámetro).
+     */
+    private function resolvedLpPrecioProducto(): ?LpPrecioProducto
+    {
+        foreach ($this->route()?->parameters() ?? [] as $value) {
+            if ($value instanceof LpPrecioProducto) {
+                return $value;
+            }
+        }
+
+        $r = $this->route('lp_precio_producto');
+        if ($r instanceof LpPrecioProducto) {
+            return $r;
+        }
+
+        foreach ($this->route()?->parameters() ?? [] as $value) {
+            if (is_numeric($value)) {
+                $model = LpPrecioProducto::query()->find((int) $value);
+                if ($model !== null) {
+                    return $model;
+                }
+            }
+        }
+
+        return null;
     }
 
     /**

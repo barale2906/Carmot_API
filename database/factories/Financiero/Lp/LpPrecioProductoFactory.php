@@ -37,7 +37,7 @@ class LpPrecioProductoFactory extends Factory
         $producto->load('tipoProducto');
         $esFinanciable = $producto->esFinanciable();
 
-        // Precio de contado (siempre presente)
+        // Precio de contado (siempre presente para no financiable; financiable se calcula abajo)
         $precioContado = fake()->randomFloat(2, 50000, 5000000);
 
         // Si es financiable, generar datos de financiación
@@ -46,12 +46,11 @@ class LpPrecioProductoFactory extends Factory
         $numeroCuotas = null;
 
         if ($esFinanciable) {
-            // Precio total suele ser mayor que el precio de contado (con descuento)
-            $precioTotal = fake()->randomFloat(2, $precioContado * 1.1, $precioContado * 1.3);
-            // Matrícula entre 10% y 30% del precio total
+            // precio_contado = matricula + precio_total
+            $precioTotal = fake()->randomFloat(2, 50000, 5000000);
             $matricula = fake()->randomFloat(2, $precioTotal * 0.1, $precioTotal * 0.3);
-            // Número de cuotas entre 6 y 24
-            $numeroCuotas = fake()->numberBetween(6, 24);
+            $precioContado = round($matricula + $precioTotal, 2);
+            $numeroCuotas = fake()->numberBetween(1, 24);
         }
 
         return [
@@ -81,10 +80,10 @@ class LpPrecioProductoFactory extends Factory
                 $producto = LpProducto::factory()->activo()->curso()->create();
             }
 
-            $precioContado = fake()->randomFloat(2, 500000, 5000000);
-            $precioTotal = fake()->randomFloat(2, $precioContado * 1.1, $precioContado * 1.3);
+            $precioTotal = fake()->randomFloat(2, 500000, 5000000);
             $matricula = fake()->randomFloat(2, $precioTotal * 0.1, $precioTotal * 0.3);
-            $numeroCuotas = fake()->numberBetween(6, 24);
+            $precioContado = round($matricula + $precioTotal, 2);
+            $numeroCuotas = fake()->numberBetween(1, 24);
 
             return [
                 'producto_id' => $producto->id,

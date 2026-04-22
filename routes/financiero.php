@@ -31,25 +31,30 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::apiResource('productos', LpProductoController::class);
 
         // Rutas principales de listas de precios (CRUD estándar)
-        Route::apiResource('listas-precios', LpListaPrecioController::class);
+        // Forzar el nombre del parámetro de ruta a {lpListaPrecio} para que coincida con el
+        // type-hint LpListaPrecio $lpListaPrecio del controlador (evita modelo vacío e id null).
+        Route::apiResource('listas-precios', LpListaPrecioController::class)
+            ->parameters(['listas-precios' => 'lpListaPrecio']);
 
         // Rutas adicionales para funcionalidades específicas de listas de precios
         Route::prefix('listas-precios')->group(function () {
             // Ruta para aprobar una lista de precios (cambiar de "en proceso" a "aprobada")
-            Route::post('{id}/aprobar', [LpListaPrecioController::class, 'aprobar'])
+            // El nombre del segmento debe coincidir con el type-hint del controlador para el route model binding.
+            Route::post('{lpListaPrecio}/aprobar', [LpListaPrecioController::class, 'aprobar'])
                 ->name('listas-precios.aprobar');
 
             // Ruta para activar una lista de precios (cambiar a estado "activa")
-            Route::post('{id}/activar', [LpListaPrecioController::class, 'activar'])
+            Route::post('{lpListaPrecio}/activar', [LpListaPrecioController::class, 'activar'])
                 ->name('listas-precios.activar');
 
             // Ruta para inactivar una lista de precios (cambiar a estado "inactiva")
-            Route::post('{id}/inactivar', [LpListaPrecioController::class, 'inactivar'])
+            Route::post('{lpListaPrecio}/inactivar', [LpListaPrecioController::class, 'inactivar'])
                 ->name('listas-precios.inactivar');
         });
 
         // Rutas principales de precios de productos (CRUD estándar)
-        Route::apiResource('precios-producto', LpPrecioProductoController::class);
+        Route::apiResource('precios-producto', LpPrecioProductoController::class)
+            ->parameters(['precios-producto' => 'lpPrecioProducto']);
 
         // Rutas adicionales para funcionalidades específicas de precios de productos
         Route::prefix('precios-producto')->group(function () {
@@ -81,7 +86,8 @@ Route::middleware('auth:sanctum')->group(function () {
     // Rutas adicionales para funcionalidades específicas de descuentos
     Route::prefix('descuentos')->group(function () {
         // Ruta para aprobar un descuento (cambiar de "en proceso" a "aprobado")
-        Route::post('{id}/aprobar', [DescuentoController::class, 'aprobar'])
+        // El segmento debe llamarse {descuento} para que coincida con aprobar(Descuento $descuento).
+        Route::post('{descuento}/aprobar', [DescuentoController::class, 'aprobar'])
             ->name('descuentos.aprobar');
 
         // Ruta para aplicar descuentos a un precio

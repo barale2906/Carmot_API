@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Api\Financiero\Lp;
 
 use App\Models\Financiero\Lp\LpProducto;
+use App\Services\Financiero\LpPrecioProductoService;
 use Illuminate\Foundation\Http\FormRequest;
 
 /**
@@ -87,14 +88,25 @@ class StoreLpPrecioProductoRequest extends FormRequest
                         $validator->errors()->add('precio_total', 'El precio total es obligatorio para productos financiables.');
                     }
 
-                    if (!$this->filled('numero_cuotas') || $this->numero_cuotas <= 0) {
+                    if (!$this->filled('numero_cuotas') || (int) $this->numero_cuotas <= 0) {
                         $validator->errors()->add('numero_cuotas', 'El número de cuotas es obligatorio y debe ser mayor a 0 para productos financiables.');
                     }
 
-                    // Validar que precio_total >= matricula
+                    // Validar que precio_total >= matricula (base para cuotas: precio_total - matricula)
                     if ($this->filled('precio_total') && $this->filled('matricula')) {
                         if ($this->precio_total < $this->matricula) {
                             $validator->errors()->add('precio_total', 'El precio total debe ser mayor o igual a la matrícula.');
+                        }
+                    }
+
+                    if ($this->filled('precio_contado') && $this->filled('precio_total') && $this->filled('matricula')) {
+                        $service = app(LpPrecioProductoService::class);
+                        if (!$service->precioContadoCuadraConFinanciacion(
+                            (float) $this->input('precio_contado'),
+                            (float) $this->input('matricula'),
+                            (float) $this->input('precio_total')
+                        )) {
+                            $validator->errors()->add('precio_contado', $service->mensajePrecioContadoFinanciacion());
                         }
                     }
                 } else {
