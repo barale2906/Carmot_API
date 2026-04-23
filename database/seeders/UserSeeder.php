@@ -26,7 +26,7 @@ class UserSeeder extends Seeder
         User::factory()->create([
             'name' => 'Daniel Nastar',
             'email' => 'danielnastar@gmail.com',
-            'documento'=>10215300,
+            'documento'=>10215500,
             'password' => Hash::make('10203040'),
             //'rol_id'=>1
         ])->assignRole('superusuario');
