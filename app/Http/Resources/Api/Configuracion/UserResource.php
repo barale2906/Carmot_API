@@ -8,6 +8,31 @@ use Illuminate\Http\Resources\Json\JsonResource;
 class UserResource extends JsonResource
 {
     /**
+     * Resuelve las sedes accesibles del usuario sin provocar consultas extra
+     * cuando la relación ya fue cargada con eager loading.
+     *
+     * @return array<int, array{id: int, nombre: string}>
+     */
+    private function resolverSedes(): array
+    {
+        if ($this->hasRole('superusuario')) {
+            return $this->sedesAccesibles()->map(fn ($sede) => [
+                'id'     => $sede->id,
+                'nombre' => $sede->nombre,
+            ])->values()->toArray();
+        }
+
+        $collection = $this->relationLoaded('sedes')
+            ? $this->sedes
+            : $this->sedes()->get();
+
+        return $collection->map(fn ($sede) => [
+            'id'     => $sede->id,
+            'nombre' => $sede->nombre,
+        ])->values()->toArray();
+    }
+
+    /**
      * Transforma el recurso en una matriz.
      *
      * @return array<string, mixed>
@@ -23,6 +48,17 @@ class UserResource extends JsonResource
             'roles' => $this->roles ? $this->roles->pluck('name')->toArray() : [],
             /** @var array<string> */
             'permissions' => $this->permissions ? $this->permissions->pluck('name')->toArray() : [],
+            /**
+             * sedes_acceso_total: true cuando el usuario es superusuario y tiene
+             * acceso implícito a todas las sedes sin asignación explícita.
+             */
+            'sedes_acceso_total' => $this->hasRole('superusuario'),
+            /**
+             * sedes: para superusuario se devuelven todas las sedes activas;
+             * para otros roles, solo las asignadas explícitamente.
+             * Si la relación ya fue cargada por Eloquent se usa directamente (evita N+1).
+             */
+            'sedes' => $this->resolverSedes(),
             /** @var array<array<string, mixed>> */
             'grupos' => $this->when($this->relationLoaded('grupos'), function () {
                 return $this->grupos->map(function ($grupo) {

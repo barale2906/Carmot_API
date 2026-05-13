@@ -2,7 +2,9 @@
 
 use App\Http\Controllers\Api\Configuracion\AreaController;
 use App\Http\Controllers\Api\Configuracion\HorarioController;
+use App\Http\Controllers\Api\Configuracion\PermissionController;
 use App\Http\Controllers\Api\Configuracion\PoblacionController;
+use App\Http\Controllers\Api\Configuracion\RolController;
 use App\Http\Controllers\Api\Configuracion\SedeController;
 use App\Http\Controllers\Api\Configuracion\UserController;
 use Illuminate\Support\Facades\Route;
@@ -48,6 +50,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Rutas de sedes (rutas específicas antes del apiResource para evitar conflictos con {sede})
     Route::prefix('sedes')->group(function () {
+        Route::get('activas', [SedeController::class, 'activas'])
+            ->name('sedes.activas');
         Route::get('trashed', [SedeController::class, 'trashed'])
             ->name('sedes.trashed');
         Route::get('filters/options', [SedeController::class, 'filters'])
@@ -92,4 +96,25 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('horarios/force/{horario}', [HorarioController::class, 'forceDelete'])
         ->name('horarios.force-delete');
     Route::apiResource('horarios', HorarioController::class);
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Rutas de roles
+    // ──────────────────────────────────────────────────────────────────────────
+    Route::prefix('roles')->group(function () {
+        Route::patch('{rol}/toggle-status', [RolController::class, 'toggleStatus'])
+            ->name('roles.toggle-status');
+        Route::put('{rol}/permisos', [RolController::class, 'syncPermisos'])
+            ->name('roles.sync-permisos');
+        Route::post('{rol}/permisos/{permission}', [RolController::class, 'addPermiso'])
+            ->name('roles.add-permiso');
+        Route::delete('{rol}/permisos/{permission}', [RolController::class, 'removePermiso'])
+            ->name('roles.remove-permiso');
+    });
+    Route::apiResource('roles', RolController::class)->parameters(['roles' => 'rol']);
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Rutas de permisos (solo lectura)
+    // ──────────────────────────────────────────────────────────────────────────
+    Route::get('permisos', [PermissionController::class, 'index'])
+        ->name('permisos.index');
 });

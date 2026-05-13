@@ -58,7 +58,7 @@ class UserController extends Controller
             // Preparar relaciones - básicas por defecto
             $relations = $request->has('with')
                 ? explode(',', $request->input('with'))
-                : ['roles', 'permissions', 'grupos', 'cursos', 'gestores', 'agendadores', 'seguimientos'];
+                : ['roles', 'permissions', 'grupos', 'cursos', 'gestores', 'agendadores', 'seguimientos', 'sedes'];
 
             $users = $query->with($relations)->paginate($request->input('per_page', 15));
 
@@ -102,12 +102,19 @@ class UserController extends Controller
             $user->syncPermissions($request->permissions);
         }
 
+        $user->load('roles');
+
         // Sincronizar cursos si se proporcionan
         if ($request->has('cursos')) {
             $user->cursos()->sync($request->cursos);
         }
 
-        return (new UserResource($user->load('roles', 'permissions', 'cursos')))
+        // Sincronizar sedes solo si el usuario no es superusuario
+        if ($request->has('sedes') && !$user->hasRole('superusuario')) {
+            $user->sedes()->sync($request->sedes);
+        }
+
+        return (new UserResource($user->load('roles', 'permissions', 'cursos', 'sedes')))
                 ->response()
                 ->setStatusCode(201); // 201 Created
     }
@@ -126,7 +133,7 @@ class UserController extends Controller
         // Preparar relaciones
         $relations = $request->has('with')
             ? explode(',', $request->with)
-            : ['roles', 'permissions', 'grupos', 'cursos', 'gestores', 'agendadores', 'seguimientos'];
+            : ['roles', 'permissions', 'grupos', 'cursos', 'gestores', 'agendadores', 'seguimientos', 'sedes'];
 
         // Cargar relaciones y contadores
         $user->load($relations);
@@ -161,13 +168,20 @@ class UserController extends Controller
             $user->syncPermissions($request->permissions);
         }
 
+        $user->load('roles');
+
         // Sincronizar cursos si se proporcionan
         if ($request->has('cursos')) {
             $user->cursos()->sync($request->cursos);
         }
 
+        // Sincronizar sedes solo si el usuario no es superusuario
+        if ($request->has('sedes') && !$user->hasRole('superusuario')) {
+            $user->sedes()->sync($request->sedes);
+        }
+
         // Cargar relaciones y contadores
-        $user->load(['roles', 'permissions', 'cursos']);
+        $user->load(['roles', 'permissions', 'cursos', 'sedes']);
         $user->loadCount(['grupos', 'cursos', 'gestores', 'agendadores', 'seguimientos']);
 
         return new UserResource($user);

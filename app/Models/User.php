@@ -14,6 +14,7 @@ use App\Models\Crm\Agenda;
 use App\Models\Crm\Referido;
 use App\Models\Crm\Seguimiento;
 use App\Models\Dashboard\Dashboard;
+use App\Models\Configuracion\Sede;
 use App\Models\Financiero\ReciboPago\ReciboPago;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -70,6 +71,32 @@ class User extends Authenticatable
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
     ];
+
+    /**
+     * Sedes asignadas explícitamente al usuario (muchos a muchos).
+     * Los superusuarios no requieren registros aquí; usar sedesAccesibles().
+     */
+    public function sedes(): BelongsToMany
+    {
+        return $this->belongsToMany(Sede::class, 'sede_user')
+                    ->withTimestamps();
+    }
+
+    /**
+     * Devuelve las sedes a las que el usuario tiene acceso efectivo.
+     * - Superusuario: todas las sedes no eliminadas.
+     * - Cualquier otro rol: solo las sedes asignadas.
+     *
+     * @return \Illuminate\Database\Eloquent\Collection<int, Sede>
+     */
+    public function sedesAccesibles(): \Illuminate\Database\Eloquent\Collection
+    {
+        if ($this->hasRole('superusuario')) {
+            return Sede::all();
+        }
+
+        return $this->sedes()->get();
+    }
 
     //Cursos en los que está inscrito el estudiante (relación muchos a muchos)
     public function cursos(): BelongsToMany

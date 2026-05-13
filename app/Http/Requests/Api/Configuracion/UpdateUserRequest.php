@@ -33,7 +33,9 @@ class UpdateUserRequest extends FormRequest
             'permissions' => ['sometimes', 'array'],
             'permissions.*' => ['exists:permissions,name'],
             'cursos' => ['sometimes', 'array'],
-            'cursos.*' => ['exists:cursos,id'], // Valida que los cursos existan
+            'cursos.*' => ['exists:cursos,id'],
+            'sedes' => ['sometimes', 'array'],
+            'sedes.*' => ['integer', 'exists:sedes,id'],
         ];
     }
 }

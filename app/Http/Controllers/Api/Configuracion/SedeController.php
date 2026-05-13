@@ -21,7 +21,7 @@ class SedeController extends Controller
     public function __construct()
     {
         $this->middleware('auth:sanctum');
-        $this->middleware('permission:co_sedes')->only(['index', 'show', 'filters', 'statistics']);
+        $this->middleware('permission:co_sedes')->only(['index', 'show', 'filters', 'statistics', 'activas']);
         $this->middleware('permission:co_sedeCrear')->only(['store']);
         $this->middleware('permission:co_sedeEditar')->only(['update']);
         $this->middleware('permission:co_sedeInactivar')->only(['destroy', 'restore', 'forceDelete', 'trashed']);
@@ -66,6 +66,51 @@ class SedeController extends Controller
                 'total' => $sedes->total(),
                 'from' => $sedes->firstItem(),
                 'to' => $sedes->lastItem(),
+            ],
+        ]);
+    }
+
+    /**
+     * Lista todas las sedes vigentes (activas): no eliminadas con soft delete.
+     * Pensado para selectores en formularios (usuarios, etc.) sin paginación.
+     *
+     * @queryParam with string Relaciones opcionales separadas por coma (p. ej. poblacion,areas).
+     */
+    public function activas(Request $request): JsonResponse
+    {
+        $allowedRelations = [
+            'poblacion',
+            'areas',
+            'horarios',
+            'grupos',
+            'ciclos',
+            'programaciones',
+            'descuentos',
+            'recibosPago',
+        ];
+
+        $query = Sede::query()->orderBy('nombre');
+
+        if ($request->filled('with')) {
+            $requested = array_map('trim', explode(',', (string) $request->with));
+            $relations = array_values(array_intersect($requested, $allowedRelations));
+            if ($relations !== []) {
+                $query->with($relations);
+            } else {
+                $query->with('poblacion');
+            }
+        } else {
+            $query->with('poblacion');
+        }
+
+        $sedes = $query->get();
+
+        return response()->json([
+            'data' => SedeResource::collection($sedes),
+            'meta' => [
+                'total' => $sedes->count(),
+                'scope' => 'vigentes',
+                'descripcion' => 'Sedes sin eliminación lógica (deleted_at nulo).',
             ],
         ]);
     }

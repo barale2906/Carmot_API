@@ -28,11 +28,13 @@ class StoreUserRequest extends FormRequest
             'documento' => ['required', 'string', 'max:255', 'unique:users'],
             'password' => ['required', 'confirmed', Password::defaults()],
             'roles' => ['sometimes', 'array'],
-            'roles.*' => ['exists:roles,name'], // Valida que los roles existan
+            'roles.*' => ['exists:roles,name'],
             'permissions' => ['sometimes', 'array'],
-            'permissions.*' => ['exists:permissions,name'], // Valida que los permisos existan
+            'permissions.*' => ['exists:permissions,name'],
             'cursos' => ['sometimes', 'array'],
-            'cursos.*' => ['exists:cursos,id'], // Valida que los cursos existan
+            'cursos.*' => ['exists:cursos,id'],
+            'sedes' => ['sometimes', 'array'],
+            'sedes.*' => ['integer', 'exists:sedes,id'],
         ];
     }
 }

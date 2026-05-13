@@ -83,6 +83,15 @@ class Curso extends Model
     }
 
     /**
+     * Documentos de biblioteca asociados al curso (relación muchos a muchos).
+     */
+    public function biblioteca(): BelongsToMany
+    {
+        return $this->belongsToMany(Biblioteca::class, 'biblioteca_curso')
+                    ->withTimestamps();
+    }
+
+    /**
      * Scope para filtrar por búsqueda de nombre (sobrescribe el del trait).
      */
     public function scopeSearch($query, $search)
@@ -166,7 +175,8 @@ class Curso extends Model
             'ciclos',
             'programaciones',
             'asistencias',
-            'configuracionesAsistencia'
+            'configuracionesAsistencia',
+            'biblioteca',
         ];
     }
 
@@ -183,6 +193,6 @@ class Curso extends Model
      */
     protected function getCountableRelations(): array
     {
-        return ['referidos', 'estudiantes', 'modulos', 'ciclos', 'programaciones'];
+        return ['referidos', 'estudiantes', 'modulos', 'ciclos', 'programaciones', 'biblioteca'];
     }
 }

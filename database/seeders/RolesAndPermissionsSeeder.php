@@ -25,7 +25,33 @@ class RolesAndPermissionsSeeder extends Seeder
         $auxiliar = Role::create(['name' => 'auxiliar']);
         $alumno = Role::create(['name' => 'alumno']);
 
-        // Create permissions
+        // Create permissions - Roles
+        Permission::create([
+                    'name'=>'co_roles',
+                    'descripcion'=>'ver roles',
+                    ])->syncRoles([$Superusuario]);
+        Permission::create([
+                    'name'=>'co_rolCrear',
+                    'descripcion'=>'crear rol',
+                    ])->syncRoles([$Superusuario]);
+        Permission::create([
+                    'name'=>'co_rolEditar',
+                    'descripcion'=>'editar rol',
+                    ])->syncRoles([$Superusuario]);
+        Permission::create([
+                    'name'=>'co_rolEliminar',
+                    'descripcion'=>'eliminar rol',
+                    ])->syncRoles([$Superusuario]);
+        Permission::create([
+                    'name'=>'co_rolPermisos',
+                    'descripcion'=>'gestionar permisos de un rol',
+                    ])->syncRoles([$Superusuario]);
+        Permission::create([
+                    'name'=>'co_permisos',
+                    'descripcion'=>'ver permisos del sistema',
+                    ])->syncRoles([$Superusuario]);
+
+        // Create permissions - Usuarios
         Permission::create([
                     'name'=>'co_users',
                     'descripcion'=>'ver usuarios',

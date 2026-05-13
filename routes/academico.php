@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\Academico\AsistenciaClaseProgramadaController;
 use App\Http\Controllers\Api\Academico\AsistenciaConfiguracionController;
 use App\Http\Controllers\Api\Academico\AsistenciaController;
+use App\Http\Controllers\Api\Academico\BibliotecaController;
 use App\Http\Controllers\Api\Academico\CicloController;
 use App\Http\Controllers\Api\Academico\CursoController;
 use App\Http\Controllers\Api\Academico\EsquemaCalificacionController;
@@ -193,4 +194,18 @@ Route::middleware('auth:sanctum')->group(function () {
     // Asistencia — Configuraciones
     // -------------------------------------------------------------------------
     Route::apiResource('asistencia-configuraciones', AsistenciaConfiguracionController::class);
+
+    // -------------------------------------------------------------------------
+    // Biblioteca
+    // -------------------------------------------------------------------------
+    Route::prefix('biblioteca')->group(function () {
+        Route::get('trashed', [BibliotecaController::class, 'trashed'])->name('biblioteca.trashed');
+        Route::get('filters', [BibliotecaController::class, 'filters'])->name('biblioteca.filters');
+        Route::get('statistics', [BibliotecaController::class, 'statistics'])->name('biblioteca.statistics');
+        Route::post('{id}/restore', [BibliotecaController::class, 'restore'])->name('biblioteca.restore');
+        Route::delete('{id}/force-delete', [BibliotecaController::class, 'forceDelete'])->name('biblioteca.force-delete');
+        Route::put('{biblioteca}/cursos', [BibliotecaController::class, 'syncCursos'])->name('biblioteca.sync-cursos');
+        Route::get('{biblioteca}/download', [BibliotecaController::class, 'download'])->name('biblioteca.download');
+    });
+    Route::apiResource('biblioteca', BibliotecaController::class);
 });
