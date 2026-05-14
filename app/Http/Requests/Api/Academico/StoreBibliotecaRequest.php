@@ -4,13 +4,29 @@ namespace App\Http\Requests\Api\Academico;
 
 use Illuminate\Foundation\Http\FormRequest;
 
+/**
+ * Form Request para la creación de un documento de biblioteca.
+ *
+ * Valida que el nombre, fechas y archivo obligatorio sean correctos
+ * antes de que el controlador procese la subida al disco público.
+ *
+ * @package App\Http\Requests\Api\Academico
+ */
 class StoreBibliotecaRequest extends FormRequest
 {
+    /**
+     * Determina si el usuario está autorizado para realizar esta solicitud.
+     */
     public function authorize(): bool
     {
         return true;
     }
 
+    /**
+     * Obtiene las reglas de validación que se aplican a la solicitud.
+     *
+     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
+     */
     public function rules(): array
     {
         return [
@@ -23,6 +39,11 @@ class StoreBibliotecaRequest extends FormRequest
         ];
     }
 
+    /**
+     * Mensajes de error personalizados para las reglas de validación.
+     *
+     * @return array<string, string>
+     */
     public function messages(): array
     {
         return [

@@ -11,8 +11,20 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 
+/**
+ * Controlador para la gestión de usuarios del sistema.
+ *
+ * Permite crear, consultar, actualizar e inactivar usuarios. Gestiona la
+ * asignación de roles, permisos, cursos y sedes. Restringido al rol
+ * superusuario para las operaciones de escritura.
+ *
+ * @package App\Http\Controllers\Api\Configuracion
+ */
 class UserController extends Controller
 {
+    /**
+     * Registra los middlewares de autenticación, permisos y rol del módulo.
+     */
     public function __construct()
     {
         $this->middleware('auth:sanctum');

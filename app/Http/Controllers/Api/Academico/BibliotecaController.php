@@ -12,8 +12,20 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
+/**
+ * Controlador para la gestión de documentos de la Biblioteca académica.
+ *
+ * Maneja el ciclo de vida completo de los documentos: subida de archivos,
+ * listado con filtros avanzados, descarga, sincronización de cursos asociados
+ * y operaciones de soft delete / restore / force delete.
+ *
+ * @package App\Http\Controllers\Api\Academico
+ */
 class BibliotecaController extends Controller
 {
+    /**
+     * Registra los middlewares de autenticación y permisos del módulo.
+     */
     public function __construct()
     {
         $this->middleware('auth:sanctum');
@@ -101,9 +113,8 @@ class BibliotecaController extends Controller
     public function store(StoreBibliotecaRequest $request): JsonResponse
     {
         try {
-            $archivo  = $request->file('archivo');
-            $nombreSanitizado = preg_replace('/[^a-zA-Z0-9_\-\.]/', '_', $request->nombre);
-            $rutaDestino = 'biblioteca/' . now()->format('Y/m') . '/' . $nombreSanitizado . '_' . time() . '.' . $archivo->getClientOriginalExtension();
+            $archivo     = $request->file('archivo');
+            $rutaDestino = $this->generarRutaArchivo($request->nombre, $archivo->getClientOriginalExtension());
 
             $archivo->storeAs('', $rutaDestino, 'public');
 
@@ -175,10 +186,9 @@ class BibliotecaController extends Controller
             if ($request->hasFile('archivo')) {
                 $this->eliminarArchivo($biblioteca->ruta);
 
-                $archivo         = $request->file('archivo');
-                $nombreBase      = $datos['nombre'] ?? $biblioteca->nombre;
-                $nombreSanitizado = preg_replace('/[^a-zA-Z0-9_\-\.]/', '_', $nombreBase);
-                $rutaDestino      = 'biblioteca/' . now()->format('Y/m') . '/' . $nombreSanitizado . '_' . time() . '.' . $archivo->getClientOriginalExtension();
+                $archivo     = $request->file('archivo');
+                $nombreBase  = $datos['nombre'] ?? $biblioteca->nombre;
+                $rutaDestino = $this->generarRutaArchivo($nombreBase, $archivo->getClientOriginalExtension());
 
                 $archivo->storeAs('', $rutaDestino, 'public');
 
@@ -392,6 +402,23 @@ class BibliotecaController extends Controller
     // -------------------------------------------------------------------------
     // Helpers privados
     // -------------------------------------------------------------------------
+
+    /**
+     * Genera la ruta de destino del archivo con el formato:
+     *   biblioteca/YYYY/MM/YYYYMMDDHHmm_nombre_del_documento.ext
+     *
+     * El prefijo de fecha y hora garantiza unicidad sin colisiones.
+     * Los caracteres no alfanuméricos del nombre se reemplazan por guión bajo
+     * y el resultado se pasa a minúsculas para uniformidad.
+     */
+    private function generarRutaArchivo(string $nombre, string $extension): string
+    {
+        $prefijo          = now()->format('YmdHi');
+        $nombreSanitizado = strtolower(preg_replace('/[^a-zA-Z0-9]+/', '_', trim($nombre)));
+        $nombreSanitizado = trim($nombreSanitizado, '_');
+
+        return 'biblioteca/' . "{$prefijo}_{$nombreSanitizado}.{$extension}";
+    }
 
     /**
      * Elimina el archivo físico del disco público si existe.

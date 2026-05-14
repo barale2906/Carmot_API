@@ -12,10 +12,20 @@ use App\Models\Configuracion\Area;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 
+/**
+ * Controlador para la gestión de horarios de sede.
+ *
+ * Permite administrar los bloques horarios asociados a sedes y áreas,
+ * diferenciando entre horarios de disponibilidad de sede y horarios
+ * ocupados por grupos. Incluye el endpoint de semanario para visualizar
+ * la ocupación semanal de un área dentro de una sede.
+ *
+ * @package App\Http\Controllers\Api\Configuracion
+ */
 class HorarioController extends Controller
 {
     /**
-     * Constructor del controlador.
+     * Registra los middlewares de autenticación y permisos del módulo.
      */
     public function __construct()
     {

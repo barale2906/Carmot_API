@@ -4,13 +4,29 @@ namespace App\Http\Requests\Api\Academico;
 
 use Illuminate\Foundation\Http\FormRequest;
 
+/**
+ * Form Request para la actualización de un documento de biblioteca.
+ *
+ * Todos los campos son opcionales (sometimes); si se adjunta un nuevo
+ * archivo, el controlador eliminará el archivo anterior del disco.
+ *
+ * @package App\Http\Requests\Api\Academico
+ */
 class UpdateBibliotecaRequest extends FormRequest
 {
+    /**
+     * Determina si el usuario está autorizado para realizar esta solicitud.
+     */
     public function authorize(): bool
     {
         return true;
     }
 
+    /**
+     * Obtiene las reglas de validación que se aplican a la solicitud.
+     *
+     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
+     */
     public function rules(): array
     {
         return [
@@ -24,6 +40,11 @@ class UpdateBibliotecaRequest extends FormRequest
         ];
     }
 
+    /**
+     * Mensajes de error personalizados para las reglas de validación.
+     *
+     * @return array<string, string>
+     */
     public function messages(): array
     {
         return [

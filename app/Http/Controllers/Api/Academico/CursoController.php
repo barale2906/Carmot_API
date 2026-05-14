@@ -13,11 +13,21 @@ use App\Traits\HasTipo;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 
+/**
+ * Controlador para la gestión de cursos académicos.
+ *
+ * Expone endpoints para crear, leer, actualizar y eliminar cursos,
+ * incluyendo la asociación con módulos, referidos y estudiantes.
+ * Soporta soft delete, restore, force delete y estadísticas.
+ *
+ * @package App\Http\Controllers\Api\Academico
+ */
 class CursoController extends Controller
 {
     use HasTipo, HasActiveStatus;
+
     /**
-     * Constructor del controlador.
+     * Registra los middlewares de permisos para cada acción del controlador.
      */
     public function __construct()
     {

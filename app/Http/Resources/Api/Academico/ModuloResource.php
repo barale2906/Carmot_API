@@ -6,9 +6,19 @@ use App\Traits\HasActiveStatus;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
+/**
+ * Resource de transformación para el modelo Modulo.
+ *
+ * Serializa un módulo con su duración, estado y relaciones opcionales
+ * de cursos, grupos y tópicos cuando están disponibles en la instancia.
+ *
+ * @mixin \App\Models\Academico\Modulo
+ * @package App\Http\Resources\Api\Academico
+ */
 class ModuloResource extends JsonResource
 {
     use HasActiveStatus;
+
     /**
      * Transforma el recurso en un array.
      *

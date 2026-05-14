@@ -6,6 +6,15 @@ use App\Traits\HasActiveStatus;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
+/**
+ * Resource de transformación para el modelo Grupo.
+ *
+ * Serializa un grupo académico con sus atributos de jornada, inscritos y estado,
+ * incluyendo las relaciones opcionales de sede, módulo y profesor.
+ *
+ * @mixin \App\Models\Academico\Grupo
+ * @package App\Http\Resources\Api\Academico
+ */
 class GrupoResource extends JsonResource
 {
     use HasActiveStatus;

@@ -5,6 +5,17 @@ namespace App\Http\Resources\Api\Configuracion;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
+/**
+ * Resource de transformación para el modelo User.
+ *
+ * Serializa un usuario con roles, permisos, sedes accesibles y las
+ * colecciones opcionales de grupos, cursos, gestores, agendadores y
+ * seguimientos. Para el rol superusuario, las sedes se resuelven
+ * dinámicamente devolviendo todas las sedes activas del sistema.
+ *
+ * @mixin \App\Models\User
+ * @package App\Http\Resources\Api\Configuracion
+ */
 class UserResource extends JsonResource
 {
     /**

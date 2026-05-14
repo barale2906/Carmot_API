@@ -12,11 +12,21 @@ use App\Traits\HasActiveStatus;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 
+/**
+ * Controlador para la gestión de módulos académicos.
+ *
+ * Permite administrar los módulos que componen los cursos. Cada módulo
+ * agrupa tópicos y puede asociarse a varios cursos y grupos.
+ * Incluye un endpoint de árbol jerárquico (módulo → tópicos → temas).
+ *
+ * @package App\Http\Controllers\Api\Academico
+ */
 class ModuloController extends Controller
 {
     use HasActiveStatus;
+
     /**
-     * Constructor del controlador.
+     * Registra los middlewares de permisos para cada acción del controlador.
      */
     public function __construct()
     {

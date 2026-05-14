@@ -5,6 +5,16 @@ namespace App\Http\Resources\Api\Configuracion;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
+/**
+ * Resource de transformación para el modelo Role de Spatie.
+ *
+ * Serializa un rol con sus permisos asociados y los contadores de
+ * permisos y usuarios. Los contadores solo se incluyen cuando han
+ * sido calculados explícitamente (no se generan N+1 queries).
+ *
+ * @mixin \Spatie\Permission\Models\Role
+ * @package App\Http\Resources\Api\Configuracion
+ */
 class RolResource extends JsonResource
 {
     /**

@@ -26,6 +26,38 @@ use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
 use Spatie\Translatable\HasTranslations;
 
+/**
+ * Modelo central de usuario del sistema.
+ *
+ * Extiende el autenticable de Laravel e integra Sanctum para tokens de API,
+ * Spatie Permission para roles y permisos, y SoftDeletes para inactivación
+ * lógica. Centraliza todas las relaciones del usuario con los demás módulos
+ * (grupos, cursos, CRM, finanzas, asistencias, notas, etc.).
+ *
+ * @property int         $id
+ * @property string      $name       Nombre completo del usuario.
+ * @property string      $email      Correo electrónico (único).
+ * @property string      $documento  Número de documento de identidad (único).
+ * @property string      $password   Hash de la contraseña.
+ * @property \Carbon\Carbon|null $email_verified_at
+ * @property \Carbon\Carbon|null $created_at
+ * @property \Carbon\Carbon|null $updated_at
+ * @property \Carbon\Carbon|null $deleted_at
+ *
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Academico\Grupo>   $grupos
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Academico\Curso>   $cursos
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Crm\Referido>      $gestores
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Crm\Agenda>        $agendadores
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Crm\Seguimiento>   $seguimientos
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Configuracion\Sede> $sedes
+ * @property-read int|null $grupos_count
+ * @property-read int|null $cursos_count
+ * @property-read int|null $gestores_count
+ * @property-read int|null $agendadores_count
+ * @property-read int|null $seguimientos_count
+ *
+ * @package App\Models
+ */
 class User extends Authenticatable
 {
     use HasApiTokens, HasFactory, Notifiable, HasRoles, SoftDeletes, HasTranslations;

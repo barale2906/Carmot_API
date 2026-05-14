@@ -6,6 +6,15 @@ use App\Traits\HasActiveStatus;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
+/**
+ * Resource de transformación para el modelo Horario.
+ *
+ * Serializa un registro de horario con su día, hora, tipo (sede/grupo),
+ * período (inicio/fin) y las relaciones opcionales de sede y área.
+ *
+ * @mixin \App\Models\Configuracion\Horario
+ * @package App\Http\Resources\Api\Configuracion
+ */
 class HorarioResource extends JsonResource
 {
     use HasActiveStatus;

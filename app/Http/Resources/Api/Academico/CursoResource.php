@@ -7,9 +7,20 @@ use App\Traits\HasTipo;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
+/**
+ * Resource de transformación para el modelo Curso.
+ *
+ * Serializa un curso con sus campos base, texto legible de tipo y estado,
+ * y opcionalmente las colecciones de referidos, estudiantes y módulos
+ * cuando las relaciones han sido cargadas con eager loading.
+ *
+ * @mixin \App\Models\Academico\Curso
+ * @package App\Http\Resources\Api\Academico
+ */
 class CursoResource extends JsonResource
 {
     use HasTipo, HasActiveStatus;
+
     /**
      * Transforma el recurso en un array.
      *

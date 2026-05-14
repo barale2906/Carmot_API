@@ -16,6 +16,35 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\Translatable\HasTranslations;
 
+/**
+ * Modelo que representa un Curso académico.
+ *
+ * Un curso agrupa módulos y puede tener referidos, estudiantes matriculados,
+ * ciclos, programaciones, asistencias y documentos de biblioteca asociados.
+ * La duración del curso se calcula automáticamente como la suma de las
+ * duraciones de sus módulos cuando se asocian mediante `modulo_ids`.
+ *
+ * @property int         $id
+ * @property string      $nombre    Nombre del curso (único, multiidioma).
+ * @property float       $duracion  Duración total en horas.
+ * @property int         $tipo      Tipo de curso (ver trait HasTipo).
+ * @property int         $status    Estado del curso (1=activo, 0=inactivo).
+ * @property \Carbon\Carbon|null $created_at
+ * @property \Carbon\Carbon|null $updated_at
+ * @property \Carbon\Carbon|null $deleted_at
+ *
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Crm\Referido>           $referidos
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\User>                   $estudiantes
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Academico\Modulo>       $modulos
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Academico\Ciclo>        $ciclos
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Academico\Programacion> $programaciones
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Academico\Biblioteca>   $biblioteca
+ * @property-read int|null $referidos_count
+ * @property-read int|null $estudiantes_count
+ * @property-read int|null $modulos_count
+ *
+ * @package App\Models\Academico
+ */
 class Curso extends Model
 {
     use HasFactory, HasTranslations, SoftDeletes, HasFilterScopes, HasSortingScopes, HasRelationScopes, HasActiveStatus;

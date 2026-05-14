@@ -6,6 +6,15 @@ use App\Traits\HasActiveStatus;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
+/**
+ * Resource de transformación para el modelo Topico.
+ *
+ * Serializa un tópico con su duración, estado y las relaciones
+ * opcionales de módulos y temas cuando están cargadas.
+ *
+ * @mixin \App\Models\Academico\Topico
+ * @package App\Http\Resources\Api\Academico
+ */
 class TopicoResource extends JsonResource
 {
     use HasActiveStatus;

@@ -6,10 +6,20 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\Api\MenuResponseResource;
 use Illuminate\Http\Request;
 
+/**
+ * Controlador para la construcción dinámica del menú de navegación.
+ *
+ * Genera el árbol de menú personalizado según los permisos del usuario
+ * autenticado. Cada módulo (Configuración, CRM, Académico, Financiero,
+ * Inventario) y sus submenús son incluidos solo cuando el usuario posee
+ * al menos uno de los permisos asociados.
+ *
+ * @package App\Http\Controllers\Api
+ */
 class MenuController extends Controller
 {
     /**
-     * Constructor: protege todas las rutas con autenticación Sanctum.
+     * Protege todas las rutas con autenticación Sanctum.
      */
     public function __construct()
     {

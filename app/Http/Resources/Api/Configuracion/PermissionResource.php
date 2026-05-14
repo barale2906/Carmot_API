@@ -5,6 +5,15 @@ namespace App\Http\Resources\Api\Configuracion;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
+/**
+ * Resource de transformación para el modelo Permission de Spatie.
+ *
+ * Expone los campos esenciales de un permiso: identificador, nombre,
+ * descripción personalizada y guard al que pertenece.
+ *
+ * @mixin \Spatie\Permission\Models\Permission
+ * @package App\Http\Resources\Api\Configuracion
+ */
 class PermissionResource extends JsonResource
 {
     /**

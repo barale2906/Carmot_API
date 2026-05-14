@@ -8,8 +8,20 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Spatie\Permission\Models\Permission;
 
+/**
+ * Controlador para la consulta de permisos del sistema.
+ *
+ * Expone un único endpoint de listado que permite buscar y filtrar
+ * los permisos registrados mediante el paquete Spatie Permission.
+ * Su uso principal es alimentar los formularios de asignación de permisos a roles.
+ *
+ * @package App\Http\Controllers\Api\Configuracion
+ */
 class PermissionController extends Controller
 {
+    /**
+     * Registra los middlewares de autenticación y permisos del módulo.
+     */
     public function __construct()
     {
         $this->middleware('auth:sanctum');

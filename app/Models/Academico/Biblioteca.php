@@ -11,6 +11,30 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
+/**
+ * Modelo que representa un documento de la Biblioteca académica.
+ *
+ * Almacena la metadata de archivos subidos al disco público y mantiene
+ * una relación muchos a muchos con los cursos a los que pertenecen.
+ * Implementa soft delete y scopes de filtrado avanzado.
+ *
+ * @property int         $id
+ * @property string      $nombre               Nombre descriptivo del documento.
+ * @property string|null $ruta                 Ruta relativa en el disco público.
+ * @property string|null $tipo_archivo         Extensión del archivo (pdf, docx, …).
+ * @property int|null    $tamanio              Tamaño en bytes.
+ * @property int         $status               Estado del documento (1=activo, 0=inactivo).
+ * @property \Carbon\Carbon|null $fecha_carga         Fecha en que se subió el documento.
+ * @property \Carbon\Carbon|null $fecha_obsolescencia Fecha a partir de la cual el documento es obsoleto.
+ * @property \Carbon\Carbon|null $created_at
+ * @property \Carbon\Carbon|null $updated_at
+ * @property \Carbon\Carbon|null $deleted_at
+ *
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Academico\Curso> $cursos
+ * @property-read int|null $cursos_count
+ *
+ * @package App\Models\Academico
+ */
 class Biblioteca extends Model
 {
     use HasFactory, SoftDeletes, HasFilterScopes, HasSortingScopes, HasRelationScopes, HasActiveStatus;

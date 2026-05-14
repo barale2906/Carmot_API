@@ -13,10 +13,19 @@ use App\Models\Configuracion\Horario;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 
+/**
+ * Controlador para la gestión de sedes.
+ *
+ * Administra el ciclo de vida de las sedes, incluyendo la asignación
+ * de áreas, la generación automática de horarios de atención y las
+ * consultas de disponibilidad. Soporta soft delete, restore y force delete.
+ *
+ * @package App\Http\Controllers\Api\Configuracion
+ */
 class SedeController extends Controller
 {
     /**
-     * Constructor del controlador.
+     * Registra los middlewares de autenticación y permisos del módulo.
      */
     public function __construct()
     {

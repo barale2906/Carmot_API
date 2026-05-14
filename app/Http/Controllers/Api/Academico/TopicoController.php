@@ -11,12 +11,21 @@ use App\Traits\HasActiveStatus;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 
+/**
+ * Controlador para la gestión de tópicos académicos.
+ *
+ * Los tópicos son las unidades temáticas que componen los módulos.
+ * Cada tópico agrupa temas y su duración se calcula automáticamente
+ * a partir de la suma de las duraciones de sus temas asociados.
+ *
+ * @package App\Http\Controllers\Api\Academico
+ */
 class TopicoController extends Controller
 {
     use HasActiveStatus;
 
     /**
-     * Constructor del controlador.
+     * Registra los middlewares de permisos para cada acción del controlador.
      */
     public function __construct()
     {

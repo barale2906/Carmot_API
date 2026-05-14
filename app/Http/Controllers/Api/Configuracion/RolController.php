@@ -13,8 +13,20 @@ use Illuminate\Support\Facades\Log;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 
+/**
+ * Controlador para la gestión de roles del sistema.
+ *
+ * Permite crear, consultar, actualizar y eliminar roles, así como
+ * gestionar sus permisos de forma individual o mediante sync completo.
+ * Integra el paquete Spatie Permission para el manejo de autorización.
+ *
+ * @package App\Http\Controllers\Api\Configuracion
+ */
 class RolController extends Controller
 {
+    /**
+     * Registra los middlewares de autenticación y permisos del módulo.
+     */
     public function __construct()
     {
         $this->middleware('auth:sanctum');
