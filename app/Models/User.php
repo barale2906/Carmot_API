@@ -2,8 +2,6 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
-
 use App\Models\Academico\Asistencia;
 use App\Models\Academico\AsistenciaClaseProgramada;
 use App\Models\Academico\Curso;
@@ -29,32 +27,25 @@ use Spatie\Translatable\HasTranslations;
 /**
  * Modelo central de usuario del sistema.
  *
- * Extiende el autenticable de Laravel e integra Sanctum para tokens de API,
- * Spatie Permission para roles y permisos, y SoftDeletes para inactivación
- * lógica. Centraliza todas las relaciones del usuario con los demás módulos
- * (grupos, cursos, CRM, finanzas, asistencias, notas, etc.).
+ * El nombre completo se almacena en cuatro campos independientes para
+ * facilitar búsquedas, ordenamientos y formatos de presentación. El
+ * accessor `name` concatena los campos para compatibilidad con el resto
+ * del sistema (relaciones, resources, reportes).
  *
  * @property int         $id
- * @property string      $name       Nombre completo del usuario.
- * @property string      $email      Correo electrónico (único).
- * @property string      $documento  Número de documento de identidad (único).
- * @property string      $password   Hash de la contraseña.
+ * @property string      $primer_nombre    Primer nombre (obligatorio).
+ * @property string|null $segundo_nombre   Segundo nombre (opcional).
+ * @property string      $primer_apellido  Primer apellido (obligatorio).
+ * @property string|null $segundo_apellido Segundo apellido (opcional).
+ * @property string      $email            Correo electrónico (único).
+ * @property string      $documento        Número de documento (único).
+ * @property string      $password
  * @property \Carbon\Carbon|null $email_verified_at
  * @property \Carbon\Carbon|null $created_at
  * @property \Carbon\Carbon|null $updated_at
  * @property \Carbon\Carbon|null $deleted_at
  *
- * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Academico\Grupo>   $grupos
- * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Academico\Curso>   $cursos
- * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Crm\Referido>      $gestores
- * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Crm\Agenda>        $agendadores
- * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Crm\Seguimiento>   $seguimientos
- * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Configuracion\Sede> $sedes
- * @property-read int|null $grupos_count
- * @property-read int|null $cursos_count
- * @property-read int|null $gestores_count
- * @property-read int|null $agendadores_count
- * @property-read int|null $seguimientos_count
+ * @property-read string $name             Nombre completo calculado (accessor).
  *
  * @package App\Models
  */
@@ -62,64 +53,61 @@ class User extends Authenticatable
 {
     use HasApiTokens, HasFactory, Notifiable, HasRoles, SoftDeletes, HasTranslations;
 
-    /**
-     * Los atributos que son asignables en masa.
-     *
-     * @var array<int, string>
-     */
     protected $fillable = [
-        'name',
+        'primer_nombre',
+        'segundo_nombre',
+        'primer_apellido',
+        'segundo_apellido',
         'email',
         'password',
         'documento',
         'deleted_at',
     ];
 
-    /**
-     * Los atributos que son traducibles.
-     *
-     * @var array<int, string>
-     */
-    public $translatable = [
-        // 'name' removido - el nombre del usuario no debe ser traducible
-    ];
+    public $translatable = [];
 
-    /**
-     * Los atributos que deben ocultarse para la serialización.
-     *
-     * @var array<int, string>
-     */
     protected $hidden = [
         'password',
         'remember_token',
     ];
 
-    /**
-     * Los atributos que deben ser convertidos.
-     *
-     * @var array<string, string>
-     */
     protected $casts = [
         'email_verified_at' => 'datetime',
-        'password' => 'hashed',
+        'password'          => 'hashed',
     ];
+
+    // -------------------------------------------------------------------------
+    // Accessor — nombre completo
+    // -------------------------------------------------------------------------
+
+    /**
+     * Retorna el nombre completo concatenando los cuatro campos.
+     * Se usa en todo el sistema donde se espera `->name` del usuario.
+     */
+    public function getNameAttribute(): string
+    {
+        return trim(implode(' ', array_filter([
+            $this->primer_nombre,
+            $this->segundo_nombre,
+            $this->primer_apellido,
+            $this->segundo_apellido,
+        ])));
+    }
+
+    // -------------------------------------------------------------------------
+    // Relaciones
+    // -------------------------------------------------------------------------
 
     /**
      * Sedes asignadas explícitamente al usuario (muchos a muchos).
-     * Los superusuarios no requieren registros aquí; usar sedesAccesibles().
      */
     public function sedes(): BelongsToMany
     {
-        return $this->belongsToMany(Sede::class, 'sede_user')
-                    ->withTimestamps();
+        return $this->belongsToMany(Sede::class, 'sede_user')->withTimestamps();
     }
 
     /**
      * Devuelve las sedes a las que el usuario tiene acceso efectivo.
-     * - Superusuario: todas las sedes no eliminadas.
-     * - Cualquier otro rol: solo las sedes asignadas.
-     *
-     * @return \Illuminate\Database\Eloquent\Collection<int, Sede>
      */
     public function sedesAccesibles(): \Illuminate\Database\Eloquent\Collection
     {
@@ -130,107 +118,76 @@ class User extends Authenticatable
         return $this->sedes()->get();
     }
 
-    //Cursos en los que está inscrito el estudiante (relación muchos a muchos)
     public function cursos(): BelongsToMany
     {
-        return $this->belongsToMany(Curso::class, 'curso_user')
-                    ->withTimestamps();
+        return $this->belongsToMany(Curso::class, 'curso_user')->withTimestamps();
     }
 
-    //Gestor CRM - referidos que gestiona
     public function gestores(): HasMany
     {
         return $this->hasMany(Referido::class, 'gestor_id');
     }
 
-    //Agendador CRM - agendas que ha creado
     public function agendadores(): HasMany
     {
         return $this->hasMany(Agenda::class, 'agendador_id');
     }
 
-    //Gestor que hace el seguimiento
     public function seguimientos(): HasMany
     {
         return $this->hasMany(Seguimiento::class, 'seguidor_id');
     }
 
-    //Grupos que imparte el profesor
     public function grupos(): HasMany
     {
         return $this->hasMany(Grupo::class, 'profesor_id');
     }
 
-    /**
-     * Dashboards creados por el usuario.
-     * Un usuario puede crear múltiples dashboards.
-     *
-     * @return HasMany
-     */
     public function dashboards(): HasMany
     {
         return $this->hasMany(Dashboard::class, 'user_id');
     }
 
-    // Matrículas del estudiante
     public function matriculas(): HasMany
     {
         return $this->hasMany(Matricula::class, 'estudiante_id');
     }
 
-    // Matrículas realizadas por el usuario
     public function matriculasRealizadas(): HasMany
     {
         return $this->hasMany(Matricula::class, 'matriculado_por_id');
     }
 
-    // Notas del estudiante
     public function notasEstudiantes(): HasMany
     {
         return $this->hasMany(NotaEstudiante::class, 'estudiante_id');
     }
 
-    // Notas registradas por el usuario
     public function notasRegistradas(): HasMany
     {
         return $this->hasMany(NotaEstudiante::class, 'registrado_por_id');
     }
 
-    // Asistencias del estudiante
     public function asistencias(): HasMany
     {
         return $this->hasMany(Asistencia::class, 'estudiante_id');
     }
 
-    // Asistencias registradas por el usuario
     public function asistenciasRegistradas(): HasMany
     {
         return $this->hasMany(Asistencia::class, 'registrado_por_id');
     }
 
-    // Clases programadas creadas por el usuario
     public function clasesProgramadas(): HasMany
     {
         return $this->hasMany(AsistenciaClaseProgramada::class, 'creado_por_id');
     }
 
-    /**
-     * Relación con RecibosPago como Estudiante (uno a muchos).
-     * Un estudiante puede tener múltiples recibos de pago.
-     *
-     * @return HasMany
-     */
     public function recibosPagoComoEstudiante(): HasMany
     {
         return $this->hasMany(ReciboPago::class, 'estudiante_id');
     }
 
-    /**
-     * Relación con RecibosPago como Cajero (uno a muchos).
-     * Un cajero puede generar múltiples recibos de pago.
-     *
-     * @return HasMany
-     */
     public function recibosPagoComoCajero(): HasMany
     {
         return $this->hasMany(ReciboPago::class, 'cajero_id');

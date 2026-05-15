@@ -13,7 +13,15 @@ return new class extends Migration
     {
         Schema::create('users', function (Blueprint $table) {
             $table->id();
-            $table->string('name');
+
+            // ----------------------------------------------------------------
+            // Nombre completo descompuesto
+            // ----------------------------------------------------------------
+            $table->string('primer_nombre', 80)->comment('primer nombre del usuario (obligatorio)');
+            $table->string('segundo_nombre', 80)->nullable()->comment('segundo nombre del usuario (opcional)');
+            $table->string('primer_apellido', 80)->comment('primer apellido del usuario (obligatorio)');
+            $table->string('segundo_apellido', 80)->nullable()->comment('segundo apellido del usuario (opcional)');
+
             $table->string('email')->unique();
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');

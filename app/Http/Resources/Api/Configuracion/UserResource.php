@@ -51,10 +51,14 @@ class UserResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-            'id' => $this->id,
-            'name' => $this->name,
-            'email' => $this->email,
-            'documento' => $this->documento,
+            'id'               => $this->id,
+            'primer_nombre'    => $this->primer_nombre,
+            'segundo_nombre'   => $this->segundo_nombre,
+            'primer_apellido'  => $this->primer_apellido,
+            'segundo_apellido' => $this->segundo_apellido,
+            'name'             => $this->name,
+            'email'            => $this->email,
+            'documento'        => $this->documento,
             /** @var array<string> */
             'roles' => $this->roles ? $this->roles->pluck('name')->toArray() : [],
             /** @var array<string> */

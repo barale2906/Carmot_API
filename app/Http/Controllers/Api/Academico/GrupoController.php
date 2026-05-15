@@ -315,7 +315,9 @@ class GrupoController extends Controller
     {
         $sedes = \App\Models\Configuracion\Sede::select('id', 'nombre')->get();
         $modulos = \App\Models\Academico\Modulo::select('id', 'nombre')->get();
-        $profesores = \App\Models\User::role('profesor')->select('id', 'name')->get();
+        $profesores = \App\Models\User::role('profesor')
+            ->select('id', 'primer_nombre', 'segundo_nombre', 'primer_apellido', 'segundo_apellido')
+            ->get();
 
         $jornadaOptions = self::getJornadaOptions();
         $jornadaOptionsFormatted = [];

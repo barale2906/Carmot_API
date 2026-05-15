@@ -2,6 +2,7 @@
 
 namespace App\Models\Academico;
 
+use App\Models\Configuracion\Poblacion;
 use App\Models\Financiero\ReciboPago\ReciboPago;
 use App\Models\User;
 use App\Traits\HasActiveStatus;
@@ -17,29 +18,57 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 /**
  * Modelo Matricula
  *
- * Representa una matrícula de un estudiante en un curso y ciclo específico.
- * Una matrícula pertenece a un curso, un ciclo, un estudiante, un usuario que la realizó y un comercial.
+ * Representa la matrícula de un estudiante en un curso/ciclo, incluyendo
+ * todos los datos personales, socioeconómicos y de proceso de inscripción.
  *
- * @property int $id Identificador único de la matrícula
- * @property int $curso_id ID del curso al que pertenece
- * @property int $ciclo_id ID del ciclo al que pertenece
- * @property int $estudiante_id ID del estudiante matriculado
- * @property int $matriculado_por_id ID del usuario que realizó la matrícula
- * @property int $comercial_id ID del usuario comercial que gestionó la venta
- * @property \Carbon\Carbon $fecha_matricula Fecha en que se realizó la matrícula
- * @property \Carbon\Carbon $fecha_inicio Fecha de inicio de las clases
- * @property float $monto Monto de la matrícula
- * @property string|null $observaciones Observaciones adicionales
- * @property int $status Estado de la matrícula (0: Inactivo, 1: Activo, 2: Anulado)
- * @property \Carbon\Carbon $created_at Fecha de creación
- * @property \Carbon\Carbon $updated_at Fecha de última actualización
- * @property \Carbon\Carbon|null $deleted_at Fecha de eliminación (soft delete)
+ * @property int         $id
+ * @property int         $curso_id
+ * @property int         $ciclo_id
+ * @property int         $estudiante_id
+ * @property int         $matriculado_por_id
+ * @property int         $comercial_id
+ * @property string      $fecha_matricula
+ * @property string      $fecha_inicio
+ * @property float       $monto
+ * @property float|null  $valor_cuota
+ * @property string|null $observaciones
+ * @property string|null $tipo_identificacion     CC | CE | TI | RC | PA | OT
+ * @property string|null $departamento_expedicion
+ * @property string|null $ciudad_expedicion
+ * @property string|null $fecha_nacimiento
+ * @property string|null $genero                  M | F | O
+ * @property string|null $estado_civil            SO | CA | UL | DI | VI | SE
+ * @property string|null $grupo_sanguineo         A | B | AB | O
+ * @property string|null $rh                      P | N
+ * @property string|null $direccion
+ * @property int|null    $lugar_origen_id
+ * @property string|null $celular
+ * @property string|null $telefono
+ * @property string|null $nivel_educacion         PR | SE | TC | TG | PF | ES | MA | DO | OT
+ * @property string|null $ocupacion
+ * @property string|null $empresa
+ * @property int|null    $estrato                 1-6
+ * @property string|null $regimen_salud           CO | SU | ES | EX
+ * @property bool|null   $enfermedad_prioritaria
+ * @property bool|null   $discapacidad
+ * @property bool|null   $conocimiento_curso
+ * @property string|null $como_entero_curso
+ * @property string|null $talla_overol
+ * @property string|null $talla_botas
+ * @property string|null $nombre_contacto
+ * @property string|null $telefono_contacto
+ * @property string|null $correo_contacto
+ * @property bool        $aprueba_uso_imagen
+ * @property string|null $multiculturalidad
+ * @property string|null $foto
+ * @property int         $status                  0: Inactivo | 1: Activo | 2: Anulado
  *
- * @property-read \App\Models\Academico\Curso $curso Curso al que pertenece
- * @property-read \App\Models\Academico\Ciclo $ciclo Ciclo al que pertenece
- * @property-read \App\Models\User $estudiante Estudiante matriculado
- * @property-read \App\Models\User $matriculadoPor Usuario que realizó la matrícula
- * @property-read \App\Models\User $comercial Usuario comercial que gestionó la venta
+ * @property-read \App\Models\Academico\Curso          $curso
+ * @property-read \App\Models\Academico\Ciclo          $ciclo
+ * @property-read \App\Models\User                     $estudiante
+ * @property-read \App\Models\User                     $matriculadoPor
+ * @property-read \App\Models\User                     $comercial
+ * @property-read \App\Models\Configuracion\Poblacion  $lugarOrigen
  */
 class Matricula extends Model
 {
@@ -49,23 +78,84 @@ class Matricula extends Model
 
     protected $dates = ['deleted_at'];
 
-    /**
-     * Los atributos que deben ser convertidos a tipos nativos.
-     *
-     * @var array
-     */
-    protected $casts = [
-        'status' => 'integer',
-        'fecha_matricula' => 'date',
-        'fecha_inicio' => 'date',
-        'monto' => 'decimal:2',
+    // -------------------------------------------------------------------------
+    // Catálogos de valores permitidos (usados en validaciones y en el Resource)
+    // -------------------------------------------------------------------------
+
+    public const TIPOS_IDENTIFICACION = [
+        'CC' => 'Cédula de Ciudadanía',
+        'CE' => 'Cédula de Extranjería',
+        'TI' => 'Tarjeta de Identidad',
+        'RC' => 'Registro Civil',
+        'PA' => 'Pasaporte',
+        'OT' => 'Otro',
+    ];
+
+    public const GENEROS = [
+        'M' => 'Masculino',
+        'F' => 'Femenino',
+        'O' => 'Otro',
+    ];
+
+    public const ESTADOS_CIVILES = [
+        'SO' => 'Soltero',
+        'CA' => 'Casado',
+        'UL' => 'Unión libre',
+        'DI' => 'Divorciado',
+        'VI' => 'Viudo',
+        'SE' => 'Separado',
+    ];
+
+    public const GRUPOS_SANGUINEOS = [
+        'A'  => 'A',
+        'B'  => 'B',
+        'AB' => 'AB',
+        'O'  => 'O',
+    ];
+
+    public const RHS = [
+        'P' => 'Positivo',
+        'N' => 'Negativo',
+    ];
+
+    public const NIVELES_EDUCACION = [
+        'PR' => 'Primaria',
+        'SE' => 'Secundaria',
+        'TC' => 'Técnico',
+        'TG' => 'Tecnólogo',
+        'PF' => 'Profesional',
+        'ES' => 'Especialización',
+        'MA' => 'Maestría',
+        'DO' => 'Doctorado',
+        'OT' => 'Otro',
+    ];
+
+    public const REGIMENES_SALUD = [
+        'CO' => 'Contributivo',
+        'SU' => 'Subsidiado',
+        'ES' => 'Especial',
+        'EX' => 'Excepción',
     ];
 
     /**
-     * Obtiene las opciones de estado para matrículas.
-     * Sobrescribe el método del trait para incluir el estado "Anulado".
-     *
-     * @return array<string, string> Array con los estados disponibles
+     * Los atributos que deben ser convertidos a tipos nativos.
+     */
+    protected $casts = [
+        'status'                 => 'integer',
+        'fecha_matricula'        => 'date',
+        'fecha_inicio'           => 'date',
+        'fecha_nacimiento'       => 'date',
+        'monto'                  => 'decimal:2',
+        'valor_cuota'            => 'decimal:2',
+        'estrato'                => 'integer',
+        'enfermedad_prioritaria' => 'boolean',
+        'discapacidad'           => 'boolean',
+        'conocimiento_curso'     => 'boolean',
+        'aprueba_uso_imagen'     => 'boolean',
+    ];
+
+    /**
+     * Opciones de estado: extiende el trait para incluir "Anulado".
      */
     public static function getActiveStatusOptions(): array
     {
@@ -76,218 +166,178 @@ class Matricula extends Model
         ];
     }
 
-    /**
-     * Relación con Curso (muchos a uno).
-     * Una matrícula pertenece a un curso.
-     *
-     * @return BelongsTo
-     */
+    // -------------------------------------------------------------------------
+    // Relaciones
+    // -------------------------------------------------------------------------
+
     public function curso(): BelongsTo
     {
         return $this->belongsTo(Curso::class);
     }
 
-    /**
-     * Relación con Ciclo (muchos a uno).
-     * Una matrícula pertenece a un ciclo.
-     *
-     * @return BelongsTo
-     */
     public function ciclo(): BelongsTo
     {
         return $this->belongsTo(Ciclo::class);
     }
 
-    /**
-     * Relación con User - Estudiante (muchos a uno).
-     * Una matrícula pertenece a un estudiante.
-     *
-     * @return BelongsTo
-     */
     public function estudiante(): BelongsTo
     {
         return $this->belongsTo(User::class, 'estudiante_id');
     }
 
-    /**
-     * Relación con User - Matriculado Por (muchos a uno).
-     * Una matrícula fue realizada por un usuario.
-     *
-     * @return BelongsTo
-     */
     public function matriculadoPor(): BelongsTo
     {
         return $this->belongsTo(User::class, 'matriculado_por_id');
     }
 
-    /**
-     * Relación con User - Comercial (muchos a uno).
-     * Una matrícula fue gestionada por un usuario comercial.
-     *
-     * @return BelongsTo
-     */
     public function comercial(): BelongsTo
     {
         return $this->belongsTo(User::class, 'comercial_id');
     }
 
     /**
-     * Relación con RecibosPago (uno a muchos).
-     * Una matrícula puede tener múltiples recibos de pago asociados.
-     *
-     * @return HasMany
+     * Lugar de origen del estudiante (población del sistema).
+     */
+    public function lugarOrigen(): BelongsTo
+    {
+        return $this->belongsTo(Poblacion::class, 'lugar_origen_id');
+    }
+
+    /**
+     * Recibos de pago asociados a esta matrícula.
      */
     public function recibosPago(): HasMany
     {
         return $this->hasMany(ReciboPago::class);
     }
 
-    /**
-     * Scope para filtrar por búsqueda (por nombre del estudiante o curso).
-     */
+    // -------------------------------------------------------------------------
+    // Accessors
+    // -------------------------------------------------------------------------
+
+    public function getAnuladaAttribute(): bool
+    {
+        return $this->status === 2;
+    }
+
+    public function getActivaAttribute(): bool
+    {
+        return $this->status === 1;
+    }
+
+    public function getTipoIdentificacionTextoAttribute(): ?string
+    {
+        return self::TIPOS_IDENTIFICACION[$this->tipo_identificacion] ?? null;
+    }
+
+    public function getGeneroTextoAttribute(): ?string
+    {
+        return self::GENEROS[$this->genero] ?? null;
+    }
+
+    public function getEstadoCivilTextoAttribute(): ?string
+    {
+        return self::ESTADOS_CIVILES[$this->estado_civil] ?? null;
+    }
+
+    public function getNivelEducacionTextoAttribute(): ?string
+    {
+        return self::NIVELES_EDUCACION[$this->nivel_educacion] ?? null;
+    }
+
+    public function getRegimenSaludTextoAttribute(): ?string
+    {
+        return self::REGIMENES_SALUD[$this->regimen_salud] ?? null;
+    }
+
+    public function getRhTextoAttribute(): ?string
+    {
+        return self::RHS[$this->rh] ?? null;
+    }
+
+    // -------------------------------------------------------------------------
+    // Scopes
+    // -------------------------------------------------------------------------
+
     public function scopeSearch($query, $search)
     {
         return $query->whereHas('estudiante', function ($q) use ($search) {
-            $q->where('name', 'like', '%' . $search . '%');
+            $q->where('primer_nombre', 'like', '%' . $search . '%')
+              ->orWhere('segundo_nombre', 'like', '%' . $search . '%')
+              ->orWhere('primer_apellido', 'like', '%' . $search . '%')
+              ->orWhere('segundo_apellido', 'like', '%' . $search . '%');
         })->orWhereHas('curso', function ($q) use ($search) {
             $q->where('nombre', 'like', '%' . $search . '%');
         });
     }
 
-    /**
-     * Scope para filtrar por curso.
-     *
-     * @param \Illuminate\Database\Eloquent\Builder $query
-     * @param int $cursoId
-     * @return \Illuminate\Database\Eloquent\Builder
-     */
     public function scopeByCurso($query, $cursoId)
     {
         return $query->where('curso_id', $cursoId);
     }
 
-    /**
-     * Scope para filtrar por ciclo.
-     *
-     * @param \Illuminate\Database\Eloquent\Builder $query
-     * @param int $cicloId
-     * @return \Illuminate\Database\Eloquent\Builder
-     */
     public function scopeByCiclo($query, $cicloId)
     {
         return $query->where('ciclo_id', $cicloId);
     }
 
-    /**
-     * Scope para filtrar por estudiante.
-     *
-     * @param \Illuminate\Database\Eloquent\Builder $query
-     * @param int $estudianteId
-     * @return \Illuminate\Database\Eloquent\Builder
-     */
     public function scopeByEstudiante($query, $estudianteId)
     {
         return $query->where('estudiante_id', $estudianteId);
     }
 
-    /**
-     * Scope para filtrar por rango de fechas de matrícula.
-     *
-     * @param \Illuminate\Database\Eloquent\Builder $query
-     * @param string $fechaInicio
-     * @param string $fechaFin
-     * @return \Illuminate\Database\Eloquent\Builder
-     */
     public function scopeByFechaMatriculaRange($query, $fechaInicio, $fechaFin)
     {
         return $query->whereBetween('fecha_matricula', [$fechaInicio, $fechaFin]);
     }
 
-    /**
-     * Scope para filtrar por rango de montos.
-     *
-     * @param \Illuminate\Database\Eloquent\Builder $query
-     * @param float $montoMin
-     * @param float $montoMax
-     * @return \Illuminate\Database\Eloquent\Builder
-     */
     public function scopeByMontoRange($query, $montoMin, $montoMax)
     {
         return $query->whereBetween('monto', [$montoMin, $montoMax]);
     }
 
-    /**
-     * Scope para filtrar por estado anulado.
-     *
-     * @param \Illuminate\Database\Eloquent\Builder $query
-     * @return \Illuminate\Database\Eloquent\Builder
-     */
     public function scopeAnuladas($query)
     {
         return $query->where('status', 2);
     }
 
     /**
-     * Scope para aplicar múltiples filtros de manera dinámica (sobrescribe el del trait).
-     *
-     * @param \Illuminate\Database\Eloquent\Builder $query
-     * @param array $filters
-     * @return \Illuminate\Database\Eloquent\Builder
+     * Scope compuesto de filtros (sobrescribe el del trait).
      */
     public function scopeWithFilters($query, array $filters)
     {
         return $query
-            ->when(isset($filters['search']) && $filters['search'], function ($q) use ($filters) {
-                return $q->search($filters['search']);
-            })
-            ->when(isset($filters['status']) && $filters['status'] !== null, function ($q) use ($filters) {
-                return $q->byStatus($filters['status']);
-            })
-            ->when(isset($filters['curso_id']) && $filters['curso_id'], function ($q) use ($filters) {
-                return $q->byCurso($filters['curso_id']);
-            })
-            ->when(isset($filters['ciclo_id']) && $filters['ciclo_id'], function ($q) use ($filters) {
-                return $q->byCiclo($filters['ciclo_id']);
-            })
-            ->when(isset($filters['estudiante_id']) && $filters['estudiante_id'], function ($q) use ($filters) {
-                return $q->byEstudiante($filters['estudiante_id']);
-            })
-            ->when(isset($filters['fecha_matricula_inicio']) && isset($filters['fecha_matricula_fin']), function ($q) use ($filters) {
-                return $q->byFechaMatriculaRange($filters['fecha_matricula_inicio'], $filters['fecha_matricula_fin']);
-            })
-            ->when(isset($filters['monto_min']) && isset($filters['monto_max']), function ($q) use ($filters) {
-                return $q->byMontoRange($filters['monto_min'], $filters['monto_max']);
-            })
-            ->when(isset($filters['include_trashed']) && $filters['include_trashed'], function ($q) {
-                return $q->withTrashed();
-            })
-            ->when(isset($filters['only_trashed']) && $filters['only_trashed'], function ($q) {
-                return $q->onlyTrashed();
-            });
+            ->when(isset($filters['search']) && $filters['search'], fn ($q) => $q->search($filters['search']))
+            ->when(isset($filters['status']) && $filters['status'] !== null, fn ($q) => $q->byStatus($filters['status']))
+            ->when(isset($filters['curso_id']) && $filters['curso_id'], fn ($q) => $q->byCurso($filters['curso_id']))
+            ->when(isset($filters['ciclo_id']) && $filters['ciclo_id'], fn ($q) => $q->byCiclo($filters['ciclo_id']))
+            ->when(isset($filters['estudiante_id']) && $filters['estudiante_id'], fn ($q) => $q->byEstudiante($filters['estudiante_id']))
+            ->when(
+                isset($filters['fecha_matricula_inicio']) && isset($filters['fecha_matricula_fin']),
+                fn ($q) => $q->byFechaMatriculaRange($filters['fecha_matricula_inicio'], $filters['fecha_matricula_fin'])
+            )
+            ->when(
+                isset($filters['monto_min']) && isset($filters['monto_max']),
+                fn ($q) => $q->byMontoRange($filters['monto_min'], $filters['monto_max'])
+            )
+            ->when(isset($filters['include_trashed']) && $filters['include_trashed'], fn ($q) => $q->withTrashed())
+            ->when(isset($filters['only_trashed']) && $filters['only_trashed'], fn ($q) => $q->onlyTrashed());
     }
 
-    /**
-     * Obtiene los campos permitidos para ordenamiento.
-     *
-     * @return array
-     */
     protected function getAllowedSortFields(): array
     {
         return [
             'fecha_matricula',
             'fecha_inicio',
+            'fecha_nacimiento',
             'monto',
+            'valor_cuota',
             'status',
             'created_at',
-            'updated_at'
+            'updated_at',
         ];
     }
 
-    /**
-     * Obtiene las relaciones permitidas para este modelo.
-     *
-     * @return array
-     */
     protected function getAllowedRelations(): array
     {
         return [
@@ -296,56 +346,25 @@ class Matricula extends Model
             'estudiante',
             'matriculadoPor',
             'comercial',
-            'recibosPago'
+            'lugarOrigen',
+            'recibosPago',
         ];
     }
 
-    /**
-     * Obtiene las relaciones por defecto a cargar.
-     *
-     * @return array
-     */
     protected function getDefaultRelations(): array
     {
         return ['curso', 'ciclo', 'estudiante'];
     }
 
-    /**
-     * Obtiene las relaciones que pueden ser contadas.
-     *
-     * @return array
-     */
     protected function getCountableRelations(): array
     {
         return [];
     }
 
-    /**
-     * Verifica si la matrícula está anulada.
-     *
-     * @return bool
-     */
-    public function getAnuladaAttribute(): bool
-    {
-        return $this->status === 2;
-    }
+    // -------------------------------------------------------------------------
+    // Lógica de negocio — contadores de inscritos en ciclo/grupos
+    // -------------------------------------------------------------------------
 
-    /**
-     * Verifica si la matrícula está activa.
-     *
-     * @return bool
-     */
-    public function getActivaAttribute(): bool
-    {
-        return $this->status === 1;
-    }
-
-    /**
-     * Incrementa el contador de inscritos en el ciclo y sus grupos.
-     *
-     * @param int|null $cicloId ID del ciclo (opcional, usa el ciclo_id del modelo si no se proporciona)
-     * @return void
-     */
     protected function incrementarInscritos(?int $cicloId = null): void
     {
         $cicloId = $cicloId ?? $this->ciclo_id;
@@ -359,21 +378,13 @@ class Matricula extends Model
             return;
         }
 
-        // Incrementar inscritos en el ciclo
         $ciclo->increment('inscritos');
 
-        // Incrementar inscritos en todos los grupos del ciclo
         foreach ($ciclo->grupos as $grupo) {
             $grupo->increment('inscritos');
         }
     }
 
-    /**
-     * Decrementa el contador de inscritos en el ciclo y sus grupos.
-     *
-     * @param int|null $cicloId ID del ciclo (opcional, usa el ciclo_id del modelo si no se proporciona)
-     * @return void
-     */
     protected function decrementarInscritos(?int $cicloId = null): void
     {
         $cicloId = $cicloId ?? $this->ciclo_id;
@@ -387,12 +398,10 @@ class Matricula extends Model
             return;
         }
 
-        // Decrementar inscritos en el ciclo (asegurarse de que no sea negativo)
         if ($ciclo->inscritos > 0) {
             $ciclo->decrement('inscritos');
         }
 
-        // Decrementar inscritos en todos los grupos del ciclo
         foreach ($ciclo->grupos as $grupo) {
             if ($grupo->inscritos > 0) {
                 $grupo->decrement('inscritos');
@@ -400,58 +409,45 @@ class Matricula extends Model
         }
     }
 
-    /**
-     * Boot del modelo para eventos automáticos.
-     */
     protected static function boot()
     {
         parent::boot();
 
-        // Cuando se crea una matrícula activa, incrementar inscritos
         static::created(function ($matricula) {
             if ($matricula->status === 1) {
                 $matricula->incrementarInscritos();
             }
         });
 
-        // Cuando se actualiza una matrícula
         static::updated(function ($matricula) {
             $statusAnterior = $matricula->getOriginal('status');
-            $statusNuevo = $matricula->status;
-            $cicloAnterior = $matricula->getOriginal('ciclo_id');
-            $cicloNuevo = $matricula->ciclo_id;
+            $statusNuevo    = $matricula->status;
+            $cicloAnterior  = $matricula->getOriginal('ciclo_id');
+            $cicloNuevo     = $matricula->ciclo_id;
 
-            // Si cambió el ciclo
             if ($cicloAnterior !== $cicloNuevo) {
-                // Si estaba activa en el ciclo anterior, decrementar
                 if ($statusAnterior === 1 && $cicloAnterior) {
                     $matricula->decrementarInscritos($cicloAnterior);
                 }
-                // Si está activa en el ciclo nuevo, incrementar
                 if ($statusNuevo === 1 && $cicloNuevo) {
                     $matricula->incrementarInscritos($cicloNuevo);
                 }
             } else {
-                // Si solo cambió el status
-                // De activo a inactivo/anulado: decrementar
                 if ($statusAnterior === 1 && $statusNuevo !== 1) {
                     $matricula->decrementarInscritos();
                 }
-                // De inactivo/anulado a activo: incrementar
                 if ($statusAnterior !== 1 && $statusNuevo === 1) {
                     $matricula->incrementarInscritos();
                 }
             }
         });
 
-        // Cuando se elimina una matrícula (soft delete), decrementar si estaba activa
         static::deleted(function ($matricula) {
             if ($matricula->status === 1) {
                 $matricula->decrementarInscritos();
             }
         });
 
-        // Cuando se restaura una matrícula, incrementar si está activa
         static::restored(function ($matricula) {
             if ($matricula->status === 1) {
                 $matricula->incrementarInscritos();

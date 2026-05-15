@@ -56,8 +56,11 @@ class UserController extends Controller
 
             if ($request->filled('search')) {
                 $search = $request->input('search');
-                $query->where(function($q) use ($search) {
-                    $q->where('name', 'like', "%{$search}%")
+                $query->where(function ($q) use ($search) {
+                    $q->where('primer_nombre', 'like', "%{$search}%")
+                      ->orWhere('segundo_nombre', 'like', "%{$search}%")
+                      ->orWhere('primer_apellido', 'like', "%{$search}%")
+                      ->orWhere('segundo_apellido', 'like', "%{$search}%")
                       ->orWhere('email', 'like', "%{$search}%")
                       ->orWhere('documento', 'like', "%{$search}%");
                 });
@@ -101,10 +104,13 @@ class UserController extends Controller
     public function store(StoreUserRequest $request)
     {
         $user = User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
-            'documento' => $request->documento,
+            'primer_nombre'    => $request->primer_nombre,
+            'segundo_nombre'   => $request->segundo_nombre,
+            'primer_apellido'  => $request->primer_apellido,
+            'segundo_apellido' => $request->segundo_apellido,
+            'email'            => $request->email,
+            'password'         => Hash::make($request->password),
+            'documento'        => $request->documento,
         ]);
 
         if ($request->has('roles')) {
@@ -283,11 +289,13 @@ class UserController extends Controller
      */
     public function filters()
     {
-        $roles = \Spatie\Permission\Models\Role::select('id', 'name')->get();
-        $profesores = User::role('profesor')->select('id', 'name')->get();
-        $cursos = \App\Models\Academico\Curso::select('id', 'nombre')->get();
-        $gestores = User::whereHas('gestores')->select('id', 'name')->get();
-        $agendadores = User::whereHas('agendadores')->select('id', 'name')->get();
+        $nameColumns = ['id', 'primer_nombre', 'segundo_nombre', 'primer_apellido', 'segundo_apellido'];
+
+        $roles       = \Spatie\Permission\Models\Role::select('id', 'name')->get();
+        $profesores  = User::role('profesor')->select($nameColumns)->get();
+        $cursos      = \App\Models\Academico\Curso::select('id', 'nombre')->get();
+        $gestores    = User::whereHas('gestores')->select($nameColumns)->get();
+        $agendadores = User::whereHas('agendadores')->select($nameColumns)->get();
 
         return response()->json([
             'data' => [
