@@ -57,34 +57,94 @@ class LpPrecioProductoService
     }
 
     /**
-     * Obtiene el precio de un producto para una población y fecha específica.
-     * Retorna el precio del producto desde la lista de precios vigente (activa)
-     * que aplica para la población especificada.
+     * Obtiene todos los precios de un producto para una población y fecha específica.
      *
-     * @param int $productoId ID del producto
-     * @param int $poblacionId ID de la población (ciudad)
-     * @param Carbon|null $fecha Fecha para verificar vigencia. Si es null, usa la fecha actual
-     * @return LpPrecioProducto|null Precio del producto o null si no existe lista vigente
+     * Un producto puede tener múltiples registros de precio dentro de la misma lista
+     * (por ejemplo, uno de contado y otro financiado). Por eso retorna una colección.
+     * Si no existe lista vigente para la población indicada, retorna una colección vacía.
+     *
+     * @param  int          $productoId  ID del producto LP
+     * @param  int          $poblacionId ID de la población (ciudad)
+     * @param  Carbon|null  $fecha       Fecha de vigencia. Si es null, usa la fecha actual.
+     * @return \Illuminate\Support\Collection<int, LpPrecioProducto>
      */
-    public function obtenerPrecio(int $productoId, int $poblacionId, ?Carbon $fecha = null): ?LpPrecioProducto
+    public function obtenerPrecios(int $productoId, int $poblacionId, ?Carbon $fecha = null): \Illuminate\Support\Collection
     {
         $fecha = $fecha ?? Carbon::now();
 
-        // Buscar lista de precios vigente para la población
         $listaPrecio = LpListaPrecio::whereHas('poblaciones', function ($query) use ($poblacionId) {
             $query->where('poblacions.id', $poblacionId);
         })
-        ->vigentes($fecha) // Solo retorna listas activas (status = 3) y vigentes
+        ->vigentes($fecha)
         ->first();
 
         if (!$listaPrecio) {
-            return null;
+            return collect();
         }
 
-        // Buscar el precio del producto en la lista de precios
         return LpPrecioProducto::where('lista_precio_id', $listaPrecio->id)
             ->where('producto_id', $productoId)
-            ->first();
+            ->get();
+    }
+
+    /**
+     * Obtiene el primer precio de un producto para una población y fecha específica.
+     * Método de compatibilidad — preferir obtenerPrecios() cuando se necesiten
+     * todos los registros de precio disponibles.
+     *
+     * @param  int          $productoId  ID del producto LP
+     * @param  int          $poblacionId ID de la población (ciudad)
+     * @param  Carbon|null  $fecha       Fecha de vigencia. Si es null, usa la fecha actual.
+     * @return LpPrecioProducto|null
+     */
+    public function obtenerPrecio(int $productoId, int $poblacionId, ?Carbon $fecha = null): ?LpPrecioProducto
+    {
+        return $this->obtenerPrecios($productoId, $poblacionId, $fecha)->first();
+    }
+
+    /**
+     * Obtiene todos los precios asociados a una referencia académica (curso o módulo)
+     * para una población y fecha específica.
+     *
+     * Este método es el punto de entrada principal para el frontend: recibe directamente
+     * la referencia académica (curso/módulo) y la sede, y retorna todos los precios
+     * disponibles de todos los productos LP vinculados a esa referencia en la lista vigente.
+     *
+     * Un mismo curso puede estar vinculado a más de un producto LP, y cada producto puede
+     * tener más de un precio en la lista (ej. contado y financiado), por lo que la
+     * respuesta puede contener múltiples registros agrupados por producto.
+     *
+     * @param  int          $referenciaId   ID de la referencia académica (curso o módulo)
+     * @param  string       $referenciaTipo Tipo de referencia: 'curso' o 'modulo'
+     * @param  int          $poblacionId    ID de la población (sede/ciudad)
+     * @param  Carbon|null  $fecha          Fecha de vigencia. Si es null, usa la fecha actual.
+     * @return \Illuminate\Support\Collection<int, LpPrecioProducto>
+     */
+    public function obtenerPreciosPorReferencia(
+        int $referenciaId,
+        string $referenciaTipo,
+        int $poblacionId,
+        ?Carbon $fecha = null
+    ): \Illuminate\Support\Collection {
+        $fecha = $fecha ?? Carbon::now();
+
+        $listaPrecio = LpListaPrecio::whereHas('poblaciones', function ($query) use ($poblacionId) {
+            $query->where('poblacions.id', $poblacionId);
+        })
+        ->vigentes($fecha)
+        ->first();
+
+        if (!$listaPrecio) {
+            return collect();
+        }
+
+        return LpPrecioProducto::where('lista_precio_id', $listaPrecio->id)
+            ->whereHas('producto.referencias', function ($query) use ($referenciaId, $referenciaTipo) {
+                $query->where('referencia_id',   $referenciaId)
+                      ->where('referencia_tipo', $referenciaTipo);
+            })
+            ->with(['producto.tipoProducto', 'producto.referencias', 'listaPrecio.poblaciones'])
+            ->get();
     }
 
     /**

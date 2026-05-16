@@ -552,6 +552,11 @@ class RolesAndPermissionsSeeder extends Seeder
                     'descripcion'=>'aprobar lista de precios',
                     //'modulo'=>'financiero'
                     ])->syncRoles([$Superusuario,$financiero,$coordinador]);
+        Permission::create([
+                    'name'=>'fin_lp_listaPrecioClonar',
+                    'descripcion'=>'clonar lista de precios para nuevo período',
+                    //'modulo'=>'financiero'
+                    ])->syncRoles([$Superusuario,$financiero]);
 
         // Create permissions precios de productos
         Permission::create([
@@ -574,6 +579,23 @@ class RolesAndPermissionsSeeder extends Seeder
                     'descripcion'=>'inactivar precio de producto',
                     //'modulo'=>'financiero'
                     ])->syncRoles([$Superusuario,$financiero,$coordinador]);
+
+        // Create permissions producto referencias (vínculos académicos LP)
+        Permission::create([
+                    'name'=>'fin_lp_producto_referencias',
+                    'descripcion'=>'ver referencias de productos LP',
+                    //'modulo'=>'financiero'
+                    ])->syncRoles([$Superusuario,$financiero,$coordinador]);
+        Permission::create([
+                    'name'=>'fin_lp_productoReferenciaVincular',
+                    'descripcion'=>'vincular curso/módulo a producto LP',
+                    //'modulo'=>'financiero'
+                    ])->syncRoles([$Superusuario,$financiero]);
+        Permission::create([
+                    'name'=>'fin_lp_productoReferenciaDesvincular',
+                    'descripcion'=>'desvincular curso/módulo de producto LP',
+                    //'modulo'=>'financiero'
+                    ])->syncRoles([$Superusuario,$financiero]);
 
         // Create permissions conceptos de pago
         Permission::create([

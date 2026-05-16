@@ -16,7 +16,6 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
@@ -31,15 +30,15 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property string $nombre Nombre del producto
  * @property string|null $codigo Código único del producto
  * @property string|null $descripcion Descripción del producto
- * @property int|null $referencia_id ID del curso o módulo relacionado (si aplica)
- * @property string|null $referencia_tipo Tipo de referencia (curso, modulo)
  * @property int $status Estado del producto (0: inactivo, 1: activo)
  * @property \Carbon\Carbon $created_at Fecha de creación
  * @property \Carbon\Carbon $updated_at Fecha de última actualización
  * @property \Carbon\Carbon|null $deleted_at Fecha de eliminación (soft delete)
  *
  * @property-read \App\Models\Financiero\Lp\LpTipoProducto $tipoProducto Tipo de producto al que pertenece
- * @property-read \App\Models\Academico\Curso|\App\Models\Academico\Modulo|null $referencia Referencia polimórfica al curso o módulo
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Financiero\Lp\LpProductoReferencia> $referencias Vínculos con entidades académicas
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Academico\Curso> $cursos Cursos académicos referenciados por este producto
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Academico\Modulo> $modulos Módulos académicos referenciados por este producto
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Financiero\Lp\LpPrecioProducto> $precios Precios del producto en diferentes listas
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Financiero\Lp\LpListaPrecio> $listasPrecios Listas de precios donde aparece el producto
  * @property-read \Illuminate\Database\Eloquent\Collection<int, Descuento> $descuentos Descuentos asociados a este producto
@@ -71,6 +70,10 @@ class LpProducto extends Model
         'status' => 'integer',
     ];
 
+    // -------------------------------------------------------------------------
+    // Relaciones — Tipo y precios
+    // -------------------------------------------------------------------------
+
     /**
      * Relación con LpTipoProducto (muchos a uno).
      * Un producto pertenece a un tipo de producto.
@@ -80,17 +83,6 @@ class LpProducto extends Model
     public function tipoProducto(): BelongsTo
     {
         return $this->belongsTo(LpTipoProducto::class, 'tipo_producto_id');
-    }
-
-    /**
-     * Relación polimórfica con Curso o Modulo (muchos a uno).
-     * Un producto puede referenciar a un curso o módulo existente.
-     *
-     * @return MorphTo
-     */
-    public function referencia(): MorphTo
-    {
-        return $this->morphTo('referencia', 'referencia_tipo', 'referencia_id');
     }
 
     /**
@@ -116,6 +108,59 @@ class LpProducto extends Model
         return $this->belongsToMany(LpListaPrecio::class, 'lp_precios_producto', 'producto_id', 'lista_precio_id')
                     ->withPivot(['precio_contado', 'precio_total', 'matricula', 'numero_cuotas', 'valor_cuota', 'observaciones'])
                     ->withTimestamps();
+    }
+
+    // -------------------------------------------------------------------------
+    // Relaciones — Referencias académicas
+    // -------------------------------------------------------------------------
+
+    /**
+     * Relación con LpProductoReferencia (uno a muchos).
+     * Un producto puede tener múltiples vínculos con entidades académicas.
+     * Incluye tanto cursos como módulos.
+     *
+     * @return HasMany
+     */
+    public function referencias(): HasMany
+    {
+        return $this->hasMany(LpProductoReferencia::class, 'lp_producto_id');
+    }
+
+    /**
+     * Cursos académicos vinculados a este producto (muchos a muchos).
+     * Usa la tabla pivot lp_producto_referencias filtrando por tipo 'curso'.
+     *
+     * Para adjuntar: $producto->cursos()->attach($cursoId, ['referencia_tipo' => 'curso'])
+     * — o usar LpProductoReferencia directamente desde el controlador.
+     *
+     * @return BelongsToMany
+     */
+    public function cursos(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            Curso::class,
+            'lp_producto_referencias',
+            'lp_producto_id',
+            'referencia_id'
+        )->wherePivot('referencia_tipo', LpProductoReferencia::TIPO_CURSO)
+         ->withTimestamps();
+    }
+
+    /**
+     * Módulos académicos vinculados a este producto (muchos a muchos).
+     * Usa la tabla pivot lp_producto_referencias filtrando por tipo 'modulo'.
+     *
+     * @return BelongsToMany
+     */
+    public function modulos(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            Modulo::class,
+            'lp_producto_referencias',
+            'lp_producto_id',
+            'referencia_id'
+        )->wherePivot('referencia_tipo', LpProductoReferencia::TIPO_MODULO)
+         ->withTimestamps();
     }
 
     /**
@@ -175,10 +220,9 @@ class LpProducto extends Model
             'nombre',
             'codigo',
             'tipo_producto_id',
-            'referencia_tipo',
             'status',
             'created_at',
-            'updated_at'
+            'updated_at',
         ];
     }
 
@@ -191,11 +235,13 @@ class LpProducto extends Model
     {
         return [
             'tipoProducto',
-            'referencia',
+            'referencias',
+            'cursos',
+            'modulos',
             'precios',
             'listasPrecios',
             'descuentos',
-            'recibosPago'
+            'recibosPago',
         ];
     }
 
@@ -217,9 +263,12 @@ class LpProducto extends Model
     protected function getCountableRelations(): array
     {
         return [
+            'referencias',
+            'cursos',
+            'modulos',
             'precios',
             'listasPrecios',
-            'descuentos'
+            'descuentos',
         ];
     }
 }

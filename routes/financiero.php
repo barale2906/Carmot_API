@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\Financiero\Descuento\DescuentoController;
 use App\Http\Controllers\Api\Financiero\Lp\LpListaPrecioController;
 use App\Http\Controllers\Api\Financiero\Lp\LpPrecioProductoController;
 use App\Http\Controllers\Api\Financiero\Lp\LpProductoController;
+use App\Http\Controllers\Api\Financiero\Lp\LpProductoReferenciaController;
 use App\Http\Controllers\Api\Financiero\Lp\LpTipoProductoController;
 use App\Http\Controllers\Api\Financiero\ReciboPago\ReciboPagoController;
 use Illuminate\Support\Facades\Route;
@@ -50,18 +51,46 @@ Route::middleware('auth:sanctum')->group(function () {
             // Ruta para inactivar una lista de precios (cambiar a estado "inactiva")
             Route::post('{lpListaPrecio}/inactivar', [LpListaPrecioController::class, 'inactivar'])
                 ->name('listas-precios.inactivar');
+
+            // Ruta para clonar una lista de precios en un nuevo período
+            // Copia todos los precios de la lista origen a una nueva lista en estado "En Proceso"
+            Route::post('{lpListaPrecio}/clonar', [LpListaPrecioController::class, 'clonar'])
+                ->name('listas-precios.clonar');
         });
 
-        // Rutas principales de precios de productos (CRUD estándar)
+        // ─── Precios de productos ─────────────────────────────────────────────
+        // IMPORTANTE: las rutas GET con segmentos estáticos deben declararse ANTES
+        // del apiResource para que no sean capturadas por GET /{id} (show).
+        Route::prefix('precios-producto')->group(function () {
+            // Precio vigente de un producto para una población y fecha específica
+            Route::get('obtener-precio', [LpPrecioProductoController::class, 'obtenerPrecio'])
+                ->name('precios-producto.obtener-precio');
+
+            // Productos activos sin precio en una lista específica
+            Route::get('sin-precio', [LpPrecioProductoController::class, 'sinPrecioEnLista'])
+                ->name('precios-producto.sin-precio');
+        });
+
+        // Rutas CRUD estándar de precios de productos
         Route::apiResource('precios-producto', LpPrecioProductoController::class)
             ->parameters(['precios-producto' => 'lpPrecioProducto']);
 
-        // Rutas adicionales para funcionalidades específicas de precios de productos
-        Route::prefix('precios-producto')->group(function () {
-            // Ruta para obtener el precio de un producto según población y fecha
-            Route::get('obtener-precio', [LpPrecioProductoController::class, 'obtenerPrecio'])
-                ->name('precios-producto.obtener-precio');
+        // ─── Producto → Referencias académicas ───────────────────────────────
+        // IMPORTANTE: las rutas GET con segmentos estáticos van ANTES del apiResource.
+        Route::prefix('producto-referencias')->group(function () {
+            // Lista cursos/módulos sin ningún producto LP vinculado
+            Route::get('sin-vincular', [LpProductoReferenciaController::class, 'sinVincular'])
+                ->name('producto-referencias.sin-vincular');
+
+            // Reemplaza masivamente todas las referencias de un producto (PUT no colisiona con show)
+            Route::put('sync', [LpProductoReferenciaController::class, 'sync'])
+                ->name('producto-referencias.sync');
         });
+
+        // Rutas CRUD estándar de referencias de productos
+        Route::apiResource('producto-referencias', LpProductoReferenciaController::class)
+            ->parameters(['producto-referencias' => 'lpProductoReferencia'])
+            ->only(['index', 'show', 'store', 'destroy']);
     });
 
     // Grupo de rutas para Conceptos de Pago

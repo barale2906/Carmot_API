@@ -2,6 +2,8 @@
 
 namespace App\Models\Academico;
 
+use App\Models\Financiero\Lp\LpProducto;
+use App\Models\Financiero\Lp\LpProductoReferencia;
 use App\Traits\HasActiveStatus;
 use App\Traits\HasFilterScopes;
 use App\Traits\HasGenericScopes;
@@ -77,6 +79,24 @@ class Modulo extends Model
     }
 
     /**
+     * Productos LP vinculados a este módulo (muchos a muchos).
+     * Un módulo puede aparecer en uno o más productos del catálogo LP.
+     * La relación se establece a través de lp_producto_referencias.
+     *
+     * @return BelongsToMany
+     */
+    public function productosLp(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            LpProducto::class,
+            'lp_producto_referencias',
+            'referencia_id',
+            'lp_producto_id'
+        )->wherePivot('referencia_tipo', LpProductoReferencia::TIPO_MODULO)
+         ->withTimestamps();
+    }
+
+    /**
      * Scope para filtrar por búsqueda de nombre.
      */
     public function scopeSearch($query, $search)
@@ -127,7 +147,8 @@ class Modulo extends Model
             'topicos',
             'grupos',
             'asistencias',
-            'configuracionesAsistencia'
+            'configuracionesAsistencia',
+            'productosLp',
         ];
     }
 
@@ -144,6 +165,6 @@ class Modulo extends Model
      */
     protected function getCountableRelations(): array
     {
-        return ['cursos', 'topicos', 'grupos'];
+        return ['cursos', 'topicos', 'grupos', 'productosLp'];
     }
 }

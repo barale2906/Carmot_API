@@ -108,7 +108,6 @@ class LpPrecioProducto extends Model
         $valorRestante = $this->precio_total - $this->matricula;
         $valorCuota = $valorRestante / $this->numero_cuotas;
 
-        // Redondear al 100 más cercano
         return round($valorCuota / 100) * 100;
     }
 
@@ -125,16 +124,13 @@ class LpPrecioProducto extends Model
         parent::boot();
 
         static::saving(function ($precioProducto) {
-            // Cargar la relación si no está cargada
             if (!$precioProducto->relationLoaded('producto')) {
                 $precioProducto->load('producto');
             }
 
             if ($precioProducto->producto && $precioProducto->producto->esFinanciable()) {
-                // Calcular y almacenar el valor de la cuota
                 $precioProducto->valor_cuota = $precioProducto->calcularValorCuota();
             } else {
-                // Para productos no financiables, limpiar valores de financiación
                 $precioProducto->valor_cuota = null;
             }
         });

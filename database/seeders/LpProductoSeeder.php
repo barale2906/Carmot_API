@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Models\Academico\Curso;
 use App\Models\Academico\Modulo;
 use App\Models\Financiero\Lp\LpProducto;
+use App\Models\Financiero\Lp\LpProductoReferencia;
 use App\Models\Financiero\Lp\LpTipoProducto;
 use Exception;
 use Illuminate\Database\Seeder;
@@ -13,8 +14,9 @@ use Illuminate\Support\Facades\Log;
 /**
  * Seeder LpProductoSeeder
  *
- * Seeder para crear productos de listas de precios.
- * Crea productos basados en cursos y módulos existentes, además de productos complementarios.
+ * Crea productos del catálogo LP y, para los de tipo 'curso' y 'modulo',
+ * genera automáticamente el vínculo en lp_producto_referencias.
+ * Los productos complementarios (diplomas, registros, etc.) no llevan referencia.
  *
  * @package Database\Seeders
  */
@@ -22,214 +24,157 @@ class LpProductoSeeder extends Seeder
 {
     /**
      * Ejecuta el seeder.
-     * Crea productos basados en cursos, módulos y productos complementarios.
+     *
+     * Crea productos LP para cada entidad académica existente y genera el vínculo
+     * correspondiente en lp_producto_referencias. Los productos complementarios
+     * (diplomas, certificados, registros) se crean sin referencia académica.
+     *
+     * Usa firstOrCreate para que el seeder sea idempotente: puede ejecutarse
+     * múltiples veces sin generar duplicados.
      *
      * @return void
      */
     public function run(): void
     {
-        $this->command->info('Iniciando creación de productos de listas de precios...');
+        $this->command->info('Iniciando creación de productos LP...');
 
-        // Verificar que existan tipos de productos
-        $tipoCurso = LpTipoProducto::where('codigo', 'curso')->first();
-        $tipoModulo = LpTipoProducto::where('codigo', 'modulo')->first();
+        $tipoCurso        = LpTipoProducto::where('codigo', 'curso')->first();
+        $tipoModulo       = LpTipoProducto::where('codigo', 'modulo')->first();
         $tipoComplementario = LpTipoProducto::where('codigo', 'complementario')->first();
 
         if (!$tipoCurso || !$tipoModulo || !$tipoComplementario) {
-            $this->command->warn('No se encontraron tipos de productos. Ejecutando LpTipoProductoSeeder primero...');
             $this->call(LpTipoProductoSeeder::class);
-
-            $tipoCurso = LpTipoProducto::where('codigo', 'curso')->first();
-            $tipoModulo = LpTipoProducto::where('codigo', 'modulo')->first();
+            $tipoCurso        = LpTipoProducto::where('codigo', 'curso')->first();
+            $tipoModulo       = LpTipoProducto::where('codigo', 'modulo')->first();
             $tipoComplementario = LpTipoProducto::where('codigo', 'complementario')->first();
         }
 
-        $creados = 0;
-        $errores = 0;
+        $creados = $errores = 0;
 
-        // Crear productos basados en cursos existentes
+        // ─── Productos basados en cursos ──────────────────────────────────────
         $cursos = Curso::all();
         if ($cursos->count() > 0) {
-            $this->command->info("Creando productos basados en {$cursos->count()} cursos...");
+            $this->command->info("Creando productos para {$cursos->count()} cursos...");
 
             foreach ($cursos->take(20) as $curso) {
                 try {
                     $producto = LpProducto::firstOrCreate(
-                        [
-                            'referencia_id' => $curso->id,
-                            'referencia_tipo' => 'curso',
-                        ],
+                        ['codigo' => 'CURSO-' . str_pad($curso->id, 4, '0', STR_PAD_LEFT)],
                         [
                             'tipo_producto_id' => $tipoCurso->id,
-                            'nombre' => $curso->nombre ?? "Curso {$curso->id}",
-                            'codigo' => 'CURSO-' . str_pad($curso->id, 4, '0', STR_PAD_LEFT),
-                            'descripcion' => "Producto basado en el curso: {$curso->nombre}",
-                            'referencia_id' => $curso->id,
-                            'referencia_tipo' => 'curso',
-                            'status' => 1,
+                            'nombre'           => $curso->nombre ?? "Curso {$curso->id}",
+                            'descripcion'      => "Producto basado en el curso: {$curso->nombre}",
+                            'status'           => 1,
                         ]
                     );
 
+                    // Vincular al curso si aún no está vinculado
+                    LpProductoReferencia::firstOrCreate([
+                        'lp_producto_id'  => $producto->id,
+                        'referencia_id'   => $curso->id,
+                        'referencia_tipo' => LpProductoReferencia::TIPO_CURSO,
+                    ]);
+
                     if ($producto->wasRecentlyCreated) {
                         $creados++;
-                        $this->command->comment("Producto creado: {$producto->nombre}");
+                        $this->command->comment("Producto creado y vinculado: {$producto->nombre}");
                     }
-                } catch (Exception $exception) {
+                } catch (Exception $e) {
                     $errores++;
-                    $mensajeError = "Error al crear producto para curso '{$curso->id}': {$exception->getMessage()}";
-                    $this->command->error($mensajeError);
-                    Log::error($mensajeError, [
-                        'curso_id' => $curso->id,
-                        'exception' => $exception->getMessage(),
-                    ]);
+                    $msg = "Error al crear producto para curso {$curso->id}: {$e->getMessage()}";
+                    $this->command->error($msg);
+                    Log::error($msg, ['curso_id' => $curso->id]);
                 }
             }
         } else {
-            $this->command->warn('No hay cursos disponibles. Creando productos de ejemplo...');
-
-            // Crear algunos productos de ejemplo de tipo curso
+            $this->command->warn('No hay cursos. Creando productos de ejemplo sin referencia...');
             for ($i = 1; $i <= 5; $i++) {
                 try {
-                    $producto = LpProducto::factory()
-                        ->activo()
-                        ->curso()
-                        ->create([
-                            'codigo' => 'CURSO-EJ-' . str_pad($i, 3, '0', STR_PAD_LEFT),
-                        ]);
-
+                    LpProducto::factory()->activo()->curso()->create([
+                        'codigo' => 'CURSO-EJ-' . str_pad($i, 3, '0', STR_PAD_LEFT),
+                    ]);
                     $creados++;
-                    $this->command->comment("Producto de ejemplo creado: {$producto->nombre}");
-                } catch (Exception $exception) {
+                } catch (Exception $e) {
                     $errores++;
-                    $this->command->error("Error al crear producto de ejemplo: {$exception->getMessage()}");
+                    $this->command->error("Error al crear ejemplo: {$e->getMessage()}");
                 }
             }
         }
 
-        // Crear productos basados en módulos existentes
+        // ─── Productos basados en módulos ─────────────────────────────────────
         $modulos = Modulo::all();
         if ($modulos->count() > 0) {
-            $this->command->info("Creando productos basados en {$modulos->count()} módulos...");
+            $this->command->info("Creando productos para {$modulos->count()} módulos...");
 
             foreach ($modulos->take(15) as $modulo) {
                 try {
                     $producto = LpProducto::firstOrCreate(
-                        [
-                            'referencia_id' => $modulo->id,
-                            'referencia_tipo' => 'modulo',
-                        ],
+                        ['codigo' => 'MOD-' . str_pad($modulo->id, 4, '0', STR_PAD_LEFT)],
                         [
                             'tipo_producto_id' => $tipoModulo->id,
-                            'nombre' => $modulo->nombre ?? "Módulo {$modulo->id}",
-                            'codigo' => 'MOD-' . str_pad($modulo->id, 4, '0', STR_PAD_LEFT),
-                            'descripcion' => "Producto basado en el módulo: {$modulo->nombre}",
-                            'referencia_id' => $modulo->id,
-                            'referencia_tipo' => 'modulo',
-                            'status' => 1,
+                            'nombre'           => $modulo->nombre ?? "Módulo {$modulo->id}",
+                            'descripcion'      => "Producto basado en el módulo: {$modulo->nombre}",
+                            'status'           => 1,
                         ]
                     );
 
+                    LpProductoReferencia::firstOrCreate([
+                        'lp_producto_id'  => $producto->id,
+                        'referencia_id'   => $modulo->id,
+                        'referencia_tipo' => LpProductoReferencia::TIPO_MODULO,
+                    ]);
+
                     if ($producto->wasRecentlyCreated) {
                         $creados++;
-                        $this->command->comment("Producto creado: {$producto->nombre}");
+                        $this->command->comment("Producto creado y vinculado: {$producto->nombre}");
                     }
-                } catch (Exception $exception) {
+                } catch (Exception $e) {
                     $errores++;
-                    $mensajeError = "Error al crear producto para módulo '{$modulo->id}': {$exception->getMessage()}";
-                    $this->command->error($mensajeError);
-                    Log::error($mensajeError, [
-                        'modulo_id' => $modulo->id,
-                        'exception' => $exception->getMessage(),
-                    ]);
-                }
-            }
-        } else {
-            $this->command->warn('No hay módulos disponibles. Creando productos de ejemplo...');
-
-            // Crear algunos productos de ejemplo de tipo módulo
-            for ($i = 1; $i <= 5; $i++) {
-                try {
-                    $producto = LpProducto::factory()
-                        ->activo()
-                        ->modulo()
-                        ->create([
-                            'codigo' => 'MOD-EJ-' . str_pad($i, 3, '0', STR_PAD_LEFT),
-                        ]);
-
-                    $creados++;
-                    $this->command->comment("Producto de ejemplo creado: {$producto->nombre}");
-                } catch (Exception $exception) {
-                    $errores++;
-                    $this->command->error("Error al crear producto de ejemplo: {$exception->getMessage()}");
+                    $msg = "Error al crear producto para módulo {$modulo->id}: {$e->getMessage()}";
+                    $this->command->error($msg);
+                    Log::error($msg, ['modulo_id' => $modulo->id]);
                 }
             }
         }
 
-        // Crear productos complementarios
+        // ─── Productos complementarios (sin referencia académica) ────────────
         $this->command->info('Creando productos complementarios...');
 
-        $productosComplementarios = [
-            [
-                'nombre' => 'Certificado de Estudios',
-                'codigo' => 'CERT-001',
-                'descripcion' => 'Certificado oficial de estudios completados',
-            ],
-            [
-                'nombre' => 'Material Didáctico',
-                'codigo' => 'MAT-001',
-                'descripcion' => 'Material didáctico complementario del curso',
-            ],
-            [
-                'nombre' => 'Kit de Herramientas',
-                'codigo' => 'KIT-001',
-                'descripcion' => 'Kit de herramientas para desarrollo',
-            ],
-            [
-                'nombre' => 'Certificado Digital',
-                'codigo' => 'CERT-DIG-001',
-                'descripcion' => 'Certificado digital de estudios',
-            ],
-            [
-                'nombre' => 'Libro de Texto',
-                'codigo' => 'LIB-001',
-                'descripcion' => 'Libro de texto oficial del curso',
-            ],
+        $complementarios = [
+            ['codigo' => 'CERT-001',     'nombre' => 'Certificado de Estudios',      'descripcion' => 'Certificado oficial de estudios completados'],
+            ['codigo' => 'DIPLOMA-001',  'nombre' => 'Diploma de Graduación',        'descripcion' => 'Diploma oficial de grado académico'],
+            ['codigo' => 'REG-NOTAS-001','nombre' => 'Registro de Notas',            'descripcion' => 'Documento oficial de notas académicas'],
+            ['codigo' => 'MAT-001',      'nombre' => 'Material Didáctico',           'descripcion' => 'Material didáctico complementario del curso'],
+            ['codigo' => 'KIT-001',      'nombre' => 'Kit de Herramientas',          'descripcion' => 'Kit de herramientas para desarrollo'],
+            ['codigo' => 'CERT-DIG-001', 'nombre' => 'Certificado Digital',          'descripcion' => 'Certificado digital de estudios'],
         ];
 
-        foreach ($productosComplementarios as $productoData) {
+        foreach ($complementarios as $data) {
             try {
                 $producto = LpProducto::firstOrCreate(
-                    ['codigo' => $productoData['codigo']],
+                    ['codigo' => $data['codigo']],
                     [
                         'tipo_producto_id' => $tipoComplementario->id,
-                        'nombre' => $productoData['nombre'],
-                        'codigo' => $productoData['codigo'],
-                        'descripcion' => $productoData['descripcion'],
-                        'referencia_id' => null,
-                        'referencia_tipo' => null,
-                        'status' => 1,
+                        'nombre'           => $data['nombre'],
+                        'descripcion'      => $data['descripcion'],
+                        'status'           => 1,
                     ]
                 );
 
                 if ($producto->wasRecentlyCreated) {
                     $creados++;
-                    $this->command->comment("Producto complementario creado: {$producto->nombre}");
+                    $this->command->comment("Complementario creado: {$producto->nombre}");
                 }
-            } catch (Exception $exception) {
+            } catch (Exception $e) {
                 $errores++;
-                $mensajeError = "Error al crear producto complementario '{$productoData['nombre']}': {$exception->getMessage()}";
-                $this->command->error($mensajeError);
-                Log::error($mensajeError, [
-                    'producto' => $productoData,
-                    'exception' => $exception->getMessage(),
-                ]);
+                $this->command->error("Error complementario '{$data['nombre']}': {$e->getMessage()}");
             }
         }
 
         $this->command->info("Productos creados: {$creados}");
         if ($errores > 0) {
-            $this->command->warn("Errores encontrados: {$errores}");
+            $this->command->warn("Errores: {$errores}");
         }
-        $this->command->info('Finalizada la creación de productos de listas de precios.');
+        $this->command->info('Seeder de productos LP finalizado.');
     }
 }

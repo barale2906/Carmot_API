@@ -3,10 +3,12 @@
 namespace App\Http\Controllers\Api\Financiero\Lp;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\Financiero\Lp\CloneLpListaPrecioRequest;
 use App\Http\Requests\Api\Financiero\Lp\StoreLpListaPrecioRequest;
 use App\Http\Requests\Api\Financiero\Lp\UpdateLpListaPrecioRequest;
 use App\Http\Resources\Api\Financiero\Lp\LpListaPrecioResource;
 use App\Models\Financiero\Lp\LpListaPrecio;
+use App\Models\Financiero\Lp\LpPrecioProducto;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -34,6 +36,7 @@ class LpListaPrecioController extends Controller
         $this->middleware('permission:fin_lp_listaPrecioEditar')->only(['update']);
         $this->middleware('permission:fin_lp_listaPrecioInactivar')->only(['destroy', 'inactivar']);
         $this->middleware('permission:fin_lp_listaPrecioAprobar')->only(['aprobar', 'activar']);
+        $this->middleware('permission:fin_lp_listaPrecioClonar')->only(['clonar']);
     }
 
     /**
@@ -367,6 +370,89 @@ class LpListaPrecioController extends Controller
             return response()->json([
                 'message' => 'Error al inactivar la lista de precios.',
                 'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Clona una lista de precios existente en una nueva lista para un período futuro.
+     *
+     * El proceso realizado en una transacción atómica:
+     * 1. Crea la nueva lista en estado "En Proceso" (status = 1).
+     * 2. Hereda las poblaciones de la lista origen (o usa las indicadas en el body).
+     * 3. Si copiar_precios = true (default), copia todos los LpPrecioProducto de
+     *    la lista origen hacia la nueva lista, preservando contado y financiación.
+     *    El valor_cuota se recalcula automáticamente mediante el evento boot del modelo.
+     *
+     * El estado "En Proceso" permite editar precios individuales antes de aprobar.
+     * La lista NO se activa automáticamente al clonar.
+     *
+     * @param  CloneLpListaPrecioRequest  $request          Datos validados de la nueva lista.
+     * @param  LpListaPrecio              $lpListaPrecio     Lista origen a clonar.
+     * @return JsonResponse                                   LpListaPrecioResource de la nueva lista (HTTP 201).
+     */
+    public function clonar(CloneLpListaPrecioRequest $request, LpListaPrecio $lpListaPrecio): JsonResponse
+    {
+        try {
+            DB::beginTransaction();
+
+            $copiarPrecios = $request->boolean('copiar_precios', true);
+
+            // Crear la nueva lista en estado "En Proceso"
+            $nuevaLista = LpListaPrecio::create([
+                'nombre'      => $request->string('nombre'),
+                'fecha_inicio' => $request->date('fecha_inicio'),
+                'fecha_fin'   => $request->date('fecha_fin'),
+                'descripcion' => $request->input('descripcion', $lpListaPrecio->descripcion),
+                'status'      => LpListaPrecio::STATUS_EN_PROCESO,
+            ]);
+
+            // Heredar poblaciones de la lista origen o usar las especificadas
+            $poblaciones = $request->has('poblaciones')
+                ? $request->input('poblaciones')
+                : $lpListaPrecio->poblaciones()->pluck('poblacions.id')->toArray();
+
+            if (!empty($poblaciones)) {
+                $nuevaLista->poblaciones()->attach($poblaciones);
+            }
+
+            // Copiar precios de la lista origen (si se solicitó)
+            $totalPrecios = 0;
+
+            if ($copiarPrecios) {
+                $preciosOrigen = $lpListaPrecio->preciosProductos()->withTrashed(false)->get();
+
+                foreach ($preciosOrigen as $precio) {
+                    LpPrecioProducto::create([
+                        'lista_precio_id' => $nuevaLista->id,
+                        'producto_id'     => $precio->producto_id,
+                        'precio_contado'  => $precio->precio_contado,
+                        'precio_total'    => $precio->precio_total,
+                        'matricula'       => $precio->matricula,
+                        'numero_cuotas'   => $precio->numero_cuotas,
+                        'observaciones'   => $precio->observaciones,
+                        // valor_cuota se recalcula automáticamente en el evento boot del modelo
+                    ]);
+
+                    $totalPrecios++;
+                }
+            }
+
+            DB::commit();
+
+            $nuevaLista->load(['poblaciones']);
+
+            return response()->json([
+                'message'       => 'Lista de precios clonada exitosamente.',
+                'precios_copiados' => $totalPrecios,
+                'data'          => new LpListaPrecioResource($nuevaLista),
+            ], 201);
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            return response()->json([
+                'message' => 'Error al clonar la lista de precios.',
+                'error'   => $e->getMessage(),
             ], 500);
         }
     }

@@ -6,7 +6,10 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\Financiero\Lp\StoreLpPrecioProductoRequest;
 use App\Http\Requests\Api\Financiero\Lp\UpdateLpPrecioProductoRequest;
 use App\Http\Resources\Api\Financiero\Lp\LpPrecioProductoResource;
+use App\Http\Resources\Api\Financiero\Lp\LpProductoResource;
+use App\Models\Financiero\Lp\LpListaPrecio;
 use App\Models\Financiero\Lp\LpPrecioProducto;
+use App\Models\Financiero\Lp\LpProducto;
 use App\Services\Financiero\LpPrecioProductoService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -41,6 +44,7 @@ class LpPrecioProductoController extends Controller
         $this->middleware('permission:fin_lp_precioProductoCrear')->only(['store']);
         $this->middleware('permission:fin_lp_precioProductoEditar')->only(['update']);
         $this->middleware('permission:fin_lp_precioProductoInactivar')->only(['destroy']);
+        $this->middleware('permission:fin_lp_precios_producto')->only(['sinPrecioEnLista']);
 
         $this->precioProductoService = $precioProductoService;
     }
@@ -227,52 +231,163 @@ class LpPrecioProductoController extends Controller
     }
 
     /**
-     * Obtiene el precio vigente de un producto para una población específica.
-     * Utiliza el servicio LpPrecioProductoService para buscar la lista de precios activa.
+     * Obtiene todos los precios vigentes para una referencia académica o un producto específico.
      *
-     * @param Request $request Solicitud HTTP con producto_id, poblacion_id y fecha opcional
-     * @return JsonResponse Respuesta JSON con el precio del producto o mensaje si no existe
+     * Acepta dos modos de búsqueda (mutuamente excluyentes, se da prioridad a la referencia):
+     *
+     * MODO 1 — Por referencia académica (recomendado para el frontend):
+     *   Parámetros: referencia_id + referencia_tipo + poblacion_id
+     *   Retorna todos los precios de todos los productos LP vinculados a ese curso/módulo
+     *   en la lista de precios vigente para la sede indicada.
+     *
+     * MODO 2 — Por producto LP (compatibilidad):
+     *   Parámetros: producto_id + poblacion_id
+     *   Retorna los precios del producto específico en la lista vigente.
+     *
+     * La respuesta es siempre un array, ya que puede haber múltiples opciones de precio
+     * (ej. contado y financiado). El frontend presenta estas opciones al usuario.
+     *
+     * @param  Request      $request
+     * @return JsonResponse Array de LpPrecioProductoResource con todas las opciones de precio.
      */
     public function obtenerPrecio(Request $request): JsonResponse
     {
         try {
             $request->validate([
-                'producto_id' => 'required|integer|exists:lp_productos,id',
-                'poblacion_id' => 'required|integer|exists:poblacions,id',
-                'fecha' => 'sometimes|date',
+                'referencia_id'   => 'required_with:referencia_tipo|integer',
+                'referencia_tipo' => 'required_with:referencia_id|string|in:curso,modulo',
+                'producto_id'     => 'required_without:referencia_id|integer|exists:lp_productos,id',
+                'poblacion_id'    => 'required|integer|exists:poblacions,id',
+                'fecha'           => 'sometimes|date',
             ]);
 
-            $productoId = $request->integer('producto_id');
             $poblacionId = $request->integer('poblacion_id');
-            $fecha = $request->filled('fecha')
+            $fecha       = $request->filled('fecha')
                 ? Carbon::parse($request->string('fecha'))
                 : null;
 
-            $precio = $this->precioProductoService->obtenerPrecio($productoId, $poblacionId, $fecha);
+            // Modo 1: búsqueda por referencia académica (curso o módulo)
+            if ($request->filled('referencia_id') && $request->filled('referencia_tipo')) {
+                $precios = $this->precioProductoService->obtenerPreciosPorReferencia(
+                    $request->integer('referencia_id'),
+                    $request->string('referencia_tipo')->toString(),
+                    $poblacionId,
+                    $fecha
+                );
+            } else {
+                // Modo 2: búsqueda por producto LP (compatibilidad)
+                $precios = $this->precioProductoService->obtenerPrecios(
+                    $request->integer('producto_id'),
+                    $poblacionId,
+                    $fecha
+                );
+                $precios->each(fn ($p) => $p->load(['producto.tipoProducto', 'listaPrecio.poblaciones']));
+            }
 
-            if (!$precio) {
+            if ($precios->isEmpty()) {
                 return response()->json([
-                    'message' => 'No se encontró una lista de precios vigente para el producto y población especificados.',
-                    'data' => null,
+                    'message' => 'No se encontró una lista de precios vigente para los parámetros especificados.',
+                    'total'   => 0,
+                    'data'    => [],
                 ], 404);
             }
 
-            // Cargar relaciones
-            $precio->load(['producto.tipoProducto', 'listaPrecio.poblaciones']);
-
             return response()->json([
-                'message' => 'Precio obtenido exitosamente.',
-                'data' => new LpPrecioProductoResource($precio),
+                'message' => 'Precios obtenidos exitosamente.',
+                'total'   => $precios->count(),
+                'data'    => LpPrecioProductoResource::collection($precios),
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
                 'message' => 'Error de validación.',
-                'errors' => $e->errors(),
+                'errors'  => $e->errors(),
             ], 422);
         } catch (\Exception $e) {
             return response()->json([
-                'message' => 'Error al obtener el precio del producto.',
-                'error' => $e->getMessage(),
+                'message' => 'Error al obtener los precios.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Lista los productos activos que aún NO tienen precio definido en una lista específica.
+     *
+     * Útil para el flujo de construcción de una lista nueva o para detectar
+     * productos que se agregaron al catálogo después de crear la lista.
+     * El resultado incluye las referencias académicas del producto para que el
+     * frontend pueda mostrar a qué curso/módulo corresponde cada producto.
+     *
+     * Query params:
+     * - lista_precio_id (int, requerido) ID de la lista de precios a consultar.
+     * - search          (string, opcional) Filtra por nombre o código del producto.
+     * - per_page        (int, opcional)   Registros por página. Default: 15.
+     *
+     * @param  Request  $request  Solicitud HTTP con los filtros.
+     * @return JsonResponse       Lista paginada de LpProductoResource sin precio en la lista.
+     */
+    public function sinPrecioEnLista(Request $request): JsonResponse
+    {
+        try {
+            $request->validate([
+                'lista_precio_id' => 'required|integer|exists:lp_listas_precios,id',
+                'search'          => 'sometimes|string|max:150',
+                'per_page'        => 'sometimes|integer|min:1|max:100',
+            ]);
+
+            $listaId = $request->integer('lista_precio_id');
+
+            // Verificar que la lista existe
+            $lista = LpListaPrecio::findOrFail($listaId);
+
+            // Productos activos que no tienen precio en la lista indicada
+            $query = LpProducto::where('status', 1)
+                ->whereDoesntHave('precios', function ($q) use ($listaId) {
+                    $q->where('lista_precio_id', $listaId);
+                })
+                ->with(['tipoProducto', 'referencias']);
+
+            if ($request->filled('search')) {
+                $search = $request->string('search');
+                $query->where(function ($q) use ($search) {
+                    $q->where('nombre', 'like', "%{$search}%")
+                      ->orWhere('codigo', 'like', "%{$search}%");
+                });
+            }
+
+            $query->orderBy('nombre');
+
+            $productos = $query->paginate($request->integer('per_page', 15));
+
+            // Eager load de entidades académicas para las referencias
+            $productos->each(function ($producto) {
+                $producto->referencias->each(function ($ref) {
+                    $ref->getReferenciaModelAttribute();
+                });
+            });
+
+            return response()->json([
+                'lista_precio_id' => $listaId,
+                'lista_nombre'    => $lista->nombre,
+                'data' => LpProductoResource::collection($productos),
+                'meta' => [
+                    'current_page' => $productos->currentPage(),
+                    'last_page'    => $productos->lastPage(),
+                    'per_page'     => $productos->perPage(),
+                    'total'        => $productos->total(),
+                    'from'         => $productos->firstItem(),
+                    'to'           => $productos->lastItem(),
+                ],
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'message' => 'Error de validación.',
+                'errors'  => $e->errors(),
+            ], 422);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Error al obtener productos sin precio.',
+                'error'   => $e->getMessage(),
             ], 500);
         }
     }

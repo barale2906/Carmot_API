@@ -2,27 +2,31 @@
 
 namespace Database\Factories\Financiero\Lp;
 
-use App\Models\Academico\Curso;
-use App\Models\Academico\Modulo;
 use App\Models\Financiero\Lp\LpProducto;
 use App\Models\Financiero\Lp\LpTipoProducto;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
  * Factory para crear productos de listas de precios.
+ * Las referencias académicas (cursos/módulos) se vinculan
+ * a través de LpProductoReferencia, no de columnas en esta tabla.
  *
  * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\Financiero\Lp\LpProducto>
  */
 class LpProductoFactory extends Factory
 {
     /**
-     * The name of the factory's corresponding model.
+     * Modelo al que pertenece esta factory.
      *
-     * @var string
+     * @var class-string<\App\Models\Financiero\Lp\LpProducto>
      */
     protected $model = LpProducto::class;
+
     /**
-     * Define the model's default state.
+     * Define el estado por defecto del modelo.
+     * Genera un producto con tipo aleatorio, nombre de muestra, código único
+     * y status aleatorio. No incluye referencias académicas; estas se gestionan
+     * por separado a través de LpProductoReferencia.
      *
      * @return array<string, mixed>
      */
@@ -31,25 +35,7 @@ class LpProductoFactory extends Factory
         $tipoProducto = LpTipoProducto::inRandomOrder()->first()
             ?? LpTipoProducto::factory()->activo()->create();
 
-        // Determinar si debe tener referencia según el tipo
-        $referenciaTipo = null;
-        $referenciaId = null;
-
-        if ($tipoProducto->codigo === 'curso') {
-            $curso = Curso::inRandomOrder()->first();
-            if ($curso) {
-                $referenciaTipo = 'curso';
-                $referenciaId = $curso->id;
-            }
-        } elseif ($tipoProducto->codigo === 'modulo') {
-            $modulo = Modulo::inRandomOrder()->first();
-            if ($modulo) {
-                $referenciaTipo = 'modulo';
-                $referenciaId = $modulo->id;
-            }
-        }
-
-        $nombresProductos = [
+        $nombres = [
             'Curso de Programación Web',
             'Curso de Desarrollo de Software',
             'Módulo de Base de Datos',
@@ -58,151 +44,87 @@ class LpProductoFactory extends Factory
             'Certificado de Estudios',
             'Material Didáctico',
             'Kit de Herramientas',
-            'Curso Intensivo de Programación',
-            'Módulo de Seguridad Informática',
+            'Registro de Notas',
+            'Diploma de Grado',
         ];
 
         return [
             'tipo_producto_id' => $tipoProducto->id,
-            'nombre' => fake()->randomElement($nombresProductos),
-            'codigo' => fake()->unique()->regexify('[A-Z]{3,5}-[0-9]{3,5}'),
-            'descripcion' => fake()->optional(0.6)->paragraph(2),
-            'referencia_id' => $referenciaId,
-            'referencia_tipo' => $referenciaTipo,
-            'status' => fake()->randomElement([0, 1]), // 0: Inactivo, 1: Activo
+            'nombre'           => fake()->randomElement($nombres),
+            'codigo'           => fake()->unique()->regexify('[A-Z]{3,5}-[0-9]{3,5}'),
+            'descripcion'      => fake()->optional(0.6)->paragraph(2),
+            'status'           => fake()->randomElement([0, 1]),
         ];
     }
 
     /**
-     * Estado para crear un producto activo.
+     * Estado para crear un producto con status activo (status = 1).
      *
-     * @return \Illuminate\Database\Eloquent\Factories\Factory
+     * @return static
      */
     public function activo(): static
     {
-        return $this->state(function (array $attributes) {
-            return [
-                'status' => 1,
-            ];
-        });
+        return $this->state(['status' => 1]);
     }
 
     /**
-     * Estado para crear un producto inactivo.
+     * Estado para crear un producto con status inactivo (status = 0).
      *
-     * @return \Illuminate\Database\Eloquent\Factories\Factory
+     * @return static
      */
     public function inactivo(): static
     {
-        return $this->state(function (array $attributes) {
-            return [
-                'status' => 0,
-            ];
-        });
+        return $this->state(['status' => 0]);
     }
 
     /**
-     * Estado para crear un producto de tipo curso.
+     * Estado para crear un producto asociado al tipo 'curso'.
+     * Si el tipo no existe en la BD, lo crea mediante su propia factory.
+     * No vincula automáticamente a ningún Curso; usar LpProductoReferencia para eso.
      *
-     * @return \Illuminate\Database\Eloquent\Factories\Factory
+     * @return static
      */
     public function curso(): static
     {
-        return $this->state(function (array $attributes) {
-            $tipoProducto = LpTipoProducto::where('codigo', 'curso')->first()
+        return $this->state(function () {
+            $tipo = LpTipoProducto::where('codigo', 'curso')->first()
                 ?? LpTipoProducto::factory()->curso()->activo()->create();
 
-            $curso = Curso::inRandomOrder()->first();
-
-            return [
-                'tipo_producto_id' => $tipoProducto->id,
-                'referencia_tipo' => $curso ? 'curso' : null,
-                'referencia_id' => $curso ? $curso->id : null,
-            ];
+            return ['tipo_producto_id' => $tipo->id];
         });
     }
 
     /**
-     * Estado para crear un producto de tipo módulo.
+     * Estado para crear un producto asociado al tipo 'modulo'.
+     * Si el tipo no existe en la BD, lo crea mediante su propia factory.
+     * No vincula automáticamente a ningún Modulo; usar LpProductoReferencia para eso.
      *
-     * @return \Illuminate\Database\Eloquent\Factories\Factory
+     * @return static
      */
     public function modulo(): static
     {
-        return $this->state(function (array $attributes) {
-            $tipoProducto = LpTipoProducto::where('codigo', 'modulo')->first()
+        return $this->state(function () {
+            $tipo = LpTipoProducto::where('codigo', 'modulo')->first()
                 ?? LpTipoProducto::factory()->modulo()->activo()->create();
 
-            $modulo = Modulo::inRandomOrder()->first();
-
-            return [
-                'tipo_producto_id' => $tipoProducto->id,
-                'referencia_tipo' => $modulo ? 'modulo' : null,
-                'referencia_id' => $modulo ? $modulo->id : null,
-            ];
+            return ['tipo_producto_id' => $tipo->id];
         });
     }
 
     /**
-     * Estado para crear un producto complementario.
+     * Estado para crear un producto complementario (diploma, certificado, etc.).
+     * Los productos complementarios no tienen referencias académicas.
+     * Si el tipo no existe en la BD, lo crea mediante su propia factory.
      *
-     * @return \Illuminate\Database\Eloquent\Factories\Factory
+     * @return static
      */
     public function complementario(): static
     {
-        return $this->state(function (array $attributes) {
-            $tipoProducto = LpTipoProducto::where('codigo', 'complementario')->first()
+        return $this->state(function () {
+            $tipo = LpTipoProducto::where('codigo', 'complementario')->first()
                 ?? LpTipoProducto::factory()->complementario()->activo()->create();
 
-            return [
-                'tipo_producto_id' => $tipoProducto->id,
-                'referencia_tipo' => null,
-                'referencia_id' => null,
-            ];
-        });
-    }
-
-    /**
-     * Estado para crear un producto con referencia a un curso específico.
-     *
-     * @param int $cursoId ID del curso
-     * @return \Illuminate\Database\Eloquent\Factories\Factory
-     */
-    public function conCurso(int $cursoId): static
-    {
-        return $this->state(function (array $attributes) use ($cursoId) {
-            $tipoProducto = LpTipoProducto::where('codigo', 'curso')->first()
-                ?? LpTipoProducto::factory()->curso()->activo()->create();
-
-            return [
-                'tipo_producto_id' => $tipoProducto->id,
-                'referencia_tipo' => 'curso',
-                'referencia_id' => $cursoId,
-            ];
-        });
-    }
-
-    /**
-     * Estado para crear un producto con referencia a un módulo específico.
-     *
-     * @param int $moduloId ID del módulo
-     * @return \Illuminate\Database\Eloquent\Factories\Factory
-     */
-    public function conModulo(int $moduloId): static
-    {
-        return $this->state(function (array $attributes) use ($moduloId) {
-            $tipoProducto = LpTipoProducto::where('codigo', 'modulo')->first()
-                ?? LpTipoProducto::factory()->modulo()->activo()->create();
-
-            return [
-                'tipo_producto_id' => $tipoProducto->id,
-                'referencia_tipo' => 'modulo',
-                'referencia_id' => $moduloId,
-            ];
+            return ['tipo_producto_id' => $tipo->id];
         });
     }
 }
-
-
-
-

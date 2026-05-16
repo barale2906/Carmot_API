@@ -3,6 +3,8 @@
 namespace App\Models\Academico;
 
 use App\Models\Crm\Referido;
+use App\Models\Financiero\Lp\LpProducto;
+use App\Models\Financiero\Lp\LpProductoReferencia;
 use App\Models\User;
 use App\Traits\HasActiveStatus;
 use App\Traits\HasFilterScopes;
@@ -121,6 +123,24 @@ class Curso extends Model
     }
 
     /**
+     * Productos LP vinculados a este curso (muchos a muchos).
+     * Un curso puede aparecer en uno o más productos del catálogo LP.
+     * La relación se establece a través de lp_producto_referencias.
+     *
+     * @return BelongsToMany
+     */
+    public function productosLp(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            LpProducto::class,
+            'lp_producto_referencias',
+            'referencia_id',
+            'lp_producto_id'
+        )->wherePivot('referencia_tipo', LpProductoReferencia::TIPO_CURSO)
+         ->withTimestamps();
+    }
+
+    /**
      * Scope para filtrar por búsqueda de nombre (sobrescribe el del trait).
      */
     public function scopeSearch($query, $search)
@@ -206,6 +226,7 @@ class Curso extends Model
             'asistencias',
             'configuracionesAsistencia',
             'biblioteca',
+            'productosLp',
         ];
     }
 
@@ -222,6 +243,6 @@ class Curso extends Model
      */
     protected function getCountableRelations(): array
     {
-        return ['referidos', 'estudiantes', 'modulos', 'ciclos', 'programaciones', 'biblioteca'];
+        return ['referidos', 'estudiantes', 'modulos', 'ciclos', 'programaciones', 'biblioteca', 'productosLp'];
     }
 }

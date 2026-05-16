@@ -71,14 +71,6 @@ class LpProductoController extends Controller
                 $query->where('tipo_producto_id', $request->integer('tipo_producto_id'));
             }
 
-            if ($request->filled('referencia_tipo')) {
-                $query->where('referencia_tipo', $request->string('referencia_tipo'));
-            }
-
-            if ($request->filled('referencia_id')) {
-                $query->where('referencia_id', $request->integer('referencia_id'));
-            }
-
             if ($request->filled('codigo')) {
                 $query->where('codigo', $request->string('codigo'));
             }
@@ -89,6 +81,34 @@ class LpProductoController extends Controller
                 $query->whereHas('tipoProducto', function ($q) use ($esFinanciable) {
                     $q->where('es_financiable', $esFinanciable);
                 });
+            }
+
+            // Filtro por tipo de referencia académica vinculada
+            if ($request->filled('referencia_tipo')) {
+                $tipo = $request->string('referencia_tipo')->toString();
+                $query->whereHas('referencias', function ($q) use ($tipo) {
+                    $q->where('referencia_tipo', $tipo);
+                });
+            }
+
+            // Filtro por referencia académica específica (curso o módulo concreto)
+            if ($request->filled('referencia_id') && $request->filled('referencia_tipo')) {
+                $refId   = $request->integer('referencia_id');
+                $refTipo = $request->string('referencia_tipo')->toString();
+                $query->whereHas('referencias', function ($q) use ($refId, $refTipo) {
+                    $q->where('referencia_id',   $refId)
+                      ->where('referencia_tipo', $refTipo);
+                });
+            }
+
+            // Filtro: solo productos sin ninguna referencia académica (complementarios, diplomas, etc.)
+            if ($request->boolean('sin_referencias', false)) {
+                $query->whereDoesntHave('referencias');
+            }
+
+            // Filtro: solo productos con al menos una referencia académica
+            if ($request->boolean('con_referencias', false)) {
+                $query->whereHas('referencias');
             }
 
             if ($request->boolean('include_trashed', false)) {
