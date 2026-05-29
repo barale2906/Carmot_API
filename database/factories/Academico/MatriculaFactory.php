@@ -200,6 +200,42 @@ class MatriculaFactory extends Factory
     }
 
     /**
+     * Estado con datos personales completos para pruebas de precarga de formulario.
+     */
+    public function conDatosPersonales(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'tipo_identificacion'      => 'CC',
+            'departamento_expedicion'  => 'Antioquia',
+            'ciudad_expedicion'        => 'Medellín',
+            'fecha_nacimiento'         => '1990-05-15',
+            'genero'                   => 'M',
+            'estado_civil'             => 'SO',
+            'grupo_sanguineo'          => 'O',
+            'rh'                       => 'P',
+            'direccion'                => 'Calle 10 # 20-30',
+            'celular'                  => '3001234567',
+            'telefono'                 => '6042345678',
+            'nivel_educacion'          => 'TC',
+            'ocupacion'                => 'Electricista',
+            'empresa'                  => 'Empresa S.A.',
+            'estrato'                  => 3,
+            'regimen_salud'            => 'CO',
+            'enfermedad_prioritaria'   => false,
+            'discapacidad'             => false,
+            'conocimiento_curso'       => true,
+            'como_entero_curso'        => 'Referido',
+            'talla_overol'             => 'M',
+            'talla_botas'              => '42',
+            'nombre_contacto'          => 'María Pérez',
+            'telefono_contacto'        => '3109876543',
+            'correo_contacto'          => 'maria@email.com',
+            'aprueba_uso_imagen'       => true,
+            'multiculturalidad'        => 'Mestizo',
+        ]);
+    }
+
+    /**
      * Configurar el factory para usar relaciones existentes.
      */
     public function configure()

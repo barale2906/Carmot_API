@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Academico;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\Academico\StoreMatriculaRequest;
 use App\Http\Requests\Api\Academico\UpdateMatriculaRequest;
+use App\Http\Resources\Api\Academico\MatriculaPrecargaResource;
 use App\Http\Resources\Api\Academico\MatriculaResource;
 use App\Models\Academico\Ciclo;
 use App\Models\Academico\Curso;
@@ -37,7 +38,7 @@ class MatriculaController extends Controller
 
     public function __construct()
     {
-        $this->middleware('permission:aca_matriculas')->only(['index', 'show', 'filters', 'statistics']);
+        $this->middleware('permission:aca_matriculas')->only(['index', 'show', 'filters', 'statistics', 'precargaEstudiante']);
         $this->middleware('permission:aca_matriculaCrear')->only(['store']);
         $this->middleware('permission:aca_matriculaEditar')->only(['update']);
         $this->middleware('permission:aca_matriculaInactivar')->only(['destroy', 'restore', 'forceDelete', 'trashed']);
@@ -216,6 +217,32 @@ class MatriculaController extends Controller
                 'estudiantes'              => User::select('id', 'primer_nombre', 'segundo_nombre', 'primer_apellido', 'segundo_apellido', 'email')->get(),
                 'poblaciones'              => Poblacion::where('status', 1)->select('id', 'pais', 'provincia', 'nombre')->get(),
             ],
+        ]);
+    }
+
+    /**
+     * Devuelve los datos personales de la matrícula más reciente del estudiante
+     * para precargar el formulario de una nueva inscripción.
+     *
+     * Solo expone campos personales, socioeconómicos y de contacto.
+     * Los datos de pago, curso, ciclo y estado son omitidos porque corresponden
+     * al nuevo proceso de matrícula que se está iniciando.
+     */
+    public function precargaEstudiante(int $estudianteId): JsonResponse
+    {
+        $matricula = Matricula::where('estudiante_id', $estudianteId)
+            ->latest()
+            ->with('lugarOrigen')
+            ->first();
+
+        if (! $matricula) {
+            return response()->json([
+                'message' => 'El estudiante no tiene matrículas previas registradas.',
+            ], 404);
+        }
+
+        return response()->json([
+            'data' => new MatriculaPrecargaResource($matricula),
         ]);
     }
 

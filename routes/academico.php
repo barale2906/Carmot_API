@@ -143,6 +143,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('trashed', [MatriculaController::class, 'trashed'])->name('matriculas.trashed');
         Route::get('filters', [MatriculaController::class, 'filters'])->name('matriculas.filters');
         Route::get('statistics', [MatriculaController::class, 'statistics'])->name('matriculas.statistics');
+        Route::get('precarga-estudiante/{estudianteId}', [MatriculaController::class, 'precargaEstudiante'])->name('matriculas.precarga-estudiante');
         Route::post('{id}/restore', [MatriculaController::class, 'restore'])->name('matriculas.restore');
         Route::delete('{id}/force-delete', [MatriculaController::class, 'forceDelete'])->name('matriculas.force-delete');
     });
