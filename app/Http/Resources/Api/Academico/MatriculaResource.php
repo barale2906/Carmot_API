@@ -6,6 +6,7 @@ use App\Models\Academico\Matricula;
 use App\Traits\HasActiveStatus;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Facades\Storage;
 
 class MatriculaResource extends JsonResource
 {
@@ -109,6 +110,9 @@ class MatriculaResource extends JsonResource
             'aprueba_uso_imagen' => $this->aprueba_uso_imagen,
             'multiculturalidad'  => $this->multiculturalidad,
             'foto'               => $this->foto,
+            'foto_url'           => $this->foto && Storage::disk('public')->exists($this->foto)
+                                        ? asset('storage/' . $this->foto)
+                                        : null,
 
             'created_at' => $this->created_at?->format('Y-m-d H:i:s'),
             'updated_at' => $this->updated_at?->format('Y-m-d H:i:s'),

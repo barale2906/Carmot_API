@@ -4,6 +4,7 @@ namespace App\Http\Resources\Api\Academico;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * Resource de precarga de matrícula.
@@ -115,6 +116,9 @@ class MatriculaPrecargaResource extends JsonResource
             'aprueba_uso_imagen' => $this->aprueba_uso_imagen,
             'multiculturalidad'  => $this->multiculturalidad,
             'foto'               => $this->foto,
+            'foto_url'           => $this->foto && Storage::disk('public')->exists($this->foto)
+                                        ? asset('storage/' . $this->foto)
+                                        : null,
         ];
     }
 }

@@ -138,7 +138,8 @@ class MatriculaPrecargaTest extends TestCase
     {
         $this->actingAs($this->usuario)
             ->getJson(route('matriculas.precarga-estudiante', 99999))
-            ->assertNotFound();
+            ->assertNotFound()
+            ->assertJsonPath('message', 'El estudiante no existe.');
     }
 
     /** @test */

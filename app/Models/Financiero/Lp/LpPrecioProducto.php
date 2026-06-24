@@ -24,7 +24,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property int $lista_precio_id ID de la lista de precios
  * @property int $producto_id ID del producto
  * @property float $precio_contado Precio para pago de contado
- * @property float|null $precio_total Precio total del producto (para financiación)
+ * @property float|null $precio_total Saldo a financiar, ya neto de matrícula (precio_contado = matricula + precio_total)
  * @property float $matricula Valor de la matrícula (obligatorio para cursos y módulos, puede ser 0)
  * @property int|null $numero_cuotas Número de cuotas
  * @property float|null $valor_cuota Valor calculado de cada cuota (redondeado al 100)
@@ -32,13 +32,12 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property \Carbon\Carbon $created_at Fecha de creación
  * @property \Carbon\Carbon $updated_at Fecha de última actualización
  * @property \Carbon\Carbon|null $deleted_at Fecha de eliminación (soft delete)
- *
  * @property-read \App\Models\Financiero\Lp\LpListaPrecio $listaPrecio Lista de precios a la que pertenece
  * @property-read \App\Models\Financiero\Lp\LpProducto $producto Producto al que pertenece
  */
 class LpPrecioProducto extends Model
 {
-    use HasFactory, SoftDeletes, HasFilterScopes, HasGenericScopes, HasSortingScopes, HasRelationScopes;
+    use HasFactory, HasFilterScopes, HasGenericScopes, HasRelationScopes, HasSortingScopes, SoftDeletes;
 
     /**
      * Nombre de la tabla asociada al modelo.
@@ -70,8 +69,6 @@ class LpPrecioProducto extends Model
     /**
      * Relación con LpListaPrecio (muchos a uno).
      * Un precio de producto pertenece a una lista de precios.
-     *
-     * @return BelongsTo
      */
     public function listaPrecio(): BelongsTo
     {
@@ -81,8 +78,6 @@ class LpPrecioProducto extends Model
     /**
      * Relación con LpProducto (muchos a uno).
      * Un precio de producto pertenece a un producto.
-     *
-     * @return BelongsTo
      */
     public function producto(): BelongsTo
     {
@@ -92,21 +87,21 @@ class LpPrecioProducto extends Model
     /**
      * Calcula el valor de la cuota redondeado al 100 más cercano.
      * Este método solo se usa al crear/actualizar, NO al consultar.
-     * La fórmula es: (precio_total - matricula) / numero_cuotas, redondeado al 100.
+     * `precio_total` ya es el saldo a financiar (neto de matrícula, ver
+     * precio_contado = matricula + precio_total), por lo que la fórmula es
+     * precio_total / numero_cuotas, redondeado al 100.
      *
      * @return float Valor de la cuota calculado y redondeado al 100 más cercano, o 0 si no aplica
      */
     public function calcularValorCuota(): float
     {
-        if (!$this->producto || !$this->producto->esFinanciable() ||
-            !$this->precio_total ||
-            $this->matricula === null ||
-            !$this->numero_cuotas || $this->numero_cuotas <= 0) {
+        if (! $this->producto || ! $this->producto->esFinanciable() ||
+            ! $this->precio_total ||
+            ! $this->numero_cuotas || $this->numero_cuotas <= 0) {
             return 0;
         }
 
-        $valorRestante = $this->precio_total - $this->matricula;
-        $valorCuota = $valorRestante / $this->numero_cuotas;
+        $valorCuota = $this->precio_total / $this->numero_cuotas;
 
         return round($valorCuota / 100) * 100;
     }
@@ -124,7 +119,7 @@ class LpPrecioProducto extends Model
         parent::boot();
 
         static::saving(function ($precioProducto) {
-            if (!$precioProducto->relationLoaded('producto')) {
+            if (! $precioProducto->relationLoaded('producto')) {
                 $precioProducto->load('producto');
             }
 
@@ -150,7 +145,7 @@ class LpPrecioProducto extends Model
             'numero_cuotas',
             'valor_cuota',
             'created_at',
-            'updated_at'
+            'updated_at',
         ];
     }
 
@@ -164,7 +159,7 @@ class LpPrecioProducto extends Model
         return [
             'listaPrecio',
             'producto',
-            'producto.tipoProducto'
+            'producto.tipoProducto',
         ];
     }
 

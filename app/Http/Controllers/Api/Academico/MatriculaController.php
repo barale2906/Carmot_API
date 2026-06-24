@@ -15,6 +15,8 @@ use App\Models\User;
 use App\Traits\HasActiveStatus;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 
 class MatriculaController extends Controller
 {
@@ -85,6 +87,12 @@ class MatriculaController extends Controller
         $data = $request->only(self::FILLABLE_FIELDS);
         $data['status'] = $data['status'] ?? 1;
 
+        if ($request->hasFile('foto')) {
+            $data['foto'] = $this->guardarFoto($request->file('foto'));
+        } else {
+            unset($data['foto']);
+        }
+
         $matricula = Matricula::create($data);
         $matricula->load(['curso', 'ciclo', 'estudiante', 'matriculadoPor', 'comercial', 'lugarOrigen']);
 
@@ -115,7 +123,16 @@ class MatriculaController extends Controller
      */
     public function update(UpdateMatriculaRequest $request, Matricula $matricula): JsonResponse
     {
-        $matricula->update($request->only(self::FILLABLE_FIELDS));
+        $data = $request->only(self::FILLABLE_FIELDS);
+
+        if ($request->hasFile('foto')) {
+            $this->eliminarFoto($matricula->foto);
+            $data['foto'] = $this->guardarFoto($request->file('foto'));
+        } else {
+            unset($data['foto']);
+        }
+
+        $matricula->update($data);
         $matricula->load(['curso', 'ciclo', 'estudiante', 'matriculadoPor', 'comercial', 'lugarOrigen']);
 
         return response()->json([
@@ -157,6 +174,7 @@ class MatriculaController extends Controller
     public function forceDelete(int $id): JsonResponse
     {
         $matricula = Matricula::onlyTrashed()->findOrFail($id);
+        $this->eliminarFoto($matricula->foto);
         $matricula->forceDelete();
 
         return response()->json([
@@ -227,9 +245,21 @@ class MatriculaController extends Controller
      * Solo expone campos personales, socioeconómicos y de contacto.
      * Los datos de pago, curso, ciclo y estado son omitidos porque corresponden
      * al nuevo proceso de matrícula que se está iniciando.
+     *
+     * Distingue dos motivos de "no encontrado" para que el flujo de creación
+     * en el frontend pueda reaccionar de forma distinta:
+     * - El estudiante no existe: debe corregir la selección antes de continuar.
+     * - El estudiante existe pero no tiene matrículas previas: puede continuar
+     *   con el formulario de inscripción en blanco.
      */
     public function precargaEstudiante(int $estudianteId): JsonResponse
     {
+        if (! User::where('id', $estudianteId)->exists()) {
+            return response()->json([
+                'message' => 'El estudiante no existe.',
+            ], 404);
+        }
+
         $matricula = Matricula::where('estudiante_id', $estudianteId)
             ->latest()
             ->with('lugarOrigen')
@@ -287,5 +317,31 @@ class MatriculaController extends Controller
         return response()->json([
             'data' => $stats,
         ]);
+    }
+
+    // -------------------------------------------------------------------------
+    // Helpers privados
+    // -------------------------------------------------------------------------
+
+    /**
+     * Guarda la foto del estudiante en el disco público y devuelve su ruta relativa.
+     */
+    private function guardarFoto(UploadedFile $foto): string
+    {
+        $ruta = 'matriculas/fotos/' . now()->format('YmdHi') . '_' . uniqid() . '.' . $foto->getClientOriginalExtension();
+
+        $foto->storeAs('', $ruta, 'public');
+
+        return $ruta;
+    }
+
+    /**
+     * Elimina la foto física del disco público si existe.
+     */
+    private function eliminarFoto(?string $ruta): void
+    {
+        if ($ruta && Storage::disk('public')->exists($ruta)) {
+            Storage::disk('public')->delete($ruta);
+        }
     }
 }

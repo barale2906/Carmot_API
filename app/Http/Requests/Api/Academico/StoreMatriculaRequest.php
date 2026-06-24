@@ -106,7 +106,7 @@ class StoreMatriculaRequest extends FormRequest
             // ----------------------------------------------------------------
             'aprueba_uso_imagen' => 'nullable|boolean',
             'multiculturalidad'  => 'nullable|string|max:100',
-            'foto'               => 'nullable|string|max:500',
+            'foto'               => ['nullable', 'image', 'mimes:jpg,jpeg,png', 'max:5120'],
         ];
     }
 
@@ -150,7 +150,45 @@ class StoreMatriculaRequest extends FormRequest
             'estrato.max'                 => 'El estrato debe ser entre 1 y 6.',
             'regimen_salud.in'            => 'El régimen de salud no es válido. Valores permitidos: ' . implode(', ', array_keys(Matricula::REGIMENES_SALUD)) . '.',
             'correo_contacto.email'       => 'El correo del contacto debe ser una dirección de correo válida.',
+
+            // Foto
+            'foto.image' => 'El campo foto debe ser una imagen.',
+            'foto.mimes' => 'La foto debe tener formato jpg, jpeg o png.',
+            'foto.max'   => 'La foto no puede superar los 5 MB.',
         ], self::getStatusValidationMessages());
+    }
+
+    /**
+     * Configura validaciones adicionales que requieren consultar la base de datos.
+     *
+     * Impide matricular dos veces al mismo estudiante en el mismo curso y ciclo,
+     * salvo que la matrícula previa esté anulada (status = 2), caso en el cual
+     * se considera que no existe un cupo vigente y se permite una nueva.
+     */
+    public function withValidator($validator): void
+    {
+        $validator->after(function ($validator) {
+            $estudianteId = $this->input('estudiante_id');
+            $cursoId      = $this->input('curso_id');
+            $cicloId      = $this->input('ciclo_id');
+
+            if (! $estudianteId || ! $cursoId || ! $cicloId) {
+                return;
+            }
+
+            $yaMatriculado = Matricula::where('estudiante_id', $estudianteId)
+                ->where('curso_id', $cursoId)
+                ->where('ciclo_id', $cicloId)
+                ->where('status', '!=', 2)
+                ->exists();
+
+            if ($yaMatriculado) {
+                $validator->errors()->add(
+                    'estudiante_id',
+                    'El estudiante ya se encuentra matriculado en este curso y ciclo.'
+                );
+            }
+        });
     }
 
     public function attributes(): array

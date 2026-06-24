@@ -11,16 +11,12 @@ use Illuminate\Foundation\Http\FormRequest;
  *
  * Valida los datos para crear un nuevo precio de producto en una lista de precios.
  * Incluye validación condicional de campos financiables según el tipo de producto.
- *
- * @package App\Http\Requests\Api\Financiero\Lp
  */
 class StoreLpPrecioProductoRequest extends FormRequest
 {
     /**
      * Determina si el usuario está autorizado para hacer esta solicitud.
      * La autorización se maneja mediante middleware y permisos.
-     *
-     * @return bool
      */
     public function authorize(): bool
     {
@@ -45,7 +41,7 @@ class StoreLpPrecioProductoRequest extends FormRequest
                 function ($attribute, $value, $fail) {
                     if ($this->filled('producto_id')) {
                         $producto = LpProducto::find($this->producto_id);
-                        if ($producto && $producto->esFinanciable() && !$value) {
+                        if ($producto && $producto->esFinanciable() && ! $value) {
                             $fail('El precio total es obligatorio para productos financiables.');
                         }
                     }
@@ -59,7 +55,7 @@ class StoreLpPrecioProductoRequest extends FormRequest
                 function ($attribute, $value, $fail) {
                     if ($this->filled('producto_id')) {
                         $producto = LpProducto::find($this->producto_id);
-                        if ($producto && $producto->esFinanciable() && (!$value || $value <= 0)) {
+                        if ($producto && $producto->esFinanciable() && (! $value || $value <= 0)) {
                             $fail('El número de cuotas es obligatorio y debe ser mayor a 0 para productos financiables.');
                         }
                     }
@@ -73,8 +69,6 @@ class StoreLpPrecioProductoRequest extends FormRequest
     /**
      * Configurar validaciones adicionales después de las reglas básicas.
      * Valida que los campos financiables estén presentes para productos financiables.
-     *
-     * @return void
      */
     public function withValidator($validator): void
     {
@@ -84,15 +78,15 @@ class StoreLpPrecioProductoRequest extends FormRequest
 
                 if ($producto && $producto->esFinanciable()) {
                     // Para productos financiables, validar campos requeridos
-                    if (!$this->filled('precio_total')) {
+                    if (! $this->filled('precio_total')) {
                         $validator->errors()->add('precio_total', 'El precio total es obligatorio para productos financiables.');
                     }
 
-                    if (!$this->filled('numero_cuotas') || (int) $this->numero_cuotas <= 0) {
+                    if (! $this->filled('numero_cuotas') || (int) $this->numero_cuotas <= 0) {
                         $validator->errors()->add('numero_cuotas', 'El número de cuotas es obligatorio y debe ser mayor a 0 para productos financiables.');
                     }
 
-                    // Validar que precio_total >= matricula (base para cuotas: precio_total - matricula)
+                    // Validar que precio_total (saldo a financiar) >= matricula
                     if ($this->filled('precio_total') && $this->filled('matricula')) {
                         if ($this->precio_total < $this->matricula) {
                             $validator->errors()->add('precio_total', 'El precio total debe ser mayor o igual a la matrícula.');
@@ -101,7 +95,7 @@ class StoreLpPrecioProductoRequest extends FormRequest
 
                     if ($this->filled('precio_contado') && $this->filled('precio_total') && $this->filled('matricula')) {
                         $service = app(LpPrecioProductoService::class);
-                        if (!$service->precioContadoCuadraConFinanciacion(
+                        if (! $service->precioContadoCuadraConFinanciacion(
                             (float) $this->input('precio_contado'),
                             (float) $this->input('matricula'),
                             (float) $this->input('precio_total')
