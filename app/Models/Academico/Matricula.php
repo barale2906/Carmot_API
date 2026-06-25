@@ -21,48 +21,47 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * Representa la matrícula de un estudiante en un curso/ciclo, incluyendo
  * todos los datos personales, socioeconómicos y de proceso de inscripción.
  *
- * @property int         $id
- * @property int         $curso_id
- * @property int         $ciclo_id
- * @property int         $estudiante_id
- * @property int         $matriculado_por_id
- * @property int         $comercial_id
- * @property string      $fecha_matricula
- * @property string      $fecha_inicio
- * @property float       $monto
- * @property float|null  $valor_cuota
+ * @property int $id
+ * @property int $curso_id
+ * @property int $ciclo_id
+ * @property int $estudiante_id
+ * @property int $matriculado_por_id
+ * @property int $comercial_id
+ * @property string $fecha_matricula
+ * @property string $fecha_inicio
+ * @property float $monto
+ * @property float|null $valor_cuota
  * @property string|null $observaciones
- * @property string|null $tipo_identificacion     CC | CE | TI | RC | PA | OT
+ * @property string|null $tipo_identificacion CC | CE | TI | RC | PA | OT
  * @property string|null $departamento_expedicion
  * @property string|null $ciudad_expedicion
  * @property string|null $fecha_nacimiento
- * @property string|null $genero                  M | F | O
- * @property string|null $estado_civil            SO | CA | UL | DI | VI | SE
- * @property string|null $grupo_sanguineo         A | B | AB | O
- * @property string|null $rh                      P | N
+ * @property string|null $genero M | F | O
+ * @property string|null $estado_civil SO | CA | UL | DI | VI | SE
+ * @property string|null $grupo_sanguineo A | B | AB | O
+ * @property string|null $rh P | N
  * @property string|null $direccion
- * @property int|null    $lugar_origen_id
+ * @property int|null $lugar_origen_id
  * @property string|null $celular
  * @property string|null $telefono
- * @property string|null $nivel_educacion         PR | SE | TC | TG | PF | ES | MA | DO | OT
+ * @property string|null $nivel_educacion PR | SE | TC | TG | PF | ES | MA | DO | OT
  * @property string|null $ocupacion
  * @property string|null $empresa
- * @property int|null    $estrato                 1-6
- * @property string|null $regimen_salud           CO | SU | ES | EX
- * @property bool|null   $enfermedad_prioritaria
- * @property bool|null   $discapacidad
- * @property bool|null   $conocimiento_curso
+ * @property int|null $estrato 1-6
+ * @property string|null $regimen_salud CO | SU | ES | EX
+ * @property bool|null $enfermedad_prioritaria
+ * @property bool|null $discapacidad
+ * @property bool|null $conocimiento_curso
  * @property string|null $como_entero_curso
  * @property string|null $talla_overol
  * @property string|null $talla_botas
  * @property string|null $nombre_contacto
  * @property string|null $telefono_contacto
  * @property string|null $correo_contacto
- * @property bool        $aprueba_uso_imagen
+ * @property bool $aprueba_uso_imagen
  * @property string|null $multiculturalidad
  * @property string|null $foto
- * @property int         $status                  0: Inactivo | 1: Activo | 2: Anulado
- *
+ * @property int $status 0: Inactivo | 1: Activo | 2: Anulado
  * @property-read \App\Models\Academico\Curso          $curso
  * @property-read \App\Models\Academico\Ciclo          $ciclo
  * @property-read \App\Models\User                     $estudiante
@@ -72,7 +71,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  */
 class Matricula extends Model
 {
-    use HasFactory, SoftDeletes, HasFilterScopes, HasSortingScopes, HasRelationScopes, HasActiveStatus;
+    use HasActiveStatus, HasFactory, HasFilterScopes, HasRelationScopes, HasSortingScopes, SoftDeletes;
 
     protected $guarded = ['id', 'created_at', 'updated_at'];
 
@@ -107,10 +106,10 @@ class Matricula extends Model
     ];
 
     public const GRUPOS_SANGUINEOS = [
-        'A'  => 'A',
-        'B'  => 'B',
+        'A' => 'A',
+        'B' => 'B',
         'AB' => 'AB',
-        'O'  => 'O',
+        'O' => 'O',
     ];
 
     public const RHS = [
@@ -141,17 +140,17 @@ class Matricula extends Model
      * Los atributos que deben ser convertidos a tipos nativos.
      */
     protected $casts = [
-        'status'                 => 'integer',
-        'fecha_matricula'        => 'date',
-        'fecha_inicio'           => 'date',
-        'fecha_nacimiento'       => 'date',
-        'monto'                  => 'decimal:2',
-        'valor_cuota'            => 'decimal:2',
-        'estrato'                => 'integer',
+        'status' => 'integer',
+        'fecha_matricula' => 'date',
+        'fecha_inicio' => 'date',
+        'fecha_nacimiento' => 'date',
+        'monto' => 'decimal:2',
+        'valor_cuota' => 'decimal:2',
+        'estrato' => 'integer',
         'enfermedad_prioritaria' => 'boolean',
-        'discapacidad'           => 'boolean',
-        'conocimiento_curso'     => 'boolean',
-        'aprueba_uso_imagen'     => 'boolean',
+        'discapacidad' => 'boolean',
+        'conocimiento_curso' => 'boolean',
+        'aprueba_uso_imagen' => 'boolean',
     ];
 
     /**
@@ -262,12 +261,12 @@ class Matricula extends Model
     public function scopeSearch($query, $search)
     {
         return $query->whereHas('estudiante', function ($q) use ($search) {
-            $q->where('primer_nombre', 'like', '%' . $search . '%')
-              ->orWhere('segundo_nombre', 'like', '%' . $search . '%')
-              ->orWhere('primer_apellido', 'like', '%' . $search . '%')
-              ->orWhere('segundo_apellido', 'like', '%' . $search . '%');
+            $q->where('primer_nombre', 'like', '%'.$search.'%')
+                ->orWhere('segundo_nombre', 'like', '%'.$search.'%')
+                ->orWhere('primer_apellido', 'like', '%'.$search.'%')
+                ->orWhere('segundo_apellido', 'like', '%'.$search.'%');
         })->orWhereHas('curso', function ($q) use ($search) {
-            $q->where('nombre', 'like', '%' . $search . '%');
+            $q->where('nombre', 'like', '%'.$search.'%');
         });
     }
 
@@ -362,19 +361,19 @@ class Matricula extends Model
     }
 
     // -------------------------------------------------------------------------
-    // Lógica de negocio — contadores de inscritos en ciclo/grupos
+    // Lógica de negocio — contadores de inscritos en ciclo/grupos y vínculo curso/estudiante
     // -------------------------------------------------------------------------
 
     protected function incrementarInscritos(?int $cicloId = null): void
     {
         $cicloId = $cicloId ?? $this->ciclo_id;
 
-        if (!$cicloId) {
+        if (! $cicloId) {
             return;
         }
 
         $ciclo = Ciclo::with('grupos')->find($cicloId);
-        if (!$ciclo) {
+        if (! $ciclo) {
             return;
         }
 
@@ -389,12 +388,12 @@ class Matricula extends Model
     {
         $cicloId = $cicloId ?? $this->ciclo_id;
 
-        if (!$cicloId) {
+        if (! $cicloId) {
             return;
         }
 
         $ciclo = Ciclo::with('grupos')->find($cicloId);
-        if (!$ciclo) {
+        if (! $ciclo) {
             return;
         }
 
@@ -409,6 +408,52 @@ class Matricula extends Model
         }
     }
 
+    protected function attachEstudianteACurso(?int $cursoId = null): void
+    {
+        $cursoId = $cursoId ?? $this->curso_id;
+
+        if (! $cursoId || ! $this->estudiante_id) {
+            return;
+        }
+
+        $curso = Curso::find($cursoId);
+        if (! $curso) {
+            return;
+        }
+
+        $curso->estudiantes()->syncWithoutDetaching([$this->estudiante_id]);
+    }
+
+    /**
+     * Desvincula al estudiante del curso, salvo que conserve otra matrícula
+     * activa en ese mismo curso (p. ej. en un ciclo distinto).
+     */
+    protected function detachEstudianteDeCurso(?int $cursoId = null): void
+    {
+        $cursoId = $cursoId ?? $this->curso_id;
+
+        if (! $cursoId || ! $this->estudiante_id) {
+            return;
+        }
+
+        $tieneOtraMatriculaActiva = static::where('estudiante_id', $this->estudiante_id)
+            ->where('curso_id', $cursoId)
+            ->where('status', 1)
+            ->where('id', '!=', $this->id)
+            ->exists();
+
+        if ($tieneOtraMatriculaActiva) {
+            return;
+        }
+
+        $curso = Curso::find($cursoId);
+        if (! $curso) {
+            return;
+        }
+
+        $curso->estudiantes()->detach($this->estudiante_id);
+    }
+
     protected static function boot()
     {
         parent::boot();
@@ -416,14 +461,17 @@ class Matricula extends Model
         static::created(function ($matricula) {
             if ($matricula->status === 1) {
                 $matricula->incrementarInscritos();
+                $matricula->attachEstudianteACurso();
             }
         });
 
         static::updated(function ($matricula) {
             $statusAnterior = $matricula->getOriginal('status');
-            $statusNuevo    = $matricula->status;
-            $cicloAnterior  = $matricula->getOriginal('ciclo_id');
-            $cicloNuevo     = $matricula->ciclo_id;
+            $statusNuevo = $matricula->status;
+            $cicloAnterior = $matricula->getOriginal('ciclo_id');
+            $cicloNuevo = $matricula->ciclo_id;
+            $cursoAnterior = $matricula->getOriginal('curso_id');
+            $cursoNuevo = $matricula->curso_id;
 
             if ($cicloAnterior !== $cicloNuevo) {
                 if ($statusAnterior === 1 && $cicloAnterior) {
@@ -440,17 +488,35 @@ class Matricula extends Model
                     $matricula->incrementarInscritos();
                 }
             }
+
+            if ($cursoAnterior !== $cursoNuevo) {
+                if ($statusAnterior === 1 && $cursoAnterior) {
+                    $matricula->detachEstudianteDeCurso($cursoAnterior);
+                }
+                if ($statusNuevo === 1 && $cursoNuevo) {
+                    $matricula->attachEstudianteACurso($cursoNuevo);
+                }
+            } else {
+                if ($statusAnterior === 1 && $statusNuevo !== 1) {
+                    $matricula->detachEstudianteDeCurso();
+                }
+                if ($statusAnterior !== 1 && $statusNuevo === 1) {
+                    $matricula->attachEstudianteACurso();
+                }
+            }
         });
 
         static::deleted(function ($matricula) {
             if ($matricula->status === 1) {
                 $matricula->decrementarInscritos();
+                $matricula->detachEstudianteDeCurso();
             }
         });
 
         static::restored(function ($matricula) {
             if ($matricula->status === 1) {
                 $matricula->incrementarInscritos();
+                $matricula->attachEstudianteACurso();
             }
         });
     }
