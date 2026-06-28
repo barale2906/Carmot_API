@@ -8,7 +8,7 @@ use App\Http\Resources\Api\Financiero\ConceptoPago\ConceptoPagoResource;
 use App\Http\Resources\Api\Financiero\Descuento\DescuentoResource;
 use App\Http\Resources\Api\Financiero\Lp\LpListaPrecioResource;
 use App\Http\Resources\Api\Financiero\Lp\LpProductoResource;
-use App\Http\Resources\Api\UserResource;
+use App\Http\Resources\Api\Configuracion\UserResource;
 use App\Models\Financiero\ReciboPago\ReciboPago;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;

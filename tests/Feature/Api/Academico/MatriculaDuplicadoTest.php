@@ -5,6 +5,7 @@ namespace Tests\Feature\Api\Academico;
 use App\Models\Academico\Ciclo;
 use App\Models\Academico\Curso;
 use App\Models\Academico\Matricula;
+use App\Models\Configuracion\Sede;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Permission\Models\Permission;
@@ -32,6 +33,7 @@ class MatriculaDuplicadoTest extends TestCase
     private function datosBase(array $overrides = []): array
     {
         return array_merge([
+            'sede_id'            => Sede::factory()->create()->id,
             'matriculado_por_id' => $this->usuario->id,
             'comercial_id'       => $this->usuario->id,
             'fecha_matricula'    => now()->format('Y-m-d'),

@@ -5,6 +5,7 @@ namespace Tests\Feature\Api\Academico;
 use App\Models\Academico\Ciclo;
 use App\Models\Academico\Curso;
 use App\Models\Academico\Matricula;
+use App\Models\Configuracion\Sede;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -35,6 +36,7 @@ class MatriculaFotoTest extends TestCase
     private function datosBase(array $overrides = []): array
     {
         return array_merge([
+            'sede_id'            => Sede::factory()->create()->id,
             'curso_id'           => Curso::factory()->create()->id,
             'ciclo_id'           => Ciclo::factory()->create()->id,
             'estudiante_id'      => User::factory()->create()->id,

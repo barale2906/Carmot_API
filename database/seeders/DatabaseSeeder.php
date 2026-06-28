@@ -15,10 +15,10 @@ class DatabaseSeeder extends Seeder
         $this->call([
             RolesAndPermissionsSeeder::class,
             UserSeeder::class,
-            //CursoSeeder::class,
-            //TemaSeeder::class,
-            //TopicoSeeder::class,
-            //ModuloSeeder::class,
+            CursoSeeder::class,
+            ModuloSeeder::class,
+            TopicoSeeder::class,
+            TemaSeeder::class,
             //ReferidoSeeder::class,
             //SeguimientoSeeder::class,
             //AgendaSeeder::class,
@@ -36,12 +36,12 @@ class DatabaseSeeder extends Seeder
             //AsistenciaConfiguracionSeeder::class,
             //AsistenciaClaseProgramadaSeeder::class,
             //AsistenciaSeeder::class,
+            ConceptoPagoSeeder::class,
             // Seeders del módulo financiero - Listas de precios
             //LpTipoProductoSeeder::class,
             //LpProductoSeeder::class,
             //LpListaPrecioSeeder::class,
             //LpPrecioProductoSeeder::class,
-            //ConceptoPagoSeeder::class,
             //DescuentoSeeder::class,
             //ReciboPagoSeeder::class,
         ]);

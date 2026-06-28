@@ -206,7 +206,7 @@ class MenuController extends Controller
         // Financiero - módulo con varios submenús
         if ($this->hasAnyPermission($user, [
             'fin_lp_tipos_producto', 'fin_lp_productos', 'fin_lp_listas_precios',
-            'fin_conceptos_pago', 'fin_recibos_pago'
+            'fin_conceptos_pago', 'fin_descuentos', 'fin_recibos_pago', 'fin_carteras',
         ])) {
             $financieroChildren = [];
 
@@ -254,6 +254,17 @@ class MenuController extends Controller
                 ];
             }
 
+            // Descuentos
+            if ($user->can('fin_descuentos')) {
+                $financieroChildren[] = [
+                    'id' => 'financiero-descuentos',
+                    'title' => 'Descuentos',
+                    'icon' => 'local_offer',
+                    'route' => '/financiero/descuentos',
+                    'permission' => 'fin_descuentos',
+                ];
+            }
+
             // Recibos de pago
             if ($user->can('fin_recibos_pago')) {
                 $financieroChildren[] = [
@@ -262,6 +273,17 @@ class MenuController extends Controller
                     'icon' => 'receipt',
                     'route' => '/financiero/recibos-pago',
                     'permission' => 'fin_recibos_pago',
+                ];
+            }
+
+            // Cartera
+            if ($user->can('fin_carteras')) {
+                $financieroChildren[] = [
+                    'id' => 'financiero-cartera',
+                    'title' => 'Cartera',
+                    'icon' => 'account_balance_wallet',
+                    'route' => '/financiero/cartera',
+                    'permission' => 'fin_carteras',
                 ];
             }
 

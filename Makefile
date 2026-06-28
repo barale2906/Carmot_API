@@ -3,7 +3,7 @@ GREEN = \033[0;32m
 YELLOW = \033[0;33m
 NC = \033[0m
 
-.PHONY: up down stop start restart wait-db show-urls day-end day-start app artisan composer shell env-docker
+.PHONY: up down stop start restart wait-db show-urls day-end day-start app artisan composer shell env-docker migrate migrate-fresh seed test test-filter
 
 up:
 	@echo -e '$(GREEN)=> Iniciando contenedores Docker$(NC)'
@@ -61,6 +61,26 @@ composer:
 shell:
 	@echo -e '$(GREEN)=> Accediendo al contenedor de la aplicación$(NC)'
 	docker compose exec app bash
+
+migrate:
+	@echo -e '$(GREEN)=> Ejecutando migraciones$(NC)'
+	docker compose exec app php artisan migrate
+
+migrate-fresh:
+	@echo -e '$(YELLOW)=> Reseteando base de datos y sembrando datos$(NC)'
+	docker compose exec app php artisan migrate:fresh --seed
+
+seed:
+	@echo -e '$(GREEN)=> Ejecutando seeders$(NC)'
+	docker compose exec app php artisan db:seed
+
+test:
+	@echo -e '$(GREEN)=> Ejecutando suite de tests$(NC)'
+	docker compose exec app php artisan test
+
+test-filter:
+	@echo -e '$(GREEN)=> Ejecutando tests con filtro: $(filter-out $@,$(MAKECMDGOALS))$(NC)'
+	docker compose exec app php artisan test --filter=$(filter-out $@,$(MAKECMDGOALS))
 
 env-docker:
 	@echo -e '$(GREEN)=> Cambiando a configuración Docker$(NC)'

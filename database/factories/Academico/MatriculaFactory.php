@@ -4,6 +4,7 @@ namespace Database\Factories\Academico;
 
 use App\Models\Academico\Ciclo;
 use App\Models\Academico\Curso;
+use App\Models\Configuracion\Sede;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -31,6 +32,7 @@ class MatriculaFactory extends Factory
         $fechaInicio = fake()->dateTimeBetween($fechaMatricula, '+3 months');
 
         return [
+            'sede_id' => Sede::inRandomOrder()->first()?->id ?? Sede::factory(),
             'curso_id' => Curso::inRandomOrder()->first()?->id ?? Curso::factory(),
             'ciclo_id' => Ciclo::inRandomOrder()->first()?->id ?? Ciclo::factory(),
             'estudiante_id' => User::inRandomOrder()->first()?->id ?? User::factory(),

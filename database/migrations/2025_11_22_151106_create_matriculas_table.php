@@ -17,6 +17,7 @@ return new class extends Migration
             // ----------------------------------------------------------------
             // Datos académicos / administrativos
             // ----------------------------------------------------------------
+            $table->foreignId('sede_id')->constrained('sedes')->onDelete('restrict')->comment('sede donde se realizó la matrícula');
             $table->foreignId('curso_id')->constrained('cursos')->onDelete('cascade');
             $table->foreignId('ciclo_id')->constrained('ciclos')->onDelete('cascade');
             $table->foreignId('estudiante_id')->constrained('users')->onDelete('cascade')->comment('estudiante matriculado');
@@ -26,6 +27,10 @@ return new class extends Migration
             $table->date('fecha_inicio')->comment('fecha de inicio de las clases');
             $table->double('monto')->comment('monto total de la matrícula');
             $table->decimal('valor_cuota', 12, 2)->nullable()->comment('valor de la cuota de pago');
+            $table->unsignedInteger('numero_cuotas')->nullable()->comment('número de cuotas del plan de pago (de la LP vigente)');
+            $table->unsignedBigInteger('lp_precio_producto_id')->nullable()
+                ->comment('precio de producto vigente al momento de la matrícula (FK sin constraint: lp_precios_producto corre después)');
+
             $table->longText('observaciones')->nullable()->comment('observaciones de la matrícula');
 
             // ----------------------------------------------------------------

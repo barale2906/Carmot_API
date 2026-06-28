@@ -35,6 +35,7 @@ class StoreMatriculaRequest extends FormRequest
             // ----------------------------------------------------------------
             // Datos académicos / administrativos
             // ----------------------------------------------------------------
+            'sede_id'              => 'required|integer|exists:sedes,id',
             'curso_id'             => 'required|integer|exists:cursos,id',
             'ciclo_id'             => 'required|integer|exists:ciclos,id',
             'estudiante_id'        => 'required|integer|exists:users,id',
@@ -42,10 +43,11 @@ class StoreMatriculaRequest extends FormRequest
             'comercial_id'         => 'required|integer|exists:users,id',
             'fecha_matricula'      => 'required|date',
             'fecha_inicio'         => 'required|date|after_or_equal:fecha_matricula',
-            'monto'                => 'required|numeric|min:0',
-            'valor_cuota'          => 'nullable|numeric|min:0',
-            'observaciones'        => 'nullable|string|max:5000',
-            'status'               => self::getStatusValidationRule(),
+            'monto'                   => 'required|numeric|min:0',
+            'valor_cuota'             => 'nullable|numeric|min:0',
+            'observaciones'           => 'nullable|string|max:5000',
+            'lp_precio_producto_id'   => 'nullable|integer|exists:lp_precios_producto,id',
+            'status'                  => self::getStatusValidationRule(),
 
             // ----------------------------------------------------------------
             // Datos de identificación
@@ -114,6 +116,8 @@ class StoreMatriculaRequest extends FormRequest
     {
         return array_merge([
             // Datos académicos
+            'sede_id.required'            => 'La sede es obligatoria.',
+            'sede_id.exists'              => 'La sede seleccionada no existe.',
             'curso_id.required'           => 'El curso es obligatorio.',
             'curso_id.exists'             => 'El curso seleccionado no existe.',
             'ciclo_id.required'           => 'El ciclo es obligatorio.',
@@ -132,9 +136,11 @@ class StoreMatriculaRequest extends FormRequest
             'monto.required'              => 'El monto es obligatorio.',
             'monto.numeric'               => 'El monto debe ser un número.',
             'monto.min'                   => 'El monto debe ser mayor o igual a 0.',
-            'valor_cuota.numeric'         => 'El valor de la cuota debe ser un número.',
-            'valor_cuota.min'             => 'El valor de la cuota debe ser mayor o igual a 0.',
-            'observaciones.max'           => 'Las observaciones no pueden tener más de 5000 caracteres.',
+            'valor_cuota.numeric'              => 'El valor de la cuota debe ser un número.',
+            'valor_cuota.min'                  => 'El valor de la cuota debe ser mayor o igual a 0.',
+            'observaciones.max'                => 'Las observaciones no pueden tener más de 5000 caracteres.',
+            'lp_precio_producto_id.integer'    => 'El precio de lista debe ser un número entero.',
+            'lp_precio_producto_id.exists'     => 'El precio de lista seleccionado no existe.',
 
             // Identificación
             'tipo_identificacion.in'      => 'El tipo de identificación no es válido. Valores permitidos: ' . implode(', ', array_keys(Matricula::TIPOS_IDENTIFICACION)) . '.',
@@ -214,6 +220,8 @@ class StoreMatriculaRequest extends FormRequest
             'conocimiento_curso'      => 'conocimiento del curso',
             'como_entero_curso'       => 'cómo se enteró del curso',
             'valor_cuota'             => 'valor de cuota',
+            'sede_id'                 => 'sede',
+            'lp_precio_producto_id'   => 'precio de lista',
             'talla_overol'            => 'talla de overol',
             'talla_botas'             => 'talla de botas',
             'nombre_contacto'         => 'nombre del contacto de emergencia',

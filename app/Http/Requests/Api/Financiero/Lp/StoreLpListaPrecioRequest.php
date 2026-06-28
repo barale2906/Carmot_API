@@ -61,6 +61,12 @@ class StoreLpListaPrecioRequest extends FormRequest
             if ($this->filled('fecha_inicio') && $this->filled('fecha_fin') && $this->filled('poblaciones')) {
                 $fechaInicio = Carbon::parse($this->fecha_inicio);
                 $fechaFin = Carbon::parse($this->fecha_fin);
+
+                // Si la fecha no supera la validación básica, no intentar el chequeo de solapamiento
+                if ($fechaFin->lt($fechaInicio)) {
+                    return;
+                }
+
                 $service = new LpPrecioProductoService();
 
                 foreach ($this->poblaciones as $poblacionId) {

@@ -3,6 +3,7 @@
 namespace App\Models\Financiero\ReciboPago;
 
 use App\Models\Academico\Matricula;
+use App\Models\Financiero\Cartera\Cartera;
 use App\Models\Configuracion\Sede;
 use App\Models\Financiero\ConceptoPago\ConceptoPago;
 use App\Models\Financiero\Descuento\Descuento;
@@ -210,6 +211,18 @@ class ReciboPago extends Model
     public function matricula(): BelongsTo
     {
         return $this->belongsTo(Matricula::class);
+    }
+
+    /**
+     * Cartera específica que salda este recibo (FK directa, nullable).
+     * Solo el recibo de matrícula auto-generado tiene esta FK poblada.
+     * Los recibos manuales post-matrícula trazan la deuda por recibo_pago_concepto_pago.id_relacional.
+     *
+     * @return BelongsTo
+     */
+    public function cartera(): BelongsTo
+    {
+        return $this->belongsTo(Cartera::class);
     }
 
     /**
@@ -593,6 +606,7 @@ class ReciboPago extends Model
             'estudiante',
             'cajero',
             'matricula',
+            'cartera',
             'conceptosPago',
             'listasPrecio',
             'productos',

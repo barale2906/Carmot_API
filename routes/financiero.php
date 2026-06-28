@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\Financiero\Cartera\CarteraController;
 use App\Http\Controllers\Api\Financiero\ConceptoPago\ConceptoPagoController;
 use App\Http\Controllers\Api\Financiero\Descuento\DescuentoController;
 use App\Http\Controllers\Api\Financiero\Lp\LpListaPrecioController;
@@ -26,10 +27,12 @@ Route::middleware('auth:sanctum')->group(function () {
     // Grupo de rutas para el submódulo de Listas de Precios (LP)
     Route::prefix('lp')->group(function () {
         // Rutas principales de tipos de producto (CRUD estándar)
-        Route::apiResource('tipos-producto', LpTipoProductoController::class);
+        Route::apiResource('tipos-producto', LpTipoProductoController::class)
+            ->parameters(['tipos-producto' => 'lpTipoProducto']);
 
         // Rutas principales de productos (CRUD estándar)
-        Route::apiResource('productos', LpProductoController::class);
+        Route::apiResource('productos', LpProductoController::class)
+            ->parameters(['productos' => 'lpProducto']);
 
         // Rutas principales de listas de precios (CRUD estándar)
         // Forzar el nombre del parámetro de ruta a {lpListaPrecio} para que coincida con el
@@ -94,10 +97,8 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     // Grupo de rutas para Conceptos de Pago
-    // Rutas principales de conceptos de pago (CRUD estándar)
-    Route::apiResource('conceptos-pago', ConceptoPagoController::class);
-
-    // Rutas adicionales para funcionalidades específicas de conceptos de pago
+    // IMPORTANTE: rutas GET con segmentos estáticos ANTES del apiResource para
+    // evitar que sean capturadas por GET /{conceptoPago} (show).
     Route::prefix('conceptos-pago')->group(function () {
         // Ruta para obtener los tipos disponibles
         Route::get('tipos', [ConceptoPagoController::class, 'obtenerTipos'])
@@ -107,6 +108,10 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('tipos/agregar', [ConceptoPagoController::class, 'agregarTipo'])
             ->name('conceptos-pago.agregar-tipo');
     });
+
+    // Rutas principales de conceptos de pago (CRUD estándar)
+    Route::apiResource('conceptos-pago', ConceptoPagoController::class)
+        ->parameters(['conceptos-pago' => 'conceptoPago']);
 
     // Grupo de rutas para Descuentos
     // Rutas principales de descuentos (CRUD estándar)
@@ -128,9 +133,21 @@ Route::middleware('auth:sanctum')->group(function () {
             ->name('descuentos.historial');
     });
 
+    // ─── Cartera (cuentas por cobrar) ────────────────────────────────────────
+    // IMPORTANTE: rutas GET estáticas ANTES del apiResource.
+    Route::prefix('carteras')->group(function () {
+        Route::get('deudas-estudiante',  [CarteraController::class, 'deudasEstudiante'])->name('carteras.deudas-estudiante');
+        Route::get('detalle-matricula',  [CarteraController::class, 'detalleMatricula'])->name('carteras.detalle-matricula');
+        Route::get('reportes',           [CarteraController::class, 'reportes'])->name('carteras.reportes');
+        Route::post('{cartera}/anular',  [CarteraController::class, 'anular'])->name('carteras.anular');
+        Route::post('acuerdo-pago',      [CarteraController::class, 'acuerdoPago'])->name('carteras.acuerdo-pago');
+    });
+    Route::apiResource('carteras', CarteraController::class)->only(['index', 'show']);
+
     // Grupo de rutas para Recibos de Pago
     // Rutas principales de recibos de pago (CRUD estándar)
-    Route::apiResource('recibos-pago', ReciboPagoController::class);
+    Route::apiResource('recibos-pago', ReciboPagoController::class)
+        ->parameters(['recibos-pago' => 'reciboPago']);
 
     // Rutas adicionales para funcionalidades específicas de recibos de pago
     Route::prefix('recibos-pago')->group(function () {

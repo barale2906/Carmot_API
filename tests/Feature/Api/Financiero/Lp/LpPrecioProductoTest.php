@@ -2,9 +2,11 @@
 
 namespace Tests\Feature\Api\Financiero\Lp;
 
+use App\Models\Academico\Curso;
 use App\Models\Financiero\Lp\LpListaPrecio;
 use App\Models\Financiero\Lp\LpPrecioProducto;
 use App\Models\Financiero\Lp\LpProducto;
+use App\Models\Financiero\Lp\LpProductoReferencia;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Permission\Models\Permission;
@@ -138,5 +140,109 @@ class LpPrecioProductoTest extends TestCase
             'id' => $response->json('data.id'),
             'valor_cuota' => null,
         ]);
+    }
+
+    /** @test */
+    public function al_crear_con_referencia_guarda_vinculo_en_lp_producto_referencias(): void
+    {
+        $lista   = $this->listaPrecio();
+        $producto = $this->productoFinanciable();
+        $curso   = Curso::factory()->create();
+
+        $response = $this->actingAs($this->usuario)->postJson(route('precios-producto.store'), [
+            'lista_precio_id'  => $lista->id,
+            'producto_id'      => $producto->id,
+            'precio_contado'   => 5000000,
+            'matricula'        => 150000,
+            'precio_total'     => 4850000,
+            'numero_cuotas'    => 10,
+            'referencia_id'    => $curso->id,
+            'referencia_tipo'  => 'curso',
+        ]);
+
+        $response->assertCreated();
+
+        $this->assertDatabaseHas('lp_producto_referencias', [
+            'lp_producto_id'  => $producto->id,
+            'referencia_id'   => $curso->id,
+            'referencia_tipo' => 'curso',
+        ]);
+    }
+
+    /** @test */
+    public function al_crear_con_referencia_duplicada_no_genera_error_ni_duplicado(): void
+    {
+        $lista    = $this->listaPrecio();
+        $producto = $this->productoFinanciable();
+        $curso    = Curso::factory()->create();
+
+        // Referencia ya existe
+        LpProductoReferencia::create([
+            'lp_producto_id'  => $producto->id,
+            'referencia_id'   => $curso->id,
+            'referencia_tipo' => 'curso',
+        ]);
+
+        $response = $this->actingAs($this->usuario)->postJson(route('precios-producto.store'), [
+            'lista_precio_id'  => $lista->id,
+            'producto_id'      => $producto->id,
+            'precio_contado'   => 5000000,
+            'matricula'        => 150000,
+            'precio_total'     => 4850000,
+            'numero_cuotas'    => 10,
+            'referencia_id'    => $curso->id,
+            'referencia_tipo'  => 'curso',
+        ]);
+
+        $response->assertCreated();
+
+        $this->assertSame(
+            1,
+            LpProductoReferencia::where('lp_producto_id', $producto->id)->count(),
+            'No debe duplicar la referencia si ya existe.'
+        );
+    }
+
+    /** @test */
+    public function al_crear_sin_referencia_no_genera_vinculo(): void
+    {
+        $lista    = $this->listaPrecio();
+        $producto = $this->productoFinanciable();
+
+        $response = $this->actingAs($this->usuario)->postJson(route('precios-producto.store'), [
+            'lista_precio_id' => $lista->id,
+            'producto_id'     => $producto->id,
+            'precio_contado'  => 5000000,
+            'matricula'       => 150000,
+            'precio_total'    => 4850000,
+            'numero_cuotas'   => 10,
+        ]);
+
+        $response->assertCreated();
+
+        $this->assertDatabaseMissing('lp_producto_referencias', [
+            'lp_producto_id' => $producto->id,
+        ]);
+    }
+
+    /** @test */
+    public function rechaza_referencia_con_curso_inexistente(): void
+    {
+        $lista    = $this->listaPrecio();
+        $producto = $this->productoFinanciable();
+
+        $response = $this->actingAs($this->usuario)->postJson(route('precios-producto.store'), [
+            'lista_precio_id' => $lista->id,
+            'producto_id'     => $producto->id,
+            'precio_contado'  => 5000000,
+            'matricula'       => 150000,
+            'precio_total'    => 4850000,
+            'numero_cuotas'   => 10,
+            'referencia_id'   => 9999,
+            'referencia_tipo' => 'curso',
+        ]);
+
+        $response->assertUnprocessable()
+            ->assertJsonValidationErrors(['referencia_id']);
     }
 }

@@ -24,8 +24,8 @@ class MatriculaController extends Controller
 
     /** Campos permitidos en store/update (excluye los gestionados automáticamente). */
     private const FILLABLE_FIELDS = [
-        'curso_id', 'ciclo_id', 'estudiante_id', 'matriculado_por_id', 'comercial_id',
-        'fecha_matricula', 'fecha_inicio', 'monto', 'valor_cuota', 'observaciones',
+        'sede_id', 'curso_id', 'ciclo_id', 'estudiante_id', 'matriculado_por_id', 'comercial_id',
+        'fecha_matricula', 'fecha_inicio', 'monto', 'valor_cuota', 'observaciones', 'lp_precio_producto_id',
         'tipo_identificacion', 'departamento_expedicion', 'ciudad_expedicion',
         'fecha_nacimiento', 'genero', 'estado_civil', 'grupo_sanguineo', 'rh',
         'direccion', 'lugar_origen_id', 'celular', 'telefono',

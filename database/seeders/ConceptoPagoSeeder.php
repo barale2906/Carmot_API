@@ -10,73 +10,106 @@ use Illuminate\Support\Facades\Log;
 /**
  * Seeder ConceptoPagoSeeder
  *
- * Seeder para crear los conceptos de pago básicos del sistema financiero.
- * Crea conceptos de pago comunes como matrícula, mensualidades, recargos, etc.
- *
- * @package Database\Seeders
+ * Siembra los conceptos de pago básicos del sistema.
+ * Los conceptos de tipo Cartera (tipo=0) son los que generan y saldan registros
+ * en la tabla carteras; los demás son para cobros financieros, de inventario o varios.
  */
 class ConceptoPagoSeeder extends Seeder
 {
     /**
      * Ejecuta el seeder.
-     * Crea los conceptos de pago básicos del sistema.
-     *
-     * @return void
      */
     public function run(): void
     {
         $this->command->info('Iniciando creación de conceptos de pago...');
 
         $conceptosPago = [
+            // ── Tipo 0: Cartera ───────────────────────────────────────────────
             [
-                'nombre' => 'Matrícula',
-                'tipo' => 1, // Financiero (índice 1)
-                'valor' => 0.00, // Se establecerá según la lista de precios
+                'nombre' => ConceptoPago::MATRICULA,          // 'Matrícula'
+                'tipo'   => 0,
+                'valor'  => 0.00,
             ],
             [
-                'nombre' => 'Pago de mensualidad',
-                'tipo' => 1, // Financiero (índice 1)
-                'valor' => 0.00, // Se establecerá según la lista de precios
+                'nombre' => ConceptoPago::MENSUALIDAD,        // 'Pago de mensualidad'
+                'tipo'   => 0,
+                'valor'  => 0.00,
             ],
+            [
+                'nombre' => ConceptoPago::INICIAL_ACUERDO,    // 'Inicial Acuerdo'
+                'tipo'   => 0,
+                'valor'  => 0.00,
+            ],
+            [
+                'nombre' => ConceptoPago::CUOTA_ACUERDO,      // 'Cuota Acuerdo'
+                'tipo'   => 0,
+                'valor'  => 0.00,
+            ],
+            [
+                'nombre' => ConceptoPago::DESCUENTO,          // 'Descuento pronto pago'
+                'tipo'   => 0,
+                'valor'  => 0.00,
+            ],
+
+            // ── Tipo 1: Financiero ────────────────────────────────────────────
             [
                 'nombre' => 'Recargo por pago con tarjeta',
-                'tipo' => 1, // Financiero (índice 1)
-                'valor' => 5000.00, // Ejemplo: 5,000 pesos
-            ],
-            [
-                'nombre' => 'Cobro adicional por material',
-                'tipo' => 2, // Inventario (índice 2)
-                'valor' => 0.00, // Variable según el material
-            ],
-            [
-                'nombre' => 'Pago por acuerdo de pago',
-                'tipo' => 0, // Cartera (índice 0)
-                'valor' => 0.00, // Se establece según el acuerdo
+                'tipo'   => 1,
+                'valor'  => 5000.00,
             ],
             [
                 'nombre' => 'Recargo por mora',
-                'tipo' => 1, // Financiero (índice 1)
-                'valor' => 10000.00, // Ejemplo: 10,000 pesos
-            ],
-            [
-                'nombre' => 'Pago de certificado',
-                'tipo' => 3, // Otro (índice 3)
-                'valor' => 25000.00, // Ejemplo: 25,000 pesos
+                'tipo'   => 1,
+                'valor'  => 10000.00,
             ],
             [
                 'nombre' => 'Cobro por reposición de clase',
-                'tipo' => 1, // Financiero (índice 1)
-                'valor' => 50000.00, // Ejemplo: 50,000 pesos
+                'tipo'   => 1,
+                'valor'  => 50000.00,
+            ],
+
+            // ── Tipo 2: Inventario ────────────────────────────────────────────
+            [
+                'nombre' => 'Cobro adicional por material',
+                'tipo'   => 2,
+                'valor'  => 0.00,
             ],
             [
                 'nombre' => 'Pago de uniforme',
-                'tipo' => 2, // Inventario (índice 2)
-                'valor' => 0.00, // Variable según el uniforme
+                'tipo'   => 2,
+                'valor'  => 0.00,
             ],
             [
                 'nombre' => 'Cobro por material didáctico',
-                'tipo' => 2, // Inventario (índice 2)
-                'valor' => 0.00, // Variable según el material
+                'tipo'   => 2,
+                'valor'  => 0.00,
+            ],
+
+            // ── Tipo 3: Otro ──────────────────────────────────────────────────
+            [
+                'nombre' => 'Pago de certificado',
+                'tipo'   => 3,
+                'valor'  => 25000.00,
+            ],
+            [
+                'nombre' => 'Diploma',
+                'tipo'   => 3,
+                'valor'  => 30000.00,
+            ],
+            [
+                'nombre' => 'Sábana de notas',
+                'tipo'   => 3,
+                'valor'  => 15000.00,
+            ],
+            [
+                'nombre' => 'Exámenes médicos',
+                'tipo'   => 3,
+                'valor'  => 0.00,
+            ],
+            [
+                'nombre' => 'Recuperación de módulo',
+                'tipo'   => 3,
+                'valor'  => 0.00,
             ],
         ];
 
@@ -85,36 +118,37 @@ class ConceptoPagoSeeder extends Seeder
 
         foreach ($conceptosPago as $concepto) {
             try {
-                $conceptoPago = ConceptoPago::firstOrCreate(
+                $registro = ConceptoPago::firstOrCreate(
                     ['nombre' => $concepto['nombre']],
                     $concepto
                 );
 
-                if ($conceptoPago->wasRecentlyCreated) {
-                    $creados++;
-                    $this->command->info("Concepto de pago creado: {$concepto['nombre']}");
-                    Log::info("Concepto de pago creado: {$concepto['nombre']}");
-                } else {
-                    $this->command->comment("Concepto de pago ya existe: {$concepto['nombre']}");
+                // Corregir tipo si ya existía con valor incorrecto
+                if (! $registro->wasRecentlyCreated && $registro->tipo !== $concepto['tipo']) {
+                    $registro->update(['tipo' => $concepto['tipo']]);
+                    $this->command->warn("Tipo corregido para: {$concepto['nombre']}");
                 }
-            } catch (Exception $exception) {
+
+                if ($registro->wasRecentlyCreated) {
+                    $creados++;
+                    $this->command->info("Creado: {$concepto['nombre']}");
+                } else {
+                    $this->command->comment("Ya existe: {$concepto['nombre']}");
+                }
+            } catch (Exception $e) {
                 $errores++;
-                $mensajeError = "Error al crear concepto de pago '{$concepto['nombre']}': {$exception->getMessage()}";
-                $this->command->error($mensajeError);
-                Log::error($mensajeError, [
-                    'concepto' => $concepto,
-                    'exception' => $exception->getMessage(),
-                    'code' => $exception->getCode(),
-                    'line' => $exception->getLine(),
-                ]);
+                $mensaje = "Error al crear '{$concepto['nombre']}': {$e->getMessage()}";
+                $this->command->error($mensaje);
+                Log::error($mensaje, ['exception' => $e->getMessage()]);
             }
         }
 
-        $this->command->info("Conceptos de pago creados: {$creados}");
+        $this->command->info("Conceptos creados: {$creados}");
+
         if ($errores > 0) {
-            $this->command->warn("Errores encontrados: {$errores}");
+            $this->command->warn("Errores: {$errores}");
         }
-        $this->command->info('Finalizada la creación de conceptos de pago.');
+
+        $this->command->info('Finalizado ConceptoPagoSeeder.');
     }
 }
-

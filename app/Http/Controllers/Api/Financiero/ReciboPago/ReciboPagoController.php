@@ -7,9 +7,14 @@ use App\Http\Requests\Api\Financiero\ReciboPago\StoreReciboPagoRequest;
 use App\Http\Requests\Api\Financiero\ReciboPago\UpdateReciboPagoRequest;
 use App\Http\Resources\Api\Financiero\ReciboPago\ReciboPagoResource;
 use App\Mail\ReciboPagoMail;
+use App\Models\Academico\Matricula;
+use App\Models\Financiero\Cartera\Cartera;
+use App\Models\Financiero\ConceptoPago\ConceptoPago;
 use App\Models\Financiero\ReciboPago\ReciboPago;
 use App\Models\Financiero\ReciboPago\ReciboPagoMedioPago;
 use App\Services\Financiero\ReciboPagoPDFService;
+use App\Services\Financiero\ReciboPagoDistribucionService;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -27,12 +32,9 @@ use Illuminate\Support\Facades\Mail;
  */
 class ReciboPagoController extends Controller
 {
-    /**
-     * Constructor del controlador.
-     * Configura los middlewares de autenticación y permisos.
-     */
-    public function __construct()
-    {
+    public function __construct(
+        private readonly ReciboPagoDistribucionService $distribucionService,
+    ) {
         $this->middleware('auth:sanctum');
         $this->middleware('permission:fin_recibos_pago')->only(['index', 'show']);
         $this->middleware('permission:fin_reciboPagoCrear')->only(['store']);
@@ -118,28 +120,16 @@ class ReciboPagoController extends Controller
                 $query->onlyTrashed();
             }
 
-            // Cargar relaciones si se solicitan
-            if ($request->filled('with')) {
-                $relations = explode(',', $request->string('with'));
-                $allowedRelations = (new ReciboPago())->getAllowedRelations();
-                $relations = array_intersect($relations, $allowedRelations);
-                $query->with($relations);
-            } else {
-                // Cargar relaciones por defecto
-                $defaultRelations = (new ReciboPago())->getDefaultRelations();
-                $query->with($defaultRelations);
-            }
+            // Cargar relaciones (usa scopes del trait para acceder a métodos protegidos)
+            $relations = $request->filled('with')
+                ? explode(',', $request->string('with'))
+                : [];
+            $query->withRelations($relations);
 
             // Aplicar ordenamiento
             $sortBy = $request->get('sort_by', 'created_at');
             $sortDirection = $request->get('sort_direction', 'desc');
-
-            $allowedSortFields = (new ReciboPago())->getAllowedSortFields();
-            if (in_array($sortBy, $allowedSortFields)) {
-                $query->orderBy($sortBy, $sortDirection);
-            } else {
-                $query->orderBy('created_at', 'desc');
-            }
+            $query->withSorting($sortBy, $sortDirection);
 
             // Paginar
             $recibosPago = $query->paginate($request->get('per_page', 15));
@@ -165,7 +155,14 @@ class ReciboPagoController extends Controller
     }
 
     /**
-     * Almacena un nuevo recibo de pago en la base de datos.
+     * Almacena un nuevo recibo de pago usando el modo unificado.
+     *
+     * El operador ingresa el monto total que paga el estudiante (monto_a_pagar).
+     * El servidor distribuye ese monto en dos pasos:
+     *  1. Primero cubre los conceptos adicionales (certificados, copias, etc.) al valor
+     *     almacenado en conceptos_pago.valor × cantidad.
+     *  2. El saldo restante se distribuye entre las cuotas de cartera pendientes de la
+     *     matrícula, de la más antigua a la más reciente.
      *
      * @param StoreReciboPagoRequest $request Datos validados del recibo de pago
      * @return JsonResponse Respuesta JSON con el recibo de pago creado
@@ -174,122 +171,144 @@ class ReciboPagoController extends Controller
     {
         DB::beginTransaction();
         try {
-            $data = $request->validated();
+            $data      = $request->validated();
+            $fecha     = Carbon::parse($data['fecha_transaccion']);
+            $matricula = Matricula::findOrFail($data['matricula_id']);
 
-            // Generar número de recibo
-            $numeroRecibo = ReciboPago::generarNumeroRecibo($data['sede_id'], $data['origen']);
-            $consecutivo = ReciboPago::obtenerConsecutivo($data['sede_id'], $data['origen']);
+            // ── 1. Conceptos adicionales (certificados, copias, etc.) ──────────
+            $lineasAdicionales = [];
+            $totalAdicionales  = 0.0;
 
-            // Obtener prefijo de la sede
-            $sede = \App\Models\Configuracion\Sede::findOrFail($data['sede_id']);
-            $prefijo = $data['origen'] === ReciboPago::ORIGEN_ACADEMICO
-                ? $sede->codigo_academico
-                : $sede->codigo_inventario;
+            foreach ($data['conceptos_adicionales'] ?? [] as $item) {
+                $concepto      = ConceptoPago::findOrFail($item['concepto_pago_id']);
+                $cantidad      = (int) $item['cantidad'];
+                $valorUnitario = (float) $concepto->valor;
+                $subtotal      = $valorUnitario * $cantidad;
 
-            // Preparar datos del recibo
-            $reciboData = [
-                'numero_recibo' => $numeroRecibo,
-                'consecutivo' => $consecutivo,
-                'prefijo' => $prefijo,
-                'origen' => $data['origen'],
-                'fecha_recibo' => $data['fecha_recibo'],
+                $lineasAdicionales[] = compact('concepto', 'cantidad', 'valorUnitario', 'subtotal');
+                $totalAdicionales   += $subtotal;
+            }
+
+            $montoAPagar  = (float) $data['monto_a_pagar'];
+            $montoCartera = $montoAPagar - $totalAdicionales;
+
+            if ($montoCartera < -0.01) {
+                DB::rollBack();
+                return response()->json([
+                    'message' => "El monto a pagar ({$montoAPagar}) es insuficiente para cubrir los conceptos adicionales ({$totalAdicionales}).",
+                ], 422);
+            }
+
+            // ── 2. Distribución automática entre cuotas de cartera ────────────
+            $planCartera    = [];
+            $descuentoTotal = 0.0;
+
+            if ($montoCartera > 0.01) {
+                $planCartera    = $this->distribucionService->distribuir(
+                    $matricula,
+                    $montoCartera,
+                    (bool) ($data['aplicar_descuento'] ?? false),
+                    $fecha
+                );
+                $descuentoTotal = collect($planCartera)->sum('descuento');
+            }
+
+            // ── 3. Crear el encabezado del ReciboPago ─────────────────────────
+            $recibo = ReciboPago::create([
+                'origen'            => $data['origen'],
+                'matricula_id'      => $matricula->id,
+                'sede_id'           => $data['sede_id'],
+                'estudiante_id'     => $matricula->estudiante_id,
+                'cajero_id'         => $data['cajero_id'],
+                'fecha_recibo'      => $data['fecha_recibo'],
                 'fecha_transaccion' => $data['fecha_transaccion'],
-                'valor_total' => $data['valor_total'],
-                'descuento_total' => $data['descuento_total'] ?? 0,
-                'banco' => $data['banco'] ?? null,
-                'status' => ReciboPago::STATUS_EN_PROCESO,
-                'sede_id' => $data['sede_id'],
-                'estudiante_id' => $data['estudiante_id'] ?? null,
-                'cajero_id' => $data['cajero_id'],
-                'matricula_id' => $data['matricula_id'] ?? null,
-            ];
+                'valor_total'       => $montoAPagar,
+                'descuento_total'   => $descuentoTotal,
+                'banco'             => $data['banco'] ?? null,
+                'status'            => ReciboPago::STATUS_CREADO,
+            ]);
 
-            // Crear recibo
-            $recibo = ReciboPago::create($reciboData);
+            // Vincular lista de precios de referencia si se informa
+            if (! empty($data['lista_precio_id'])) {
+                $recibo->listasPrecio()->attach($data['lista_precio_id']);
+            }
 
-            // Guardar conceptos de pago
-            if (isset($data['conceptos_pago'])) {
-                foreach ($data['conceptos_pago'] as $concepto) {
-                    $recibo->conceptosPago()->attach($concepto['concepto_pago_id'], [
-                        'valor' => $concepto['valor'],
-                        'tipo' => $concepto['tipo'],
-                        'producto' => $concepto['producto'] ?? null,
-                        'cantidad' => $concepto['cantidad'],
-                        'unitario' => $concepto['unitario'],
-                        'subtotal' => $concepto['subtotal'],
-                        'id_relacional' => $concepto['id_relacional'] ?? null,
-                        'observaciones' => $concepto['observaciones'] ?? null,
+            // ── 4. Líneas de conceptos adicionales ───────────────────────────
+            foreach ($lineasAdicionales as $linea) {
+                $recibo->conceptosPago()->attach($linea['concepto']->id, [
+                    'tipo'          => $linea['concepto']->tipo,
+                    'valor'         => $linea['subtotal'],
+                    'cantidad'      => $linea['cantidad'],
+                    'unitario'      => $linea['valorUnitario'],
+                    'subtotal'      => $linea['subtotal'],
+                    'id_relacional' => null,
+                    'observaciones' => null,
+                ]);
+            }
+
+            // ── 5. Líneas de cartera y actualización de saldos ───────────────
+            foreach ($planCartera as $linea) {
+                /** @var Cartera $cartera */
+                $cartera  = $linea['cartera'];
+                $concepto = ConceptoPago::porNombre(
+                    $cartera->numero_cuota === 0 ? ConceptoPago::MATRICULA : ConceptoPago::MENSUALIDAD
+                );
+
+                if ($concepto) {
+                    $recibo->conceptosPago()->attach($concepto->id, [
+                        'tipo'          => $concepto->tipo,
+                        'valor'         => $linea['valor'],
+                        'cantidad'      => 1,
+                        'unitario'      => $linea['valor'],
+                        'subtotal'      => $linea['valor'],
+                        'id_relacional' => $cartera->id,
+                        'observaciones' => "Pago cuota {$cartera->numero_cuota}",
                     ]);
                 }
-            }
 
-            // Guardar listas de precio
-            if (isset($data['listas_precio']) && is_array($data['listas_precio'])) {
-                $recibo->listasPrecio()->attach($data['listas_precio']);
-            }
-
-            // Guardar productos
-            if (isset($data['productos'])) {
-                foreach ($data['productos'] as $producto) {
-                    $recibo->productos()->attach($producto['producto_id'], [
-                        'cantidad' => $producto['cantidad'],
-                        'precio_unitario' => $producto['precio_unitario'],
-                        'subtotal' => $producto['subtotal'],
-                    ]);
+                // Línea de descuento por pronto pago (valor negativo implícito en el total)
+                if (($linea['descuento'] ?? 0) > 0) {
+                    $conceptoDesc = ConceptoPago::porNombre(ConceptoPago::DESCUENTO);
+                    if ($conceptoDesc) {
+                        $recibo->conceptosPago()->attach($conceptoDesc->id, [
+                            'tipo'          => $conceptoDesc->tipo,
+                            'valor'         => $linea['descuento'],
+                            'cantidad'      => 1,
+                            'unitario'      => $linea['descuento'],
+                            'subtotal'      => $linea['descuento'],
+                            'id_relacional' => $cartera->id,
+                            'observaciones' => 'Descuento pronto pago',
+                        ]);
+                    }
+                    $cartera->increment('descuento', $linea['descuento']);
                 }
+
+                $cartera->aplicarPago($linea['valor']);
             }
 
-            // Guardar descuentos
-            if (isset($data['descuentos'])) {
-                foreach ($data['descuentos'] as $descuento) {
-                    $recibo->descuentos()->attach($descuento['descuento_id'], [
-                        'valor_descuento' => $descuento['valor_descuento'],
-                        'valor_original' => $descuento['valor_original'],
-                        'valor_final' => $descuento['valor_final'],
-                    ]);
-                }
+            // ── 6. Medios de pago ─────────────────────────────────────────────
+            foreach ($data['medios_pago'] as $medio) {
+                ReciboPagoMedioPago::create([
+                    'recibo_pago_id' => $recibo->id,
+                    'medio_pago'     => $medio['medio_pago'],
+                    'valor'          => $medio['valor'],
+                    'referencia'     => $medio['referencia'] ?? null,
+                    'banco'          => $medio['banco'] ?? null,
+                ]);
             }
-
-            // Guardar medios de pago
-            if (isset($data['medios_pago'])) {
-                foreach ($data['medios_pago'] as $medio) {
-                    ReciboPagoMedioPago::create([
-                        'recibo_pago_id' => $recibo->id,
-                        'medio_pago' => $medio['medio_pago'],
-                        'valor' => $medio['valor'],
-                        'referencia' => $medio['referencia'] ?? null,
-                        'banco' => $medio['banco'] ?? null,
-                    ]);
-                }
-            }
-
-            // Recalcular totales
-            $totales = $recibo->calcularTotales();
-            $recibo->update($totales);
-
-            // Cambiar estado a CREADO
-            $recibo->update(['status' => ReciboPago::STATUS_CREADO]);
 
             DB::commit();
 
-            // Cargar relaciones para la respuesta
-            $recibo->load(['sede', 'estudiante', 'cajero', 'matricula', 'conceptosPago', 'listasPrecio', 'productos', 'descuentos', 'mediosPago']);
-
-            // Generar PDF y enviar email al estudiante si existe
-            if ($recibo->estudiante_id && $recibo->estudiante->email) {
-                try {
-                    Mail::to($recibo->estudiante->email)->send(new ReciboPagoMail($recibo));
-                } catch (\Exception $e) {
-                    Log::warning('Error al enviar correo del recibo: ' . $e->getMessage(), [
-                        'recibo_id' => $recibo->id,
-                    ]);
-                }
-            }
+            $recibo->load(['sede', 'cajero', 'matricula', 'conceptosPago', 'listasPrecio', 'mediosPago']);
 
             return response()->json([
                 'message' => 'Recibo de pago creado exitosamente.',
-                'data' => new ReciboPagoResource($recibo),
+                'data'    => new ReciboPagoResource($recibo),
             ], 201);
+
+        } catch (\InvalidArgumentException $e) {
+            DB::rollBack();
+            return response()->json(['message' => $e->getMessage()], 422);
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Error al crear recibo de pago: ' . $e->getMessage(), [
@@ -297,7 +316,7 @@ class ReciboPagoController extends Controller
             ]);
             return response()->json([
                 'message' => 'Error al crear el recibo de pago.',
-                'error' => $e->getMessage(),
+                'error'   => $e->getMessage(),
             ], 500);
         }
     }
@@ -312,17 +331,11 @@ class ReciboPagoController extends Controller
     public function show(Request $request, ReciboPago $reciboPago): JsonResponse
     {
         try {
-            // Cargar relaciones si se solicitan
-            if ($request->filled('with')) {
-                $relations = explode(',', $request->string('with'));
-                $allowedRelations = $reciboPago->getAllowedRelations();
-                $relations = array_intersect($relations, $allowedRelations);
-                $reciboPago->load($relations);
-            } else {
-                // Cargar relaciones por defecto
-                $defaultRelations = $reciboPago->getDefaultRelations();
-                $reciboPago->load($defaultRelations);
-            }
+            // Cargar relaciones
+            $relations = $request->filled('with')
+                ? explode(',', $request->string('with'))
+                : ['sede', 'cajero'];
+            $reciboPago->load($relations);
 
             return response()->json([
                 'data' => new ReciboPagoResource($reciboPago),
@@ -487,45 +500,57 @@ class ReciboPagoController extends Controller
 
     /**
      * Anula el recibo de pago especificado.
+     * Si el recibo tenía líneas de cartera (id_relacional), revierte el saldo y estado
+     * de cada cartera afectada para dejarla como si el pago nunca se hubiera realizado.
      *
-     * @param Request $request Solicitud HTTP
+     * @param Request    $request
      * @param ReciboPago $reciboPago Recibo de pago a anular
      * @return JsonResponse Respuesta JSON de confirmación
      */
     public function anular(Request $request, ReciboPago $reciboPago): JsonResponse
     {
+        DB::beginTransaction();
         try {
-            // Validar que el recibo no esté cerrado
             if ($reciboPago->estaCerrado()) {
-                return response()->json([
-                    'message' => 'No se puede anular un recibo cerrado.',
-                ], 422);
+                return response()->json(['message' => 'No se puede anular un recibo cerrado.'], 422);
+            }
+            if ($reciboPago->estaAnulado()) {
+                return response()->json(['message' => 'El recibo ya está anulado.'], 422);
             }
 
-            // Validar que el recibo no esté ya anulado
-            if ($reciboPago->estaAnulado()) {
-                return response()->json([
-                    'message' => 'El recibo ya está anulado.',
-                ], 422);
-            }
+            // Revertir carteras afectadas vía la pivot (tipo Cartera = 0)
+            $reciboPago->conceptosPago()
+                ->wherePivot('tipo', 0)
+                ->wherePivotNotNull('id_relacional')
+                ->withPivot(['subtotal', 'id_relacional'])
+                ->get()
+                ->each(function ($concepto) {
+                    $cartera = Cartera::find($concepto->pivot->id_relacional);
+                    if ($cartera && $concepto->pivot->subtotal > 0) {
+                        $cartera->revertirPago((float) $concepto->pivot->subtotal);
+                    }
+                });
 
             $reciboPago->anular();
 
             Log::info('Recibo de pago anulado', [
-                'recibo_id' => $reciboPago->id,
+                'recibo_id'     => $reciboPago->id,
                 'numero_recibo' => $reciboPago->numero_recibo,
-                'user_id' => auth()->id(),
+                'user_id'       => auth()->id(),
             ]);
+
+            DB::commit();
 
             return response()->json([
                 'message' => 'Recibo de pago anulado exitosamente.',
-                'data' => new ReciboPagoResource($reciboPago->fresh()),
+                'data'    => new ReciboPagoResource($reciboPago->fresh()),
             ]);
         } catch (\Exception $e) {
+            DB::rollBack();
             Log::error('Error al anular recibo de pago: ' . $e->getMessage());
             return response()->json([
                 'message' => 'Error al anular el recibo de pago.',
-                'error' => $e->getMessage(),
+                'error'   => $e->getMessage(),
             ], 500);
         }
     }

@@ -4,8 +4,11 @@ namespace App\Http\Requests\Api\Financiero\Lp;
 
 use App\Models\Financiero\Lp\LpPrecioProducto;
 use App\Models\Financiero\Lp\LpProducto;
+use App\Models\Financiero\Lp\LpProductoReferencia;
 use App\Services\Financiero\LpPrecioProductoService;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 /**
  * Request UpdateLpPrecioProductoRequest
@@ -76,6 +79,8 @@ class UpdateLpPrecioProductoRequest extends FormRequest
             ],
             'valor_cuota' => 'sometimes|nullable|numeric|min:0',
             'observaciones' => 'nullable|string',
+            'referencia_tipo' => ['sometimes', 'nullable', 'string', Rule::in(LpProductoReferencia::tiposValidos())],
+            'referencia_id'   => 'sometimes|nullable|required_with:referencia_tipo|integer',
         ];
     }
 
@@ -128,6 +133,23 @@ class UpdateLpPrecioProductoRequest extends FormRequest
                     if ($numeroCuotasFinal === null || (int) $numeroCuotasFinal <= 0) {
                         $validator->errors()->add('numero_cuotas', 'El número de cuotas debe ser mayor a 0 para productos financiables.');
                     }
+                }
+            }
+
+            // Validar que la entidad académica exista si se envía referencia
+            if ($this->filled('referencia_id') && $this->filled('referencia_tipo')) {
+                $tabla  = $this->input('referencia_tipo') === LpProductoReferencia::TIPO_CURSO ? 'cursos' : 'modulos';
+                $existe = DB::table($tabla)
+                    ->whereNull('deleted_at')
+                    ->where('id', $this->integer('referencia_id'))
+                    ->exists();
+
+                if (! $existe) {
+                    $tipo = $this->input('referencia_tipo');
+                    $validator->errors()->add(
+                        'referencia_id',
+                        "El {$tipo} con ID {$this->input('referencia_id')} no existe o está eliminado."
+                    );
                 }
             }
         });
@@ -183,7 +205,10 @@ class UpdateLpPrecioProductoRequest extends FormRequest
             'numero_cuotas.min' => 'El número de cuotas debe ser mayor a 0.',
             'valor_cuota.numeric' => 'El valor de la cuota debe ser un número.',
             'valor_cuota.min' => 'El valor de la cuota debe ser mayor o igual a 0.',
-            'observaciones.string' => 'Las observaciones deben ser una cadena de texto.',
+            'observaciones.string'        => 'Las observaciones deben ser una cadena de texto.',
+            'referencia_tipo.in'          => 'El tipo de referencia debe ser "curso" o "modulo".',
+            'referencia_id.integer'       => 'El ID de la referencia debe ser un número entero.',
+            'referencia_id.required_with' => 'El ID de referencia es obligatorio cuando se indica el tipo de referencia.',
         ];
     }
 }

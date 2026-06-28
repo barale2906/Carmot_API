@@ -10,6 +10,7 @@ use App\Http\Resources\Api\Financiero\Lp\LpProductoResource;
 use App\Models\Financiero\Lp\LpListaPrecio;
 use App\Models\Financiero\Lp\LpPrecioProducto;
 use App\Models\Financiero\Lp\LpProducto;
+use App\Models\Financiero\Lp\LpProductoReferencia;
 use App\Services\Financiero\LpPrecioProductoService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -134,7 +135,18 @@ class LpPrecioProductoController extends Controller
     public function store(StoreLpPrecioProductoRequest $request): JsonResponse
     {
         try {
-            $precioProducto = LpPrecioProducto::create($request->validated());
+            $precioProducto = LpPrecioProducto::create(
+                $request->safe()->except(['referencia_id', 'referencia_tipo'])
+            );
+
+            // Si se envió referencia académica, crear/confirmar el vínculo en lp_producto_referencias
+            if ($request->filled('referencia_id') && $request->filled('referencia_tipo')) {
+                LpProductoReferencia::firstOrCreate([
+                    'lp_producto_id'  => $precioProducto->producto_id,
+                    'referencia_id'   => $request->integer('referencia_id'),
+                    'referencia_tipo' => $request->input('referencia_tipo'),
+                ]);
+            }
 
             // Cargar relaciones por defecto
             $precioProducto->load(['producto', 'listaPrecio']);
@@ -191,7 +203,18 @@ class LpPrecioProductoController extends Controller
     public function update(UpdateLpPrecioProductoRequest $request, LpPrecioProducto $lpPrecioProducto): JsonResponse
     {
         try {
-            $lpPrecioProducto->update($request->validated());
+            $lpPrecioProducto->update(
+                $request->safe()->except(['referencia_id', 'referencia_tipo'])
+            );
+
+            // Si se envió referencia académica, crear/confirmar el vínculo en lp_producto_referencias
+            if ($request->filled('referencia_id') && $request->filled('referencia_tipo')) {
+                LpProductoReferencia::firstOrCreate([
+                    'lp_producto_id'  => $lpPrecioProducto->producto_id,
+                    'referencia_id'   => $request->integer('referencia_id'),
+                    'referencia_tipo' => $request->input('referencia_tipo'),
+                ]);
+            }
 
             // Cargar relaciones por defecto
             $lpPrecioProducto->load(['producto', 'listaPrecio']);

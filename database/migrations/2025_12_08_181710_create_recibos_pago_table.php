@@ -35,6 +35,8 @@ return new class extends Migration
             $table->foreignId('estudiante_id')->nullable()->constrained('users')->onDelete('restrict')->comment('ID del estudiante (User)');
             $table->foreignId('cajero_id')->constrained('users')->onDelete('restrict')->comment('ID del cajero (User) que genera el recibo');
             $table->foreignId('matricula_id')->nullable()->constrained('matriculas')->onDelete('restrict')->comment('ID de la matrícula asociada');
+            $table->unsignedBigInteger('cartera_id')->nullable()->index()->comment('FK blanda a carteras.id — cuota específica que salda este recibo (nullable: un recibo puede cubrir N cuotas)');
+
 
             $table->softDeletes();
             $table->timestamps();

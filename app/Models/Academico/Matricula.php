@@ -3,6 +3,9 @@
 namespace App\Models\Academico;
 
 use App\Models\Configuracion\Poblacion;
+use App\Models\Configuracion\Sede;
+use App\Models\Financiero\Cartera\Cartera;
+use App\Models\Financiero\Lp\LpPrecioProducto;
 use App\Models\Financiero\ReciboPago\ReciboPago;
 use App\Models\User;
 use App\Traits\HasActiveStatus;
@@ -13,6 +16,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use App\Services\Financiero\CarteraGeneradorService;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
@@ -169,6 +173,11 @@ class Matricula extends Model
     // Relaciones
     // -------------------------------------------------------------------------
 
+    public function sede(): BelongsTo
+    {
+        return $this->belongsTo(Sede::class);
+    }
+
     public function curso(): BelongsTo
     {
         return $this->belongsTo(Curso::class);
@@ -203,11 +212,29 @@ class Matricula extends Model
     }
 
     /**
-     * Recibos de pago asociados a esta matrícula.
+     * Recibos de pago asociados a esta matrícula (FK matricula_id).
+     * Sirve para validar soportes de pago sin pasar por cartera.
      */
     public function recibosPago(): HasMany
     {
         return $this->hasMany(ReciboPago::class);
+    }
+
+    /**
+     * Carteras (cuentas por cobrar) generadas para esta matrícula.
+     */
+    public function carteras(): HasMany
+    {
+        return $this->hasMany(Cartera::class);
+    }
+
+    /**
+     * Precio de producto vigente en el momento de la matrícula.
+     * Guarda la traza del valor y el plan de cuotas usados al matricular.
+     */
+    public function lpPrecioProducto(): BelongsTo
+    {
+        return $this->belongsTo(LpPrecioProducto::class, 'lp_precio_producto_id');
     }
 
     // -------------------------------------------------------------------------
@@ -347,6 +374,8 @@ class Matricula extends Model
             'comercial',
             'lugarOrigen',
             'recibosPago',
+            'carteras',
+            'lpPrecioProducto',
         ];
     }
 
@@ -462,6 +491,13 @@ class Matricula extends Model
             if ($matricula->status === 1) {
                 $matricula->incrementarInscritos();
                 $matricula->attachEstudianteACurso();
+
+                // Genera cargos de cartera cuando la matrícula tiene un precio de lista vinculado.
+                // El recibo de pago se genera manualmente en la pantalla de recibos.
+                if ($matricula->lp_precio_producto_id) {
+                    $matricula->load('lpPrecioProducto');
+                    app(CarteraGeneradorService::class)->generarParaMatricula($matricula);
+                }
             }
         });
 

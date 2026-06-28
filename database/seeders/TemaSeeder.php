@@ -2,165 +2,242 @@
 
 namespace Database\Seeders;
 
-use App\Models\Academico\Tema;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
 
 /**
- * Seeder para el modelo Tema
+ * Seeder TemaSeeder
  *
- * Crea temas de ejemplo con datos realistas para desarrollo y pruebas.
+ * Siembra los temas reales del instituto y sus relaciones con tópicos.
+ * Usa insertOrIgnore para ser idempotente.
+ *
+ * Nota: los temas 1 y 2 tienen deleted_at (eliminados lógicamente);
+ * se conservan así para mantener integridad referencial histórica.
  */
 class TemaSeeder extends Seeder
 {
     /**
      * Ejecuta el seeder.
-     *
-     * @return void
      */
     public function run(): void
     {
-        // Crear temas con datos más realistas
         $temas = [
-            [
-                'nombre' => 'Variables y Tipos de Datos',
-                'descripcion' => 'Introducción a variables, constantes y tipos de datos básicos',
-                'duracion' => 1.5,
-                'status' => 1,
-            ],
-            [
-                'nombre' => 'Estructuras de Control',
-                'descripcion' => 'Condicionales (if/else) y bucles (for/while)',
-                'duracion' => 2.0,
-                'status' => 1,
-            ],
-            [
-                'nombre' => 'Funciones y Métodos',
-                'descripcion' => 'Creación y uso de funciones, parámetros y valores de retorno',
-                'duracion' => 2.5,
-                'status' => 1,
-            ],
-            [
-                'nombre' => 'Arrays y Listas',
-                'descripcion' => 'Trabajo con arrays unidimensionales y multidimensionales',
-                'duracion' => 2.0,
-                'status' => 1,
-            ],
-            [
-                'nombre' => 'Pilas y Colas',
-                'descripcion' => 'Implementación y uso de estructuras LIFO y FIFO',
-                'duracion' => 2.5,
-                'status' => 1,
-            ],
-            [
-                'nombre' => 'Árboles y Grafos',
-                'descripcion' => 'Estructuras de datos jerárquicas y relaciones complejas',
-                'duracion' => 3.0,
-                'status' => 1,
-            ],
-            [
-                'nombre' => 'Modelo Relacional',
-                'descripcion' => 'Conceptos de tablas, relaciones y claves primarias/foráneas',
-                'duracion' => 2.0,
-                'status' => 1,
-            ],
-            [
-                'nombre' => 'Consultas SQL Básicas',
-                'descripcion' => 'SELECT, INSERT, UPDATE, DELETE y operadores básicos',
-                'duracion' => 3.0,
-                'status' => 1,
-            ],
-            [
-                'nombre' => 'JOINs y Subconsultas',
-                'descripcion' => 'Relaciones entre tablas y consultas anidadas',
-                'duracion' => 2.5,
-                'status' => 1,
-            ],
-            [
-                'nombre' => 'HTML5 y Semántica',
-                'descripcion' => 'Estructura semántica y elementos modernos de HTML',
-                'duracion' => 2.0,
-                'status' => 1,
-            ],
-            [
-                'nombre' => 'CSS3 y Flexbox',
-                'descripcion' => 'Estilos avanzados y layouts flexibles',
-                'duracion' => 2.5,
-                'status' => 1,
-            ],
-            [
-                'nombre' => 'JavaScript ES6+',
-                'descripcion' => 'Arrow functions, destructuring, async/await',
-                'duracion' => 3.0,
-                'status' => 1,
-            ],
-            [
-                'nombre' => 'React y Componentes',
-                'descripcion' => 'Creación de componentes reutilizables y gestión de estado',
-                'duracion' => 4.0,
-                'status' => 1,
-            ],
-            [
-                'nombre' => 'APIs REST',
-                'descripcion' => 'Diseño y consumo de APIs RESTful',
-                'duracion' => 3.0,
-                'status' => 1,
-            ],
-            [
-                'nombre' => 'Autenticación JWT',
-                'descripcion' => 'Implementación de tokens JWT para autenticación',
-                'duracion' => 2.5,
-                'status' => 1,
-            ],
-            [
-                'nombre' => 'Middleware y Validación',
-                'descripcion' => 'Procesamiento de requests y validación de datos',
-                'duracion' => 2.0,
-                'status' => 1,
-            ],
-            [
-                'nombre' => 'Pruebas Unitarias',
-                'descripcion' => 'Escritura y ejecución de tests unitarios',
-                'duracion' => 2.5,
-                'status' => 1,
-            ],
-            [
-                'nombre' => 'Pruebas de Integración',
-                'descripcion' => 'Testing de componentes y sistemas completos',
-                'duracion' => 2.0,
-                'status' => 1,
-            ],
-            [
-                'nombre' => 'Docker y Contenedores',
-                'descripcion' => 'Creación y gestión de contenedores Docker',
-                'duracion' => 3.0,
-                'status' => 1,
-            ],
-            [
-                'nombre' => 'CI/CD con GitHub Actions',
-                'descripcion' => 'Automatización de despliegues y pipelines',
-                'duracion' => 2.5,
-                'status' => 1,
-            ],
-            [
-                'nombre' => 'OWASP Top 10',
-                'descripcion' => 'Principales vulnerabilidades de seguridad web',
-                'duracion' => 2.0,
-                'status' => 1,
-            ],
-            [
-                'nombre' => 'Encriptación y Hashing',
-                'descripcion' => 'Protección de datos sensibles y contraseñas',
-                'duracion' => 1.5,
-                'status' => 1,
-            ],
+            // Tópico 1: SERVICIO EXPRES
+            ['id' =>  1, 'nombre' => 'RETRO ALIMENTACIÓN - EVALUACIÓN FINAL',              'descripcion' => 'RETRO ALIMENTACIÓN - EVALUACIÓN FINAL',                                                                                                                                                                  'duracion' => 3, 'status' => 1, 'deleted_at' => '2026-06-02 19:40:15', 'created_at' => '2026-06-02 19:38:34', 'updated_at' => '2026-06-02 19:40:15'],
+            ['id' =>  2, 'nombre' => 'INSTRUMENTOS DE DIAGNOSTICO',                        'descripcion' => 'Instrumentos de diagnostico medición de frecuencia punta lógica escáner osciloscopio probador de inyectores',                                                                                          'duracion' => 5, 'status' => 1, 'deleted_at' => '2026-06-02 19:40:12', 'created_at' => '2026-06-02 19:39:55', 'updated_at' => '2026-06-02 19:40:12'],
+            ['id' =>  3, 'nombre' => 'EVALUACIÓN FINAL PATIOS',                            'descripcion' => 'Evaluación final patios',                                                                                                                                                                               'duracion' => 3, 'status' => 1, 'deleted_at' => null,                   'created_at' => '2026-06-02 19:41:19', 'updated_at' => '2026-06-09 14:11:11'],
+            ['id' =>  4, 'nombre' => 'PRACTICA LIBRE: SERVICIO EXPRES II',                 'descripcion' => 'Practica libre: a decisión del instructor',                                                                                                                                                             'duracion' => 3, 'status' => 1, 'deleted_at' => null,                   'created_at' => '2026-06-02 19:42:21', 'updated_at' => '2026-06-02 20:04:49'],
+            ['id' =>  5, 'nombre' => 'ALISTAMIENTO DE AUTOMOVILES',                        'descripcion' => 'Alistamiento de automóviles',                                                                                                                                                                           'duracion' => 2, 'status' => 1, 'deleted_at' => null,                   'created_at' => '2026-06-02 19:42:55', 'updated_at' => '2026-06-02 19:42:55'],
+            ['id' =>  6, 'nombre' => 'PRACTICA LIBRE: SERVICIO EXPRES',                    'descripcion' => 'Práctica Libre: Servicio exprés',                                                                                                                                                                       'duracion' => 1, 'status' => 1, 'deleted_at' => null,                   'created_at' => '2026-06-02 19:44:06', 'updated_at' => '2026-06-02 19:44:06'],
+            // Tópico 2: SISTEMA DE DIRECCIÓN
+            ['id' =>  7, 'nombre' => 'PRACTICA LIBRE : ALINEACIÓN DE DIRECCIÓN',           'descripcion' => 'Práctica Libre: Alineación de la dirección',                                                                                                                                                           'duracion' => 1, 'status' => 1, 'deleted_at' => null,                   'created_at' => '2026-06-02 19:46:31', 'updated_at' => '2026-06-02 19:46:31'],
+            ['id' =>  8, 'nombre' => 'GEOMETRIA DE LA DIRECCIÓN',                          'descripcion' => 'Geometría de la dirección, Direcciones asistidas',                                                                                                                                                      'duracion' => 2, 'status' => 1, 'deleted_at' => null,                   'created_at' => '2026-06-02 19:47:08', 'updated_at' => '2026-06-02 19:47:08'],
+            ['id' =>  9, 'nombre' => 'DIRECCIONES ASISTIDAS',                              'descripcion' => 'Direcciones asistidas',                                                                                                                                                                                 'duracion' => 1, 'status' => 1, 'deleted_at' => null,                   'created_at' => '2026-06-02 19:47:42', 'updated_at' => '2026-06-02 19:47:42'],
+            ['id' => 10, 'nombre' => 'PRACTICA LIBRE : DIRECCION - CUNAS',                 'descripcion' => 'Práctica Libre: Sistema de dirección y Cambio de cuna',                                                                                                                                                'duracion' => 1, 'status' => 1, 'deleted_at' => null,                   'created_at' => '2026-06-02 19:48:18', 'updated_at' => '2026-06-02 19:48:18'],
+            ['id' => 11, 'nombre' => 'SISTEMA DE DIRECCIÓN',                               'descripcion' => 'Sistema de dirección',                                                                                                                                                                                 'duracion' => 1, 'status' => 1, 'deleted_at' => null,                   'created_at' => '2026-06-02 19:48:43', 'updated_at' => '2026-06-02 19:48:43'],
+            // Tópico 3: SISTEMA DE SUSPENCIÓN
+            ['id' => 12, 'nombre' => 'PRACTICA LIBRE: BUJES',                              'descripcion' => 'Práctica libre: Extracción de bujes de la suspensión',                                                                                                                                                 'duracion' => 3, 'status' => 1, 'deleted_at' => null,                   'created_at' => '2026-06-02 19:55:09', 'updated_at' => '2026-06-02 19:55:09'],
+            ['id' => 13, 'nombre' => 'PRACTICA LIBRE: PRECARGA COJINETES',                 'descripcion' => 'Práctica libre: Ajustes precarga de los cojinetes',                                                                                                                                                    'duracion' => 3, 'status' => 1, 'deleted_at' => null,                   'created_at' => '2026-06-02 19:55:50', 'updated_at' => '2026-06-02 19:55:50'],
+            ['id' => 14, 'nombre' => 'PRACTICA LIBRE: SUSPENCION',                         'descripcion' => 'Practica libre: a decisión del instructor',                                                                                                                                                             'duracion' => 3, 'status' => 1, 'deleted_at' => null,                   'created_at' => '2026-06-02 19:57:01', 'updated_at' => '2026-06-02 19:57:01'],
+            ['id' => 15, 'nombre' => 'SISTEMAS DE SUSPENCIÓN TRACERA',                     'descripcion' => 'Sistemas de suspensión Trasera - Mantenimiento y Diagnóstico',                                                                                                                                         'duracion' => 3, 'status' => 1, 'deleted_at' => null,                   'created_at' => '2026-06-02 19:57:35', 'updated_at' => '2026-06-02 19:57:35'],
+            ['id' => 16, 'nombre' => 'SISTEMAS DE SUSPENSIÓN DELANTERA',                   'descripcion' => 'Descripción  de los sistemas de suspensión  delantera - Mantenimiento y Diagnóstico',                                                                                                                  'duracion' => 3, 'status' => 1, 'deleted_at' => null,                   'created_at' => '2026-06-02 19:58:12', 'updated_at' => '2026-06-02 19:58:12'],
+            // Tópico 4: SISTEMA DE FRENOS
+            ['id' => 17, 'nombre' => 'SISTEMA DE FRENOS ABS',                              'descripcion' => 'Sistema de frenos ABS',                                                                                                                                                                                 'duracion' => 3, 'status' => 1, 'deleted_at' => null,                   'created_at' => '2026-06-02 20:05:56', 'updated_at' => '2026-06-02 20:05:56'],
+            ['id' => 18, 'nombre' => 'DIAGNOSTICO BOOSTER,BOMBA DE FRENOS Y VALVULAS',     'descripcion' => 'Diagnóstico booster, bomba de frenos y válvulas limitadoras de freno',                                                                                                                                 'duracion' => 3, 'status' => 1, 'deleted_at' => null,                   'created_at' => '2026-06-02 20:08:50', 'updated_at' => '2026-06-02 20:08:50'],
+            ['id' => 19, 'nombre' => 'PRACTICA LIBRE: REMPLAZO DE CONJUNTO HIDRAULICO',    'descripcion' => 'Práctica libre: Reemplazo de conjunto hidráulico',                                                                                                                                                      'duracion' => 3, 'status' => 1, 'deleted_at' => null,                   'created_at' => '2026-06-02 20:09:31', 'updated_at' => '2026-06-02 20:09:31'],
+            ['id' => 20, 'nombre' => 'FRENOS DE DISCO HIDRAULICO',                         'descripcion' => 'Frenos  de disco hidráulico: componentes, mantenimiento, liquido de frenos, caliper, orin.',                                                                                                           'duracion' => 3, 'status' => 1, 'deleted_at' => null,                   'created_at' => '2026-06-02 20:10:15', 'updated_at' => '2026-06-02 20:10:15'],
+            ['id' => 21, 'nombre' => 'FRENOS DE CAMPANA',                                  'descripcion' => 'Frenos de campana: Componentes y mantenimiento',                                                                                                                                                        'duracion' => 3, 'status' => 1, 'deleted_at' => null,                   'created_at' => '2026-06-02 20:10:37', 'updated_at' => '2026-06-02 20:10:37'],
+            // Tópico 5: LLANTAS
+            ['id' => 22, 'nombre' => 'PRACTICA LIBRE: LLANTAS',                            'descripcion' => 'Practica libre: a decisión del instructor',                                                                                                                                                             'duracion' => 3, 'status' => 1, 'deleted_at' => null,                   'created_at' => '2026-06-02 20:13:46', 'updated_at' => '2026-06-02 20:13:46'],
+            ['id' => 23, 'nombre' => 'PATRON DE DIBUJO - TAMAÑO LLANTAS',                  'descripcion' => 'Patrón  de dibujo, tamaño  de llantas - Con o sin neumático-Presión aire',                                                                                                                             'duracion' => 2, 'status' => 1, 'deleted_at' => null,                   'created_at' => '2026-06-02 20:14:29', 'updated_at' => '2026-06-02 20:16:25'],
+            ['id' => 24, 'nombre' => 'TIPOS DE LLANTAS - RUEDAS',                          'descripcion' => 'Tipos  de  ruedas, llantas  radial y diagnóstico  construcción',                                                                                                                                        'duracion' => 1, 'status' => 1, 'deleted_at' => null,                   'created_at' => '2026-06-02 20:14:56', 'updated_at' => '2026-06-02 20:14:56'],
+            // Tópico 6: METROLOGÍA MECANICA DE PATIO
+            ['id' => 25, 'nombre' => 'PRACTICA LIBRE METROLOGÍA',                          'descripcion' => 'Práctica Libre: a decisión del instructor',                                                                                                                                                             'duracion' => 2, 'status' => 1, 'deleted_at' => null,                   'created_at' => '2026-06-02 20:20:32', 'updated_at' => '2026-06-02 20:20:32'],
+            ['id' => 26, 'nombre' => 'PRACTICA LIBRE: EXTRACCIÓN DE TORNILLOS',            'descripcion' => 'Práctica Libre: Extracción de tornillos',                                                                                                                                                              'duracion' => 1, 'status' => 1, 'deleted_at' => null,                   'created_at' => '2026-06-02 20:20:57', 'updated_at' => '2026-06-02 20:20:57'],
+            ['id' => 27, 'nombre' => 'PRACTICA: PIE DE REY',                               'descripcion' => 'PRACTICA: Medidas -Pie de rey',                                                                                                                                                                        'duracion' => 1, 'status' => 1, 'deleted_at' => null,                   'created_at' => '2026-06-02 20:21:22', 'updated_at' => '2026-06-02 20:21:22'],
+            ['id' => 28, 'nombre' => 'HERRAMIENTAS DE MEDICION',                           'descripcion' => 'Herramientas de medición: Medidas -Pie de Rey',                                                                                                                                                        'duracion' => 1, 'status' => 1, 'deleted_at' => null,                   'created_at' => '2026-06-02 20:21:48', 'updated_at' => '2026-06-02 20:21:48'],
+            ['id' => 29, 'nombre' => 'HERRAMIENTAS BASICAS',                               'descripcion' => 'Herramientas  básicas: Tornillos, roscas,  juego de copas, llaves',                                                                                                                                    'duracion' => 1, 'status' => 1, 'deleted_at' => null,                   'created_at' => '2026-06-02 20:22:06', 'updated_at' => '2026-06-02 20:22:06'],
+            // Tópico 7: CONOCIMIENTOS GENERALES DE AUTOMÓVILES
+            ['id' => 30, 'nombre' => 'CLASIFICACION Y TIPOS DE BASTIDORES',                'descripcion' => 'Clasificación y tipos de bastidores (CHASSIS)',                                                                                                                                                         'duracion' => 1, 'status' => 1, 'deleted_at' => null,                   'created_at' => '2026-06-02 20:44:37', 'updated_at' => '2026-06-02 20:44:37'],
+            ['id' => 31, 'nombre' => 'CONOCIMIENTOS GENERALES DE AUTOMOVILES',             'descripcion' => 'Conocimientos generales de los automóviles',                                                                                                                                                            'duracion' => 1, 'status' => 1, 'deleted_at' => null,                   'created_at' => '2026-06-02 20:45:00', 'updated_at' => '2026-06-02 20:45:48'],
+            // Tópico 8: SEGURIDAD INDUSTRIAL DEL TALLER
+            ['id' => 32, 'nombre' => 'NORMAS DE SEGURIDAD EN  TALLER',                     'descripcion' => 'Normas de seguridad en el taller',                                                                                                                                                                     'duracion' => 1, 'status' => 1, 'deleted_at' => null,                   'created_at' => '2026-06-02 20:46:11', 'updated_at' => '2026-06-02 20:46:11'],
+            // Tópico 9: SEGURIDAD INDUSTRIAL DEL TALLER MOTORES
+            ['id' => 33, 'nombre' => 'IDUCCIÓN - REGLAMENTO DEL TALLER MOTORES',           'descripcion' => 'Inducción - reglamento del taller',                                                                                                                                                                     'duracion' => 1, 'status' => 1, 'deleted_at' => null,                   'created_at' => '2026-06-09 13:44:24', 'updated_at' => '2026-06-09 13:44:24'],
+            // Tópico 10: HERRAMIENTA DE METROLOGÍA
+            ['id' => 34, 'nombre' => 'UTILES ESTANDAR DE METROLOGÍA',                      'descripcion' => 'Útiles Estándar de metrología',                                                                                                                                                                        'duracion' => 2, 'status' => 1, 'deleted_at' => null,                   'created_at' => '2026-06-09 13:47:12', 'updated_at' => '2026-06-09 13:49:58'],
+            ['id' => 35, 'nombre' => 'USO DE PIE DE REY, SISTEMA INTERNACIONAL Y SISTEMA INGLES', 'descripcion' => 'Uso de pie de rey. Sistema Internacional y Sistema Inglés',                                                                                                                                     'duracion' => 3, 'status' => 1, 'deleted_at' => null,                   'created_at' => '2026-06-09 13:47:43', 'updated_at' => '2026-06-09 13:47:43'],
+            ['id' => 36, 'nombre' => 'USO DE MICROMETRO, COMPARADOR DE CARATULAS',         'descripcion' => 'Uso de micrómetro; Comparador de carátulas',                                                                                                                                                           'duracion' => 3, 'status' => 1, 'deleted_at' => null,                   'created_at' => '2026-06-09 13:48:21', 'updated_at' => '2026-06-09 13:48:21'],
+            // Tópico 11: DESPIECE Y RECONOCIMIENTO DE MOTOR
+            ['id' => 37, 'nombre' => 'DESPIECE Y RECONOCIMIENTO DE MOTOR',                 'descripcion' => 'Descripción Cabeza de fuerza y culata; Bajos de motor, Bloque y Carter',                                                                                                                               'duracion' => 3, 'status' => 1, 'deleted_at' => '2026-06-09 14:07:22',  'created_at' => '2026-06-09 14:07:05', 'updated_at' => '2026-06-09 14:07:22'],
+            ['id' => 38, 'nombre' => 'DESCRIPCION CABEZA DE FUERZA Y CULATA',              'descripcion' => 'Descripción Cabeza de fuerza y culata; Bajos de motor, Bloque y Carter',                                                                                                                               'duracion' => 3, 'status' => 1, 'deleted_at' => null,                   'created_at' => '2026-06-09 14:08:18', 'updated_at' => '2026-06-09 14:09:53'],
+            ['id' => 39, 'nombre' => 'DESPIECE Y RECONOCIMIENTO DE MOTORES',               'descripcion' => 'Despiece y reconocimiento de motor',                                                                                                                                                                    'duracion' => 6, 'status' => 1, 'deleted_at' => null,                   'created_at' => '2026-06-09 14:14:33', 'updated_at' => '2026-06-09 14:15:08'],
+            // Tópico 12: FUNDAMENTOS DEL MOTOR
+            ['id' => 40, 'nombre' => 'PRINCIPIO DE OPERACION - CICLO DE OTTO',             'descripcion' => 'Principio de operación - Ciclo de Otto',                                                                                                                                                               'duracion' => 1, 'status' => 1, 'deleted_at' => null,                   'created_at' => '2026-06-09 14:18:10', 'updated_at' => '2026-06-09 14:18:10'],
+            ['id' => 41, 'nombre' => 'TIPOS Y CLASIFICACIONES DE MOTORES',                 'descripcion' => 'Tipos y Clasificaciones de motores',                                                                                                                                                                    'duracion' => 2, 'status' => 1, 'deleted_at' => null,                   'created_at' => '2026-06-09 14:18:43', 'updated_at' => '2026-06-09 14:18:43'],
+            ['id' => 42, 'nombre' => 'TIPOS DE CAMARAS DE COMBUSTION',                     'descripcion' => 'Tipos de Cámaras de Combustión',                                                                                                                                                                       'duracion' => 3, 'status' => 1, 'deleted_at' => null,                   'created_at' => '2026-06-09 14:19:06', 'updated_at' => '2026-06-09 14:19:06'],
+            // Tópico 13: MOTORES DE GASOLINA
+            ['id' => 43, 'nombre' => 'TIPOS DE PISTPNES - TIPOS DE ANILOS',                'descripcion' => 'Tipos de pistones-Tipos de anillos',                                                                                                                                                                   'duracion' => 3, 'status' => 1, 'deleted_at' => null,                   'created_at' => '2026-06-09 14:20:53', 'updated_at' => '2026-06-09 14:20:53'],
+            ['id' => 44, 'nombre' => 'CALCULO DE CILINDRADA',                              'descripcion' => 'Cálculo de cilindrada',                                                                                                                                                                                 'duracion' => 6, 'status' => 1, 'deleted_at' => null,                   'created_at' => '2026-06-09 14:21:15', 'updated_at' => '2026-06-09 14:24:57'],
+            ['id' => 45, 'nombre' => 'CALCULO DE RELACION DE COMPRESION',                  'descripcion' => 'Cálculo  de Relación de compresión',                                                                                                                                                                   'duracion' => 3, 'status' => 1, 'deleted_at' => null,                   'created_at' => '2026-06-09 14:22:03', 'updated_at' => '2026-06-09 14:22:03'],
+            ['id' => 46, 'nombre' => 'DESPIECE DE MOTOR',                                  'descripcion' => 'Despiece de motor',                                                                                                                                                                                     'duracion' => 6, 'status' => 1, 'deleted_at' => null,                   'created_at' => '2026-06-09 14:22:40', 'updated_at' => '2026-06-09 14:22:40'],
+            // Tópico 14: MOTORES DIESEL
+            ['id' => 47, 'nombre' => 'CICLO DIESEL: AUTOIGNICION Y FUNCIONAMIENTO',        'descripcion' => 'Ciclo Diesel: autoignición y funcionamiento',                                                                                                                                                           'duracion' => 3, 'status' => 1, 'deleted_at' => null,                   'created_at' => '2026-06-09 14:27:31', 'updated_at' => '2026-06-09 14:27:31'],
+            ['id' => 48, 'nombre' => 'TIPOS DE INYECCIÓN - DIFERENCIAS DE COMBUSTIBLE',    'descripcion' => 'Tipos de inyección - Diferencias de combustible',                                                                                                                                                      'duracion' => 3, 'status' => 1, 'deleted_at' => null,                   'created_at' => '2026-06-09 14:28:13', 'updated_at' => '2026-06-09 14:38:44'],
+            ['id' => 49, 'nombre' => 'SOBREALIMENTACION',                                  'descripcion' => 'Sobrealimentación',                                                                                                                                                                                     'duracion' => 1, 'status' => 1, 'deleted_at' => null,                   'created_at' => '2026-06-09 14:28:37', 'updated_at' => '2026-06-09 14:28:37'],
+            // Tópico 15: DIAGNOSTICO DE MOTORES DE COMBUSTION INTERNA
+            ['id' => 50, 'nombre' => 'PRUEBA DE DE COMPRESION - DIAGNOSTICO DE HUMOS',     'descripcion' => 'Prueba de presión de compresión-Prueba de fugas de compresión; Diagnósticos e interpretación de humos',                                                                                                'duracion' => 5, 'status' => 1, 'deleted_at' => null,                   'created_at' => '2026-06-09 15:28:36', 'updated_at' => '2026-06-09 15:28:36'],
+            // Tópico 16: TRANSMISION Y EMBRAGUE
+            ['id' => 51, 'nombre' => 'EMBRAGUES Y TIPOS DE EMBRAGUES',                     'descripcion' => 'Embragues y tipos de embragues',                                                                                                                                                                       'duracion' => 1, 'status' => 1, 'deleted_at' => null,                   'created_at' => '2026-06-09 15:30:25', 'updated_at' => '2026-06-09 15:30:25'],
+            ['id' => 52, 'nombre' => 'RECONOCIMIENTO DE LA CAJA SINCRONICA O MECANICA',    'descripcion' => 'Reconocimiento de la caja sincrónica o mecánica',                                                                                                                                                      'duracion' => 2, 'status' => 1, 'deleted_at' => null,                   'created_at' => '2026-06-09 15:30:55', 'updated_at' => '2026-06-09 15:30:55'],
+            ['id' => 53, 'nombre' => 'IDENTIFICACION COMPONENTES TRANSMISION Y EMBRAGUE',  'descripcion' => 'Identificación y reconocimiento de componentes',                                                                                                                                                        'duracion' => 3, 'status' => 1, 'deleted_at' => null,                   'created_at' => '2026-06-09 15:31:33', 'updated_at' => '2026-06-09 15:36:17'],
+            // Tópico 17: TRANSMISION DE POTENCIA
+            ['id' => 54, 'nombre' => 'DESCRIPCION Y FUNCIONAMIENTO DE TREN DE POTENCIA',   'descripcion' => 'Descripción y funcionamiento de tren de potencia',                                                                                                                                                      'duracion' => 3, 'status' => 1, 'deleted_at' => null,                   'created_at' => '2026-06-09 15:33:03', 'updated_at' => '2026-06-09 15:33:03'],
+            ['id' => 55, 'nombre' => 'DOBLE TRACCION Y CAJA TRANSFER',                     'descripcion' => 'Doble tracción y caja transfer',                                                                                                                                                                       'duracion' => 3, 'status' => 1, 'deleted_at' => null,                   'created_at' => '2026-06-09 15:33:22', 'updated_at' => '2026-06-09 15:33:22'],
+            ['id' => 56, 'nombre' => 'EVALUACION FINAL MOTORES',                           'descripcion' => 'EVALUACION FINAL MOTORES',                                                                                                                                                                              'duracion' => 3, 'status' => 1, 'deleted_at' => null,                   'created_at' => '2026-06-09 15:34:51', 'updated_at' => '2026-06-09 15:34:51'],
+            ['id' => 57, 'nombre' => 'IDENTIFICACION COMPONENTES  DE POTENCIA',            'descripcion' => 'Identificación y reconocimiento de componentes',                                                                                                                                                        'duracion' => 3, 'status' => 1, 'deleted_at' => null,                   'created_at' => '2026-06-09 15:36:55', 'updated_at' => '2026-06-09 15:36:55'],
+            // Tópico 18: SEGURIDAD INDUSTRIAL DEL TALLER - ELECTRICIDAD
+            ['id' => 58, 'nombre' => 'INDUCCIÓN - REGLAMENTO DEL TALLER ELECTRICIDAD',     'descripcion' => 'Inducción - reglamento del taller',                                                                                                                                                                     'duracion' => 1, 'status' => 1, 'deleted_at' => null,                   'created_at' => '2026-06-09 15:42:57', 'updated_at' => '2026-06-09 15:42:57'],
+            ['id' => 59, 'nombre' => 'INDUCCION A ELECTRICIDAD DE AUTOS, HERRAMIENTAS',    'descripcion' => 'Inducción a electricidad de autos, herramientas de uso en electricidad',                                                                                                                               'duracion' => 2, 'status' => 1, 'deleted_at' => null,                   'created_at' => '2026-06-09 15:43:41', 'updated_at' => '2026-06-09 15:43:41'],
+            // Tópico 19: METROLOGIA ELECTRICIDAD
+            ['id' => 60, 'nombre' => 'CONCEPTOS BASICOS, METODOS DE MEDICION - VERIFICACION', 'descripcion' => 'Conceptos básicos. Métodos de medición - verificación',                                                                                                                                             'duracion' => 3, 'status' => 1, 'deleted_at' => null,                   'created_at' => '2026-06-09 15:45:56', 'updated_at' => '2026-06-09 15:45:56'],
+            ['id' => 61, 'nombre' => 'ELEMENTOS DE VERIFICACION',                          'descripcion' => 'Elementos de verificación',                                                                                                                                                                             'duracion' => 3, 'status' => 1, 'deleted_at' => null,                   'created_at' => '2026-06-09 15:46:26', 'updated_at' => '2026-06-09 15:46:26'],
+            ['id' => 62, 'nombre' => 'MULTIMETRO - SISTEMAS MÉTRICOS',                     'descripcion' => 'Multímetro sistemas métricos',                                                                                                                                                                          'duracion' => 3, 'status' => 1, 'deleted_at' => null,                   'created_at' => '2026-06-09 15:46:52', 'updated_at' => '2026-06-09 15:46:52'],
+            // Tópico 20: FUNDAMENTOS DE LA ELECTRICIDAD
+            ['id' => 63, 'nombre' => 'CONCEPTOS BASICOS, FUNDAMENTOS Y SIMBOLOS ELECTRONICOS', 'descripcion' => 'Conceptos básicos fundamentos y símbolos electrónicos',                                                                                                                                            'duracion' => 4, 'status' => 1, 'deleted_at' => null,                   'created_at' => '2026-06-09 15:48:23', 'updated_at' => '2026-06-09 15:48:23'],
+            ['id' => 64, 'nombre' => 'CORRIENTE, VOLTAJE Y RESISTENCIA',                   'descripcion' => 'Corriente voltaje y resistencia',                                                                                                                                                                       'duracion' => 4, 'status' => 1, 'deleted_at' => null,                   'created_at' => '2026-06-09 15:48:50', 'updated_at' => '2026-06-09 15:48:50'],
+            ['id' => 65, 'nombre' => 'LEY DE OHM, CIRCUITOS ELECTRICOS EN SERIE, PARALELO Y MIXTO', 'descripcion' => 'Ley de Ohm. Circuitos eléctricos en serie, paralelo y mixto',                                                                                                                                'duracion' => 4, 'status' => 1, 'deleted_at' => null,                   'created_at' => '2026-06-09 15:49:35', 'updated_at' => '2026-06-09 15:49:35'],
+            ['id' => 66, 'nombre' => 'SISTEMA DE CONTROL DE TEMPERATURA DEL MOTOR',        'descripcion' => 'Sistema de control de temperatura del motor',                                                                                                                                                           'duracion' => 6, 'status' => 1, 'deleted_at' => null,                   'created_at' => '2026-06-09 15:50:25', 'updated_at' => '2026-06-09 15:50:25'],
+            ['id' => 67, 'nombre' => 'ACCESORIOS PRINCIPALES DEL VEHICULO',                'descripcion' => 'Accesorios principales del vehículo',                                                                                                                                                                  'duracion' => 3, 'status' => 1, 'deleted_at' => null,                   'created_at' => '2026-06-09 15:50:58', 'updated_at' => '2026-06-09 15:50:58'],
+            ['id' => 68, 'nombre' => 'INTERPRETACION DE DIAGRAMAS ELECTRICOS',             'descripcion' => 'Interpretación de diagramas eléctricos',                                                                                                                                                               'duracion' => 3, 'status' => 1, 'deleted_at' => null,                   'created_at' => '2026-06-09 15:51:43', 'updated_at' => '2026-06-09 15:51:43'],
+            // Tópico 21: SISTEMAS ELECTRICOS
+            ['id' => 69, 'nombre' => 'SISTEMA DE LUCES Y SEÑALES',                         'descripcion' => 'Sistema de luces y señales',                                                                                                                                                                            'duracion' => 3, 'status' => 1, 'deleted_at' => null,                   'created_at' => '2026-06-09 15:53:18', 'updated_at' => '2026-06-09 15:53:18'],
+            ['id' => 70, 'nombre' => 'SISTEMA DE ARRANQUE',                                'descripcion' => 'Sistema  de arranque',                                                                                                                                                                                  'duracion' => 6, 'status' => 1, 'deleted_at' => null,                   'created_at' => '2026-06-09 15:53:33', 'updated_at' => '2026-06-09 15:53:33'],
+            ['id' => 71, 'nombre' => 'SISTEMA DE CARGA',                                   'descripcion' => 'Sistema de carga',                                                                                                                                                                                      'duracion' => 3, 'status' => 1, 'deleted_at' => null,                   'created_at' => '2026-06-09 15:53:50', 'updated_at' => '2026-06-09 15:53:50'],
+            ['id' => 72, 'nombre' => 'SISTEMAS DE ENCENDIDO',                              'descripcion' => 'Sistemas de encendido',                                                                                                                                                                                 'duracion' => 6, 'status' => 1, 'deleted_at' => null,                   'created_at' => '2026-06-09 15:54:14', 'updated_at' => '2026-06-09 15:54:14'],
+            ['id' => 73, 'nombre' => 'RETROALIMENTACION ELECTRICIDAD',                     'descripcion' => 'Retroalimentación electricidad',                                                                                                                                                                        'duracion' => 3, 'status' => 1, 'deleted_at' => null,                   'created_at' => '2026-06-09 15:54:48', 'updated_at' => '2026-06-09 15:54:48'],
+            ['id' => 74, 'nombre' => 'EVALUACION FINAL ELECTRICIDAD',                      'descripcion' => 'Evaluación final electricidad',                                                                                                                                                                         'duracion' => 3, 'status' => 1, 'deleted_at' => null,                   'created_at' => '2026-06-09 15:55:20', 'updated_at' => '2026-06-09 15:55:20'],
+            // Tópico 22: SEGURIDAD INDUSTRIAL EN EL TALLER INYECCIÓN
+            ['id' => 75, 'nombre' => 'SEGURIDAD INDUSTRIAL Y EN PROCESOS ELECTRONICOS',    'descripcion' => 'Seguridad en procesos Electrónicos - Seguridad Industrial, aplicada al taller',                                                                                                                        'duracion' => 1, 'status' => 1, 'deleted_at' => null,                   'created_at' => '2026-06-09 16:41:20', 'updated_at' => '2026-06-09 16:41:20'],
+            // Tópico 23: BASES DE INYECCIÓN ELECTRONICA
+            ['id' => 76, 'nombre' => 'COMPONENTES ELECTRONICOS FUNDAMENTALES',             'descripcion' => 'componentes electronicos fundamentales',                                                                                                                                                                'duracion' => 2, 'status' => 1, 'deleted_at' => null,                   'created_at' => '2026-06-09 16:42:30', 'updated_at' => '2026-06-09 16:42:30'],
+            ['id' => 77, 'nombre' => 'ASOCIACION DE RESISTENCIAS CIRCUITOS EN SERIE, PARALELO Y MIXTO', 'descripcion' => 'asociación de resistencias circuitos en serie, paralelo y mixto',                                                                                                                         'duracion' => 2, 'status' => 1, 'deleted_at' => null,                   'created_at' => '2026-06-09 16:43:33', 'updated_at' => '2026-06-09 16:43:33'],
+            ['id' => 78, 'nombre' => 'HISTORIA Y EVOLUCION DEL SISTEMA DE INYECCIÓN ENFOCADO EN VEHICULOS', 'descripcion' => 'Historia y evolución del sistema de inyección enfocado en vehículos',                                                                                                                 'duracion' => 1, 'status' => 1, 'deleted_at' => null,                   'created_at' => '2026-06-09 16:44:08', 'updated_at' => '2026-06-09 16:44:08'],
+            // Tópico 24: CLASIFICACION DEL SISTEMA DE INYECCION
+            ['id' => 79, 'nombre' => 'CLASIFICACION DEL SISTEMA INYECCIÓN POR LA CANTIDAD DE INYECTORES', 'descripcion' => 'Clasificación del sistema de inyección por la cantidad de inyectores',                                                                                                                  'duracion' => 1, 'status' => 1, 'deleted_at' => null,                   'created_at' => '2026-06-09 16:45:47', 'updated_at' => '2026-06-09 16:45:47'],
+            ['id' => 80, 'nombre' => 'CLASIFICACION DEL SISTEMA DE INYECCION POR LA UBICACION DE LOS INYECTORES', 'descripcion' => 'Clasificación del sistema de inyección por la ubicación de los inyectores',                                                                                                     'duracion' => 1, 'status' => 1, 'deleted_at' => null,                   'created_at' => '2026-06-09 16:46:31', 'updated_at' => '2026-06-09 16:46:31'],
+            ['id' => 81, 'nombre' => 'CLASIFICACION DEL SISTEMA DE INYECCION POR EL METODO DE INYECCION', 'descripcion' => 'Clasificación del sistema de inyección por el método de inyección',                                                                                                                     'duracion' => 1, 'status' => 1, 'deleted_at' => null,                   'created_at' => '2026-06-09 16:47:14', 'updated_at' => '2026-06-09 16:47:14'],
+            // Tópico 25: SISTEMA DE COMBUSTIBLE -ESTUDIO DE ECU
+            ['id' => 82, 'nombre' => 'SISTEMA DE ALIMENTACION DE COMBUSTIBLE',             'descripcion' => 'Sistema de alimentación de combustible  deposito, bomba, filtro, rampa, inyectores, regulador de presión, sensor inercial de corte.',                                                                  'duracion' => 6, 'status' => 1, 'deleted_at' => null,                   'created_at' => '2026-06-09 16:49:23', 'updated_at' => '2026-06-09 16:49:23'],
+            ['id' => 83, 'nombre' => 'GENERALIDADES Y ESTUDIO DE LA ECU',                  'descripcion' => 'Generalidades y estudio de la ECU',                                                                                                                                                                     'duracion' => 2, 'status' => 1, 'deleted_at' => null,                   'created_at' => '2026-06-09 16:50:10', 'updated_at' => '2026-06-09 16:50:10'],
+            // Tópico 26: SISTEMA DE ENCENDIDO, CONTROL DE EMISIONES Y SENSORES
+            ['id' => 84, 'nombre' => 'SISTEMA DE ENCENDIDO, BOBINA, BUJIAS, CABLES DIS.COP Y KNOCK SENSOR', 'descripcion' => 'Sistema de encendido, bobina, bujías cables DIS COP Y KNOCK SENSOR',                                                                                                                  'duracion' => 4, 'status' => 1, 'deleted_at' => null,                   'created_at' => '2026-06-09 16:53:29', 'updated_at' => '2026-06-09 21:42:13'],
+            ['id' => 85, 'nombre' => 'SISTEMA DE CONTROL DE EMISIONES O2S, PCV, CANISTER, EGR', 'descripcion' => 'Sistema de control de emisiones O2S,PCV, CANISTER, EGR',                                                                                                                                         'duracion' => 3, 'status' => 1, 'deleted_at' => null,                   'created_at' => '2026-06-09 16:54:25', 'updated_at' => '2026-06-09 16:54:25'],
+            ['id' => 86, 'nombre' => 'SENSORES DE MOTOR ECT, CKP, CMP, SENSOR DE FASE',   'descripcion' => 'Sensores de motor ECT CKP CMP SENSOR DE FASE',                                                                                                                                                         'duracion' => 3, 'status' => 1, 'deleted_at' => null,                   'created_at' => '2026-06-09 16:55:05', 'updated_at' => '2026-06-09 16:55:05'],
+            ['id' => 87, 'nombre' => 'SENSORES DEL VEHICULO VSS, SENSOR DE DIRECCIÓN HIDRAULICA, SENSOR INTERRUPTOR DE FRENO, SENDRO INTERRUPTOR DE PEDAL DE EMBRAGUE', 'descripcion' => 'Sensores del vehículo VSS sensor de dirección hidráulica, sensor interruptor de freno, sensor interruptor de pedal de embrague.', 'duracion' => 6, 'status' => 1, 'deleted_at' => null, 'created_at' => '2026-06-09 21:16:21', 'updated_at' => '2026-06-09 21:16:21'],
+            // Tópico 27: MANUALES, SISTEMAS DRIVE BY WIRE...
+            ['id' => 88, 'nombre' => 'MANUALES E INTERPRETACION DE MANUALES',              'descripcion' => 'Manejo de manuales e interpretación de manuales de servicio técnico, aplicando plan de mantenimiento al sistema de inyección',                                                                         'duracion' => 3, 'status' => 1, 'deleted_at' => null,                   'created_at' => '2026-06-09 21:26:27', 'updated_at' => '2026-06-09 21:26:27'],
+            ['id' => 89, 'nombre' => 'SISTEMAS MULTIPLEXADOS - ECU MEMORIAS- PROCESADORES DE PROTOCOLOS DE DIAGNOSTICO', 'descripcion' => 'Sistemas multiplexados drive by wire (cuerpo de aceleración motorizado) ecu memorias y procesadores protocolos de diagnostico',                                             'duracion' => 3, 'status' => 1, 'deleted_at' => null,                   'created_at' => '2026-06-09 21:27:40', 'updated_at' => '2026-06-09 21:27:40'],
+            ['id' => 90, 'nombre' => 'INSTRUMENTOS DE DIAGNOSTICO',                        'descripcion' => 'Instrumentos de diagnostico y medición de frecuencia punta lógica escáner osciloscopio probador de inyectores',                                                                                        'duracion' => 6, 'status' => 1, 'deleted_at' => null,                   'created_at' => '2026-06-09 21:28:12', 'updated_at' => '2026-06-09 21:28:12'],
+            ['id' => 91, 'nombre' => 'EVALUACION FINAL INYECCIÓN',                         'descripcion' => 'EVALUACION FINAL INYECCIÓN',                                                                                                                                                                            'duracion' => 3, 'status' => 1, 'deleted_at' => null,                   'created_at' => '2026-06-09 21:28:50', 'updated_at' => '2026-06-09 21:28:50'],
         ];
 
-        foreach ($temas as $tema) {
-            Tema::create($tema);
-        }
+        DB::table('temas')->insertOrIgnore($temas);
 
-        // Crear temas adicionales con factory
-        Tema::factory(30)->create();
+        // Relación tema → tópico
+        $temaTopico = [
+            ['id' =>  1, 'tema_id' =>  6, 'topico_id' =>  1, 'created_at' => '2026-06-02 19:45:21', 'updated_at' => '2026-06-02 19:45:21'],
+            ['id' =>  2, 'tema_id' =>  5, 'topico_id' =>  1, 'created_at' => '2026-06-02 19:45:21', 'updated_at' => '2026-06-02 19:45:21'],
+            ['id' =>  3, 'tema_id' =>  4, 'topico_id' =>  1, 'created_at' => '2026-06-02 19:45:21', 'updated_at' => '2026-06-02 19:45:21'],
+            ['id' =>  4, 'tema_id' =>  3, 'topico_id' =>  1, 'created_at' => '2026-06-02 19:45:21', 'updated_at' => '2026-06-02 19:45:21'],
+            ['id' =>  5, 'tema_id' =>  7, 'topico_id' =>  2, 'created_at' => '2026-06-02 19:50:07', 'updated_at' => '2026-06-02 19:50:07'],
+            ['id' =>  6, 'tema_id' =>  8, 'topico_id' =>  2, 'created_at' => '2026-06-02 19:50:07', 'updated_at' => '2026-06-02 19:50:07'],
+            ['id' =>  7, 'tema_id' =>  9, 'topico_id' =>  2, 'created_at' => '2026-06-02 19:50:07', 'updated_at' => '2026-06-02 19:50:07'],
+            ['id' =>  8, 'tema_id' => 10, 'topico_id' =>  2, 'created_at' => '2026-06-02 19:50:07', 'updated_at' => '2026-06-02 19:50:07'],
+            ['id' =>  9, 'tema_id' => 11, 'topico_id' =>  2, 'created_at' => '2026-06-02 19:50:07', 'updated_at' => '2026-06-02 19:50:07'],
+            ['id' => 10, 'tema_id' => 12, 'topico_id' =>  3, 'created_at' => '2026-06-02 20:03:02', 'updated_at' => '2026-06-02 20:03:02'],
+            ['id' => 11, 'tema_id' => 13, 'topico_id' =>  3, 'created_at' => '2026-06-02 20:03:02', 'updated_at' => '2026-06-02 20:03:02'],
+            ['id' => 12, 'tema_id' => 14, 'topico_id' =>  3, 'created_at' => '2026-06-02 20:03:02', 'updated_at' => '2026-06-02 20:03:02'],
+            ['id' => 13, 'tema_id' => 15, 'topico_id' =>  3, 'created_at' => '2026-06-02 20:03:02', 'updated_at' => '2026-06-02 20:03:02'],
+            ['id' => 14, 'tema_id' => 16, 'topico_id' =>  3, 'created_at' => '2026-06-02 20:03:02', 'updated_at' => '2026-06-02 20:03:02'],
+            ['id' => 15, 'tema_id' => 17, 'topico_id' =>  4, 'created_at' => '2026-06-02 20:12:02', 'updated_at' => '2026-06-02 20:12:02'],
+            ['id' => 16, 'tema_id' => 18, 'topico_id' =>  4, 'created_at' => '2026-06-02 20:12:02', 'updated_at' => '2026-06-02 20:12:02'],
+            ['id' => 17, 'tema_id' => 19, 'topico_id' =>  4, 'created_at' => '2026-06-02 20:12:02', 'updated_at' => '2026-06-02 20:12:02'],
+            ['id' => 18, 'tema_id' => 20, 'topico_id' =>  4, 'created_at' => '2026-06-02 20:12:02', 'updated_at' => '2026-06-02 20:12:02'],
+            ['id' => 19, 'tema_id' => 21, 'topico_id' =>  4, 'created_at' => '2026-06-02 20:12:02', 'updated_at' => '2026-06-02 20:12:02'],
+            ['id' => 20, 'tema_id' => 22, 'topico_id' =>  5, 'created_at' => '2026-06-02 20:16:11', 'updated_at' => '2026-06-02 20:16:11'],
+            ['id' => 21, 'tema_id' => 23, 'topico_id' =>  5, 'created_at' => '2026-06-02 20:16:11', 'updated_at' => '2026-06-02 20:16:11'],
+            ['id' => 22, 'tema_id' => 24, 'topico_id' =>  5, 'created_at' => '2026-06-02 20:16:11', 'updated_at' => '2026-06-02 20:16:11'],
+            ['id' => 23, 'tema_id' => 25, 'topico_id' =>  6, 'created_at' => '2026-06-02 20:43:55', 'updated_at' => '2026-06-02 20:43:55'],
+            ['id' => 24, 'tema_id' => 26, 'topico_id' =>  6, 'created_at' => '2026-06-02 20:43:55', 'updated_at' => '2026-06-02 20:43:55'],
+            ['id' => 25, 'tema_id' => 27, 'topico_id' =>  6, 'created_at' => '2026-06-02 20:43:55', 'updated_at' => '2026-06-02 20:43:55'],
+            ['id' => 26, 'tema_id' => 28, 'topico_id' =>  6, 'created_at' => '2026-06-02 20:43:55', 'updated_at' => '2026-06-02 20:43:55'],
+            ['id' => 27, 'tema_id' => 29, 'topico_id' =>  6, 'created_at' => '2026-06-02 20:43:55', 'updated_at' => '2026-06-02 20:43:55'],
+            ['id' => 28, 'tema_id' => 30, 'topico_id' =>  7, 'created_at' => '2026-06-02 20:45:30', 'updated_at' => '2026-06-02 20:45:30'],
+            ['id' => 29, 'tema_id' => 31, 'topico_id' =>  7, 'created_at' => '2026-06-02 20:45:30', 'updated_at' => '2026-06-02 20:45:30'],
+            ['id' => 30, 'tema_id' => 32, 'topico_id' =>  8, 'created_at' => '2026-06-02 20:46:30', 'updated_at' => '2026-06-02 20:46:30'],
+            ['id' => 31, 'tema_id' => 33, 'topico_id' =>  9, 'created_at' => '2026-06-09 13:46:05', 'updated_at' => '2026-06-09 13:46:05'],
+            ['id' => 32, 'tema_id' => 34, 'topico_id' => 10, 'created_at' => '2026-06-09 13:49:18', 'updated_at' => '2026-06-09 13:49:18'],
+            ['id' => 33, 'tema_id' => 35, 'topico_id' => 10, 'created_at' => '2026-06-09 13:49:18', 'updated_at' => '2026-06-09 13:49:18'],
+            ['id' => 34, 'tema_id' => 36, 'topico_id' => 10, 'created_at' => '2026-06-09 13:49:18', 'updated_at' => '2026-06-09 13:49:18'],
+            ['id' => 35, 'tema_id' => 38, 'topico_id' => 11, 'created_at' => '2026-06-09 14:17:11', 'updated_at' => '2026-06-09 14:17:11'],
+            ['id' => 36, 'tema_id' => 39, 'topico_id' => 11, 'created_at' => '2026-06-09 14:17:11', 'updated_at' => '2026-06-09 14:17:11'],
+            ['id' => 37, 'tema_id' => 40, 'topico_id' => 12, 'created_at' => '2026-06-09 14:19:48', 'updated_at' => '2026-06-09 14:19:48'],
+            ['id' => 38, 'tema_id' => 41, 'topico_id' => 12, 'created_at' => '2026-06-09 14:19:48', 'updated_at' => '2026-06-09 14:19:48'],
+            ['id' => 39, 'tema_id' => 42, 'topico_id' => 12, 'created_at' => '2026-06-09 14:19:48', 'updated_at' => '2026-06-09 14:19:48'],
+            ['id' => 40, 'tema_id' => 43, 'topico_id' => 13, 'created_at' => '2026-06-09 14:24:42', 'updated_at' => '2026-06-09 14:24:42'],
+            ['id' => 41, 'tema_id' => 44, 'topico_id' => 13, 'created_at' => '2026-06-09 14:24:42', 'updated_at' => '2026-06-09 14:24:42'],
+            ['id' => 42, 'tema_id' => 45, 'topico_id' => 13, 'created_at' => '2026-06-09 14:24:42', 'updated_at' => '2026-06-09 14:24:42'],
+            ['id' => 43, 'tema_id' => 46, 'topico_id' => 13, 'created_at' => '2026-06-09 14:24:42', 'updated_at' => '2026-06-09 14:24:42'],
+            ['id' => 44, 'tema_id' => 47, 'topico_id' => 14, 'created_at' => '2026-06-09 14:38:10', 'updated_at' => '2026-06-09 14:38:10'],
+            ['id' => 45, 'tema_id' => 48, 'topico_id' => 14, 'created_at' => '2026-06-09 14:38:10', 'updated_at' => '2026-06-09 14:38:10'],
+            ['id' => 46, 'tema_id' => 49, 'topico_id' => 14, 'created_at' => '2026-06-09 14:38:10', 'updated_at' => '2026-06-09 14:38:10'],
+            ['id' => 47, 'tema_id' => 50, 'topico_id' => 15, 'created_at' => '2026-06-09 15:29:41', 'updated_at' => '2026-06-09 15:29:41'],
+            ['id' => 48, 'tema_id' => 51, 'topico_id' => 16, 'created_at' => '2026-06-09 15:32:31', 'updated_at' => '2026-06-09 15:32:31'],
+            ['id' => 49, 'tema_id' => 52, 'topico_id' => 16, 'created_at' => '2026-06-09 15:32:31', 'updated_at' => '2026-06-09 15:32:31'],
+            ['id' => 50, 'tema_id' => 53, 'topico_id' => 16, 'created_at' => '2026-06-09 15:32:31', 'updated_at' => '2026-06-09 15:32:31'],
+            ['id' => 51, 'tema_id' => 54, 'topico_id' => 17, 'created_at' => '2026-06-09 15:37:56', 'updated_at' => '2026-06-09 15:37:56'],
+            ['id' => 52, 'tema_id' => 55, 'topico_id' => 17, 'created_at' => '2026-06-09 15:37:56', 'updated_at' => '2026-06-09 15:37:56'],
+            ['id' => 53, 'tema_id' => 57, 'topico_id' => 17, 'created_at' => '2026-06-09 15:37:56', 'updated_at' => '2026-06-09 15:37:56'],
+            ['id' => 54, 'tema_id' => 56, 'topico_id' => 17, 'created_at' => '2026-06-09 15:37:56', 'updated_at' => '2026-06-09 15:37:56'],
+            ['id' => 55, 'tema_id' => 58, 'topico_id' => 18, 'created_at' => '2026-06-09 15:45:11', 'updated_at' => '2026-06-09 15:45:11'],
+            ['id' => 56, 'tema_id' => 59, 'topico_id' => 18, 'created_at' => '2026-06-09 15:45:11', 'updated_at' => '2026-06-09 15:45:11'],
+            ['id' => 57, 'tema_id' => 60, 'topico_id' => 19, 'created_at' => '2026-06-09 15:47:33', 'updated_at' => '2026-06-09 15:47:33'],
+            ['id' => 58, 'tema_id' => 61, 'topico_id' => 19, 'created_at' => '2026-06-09 15:47:33', 'updated_at' => '2026-06-09 15:47:33'],
+            ['id' => 59, 'tema_id' => 62, 'topico_id' => 19, 'created_at' => '2026-06-09 15:47:33', 'updated_at' => '2026-06-09 15:47:33'],
+            ['id' => 60, 'tema_id' => 63, 'topico_id' => 20, 'created_at' => '2026-06-09 15:52:54', 'updated_at' => '2026-06-09 15:52:54'],
+            ['id' => 61, 'tema_id' => 64, 'topico_id' => 20, 'created_at' => '2026-06-09 15:52:54', 'updated_at' => '2026-06-09 15:52:54'],
+            ['id' => 62, 'tema_id' => 65, 'topico_id' => 20, 'created_at' => '2026-06-09 15:52:54', 'updated_at' => '2026-06-09 15:52:54'],
+            ['id' => 63, 'tema_id' => 66, 'topico_id' => 20, 'created_at' => '2026-06-09 15:52:54', 'updated_at' => '2026-06-09 15:52:54'],
+            ['id' => 64, 'tema_id' => 67, 'topico_id' => 20, 'created_at' => '2026-06-09 15:52:54', 'updated_at' => '2026-06-09 15:52:54'],
+            ['id' => 65, 'tema_id' => 68, 'topico_id' => 20, 'created_at' => '2026-06-09 15:52:54', 'updated_at' => '2026-06-09 15:52:54'],
+            ['id' => 66, 'tema_id' => 69, 'topico_id' => 21, 'created_at' => '2026-06-09 15:56:46', 'updated_at' => '2026-06-09 15:56:46'],
+            ['id' => 67, 'tema_id' => 70, 'topico_id' => 21, 'created_at' => '2026-06-09 15:56:46', 'updated_at' => '2026-06-09 15:56:46'],
+            ['id' => 68, 'tema_id' => 71, 'topico_id' => 21, 'created_at' => '2026-06-09 15:56:46', 'updated_at' => '2026-06-09 15:56:46'],
+            ['id' => 69, 'tema_id' => 72, 'topico_id' => 21, 'created_at' => '2026-06-09 15:56:46', 'updated_at' => '2026-06-09 15:56:46'],
+            ['id' => 70, 'tema_id' => 73, 'topico_id' => 21, 'created_at' => '2026-06-09 15:56:46', 'updated_at' => '2026-06-09 15:56:46'],
+            ['id' => 71, 'tema_id' => 74, 'topico_id' => 21, 'created_at' => '2026-06-09 15:56:46', 'updated_at' => '2026-06-09 15:56:46'],
+            ['id' => 72, 'tema_id' => 75, 'topico_id' => 22, 'created_at' => '2026-06-09 16:41:55', 'updated_at' => '2026-06-09 16:41:55'],
+            ['id' => 73, 'tema_id' => 76, 'topico_id' => 23, 'created_at' => '2026-06-09 16:44:57', 'updated_at' => '2026-06-09 16:44:57'],
+            ['id' => 74, 'tema_id' => 77, 'topico_id' => 23, 'created_at' => '2026-06-09 16:44:57', 'updated_at' => '2026-06-09 16:44:57'],
+            ['id' => 75, 'tema_id' => 78, 'topico_id' => 23, 'created_at' => '2026-06-09 16:44:57', 'updated_at' => '2026-06-09 16:44:57'],
+            ['id' => 76, 'tema_id' => 79, 'topico_id' => 24, 'created_at' => '2026-06-09 16:48:10', 'updated_at' => '2026-06-09 16:48:10'],
+            ['id' => 77, 'tema_id' => 80, 'topico_id' => 24, 'created_at' => '2026-06-09 16:48:10', 'updated_at' => '2026-06-09 16:48:10'],
+            ['id' => 78, 'tema_id' => 81, 'topico_id' => 24, 'created_at' => '2026-06-09 16:48:10', 'updated_at' => '2026-06-09 16:48:10'],
+            ['id' => 79, 'tema_id' => 82, 'topico_id' => 25, 'created_at' => '2026-06-09 16:50:55', 'updated_at' => '2026-06-09 16:50:55'],
+            ['id' => 80, 'tema_id' => 83, 'topico_id' => 25, 'created_at' => '2026-06-09 16:50:55', 'updated_at' => '2026-06-09 16:50:55'],
+            ['id' => 81, 'tema_id' => 84, 'topico_id' => 26, 'created_at' => '2026-06-09 21:20:20', 'updated_at' => '2026-06-09 21:20:20'],
+            ['id' => 82, 'tema_id' => 85, 'topico_id' => 26, 'created_at' => '2026-06-09 21:20:20', 'updated_at' => '2026-06-09 21:20:20'],
+            ['id' => 83, 'tema_id' => 86, 'topico_id' => 26, 'created_at' => '2026-06-09 21:20:20', 'updated_at' => '2026-06-09 21:20:20'],
+            ['id' => 84, 'tema_id' => 87, 'topico_id' => 26, 'created_at' => '2026-06-09 21:20:20', 'updated_at' => '2026-06-09 21:20:20'],
+            ['id' => 85, 'tema_id' => 88, 'topico_id' => 27, 'created_at' => '2026-06-09 21:30:59', 'updated_at' => '2026-06-09 21:30:59'],
+            ['id' => 86, 'tema_id' => 89, 'topico_id' => 27, 'created_at' => '2026-06-09 21:30:59', 'updated_at' => '2026-06-09 21:30:59'],
+            ['id' => 87, 'tema_id' => 90, 'topico_id' => 27, 'created_at' => '2026-06-09 21:30:59', 'updated_at' => '2026-06-09 21:30:59'],
+            ['id' => 88, 'tema_id' => 91, 'topico_id' => 27, 'created_at' => '2026-06-09 21:30:59', 'updated_at' => '2026-06-09 21:30:59'],
+        ];
+
+        DB::table('tema_topico')->insertOrIgnore($temaTopico);
+
+        $this->command->info('TemaSeeder: ' . count($temas) . ' tema(s) y ' . count($temaTopico) . ' relación(es) tema-tópico procesadas.');
     }
 }

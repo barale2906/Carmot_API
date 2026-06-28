@@ -83,6 +83,36 @@ class ConceptoPago extends Model
         3 => 'Otro',
     ];
 
+    // -------------------------------------------------------------------------
+    // Nombres canónicos de conceptos usados en servicios de cartera
+    // -------------------------------------------------------------------------
+
+    /** Cargo de matrícula al inicio del curso (cuota 0, tipo Cartera). */
+    public const MATRICULA = 'Matrícula';
+
+    /** Cuota mensual del plan de financiamiento (tipo Cartera). */
+    public const MENSUALIDAD = 'Pago de mensualidad';
+
+    /** Pago inicial al formalizar un acuerdo de pago (tipo Cartera). */
+    public const INICIAL_ACUERDO = 'Inicial Acuerdo';
+
+    /** Cuota periódica de un acuerdo de pago (tipo Cartera). */
+    public const CUOTA_ACUERDO = 'Cuota Acuerdo';
+
+    /** Descuento por pronto pago — línea negativa en la pivot (tipo Cartera). */
+    public const DESCUENTO = 'Descuento pronto pago';
+
+    /**
+     * Busca un ConceptoPago por nombre exacto.
+     *
+     * @param  string       $nombre  Nombre canónico del concepto
+     * @return self|null
+     */
+    public static function porNombre(string $nombre): ?self
+    {
+        return static::where('nombre', $nombre)->first();
+    }
+
     /**
      * Obtiene los campos permitidos para ordenamiento.
      *

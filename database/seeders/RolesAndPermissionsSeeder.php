@@ -692,5 +692,19 @@ class RolesAndPermissionsSeeder extends Seeder
                     'descripcion'=>'generar PDF de recibo de pago',
                     //'modulo'=>'financiero'
                     ])->syncRoles([$Superusuario,$financiero,$coordinador,$auxiliar,$alumno]);
+
+        // Create permissions - Cartera
+        Permission::create([
+                    'name'=>'fin_carteras',
+                    'descripcion'=>'ver carteras (cuentas por cobrar)',
+                    ])->syncRoles([$Superusuario,$financiero,$coordinador,$auxiliar]);
+        Permission::create([
+                    'name'=>'fin_carteraAnular',
+                    'descripcion'=>'anular una cartera',
+                    ])->syncRoles([$Superusuario,$financiero,$coordinador]);
+        Permission::create([
+                    'name'=>'fin_carteraAcuerdo',
+                    'descripcion'=>'registrar acuerdo de pago',
+                    ])->syncRoles([$Superusuario,$financiero,$coordinador]);
     }
 }
