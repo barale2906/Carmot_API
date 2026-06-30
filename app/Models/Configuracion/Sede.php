@@ -25,6 +25,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property string $direccion Dirección de la sede
  * @property string $telefono Teléfono de la sede
  * @property string $email Email de la sede
+ * @property string|null $codigo_academico Prefijo para numeración de recibos académicos (ej: TUN-AC)
+ * @property string|null $codigo_inventario Prefijo para numeración de recibos de inventario (ej: TUN-INV)
  * @property \Carbon\Carbon $hora_inicio Hora de inicio de la sede
  * @property \Carbon\Carbon $hora_fin Hora de fin de la sede
  * @property int $poblacion_id ID de la población a la que pertenece

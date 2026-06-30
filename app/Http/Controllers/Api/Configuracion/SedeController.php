@@ -140,6 +140,8 @@ class SedeController extends Controller
             'hora_inicio' => $request->hora_inicio,
             'hora_fin' => $request->hora_fin,
             'poblacion_id' => $request->poblacion_id,
+            'codigo_academico' => $request->codigo_academico,
+            'codigo_inventario' => $request->codigo_inventario,
         ]);
 
         // Asignar áreas (obligatorio al crear)
@@ -211,6 +213,8 @@ class SedeController extends Controller
             'hora_inicio',
             'hora_fin',
             'poblacion_id',
+            'codigo_academico',
+            'codigo_inventario',
         ]));
 
         // Actualizar áreas si se proporcionan

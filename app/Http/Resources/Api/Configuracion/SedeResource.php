@@ -23,6 +23,8 @@ class SedeResource extends JsonResource
             'direccion' => $this->direccion,
             'telefono' => $this->telefono,
             'email' => $this->email,
+            'codigo_academico'  => $this->codigo_academico,
+            'codigo_inventario' => $this->codigo_inventario,
             'hora_inicio' => $this->hora_inicio?->format('H:i:s'),
             'hora_fin' => $this->hora_fin?->format('H:i:s'),
             'duracion_horas' => $this->duracion_en_horas,
