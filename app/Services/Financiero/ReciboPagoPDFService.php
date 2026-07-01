@@ -2,16 +2,16 @@
 
 namespace App\Services\Financiero;
 
+use App\Models\Financiero\Cartera\Cartera;
 use App\Models\Financiero\ReciboPago\ReciboPago;
 use Illuminate\Support\Facades\Storage;
 
 /**
  * Servicio ReciboPagoPDFService
  *
- * Gestiona la generación de PDFs para los recibos de pago.
- * Utiliza DomPDF (barryvdh/laravel-dompdf) para generar documentos PDF a partir de vistas Blade.
- *
- * NOTA: Requiere instalar la librería: composer require barryvdh/laravel-dompdf
+ * Genera PDFs para recibos de pago usando DomPDF (barryvdh/laravel-dompdf).
+ * Enriquece cada línea de cartera con el estado actual de la cuota, de modo
+ * que el PDF generado sea idéntico en datos al modal de impresión del frontend.
  *
  * @package App\Services\Financiero
  */
@@ -20,13 +20,12 @@ class ReciboPagoPDFService
     /**
      * Genera el PDF del recibo de pago.
      *
-     * @param ReciboPago $reciboPago Recibo de pago para generar PDF
-     * @return mixed Instancia del PDF generado (depende de la librería utilizada)
-     * @throws \Exception Si la librería de PDF no está instalada
+     * @param ReciboPago $reciboPago
+     * @return mixed Instancia del PDF generado
+     * @throws \Exception Si DomPDF no está instalado
      */
     public function generarPDF(ReciboPago $reciboPago)
     {
-        // Verificar que la librería esté disponible
         if (!class_exists('\Barryvdh\DomPDF\Facade\Pdf')) {
             throw new \Exception(
                 'La librería de PDF (barryvdh/laravel-dompdf) no está instalada. ' .
@@ -34,30 +33,46 @@ class ReciboPagoPDFService
             );
         }
 
-        // Cargar todas las relaciones necesarias
         $reciboPago->load([
-            'sede.poblacion',
+            'sede',
             'estudiante',
             'cajero',
-            'matricula',
+            'matricula.curso',
             'conceptosPago',
-            'listasPrecio',
-            'productos',
-            'descuentos',
-            'mediosPago'
+            'mediosPago',
         ]);
 
-        // Generar PDF desde la vista usando DomPDF
+        // Cargar estado de cartera para líneas con id_relacional (mismo enriquecimiento que el frontend)
+        $idRelacionales = $reciboPago->conceptosPago
+            ->pluck('pivot.id_relacional')
+            ->filter()
+            ->unique()
+            ->values();
+
+        $carteras = collect();
+        if ($idRelacionales->isNotEmpty()) {
+            $carteras = Cartera::whereIn('id', $idRelacionales)
+                ->get()
+                ->keyBy('id');
+        }
+
+        $logoBase64 = null;
+        $logoPath = public_path('images/logo.svg');
+        if (file_exists($logoPath)) {
+            $logoBase64 = 'data:image/svg+xml;base64,' . base64_encode(file_get_contents($logoPath));
+        }
+
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('recibos-pago.pdf', [
-            'recibo' => $reciboPago,
+            'recibo'      => $reciboPago,
+            'carteras'    => $carteras,
+            'logoBase64'  => $logoBase64,
         ]);
 
-        // Configurar opciones del PDF
         $pdf->setPaper('letter', 'portrait');
-        $pdf->setOption('margin-top', 20);
-        $pdf->setOption('margin-bottom', 20);
-        $pdf->setOption('margin-left', 15);
-        $pdf->setOption('margin-right', 15);
+        $pdf->setOption('margin-top', 0);
+        $pdf->setOption('margin-bottom', 0);
+        $pdf->setOption('margin-left', 0);
+        $pdf->setOption('margin-right', 0);
 
         return $pdf;
     }
@@ -65,7 +80,7 @@ class ReciboPagoPDFService
     /**
      * Genera el PDF y lo guarda en storage.
      *
-     * @param ReciboPago $reciboPago Recibo de pago para generar PDF
+     * @param ReciboPago $reciboPago
      * @return string Ruta del archivo guardado
      */
     public function generarYGuardarPDF(ReciboPago $reciboPago): string
@@ -73,7 +88,6 @@ class ReciboPagoPDFService
         $pdf = $this->generarPDF($reciboPago);
 
         $nombreArchivo = 'recibos-pago/' . $reciboPago->numero_recibo . '.pdf';
-
         Storage::disk('public')->put($nombreArchivo, $pdf->output());
 
         return $nombreArchivo;
@@ -82,8 +96,8 @@ class ReciboPagoPDFService
     /**
      * Obtiene la URL pública del PDF si existe.
      *
-     * @param ReciboPago $reciboPago Recibo de pago
-     * @return string|null URL del PDF o null si no existe
+     * @param ReciboPago $reciboPago
+     * @return string|null
      */
     public function obtenerURLPDF(ReciboPago $reciboPago): ?string
     {
@@ -96,4 +110,3 @@ class ReciboPagoPDFService
         return null;
     }
 }
-

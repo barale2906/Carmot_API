@@ -38,8 +38,9 @@ wait-db:
 
 show-urls:
 	@echo ''; echo -e '$(GREEN)=> Acceso:$(NC)'; \
-	echo -e '   API:  http://localhost:8000'; \
-	echo -e '   API:  http://localhost:8000/docs/api'; \
+	echo -e '   API:        http://localhost:8000'; \
+	echo -e '   API Docs:   http://localhost:8000/docs/api'; \
+	echo -e '   Mailpit UI: http://localhost:8025'; \
 	echo ''; echo -e '$(GREEN)=> Base de datos:$(NC)'; \
 	echo -e '   Host: localhost:3306'; \
 	echo -e '   User: root / root'; \
