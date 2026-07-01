@@ -58,16 +58,80 @@ class CarteraTest extends TestCase
     // ─── index ────────────────────────────────────────────────────────────────
 
     /** @test */
-    public function lista_carteras_paginadas(): void
+    public function lista_carteras_agrupadas_por_matricula(): void
     {
-        $this->crearCartera();
-        $this->crearCartera(['status' => Cartera::getStatusKey('Abonada')]);
+        $this->crearCartera(['numero_cuota' => 0, 'valor' => 100000, 'saldo' => 100000]);
+        $this->crearCartera(['numero_cuota' => 1, 'valor' => 200000, 'saldo' => 150000]);
 
         $response = $this->actingAs($this->usuario)
             ->getJson(route('carteras.index'));
 
         $response->assertOk()
-            ->assertJsonStructure(['data', 'meta']);
+            ->assertJsonStructure([
+                'data' => [[
+                    'matricula_id',
+                    'matricula' => ['id', 'curso', 'fecha_matricula'],
+                    'estudiante' => ['id', 'nombre'],
+                    'sede'       => ['id', 'nombre'],
+                    'total_valor',
+                    'total_saldo',
+                    'total_abono',
+                    'carteras',
+                ]],
+                'meta' => [
+                    'current_page',
+                    'last_page',
+                    'per_page',
+                    'total',
+                    'total_saldo_filtrado',
+                    'total_valor_filtrado',
+                ],
+            ]);
+
+        $data = $response->json('data');
+        $this->assertCount(1, $data);
+        $this->assertCount(2, $data[0]['carteras']);
+        $this->assertEquals($this->matricula->id, $data[0]['matricula_id']);
+
+        // Totales globales reflejan la suma de todas las cuotas (sin paginación)
+        $this->assertEquals(250000, $response->json('meta.total_saldo_filtrado'));
+        $this->assertEquals(300000, $response->json('meta.total_valor_filtrado'));
+    }
+
+    /** @test */
+    public function meta_totales_respetan_filtros_aplicados(): void
+    {
+        // Cuota activa con saldo
+        $this->crearCartera(['valor' => 100000, 'saldo' => 100000, 'status' => Cartera::getStatusKey('Activa')]);
+        // Cuota cerrada (saldo 0)
+        $this->crearCartera(['valor' => 50000, 'saldo' => 0, 'abono' => 50000, 'status' => Cartera::getStatusKey('Cerrada')]);
+
+        $response = $this->actingAs($this->usuario)
+            ->getJson(route('carteras.index', ['solo_pendientes' => true]));
+
+        $response->assertOk();
+        // Con filtro solo_pendientes, solo cuenta la cuota activa
+        $this->assertEquals(100000, $response->json('meta.total_saldo_filtrado'));
+        $this->assertEquals(100000, $response->json('meta.total_valor_filtrado'));
+    }
+
+    /** @test */
+    public function index_agrupa_distintas_matriculas_como_filas_separadas(): void
+    {
+        $this->crearCartera();
+
+        $otraMatricula = Matricula::factory()->create(['lp_precio_producto_id' => null]);
+        Cartera::factory()->create([
+            'matricula_id'  => $otraMatricula->id,
+            'sede_id'       => $this->sede->id,
+            'estudiante_id' => $otraMatricula->estudiante_id,
+        ]);
+
+        $response = $this->actingAs($this->usuario)
+            ->getJson(route('carteras.index'));
+
+        $response->assertOk();
+        $this->assertCount(2, $response->json('data'));
     }
 
     /** @test */

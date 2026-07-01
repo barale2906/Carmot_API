@@ -33,50 +33,107 @@ class CarteraController extends Controller
     }
 
     /**
-     * Lista paginada de carteras con filtros opcionales.
+     * Lista paginada de carteras agrupadas por matrícula y estudiante.
+     * Cada elemento del resultado representa una matrícula con sus cuotas anidadas.
      *
      * @param Request $request
      * @return JsonResponse
      */
     public function index(Request $request): JsonResponse
     {
-        $query = Cartera::query();
+        // Closure reutilizado en whereHas (filtrar qué matriculas incluir)
+        // y en with (cargar solo las carteras que cumplan la condición).
+        $filtrarCarteras = function ($q) use ($request) {
+            if ($request->filled('status')) {
+                $q->byStatus($request->integer('status'));
+            }
+            if ($request->filled('fecha_desde') && $request->filled('fecha_hasta')) {
+                $q->byFechaVencimientoRange($request->input('fecha_desde'), $request->input('fecha_hasta'));
+            }
+            if ($request->boolean('solo_pendientes')) {
+                $q->pendientes();
+            }
+            if ($request->boolean('solo_vencidas')) {
+                $q->vencidas();
+            }
+        };
 
+        // Query de Cartera para calcular totales globales según los mismos filtros.
+        // Las columnas matricula_id / estudiante_id / sede_id existen directamente en carteras.
+        $agregado = Cartera::query();
         if ($request->filled('matricula_id')) {
-            $query->byMatricula($request->integer('matricula_id'));
+            $agregado->byMatricula($request->integer('matricula_id'));
         }
         if ($request->filled('estudiante_id')) {
-            $query->byEstudiante($request->integer('estudiante_id'));
+            $agregado->byEstudiante($request->integer('estudiante_id'));
         }
         if ($request->filled('sede_id')) {
-            $query->bySede($request->integer('sede_id'));
+            $agregado->bySede($request->integer('sede_id'));
         }
-        if ($request->filled('status')) {
-            $query->byStatus($request->integer('status'));
+        $filtrarCarteras($agregado);
+
+        $totalSaldoFiltrado = (float) $agregado->sum('saldo');
+        $totalValorFiltrado = (float) $agregado->sum('valor');
+
+        $query = Matricula::query()
+            ->whereHas('carteras', $filtrarCarteras)
+            ->with([
+                'carteras' => function ($q) use ($filtrarCarteras) {
+                    $filtrarCarteras($q);
+                    $q->orderBy('numero_cuota');
+                },
+                'curso',
+                'estudiante',
+                'sede',
+            ]);
+
+        if ($request->filled('matricula_id')) {
+            $query->where('id', $request->integer('matricula_id'));
         }
-        if ($request->filled('fecha_desde') && $request->filled('fecha_hasta')) {
-            $query->byFechaVencimientoRange($request->input('fecha_desde'), $request->input('fecha_hasta'));
+        if ($request->filled('estudiante_id')) {
+            $query->where('estudiante_id', $request->integer('estudiante_id'));
         }
-        if ($request->boolean('solo_pendientes')) {
-            $query->pendientes();
-        }
-        if ($request->boolean('solo_vencidas')) {
-            $query->vencidas();
+        if ($request->filled('sede_id')) {
+            $query->where('sede_id', $request->integer('sede_id'));
         }
 
-        $carteras = $query
-            ->withSorting($request->get('sort_by', 'fecha_vencimiento'), $request->get('sort_direction', 'asc'))
+        $matriculas = $query
+            ->orderBy('estudiante_id')
+            ->orderBy('id')
             ->paginate($request->integer('per_page', 15));
 
+        $data = $matriculas->getCollection()->map(fn (Matricula $matricula) => [
+            'matricula_id' => $matricula->id,
+            'matricula'    => [
+                'id'              => $matricula->id,
+                'curso'           => $matricula->curso?->nombre,
+                'fecha_matricula' => $matricula->fecha_matricula?->toDateString(),
+            ],
+            'estudiante'   => [
+                'id'     => $matricula->estudiante?->id,
+                'nombre' => $matricula->estudiante?->nombre_completo ?? $matricula->estudiante?->name,
+            ],
+            'sede'         => [
+                'id'     => $matricula->sede?->id,
+                'nombre' => $matricula->sede?->nombre,
+            ],
+            'total_valor'  => (float) $matricula->carteras->sum('valor'),
+            'total_saldo'  => (float) $matricula->carteras->sum('saldo'),
+            'total_abono'  => (float) $matricula->carteras->sum('abono'),
+            'carteras'     => CarteraResource::collection($matricula->carteras),
+        ]);
+
         return response()->json([
-            'data' => CarteraResource::collection($carteras),
+            'data' => $data,
             'meta' => [
-                'current_page' => $carteras->currentPage(),
-                'last_page'    => $carteras->lastPage(),
-                'per_page'     => $carteras->perPage(),
-                'total'        => $carteras->total(),
-                'from'         => $carteras->firstItem(),
-                'to'           => $carteras->lastItem(),
+                'current_page'        => $matriculas->currentPage(),
+                'last_page'           => $matriculas->lastPage(),
+                'per_page'            => $matriculas->perPage(),
+                'total'               => $matriculas->total(),
+                'from'                => $matriculas->firstItem(),
+                'to'                  => $matriculas->lastItem(),
+                'total_saldo_filtrado' => $totalSaldoFiltrado,
+                'total_valor_filtrado' => $totalValorFiltrado,
             ],
         ]);
     }

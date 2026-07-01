@@ -495,7 +495,7 @@ class Matricula extends Model
                 // Genera cargos de cartera cuando la matrícula tiene un precio de lista vinculado.
                 // El recibo de pago se genera manualmente en la pantalla de recibos.
                 if ($matricula->lp_precio_producto_id) {
-                    $matricula->load('lpPrecioProducto');
+                    $matricula->load('lpPrecioProducto', 'ciclo');
                     app(CarteraGeneradorService::class)->generarParaMatricula($matricula);
                 }
             }
