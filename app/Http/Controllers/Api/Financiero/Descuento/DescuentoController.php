@@ -9,6 +9,7 @@ use App\Http\Resources\Api\Financiero\Descuento\DescuentoAplicadoResource;
 use App\Http\Resources\Api\Financiero\Descuento\DescuentoResource;
 use App\Models\Financiero\Descuento\Descuento;
 use App\Models\Financiero\Descuento\DescuentoAplicado;
+use App\Services\Financiero\AjusteService;
 use App\Services\Financiero\DescuentoService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -64,6 +65,10 @@ class DescuentoController extends Controller
             }
 
             // Aplicar filtros
+            if ($request->filled('tipo_movimiento')) {
+                $query->where('tipo_movimiento', $request->string('tipo_movimiento'));
+            }
+
             if ($request->filled('tipo')) {
                 $query->porTipo($request->string('tipo'));
             }
@@ -388,6 +393,48 @@ class DescuentoController extends Controller
     }
 
     /**
+     * Retorna los sobrecargos activos aplicables a un medio de pago y marca de tarjeta.
+     * El frontend lo llama cuando el cajero selecciona el medio de pago para pre-calcular el recargo.
+     *
+     * @param Request $request Parámetros: medio_pago (requerido), tipo_tarjeta (opcional), valor_base (requerido)
+     * @return JsonResponse Lista de sobrecargos con montos calculados
+     */
+    public function sobrecargoPorMedioPago(Request $request): JsonResponse
+    {
+        try {
+            $request->validate([
+                'medio_pago'   => 'required|string|in:efectivo,transferencia,tarjeta_debito,tarjeta_credito,cheque,consignacion',
+                'tipo_tarjeta' => 'nullable|string|max:60',
+                'valor_base'   => 'required|numeric|min:0',
+            ]);
+
+            $service  = new AjusteService();
+            $resultado = $service->resolverSobrecargosPorMedioPago(
+                $request->string('medio_pago'),
+                $request->filled('tipo_tarjeta') ? $request->string('tipo_tarjeta') : null,
+                (float) $request->input('valor_base')
+            );
+
+            return response()->json([
+                'data' => $resultado->map(fn ($item) => [
+                    'descuento_id'     => $item['sobrecargo']->id,
+                    'nombre'           => $item['sobrecargo']->nombre,
+                    'porcentaje'       => (float) $item['sobrecargo']->valor,
+                    'medio_pago'       => $request->string('medio_pago'),
+                    'tipo_tarjeta'     => $request->input('tipo_tarjeta'),
+                    'valor_base'       => $item['valor_base'],
+                    'valor_sobrecargo' => $item['valor_sobrecargo'],
+                    'valor_final'      => $item['valor_final'],
+                ])->values(),
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json(['message' => 'Error de validación.', 'errors' => $e->errors()], 422);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Error al obtener sobrecargos.', 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
      * Muestra el historial de descuentos aplicados.
      * Permite filtrar y paginar los registros.
      *
@@ -400,6 +447,10 @@ class DescuentoController extends Controller
             $query = DescuentoAplicado::query();
 
             // Aplicar filtros
+            if ($request->filled('tipo_movimiento')) {
+                $query->where('tipo_movimiento', $request->string('tipo_movimiento'));
+            }
+
             if ($request->filled('descuento_id')) {
                 $query->where('descuento_id', $request->integer('descuento_id'));
             }

@@ -34,49 +34,63 @@ class UpdateDescuentoRequest extends FormRequest
      */
     public function rules(): array
     {
-        $descuentoId = $this->route('descuento')?->id ?? $this->route('id');
+        $descuentoId  = $this->route('descuento')?->id ?? $this->route('id');
+        // tipo_movimiento puede venir en el request o se toma del modelo existente
+        $movimiento   = $this->input('tipo_movimiento', $this->route('descuento')?->tipo_movimiento);
+        $esSobrecargo = $movimiento === Descuento::MOVIMIENTO_SOBRECARGO;
 
         return [
-            'nombre' => 'sometimes|string|max:255',
+            'tipo_movimiento' => ['sometimes', Rule::in([Descuento::MOVIMIENTO_DESCUENTO, Descuento::MOVIMIENTO_SOBRECARGO])],
+            'nombre'          => 'sometimes|string|max:255',
             'codigo_descuento' => [
-                'nullable',
-                'string',
-                'max:50',
+                'nullable', 'string', 'max:50',
                 Rule::unique('descuentos', 'codigo_descuento')->ignore($descuentoId),
-                Rule::requiredIf(function () {
-                    return $this->input('tipo_activacion') === Descuento::ACTIVACION_CODIGO_PROMOCIONAL;
-                }),
+                Rule::requiredIf(fn () => $this->input('tipo_activacion') === Descuento::ACTIVACION_CODIGO_PROMOCIONAL),
             ],
             'descripcion' => 'nullable|string',
-            'tipo' => ['sometimes', Rule::in([Descuento::TIPO_PORCENTUAL, Descuento::TIPO_VALOR_FIJO])],
-            'valor' => 'sometimes|numeric|min:0|regex:/^\d+(\.\d{1,2})?$/',
+            'tipo' => [
+                'sometimes',
+                Rule::in($esSobrecargo ? [Descuento::TIPO_PORCENTUAL] : [Descuento::TIPO_PORCENTUAL, Descuento::TIPO_VALOR_FIJO]),
+            ],
+            'valor' => [
+                'sometimes', 'numeric', 'min:0',
+                ...($esSobrecargo || $this->input('tipo') === Descuento::TIPO_PORCENTUAL
+                    ? ['max:100']
+                    : []),
+                'regex:/^\d+(\.\d{1,2})?$/',
+            ],
             'aplicacion' => [
                 'sometimes',
-                Rule::in([
-                    Descuento::APLICACION_VALOR_TOTAL,
-                    Descuento::APLICACION_MATRICULA,
-                    Descuento::APLICACION_CUOTA
-                ])
+                Rule::in($esSobrecargo
+                    ? [Descuento::APLICACION_VALOR_RECIBO, Descuento::APLICACION_SALDO_CARTERA]
+                    : [Descuento::APLICACION_VALOR_TOTAL, Descuento::APLICACION_MATRICULA, Descuento::APLICACION_CUOTA]
+                ),
             ],
             'tipo_activacion' => [
                 'sometimes',
-                Rule::in([
-                    Descuento::ACTIVACION_PAGO_ANTICIPADO,
-                    Descuento::ACTIVACION_PROMOCION_MATRICULA,
-                    Descuento::ACTIVACION_CODIGO_PROMOCIONAL
-                ])
+                Rule::in($esSobrecargo
+                    ? [Descuento::ACTIVACION_MEDIO_PAGO, Descuento::ACTIVACION_MORA_AUTOMATICA]
+                    : [Descuento::ACTIVACION_PAGO_ANTICIPADO, Descuento::ACTIVACION_PROMOCION_MATRICULA, Descuento::ACTIVACION_CODIGO_PROMOCIONAL]
+                ),
             ],
             'dias_anticipacion' => [
                 Rule::requiredIf($this->input('tipo_activacion') === Descuento::ACTIVACION_PAGO_ANTICIPADO),
-                'nullable',
-                'integer',
-                'min:1'
+                'nullable', 'integer', 'min:1',
             ],
             'permite_acumulacion' => 'sometimes|boolean',
+            'medios_pago'   => [
+                Rule::requiredIf(fn () => $this->input('tipo_activacion') === Descuento::ACTIVACION_MEDIO_PAGO),
+                'nullable', 'array', 'min:1',
+            ],
+            'medios_pago.*' => [
+                'string',
+                Rule::in(['efectivo', 'transferencia', 'tarjeta_debito', 'tarjeta_credito', 'cheque', 'consignacion']),
+            ],
+            'marca_tarjeta'   => 'nullable|array',
+            'marca_tarjeta.*' => 'string|max:60',
             'fecha_inicio' => 'sometimes|date',
             'fecha_fin' => [
-                'sometimes',
-                'date',
+                'sometimes', 'date',
                 Rule::requiredIf($this->has('fecha_inicio')),
                 function ($attribute, $value, $fail) {
                     if ($this->has('fecha_inicio') && $value < $this->input('fecha_inicio')) {
@@ -84,16 +98,40 @@ class UpdateDescuentoRequest extends FormRequest
                     }
                 },
             ],
-            'status' => Descuento::getStatusValidationRule(),
-            'listas_precios' => 'nullable|array',
+            'status'           => Descuento::getStatusValidationRule(),
+            'listas_precios'   => 'nullable|array',
             'listas_precios.*' => 'exists:lp_listas_precios,id',
-            'productos' => 'nullable|array',
-            'productos.*' => 'exists:lp_productos,id',
-            'sedes' => 'nullable|array',
-            'sedes.*' => 'exists:sedes,id',
-            'poblaciones' => 'nullable|array',
-            'poblaciones.*' => 'exists:poblacions,id',
+            'productos'        => 'nullable|array',
+            'productos.*'      => 'exists:lp_productos,id',
+            'sedes'            => 'nullable|array',
+            'sedes.*'          => 'exists:sedes,id',
+            'poblaciones'      => 'nullable|array',
+            'poblaciones.*'    => 'exists:poblacions,id',
         ];
+    }
+
+    /**
+     * Validaciones cruzadas para sobrecargos.
+     *
+     * @param \Illuminate\Validation\Validator $validator
+     */
+    public function withValidator($validator): void
+    {
+        $validator->after(function ($v) {
+            $movimiento = $this->input('tipo_movimiento', $this->route('descuento')?->tipo_movimiento);
+            $activacion = $this->input('tipo_activacion');
+
+            if ($movimiento === Descuento::MOVIMIENTO_SOBRECARGO) {
+                if ($this->has('permite_acumulacion') && $this->boolean('permite_acumulacion')) {
+                    $v->errors()->add('permite_acumulacion', 'Los sobrecargos no pueden acumularse.');
+                }
+                if ($activacion === Descuento::ACTIVACION_MORA_AUTOMATICA
+                    && $this->has('aplicacion')
+                    && $this->input('aplicacion') !== Descuento::APLICACION_SALDO_CARTERA) {
+                    $v->errors()->add('aplicacion', 'La mora automática debe aplicarse sobre saldo_cartera.');
+                }
+            }
+        });
     }
 
     /**
@@ -104,35 +142,18 @@ class UpdateDescuentoRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'nombre.string' => 'El nombre debe ser una cadena de texto.',
-            'nombre.max' => 'El nombre no puede exceder 255 caracteres.',
-            'codigo_descuento.string' => 'El código de descuento debe ser una cadena de texto.',
-            'codigo_descuento.max' => 'El código de descuento no puede exceder 50 caracteres.',
-            'codigo_descuento.unique' => 'El código de descuento ya está en uso.',
-            'codigo_descuento.required' => 'El código de descuento es obligatorio cuando el tipo de activación es código promocional.',
-            'tipo.in' => 'El tipo de descuento debe ser: porcentual o valor_fijo.',
-            'valor.numeric' => 'El valor debe ser un número.',
-            'valor.min' => 'El valor no puede ser negativo.',
-            'valor.regex' => 'El valor debe tener máximo 2 decimales.',
-            'aplicacion.in' => 'La aplicación debe ser: valor_total, matricula o cuota.',
-            'tipo_activacion.in' => 'El tipo de activación debe ser: pago_anticipado, promocion_matricula o codigo_promocional.',
-            'dias_anticipacion.required' => 'Los días de anticipación son obligatorios cuando el tipo de activación es pago anticipado.',
-            'dias_anticipacion.integer' => 'Los días de anticipación deben ser un número entero.',
-            'dias_anticipacion.min' => 'Los días de anticipación deben ser al menos 1.',
-            'permite_acumulacion.boolean' => 'El campo permite acumulación debe ser verdadero o falso.',
-            'fecha_inicio.date' => 'La fecha de inicio debe ser una fecha válida.',
-            'fecha_fin.date' => 'La fecha de fin debe ser una fecha válida.',
-            'fecha_fin.required' => 'La fecha de fin es obligatoria cuando se proporciona fecha de inicio.',
-            'status.integer' => 'El estado debe ser un número entero.',
-            'status.in' => Descuento::getStatusValidationMessages()['status.in'] ?? 'El estado no es válido.',
-            'listas_precios.array' => 'Las listas de precios deben ser un array.',
-            'listas_precios.*.exists' => 'Una o más listas de precios seleccionadas no existen.',
-            'productos.array' => 'Los productos deben ser un array.',
-            'productos.*.exists' => 'Uno o más productos seleccionados no existen.',
-            'sedes.array' => 'Las sedes deben ser un array.',
-            'sedes.*.exists' => 'Una o más sedes seleccionadas no existen.',
-            'poblaciones.array' => 'Las poblaciones deben ser un array.',
-            'poblaciones.*.exists' => 'Una o más poblaciones seleccionadas no existen.',
+            'tipo_movimiento.in'       => 'El tipo de movimiento debe ser: descuento o sobrecargo.',
+            'codigo_descuento.unique'  => 'El código de descuento ya está en uso.',
+            'tipo.in'                  => 'Los sobrecargos solo admiten tipo porcentual.',
+            'valor.max'                => 'El valor no puede superar 100.',
+            'valor.regex'              => 'El valor admite máximo 2 decimales.',
+            'aplicacion.in'            => 'Valor de aplicación no válido para este tipo de movimiento.',
+            'tipo_activacion.in'       => 'Tipo de activación no válido para este tipo de movimiento.',
+            'dias_anticipacion.required' => 'Los días de anticipación son obligatorios para pago anticipado.',
+            'medios_pago.required'     => 'Los medios de pago son obligatorios para sobrecargos por medio de pago.',
+            'medios_pago.*.in'         => 'Medio de pago no válido.',
+            'fecha_fin.required'       => 'La fecha de fin es obligatoria cuando se proporciona fecha de inicio.',
+            'status.in'                => Descuento::getStatusValidationMessages()['status.in'] ?? 'Estado no válido.',
         ];
     }
 }

@@ -109,9 +109,36 @@ trait HasGrupoHorarios
     }
 
     /**
-     * Valida que los horarios no se solapen para el mismo grupo.
+     * Elimina entradas duplicadas por slot (dia + hora), conservando la última ocurrencia.
      *
-     * @param array $horariosData Array de datos de horarios
+     * Un grupo no puede estar en dos áreas al mismo tiempo. Cuando el frontend envía los
+     * horarios actuales (área vieja) junto con los nuevos (área nueva) para el mismo slot,
+     * este método descarta la ocurrencia anterior y se queda con la más reciente, que es la
+     * que el usuario acaba de asignar.
+     *
+     * @param array $horariosData Array de horarios del request
+     * @return array Array deduplicado (valores re-indexados)
+     */
+    protected function deduplicarHorariosPorSlot(array $horariosData): array
+    {
+        $porSlot = [];
+        foreach ($horariosData as $horario) {
+            $clave = $horario['dia'] . '_' . $horario['hora'];
+            $porSlot[$clave] = $horario; // Sobreescribe: gana la última ocurrencia (la nueva)
+        }
+        return array_values($porSlot);
+    }
+
+    /**
+     * Valida que los horarios enviados en la solicitud no se solapen entre sí (mismo grupo).
+     * No comprueba conflictos con otros grupos — un área puede ser compartida por múltiples
+     * grupos en el mismo horario (requerimiento de cliente).
+     *
+     * Debe llamarse sobre el array ya deduplicado con deduplicarHorariosPorSlot().
+     * Solo detecta solapamientos reales: bloques con distinta hora de inicio cuyo rango
+     * se superpone.
+     *
+     * @param array $horariosData Array de horarios ya deduplicado
      * @return array Array con 'valido' (bool) y 'errores' (array)
      */
     protected function validarSolapamientoHorarios(array $horariosData): array
@@ -119,51 +146,40 @@ trait HasGrupoHorarios
         $errores = [];
         $horariosPorDia = [];
 
-        // Agrupar horarios por día
+        // Agrupar por día conservando el índice original (base 0)
         foreach ($horariosData as $index => $horario) {
-            $dia = $horario['dia'];
-            $hora = $horario['hora'];
-            $duracion = $horario['duracion_horas'] ?? 1;
-
-            if (!isset($horariosPorDia[$dia])) {
-                $horariosPorDia[$dia] = [];
-            }
-
-            $horariosPorDia[$dia][] = [
-                'index' => $index,
-                'hora' => $hora,
-                'duracion_horas' => $duracion,
+            $horariosPorDia[$horario['dia']][] = [
+                'index'          => $index,
+                'hora'           => $horario['hora'],
+                'duracion_horas' => $horario['duracion_horas'] ?? 1,
             ];
         }
 
-        // Verificar solapamientos por día
         foreach ($horariosPorDia as $dia => $horarios) {
-            if (count($horarios) > 1) {
-                // Ordenar por hora
-                usort($horarios, function ($a, $b) {
-                    return strcmp($a['hora'], $b['hora']);
-                });
+            if (count($horarios) <= 1) {
+                continue;
+            }
 
-                // Verificar solapamientos consecutivos
-                for ($i = 0; $i < count($horarios) - 1; $i++) {
-                    $horaActual = $horarios[$i]['hora'];
-                    $duracionActual = $horarios[$i]['duracion_horas'] ?? 1;
-                    $horaSiguiente = $horarios[$i + 1]['hora'];
+            // Ordenar por hora de inicio
+            usort($horarios, fn($a, $b) => strcmp($a['hora'], $b['hora']));
 
-                    // Calcular hora de fin considerando la duración
-                    $horaFinActual = date('H:i', strtotime($horaActual . ' +' . $duracionActual . ' hour'));
+            for ($i = 0; $i < count($horarios) - 1; $i++) {
+                $actual    = $horarios[$i];
+                $siguiente = $horarios[$i + 1];
 
-                    if ($horaFinActual > $horaSiguiente) {
-                        $errores[] = "Los horarios del día {$dia} se solapan. Verifique los horarios en las posiciones " .
-                                   ($horarios[$i]['index'] + 1) . " y " . ($horarios[$i + 1]['index'] + 1);
-                    }
+                $horaFin = date('H:i', strtotime($actual['hora'] . ' +' . $actual['duracion_horas'] . ' hour'));
+
+                if ($horaFin > $siguiente['hora']) {
+                    $errores[] = "Los horarios del día {$dia} se solapan: "
+                        . "{$actual['hora']}–{$horaFin} (posición " . ($actual['index'] + 1) . ") "
+                        . "y {$siguiente['hora']} (posición " . ($siguiente['index'] + 1) . ").";
                 }
             }
         }
 
         return [
-            'valido' => empty($errores),
-            'errores' => $errores
+            'valido'  => empty($errores),
+            'errores' => $errores,
         ];
     }
 

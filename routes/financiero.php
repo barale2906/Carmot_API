@@ -114,15 +114,12 @@ Route::middleware('auth:sanctum')->group(function () {
         ->parameters(['conceptos-pago' => 'conceptoPago']);
 
     // Grupo de rutas para Descuentos
-    // Rutas principales de descuentos (CRUD estándar)
-    Route::apiResource('descuentos', DescuentoController::class);
-
-    // Rutas adicionales para funcionalidades específicas de descuentos
+    // IMPORTANTE: rutas GET con segmentos estáticos ANTES del apiResource para
+    // evitar colisión con GET /descuentos/{id} (show).
     Route::prefix('descuentos')->group(function () {
-        // Ruta para aprobar un descuento (cambiar de "en proceso" a "aprobado")
-        // El segmento debe llamarse {descuento} para que coincida con aprobar(Descuento $descuento).
-        Route::post('{descuento}/aprobar', [DescuentoController::class, 'aprobar'])
-            ->name('descuentos.aprobar');
+        // Resuelve los sobrecargos activos para un medio de pago y marca de tarjeta dados
+        Route::get('sobrecargos/por-medio-pago', [DescuentoController::class, 'sobrecargoPorMedioPago'])
+            ->name('descuentos.sobrecargos.por-medio-pago');
 
         // Ruta para aplicar descuentos a un precio
         Route::post('aplicar', [DescuentoController::class, 'aplicarDescuento'])
@@ -131,7 +128,14 @@ Route::middleware('auth:sanctum')->group(function () {
         // Ruta para obtener el historial de descuentos aplicados
         Route::get('historial', [DescuentoController::class, 'historial'])
             ->name('descuentos.historial');
+
+        // Ruta para aprobar un descuento (cambiar de "en proceso" a "aprobado")
+        Route::post('{descuento}/aprobar', [DescuentoController::class, 'aprobar'])
+            ->name('descuentos.aprobar');
     });
+
+    // Rutas principales de descuentos (CRUD estándar)
+    Route::apiResource('descuentos', DescuentoController::class);
 
     // ─── Cartera (cuentas por cobrar) ────────────────────────────────────────
     // IMPORTANTE: rutas GET estáticas ANTES del apiResource.
@@ -145,12 +149,21 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('carteras', CarteraController::class)->only(['index', 'show']);
 
     // Grupo de rutas para Recibos de Pago
-    // Rutas principales de recibos de pago (CRUD estándar)
-    Route::apiResource('recibos-pago', ReciboPagoController::class)
-        ->parameters(['recibos-pago' => 'reciboPago']);
-
-    // Rutas adicionales para funcionalidades específicas de recibos de pago
+    // IMPORTANTE: rutas GET/POST con segmentos estáticos ANTES del apiResource para
+    // evitar colisión con GET /recibos-pago/{id} (show).
     Route::prefix('recibos-pago')->group(function () {
+        // Ruta para generar reportes
+        Route::get('reportes', [ReciboPagoController::class, 'reportes'])
+            ->name('recibos-pago.reportes');
+
+        // Pre-calcula sobrecargos para una lista de medios de pago (antes de crear el recibo)
+        Route::post('precalcular-sobrecargos', [ReciboPagoController::class, 'precalcularSobrecargos'])
+            ->name('recibos-pago.precalcular-sobrecargos');
+
+        // Pre-calcula si aplica descuento por pronto pago para una matrícula y monto (antes de crear el recibo)
+        Route::post('precalcular-descuento', [ReciboPagoController::class, 'precalcularDescuento'])
+            ->name('recibos-pago.precalcular-descuento');
+
         // Ruta para anular un recibo de pago
         Route::post('{reciboPago}/anular', [ReciboPagoController::class, 'anular'])
             ->name('recibos-pago.anular');
@@ -167,9 +180,13 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('{reciboPago}/enviar-email', [ReciboPagoController::class, 'enviarEmail'])
             ->name('recibos-pago.enviar-email');
 
-        // Ruta para generar reportes
-        Route::get('reportes', [ReciboPagoController::class, 'reportes'])
-            ->name('recibos-pago.reportes');
+        // Agrega un nuevo medio de pago a un recibo existente (sin reemplazar los ya registrados)
+        Route::post('{reciboPago}/agregar-medio-pago', [ReciboPagoController::class, 'agregarMedioPago'])
+            ->name('recibos-pago.agregar-medio-pago');
     });
+
+    // Rutas principales de recibos de pago (CRUD estándar)
+    Route::apiResource('recibos-pago', ReciboPagoController::class)
+        ->parameters(['recibos-pago' => 'reciboPago']);
 });
 

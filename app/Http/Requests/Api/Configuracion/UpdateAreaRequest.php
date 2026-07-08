@@ -29,7 +29,7 @@ class UpdateAreaRequest extends FormRequest
     {
         return [
             'nombre' => ['sometimes', 'string', 'max:255'],
-            'status' => ['sometimes'] + self::getStatusValidationRule(),
+            'status' => self::getStatusValidationRule(),
             'sedes' => ['sometimes', 'array'],
             'sedes.*' => ['integer', 'exists:sedes,id'],
         ];

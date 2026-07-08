@@ -21,6 +21,12 @@ class Kernel extends ConsoleKernel
         // Comando para gestionar automáticamente los estados de los descuentos
         // Activa descuentos aprobados e inactiva descuentos vencidos diariamente
         $schedule->command('financiero:gestionar-descuentos')->daily();
+
+        // Notifica aplazamientos pendientes cuya fecha probable de reinicio ya llegó
+        $schedule->command('academico:verificar-aplazamientos')->daily();
+
+        // Aplica mora diaria a las carteras vencidas con saldo pendiente
+        $schedule->command('financiero:aplicar-mora-diaria')->dailyAt('00:30');
     }
 
     /**

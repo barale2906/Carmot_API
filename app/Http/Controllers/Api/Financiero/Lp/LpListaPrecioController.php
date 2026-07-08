@@ -7,7 +7,6 @@ use App\Http\Requests\Api\Financiero\Lp\CloneLpListaPrecioRequest;
 use App\Http\Requests\Api\Financiero\Lp\StoreLpListaPrecioRequest;
 use App\Http\Requests\Api\Financiero\Lp\UpdateLpListaPrecioRequest;
 use App\Http\Resources\Api\Financiero\Lp\LpListaPrecioResource;
-use App\Models\Financiero\Descuento\Descuento;
 use App\Models\Financiero\Lp\LpListaPrecio;
 use App\Models\Financiero\Lp\LpPrecioProducto;
 use Illuminate\Http\JsonResponse;
@@ -295,7 +294,6 @@ class LpListaPrecioController extends Controller
     /**
      * Aprueba una lista de precios cambiando su estado a "Aprobada".
      * Solo las listas en estado "En Proceso" pueden ser aprobadas.
-     * Aprueba en cascada todos los descuentos asociados que estén en "En Proceso".
      *
      * @param LpListaPrecio $lpListaPrecio Lista de precios a aprobar
      * @return JsonResponse Respuesta JSON con la lista de precios aprobada
@@ -309,23 +307,13 @@ class LpListaPrecioController extends Controller
                 ], 422);
             }
 
-            DB::beginTransaction();
-
             $lpListaPrecio->update(['status' => LpListaPrecio::STATUS_APROBADA]);
-
-            $lpListaPrecio->descuentos()
-                ->where('status', Descuento::STATUS_EN_PROCESO)
-                ->update(['status' => Descuento::STATUS_APROBADO]);
-
-            DB::commit();
 
             return response()->json([
                 'message' => 'Lista de precios aprobada exitosamente.',
                 'data' => new LpListaPrecioResource($lpListaPrecio->fresh()),
             ]);
         } catch (\Exception $e) {
-            DB::rollBack();
-
             return response()->json([
                 'message' => 'Error al aprobar la lista de precios.',
                 'error' => $e->getMessage(),

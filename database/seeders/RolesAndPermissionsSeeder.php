@@ -334,6 +334,38 @@ class RolesAndPermissionsSeeder extends Seeder
                     //'modulo'=>'configuracion'
                     ])->syncRoles([$Superusuario,$financiero,$coordinador]);
 
+        // Create permissions tipos de aplazamiento
+        Permission::create([
+                    'name'=>'aca_tiposAplazamiento',
+                    'descripcion'=>'ver tipos de aplazamiento',
+                    ])->syncRoles([$Superusuario,$financiero,$coordinador]);
+        Permission::create([
+                    'name'=>'aca_tipoAplazamientoCrear',
+                    'descripcion'=>'crear tipo de aplazamiento',
+                    ])->syncRoles([$Superusuario,$coordinador]);
+        Permission::create([
+                    'name'=>'aca_tipoAplazamientoEditar',
+                    'descripcion'=>'editar tipo de aplazamiento',
+                    ])->syncRoles([$Superusuario,$coordinador]);
+        Permission::create([
+                    'name'=>'aca_tipoAplazamientoInactivar',
+                    'descripcion'=>'inactivar tipo de aplazamiento',
+                    ])->syncRoles([$Superusuario,$coordinador]);
+
+        // Create permissions aplazamientos de ciclos
+        Permission::create([
+                    'name'=>'aca_aplazamientos',
+                    'descripcion'=>'ver aplazamientos de ciclos',
+                    ])->syncRoles([$Superusuario,$financiero,$coordinador]);
+        Permission::create([
+                    'name'=>'aca_aplazamientoCrear',
+                    'descripcion'=>'crear y gestionar aplazamientos (aplazar, confirmar, ampliar, interrumpir)',
+                    ])->syncRoles([$Superusuario,$coordinador]);
+        Permission::create([
+                    'name'=>'aca_aplazamientoInactivar',
+                    'descripcion'=>'revertir aplazamientos de ciclos',
+                    ])->syncRoles([$Superusuario]);
+
         // Create permissions temas
         Permission::create([
                     'name'=>'aca_temas',

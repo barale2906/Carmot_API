@@ -359,10 +359,11 @@ El `GrupoSeeder` ahora crea grupos con distribución realista:
 ## Notas Importantes
 
 1. **Eliminación en Cascada**: Al eliminar un grupo, sus horarios se eliminan automáticamente
-2. **Validación de Solapamiento**: Se valida automáticamente al crear o actualizar horarios considerando la duración real
+2. **Validación de Solapamiento**: Se valida automáticamente al crear o actualizar horarios **dentro del mismo grupo** considerando la duración real. No se valida cruce entre grupos distintos.
 3. **Campos Automáticos**: `grupo_id`, `grupo_nombre`, `sede_id`, `tipo` y `periodo` se llenan automáticamente
 4. **Duración de Clases**: Campo `duracion_horas` permite clases de 1-8 horas (por defecto 1 hora)
 5. **Soft Delete**: Los horarios respetan el soft delete del grupo
 6. **Creación en Una Sola Petición**: Se puede crear un grupo con horarios usando el endpoint `POST /api/academico/grupos`
 7. **Cálculo Automático**: El campo `hora_fin` se calcula automáticamente como `hora + duracion_horas`
 8. **Estadísticas Precisas**: `total_horas_semana` suma las duraciones reales de todos los horarios
+9. **Área compartida entre grupos (requerimiento de cliente)**: Un área puede asignarse a múltiples grupos en el mismo horario. No existe restricción de exclusividad — el backend no tiene UNIQUE sobre `(area_id, dia, hora)` ni validación cross-grupo. El semanario devuelve todos los grupos asignados al slot en `ocupados`; el frontend debe permitir agregar más grupos a un slot ya ocupado.

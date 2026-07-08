@@ -36,6 +36,7 @@ class DatabaseSeeder extends Seeder
             //AsistenciaConfiguracionSeeder::class,
             //AsistenciaClaseProgramadaSeeder::class,
             //AsistenciaSeeder::class,
+            TipoAplazamientoSeeder::class,
             ConceptoPagoSeeder::class,
             // Seeders del módulo financiero - Listas de precios
             //LpTipoProductoSeeder::class,

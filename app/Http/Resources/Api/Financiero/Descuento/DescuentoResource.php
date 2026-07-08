@@ -24,31 +24,36 @@ class DescuentoResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-            'id' => $this->id,
-            'nombre' => $this->nombre,
-            'codigo_descuento' => $this->codigo_descuento,
-            'descripcion' => $this->descripcion,
-            'tipo' => $this->tipo,
-            'tipo_text' => $this->getTipoText(),
-            'valor' => (float) $this->valor,
-            'valor_formatted' => number_format((float) $this->valor, 2, '.', ','),
-            'aplicacion' => $this->aplicacion,
-            'aplicacion_text' => $this->getAplicacionText(),
-            'tipo_activacion' => $this->tipo_activacion,
+            'id'                   => $this->id,
+            'tipo_movimiento'      => $this->tipo_movimiento,
+            'tipo_movimiento_text' => $this->getTipoMovimientoText(),
+            'es_sobrecargo'        => $this->esSobrecargo(),
+            'nombre'               => $this->nombre,
+            'codigo_descuento'     => $this->codigo_descuento,
+            'descripcion'          => $this->descripcion,
+            'tipo'                 => $this->tipo,
+            'tipo_text'            => $this->getTipoText(),
+            'valor'                => (float) $this->valor,
+            'valor_formatted'      => number_format((float) $this->valor, 2, '.', ','),
+            'aplicacion'           => $this->aplicacion,
+            'aplicacion_text'      => $this->getAplicacionText(),
+            'tipo_activacion'      => $this->tipo_activacion,
             'tipo_activacion_text' => $this->getTipoActivacionText(),
-            'dias_anticipacion' => $this->dias_anticipacion,
-            'permite_acumulacion' => (bool) $this->permite_acumulacion,
-            'fecha_inicio' => $this->fecha_inicio?->format('Y-m-d'),
-            'fecha_fin' => $this->fecha_fin?->format('Y-m-d'),
-            'status' => $this->status,
-            'status_text' => $this->status_text,
-            'esta_vigente' => $this->estaVigente(),
-            'listas_precios' => $this->getListasPreciosArray(),
-            'productos' => $this->getProductosArray(),
-            'sedes' => $this->getSedesArray(),
-            'poblaciones' => $this->getPoblacionesArray(),
-            'created_at' => $this->created_at?->format('Y-m-d H:i:s'),
-            'updated_at' => $this->updated_at?->format('Y-m-d H:i:s'),
+            'dias_anticipacion'    => $this->dias_anticipacion,
+            'permite_acumulacion'  => (bool) $this->permite_acumulacion,
+            'medios_pago'          => $this->medios_pago ?? [],
+            'marca_tarjeta'        => $this->marca_tarjeta ?? [],
+            'fecha_inicio'         => $this->fecha_inicio?->format('Y-m-d'),
+            'fecha_fin'            => $this->fecha_fin?->format('Y-m-d'),
+            'status'               => $this->status,
+            'status_text'          => $this->status_text,
+            'esta_vigente'         => $this->estaVigente(),
+            'listas_precios'       => $this->getListasPreciosArray(),
+            'productos'            => $this->getProductosArray(),
+            'sedes'                => $this->getSedesArray(),
+            'poblaciones'          => $this->getPoblacionesArray(),
+            'created_at'           => $this->created_at?->format('Y-m-d H:i:s'),
+            'updated_at'           => $this->updated_at?->format('Y-m-d H:i:s'),
         ];
     }
 
@@ -134,47 +139,45 @@ class DescuentoResource extends JsonResource
         })->values()->toArray();
     }
 
-    /**
-     * Obtiene el texto del tipo de descuento.
-     *
-     * @return string
-     */
+    private function getTipoMovimientoText(): string
+    {
+        return match ($this->tipo_movimiento) {
+            'descuento'  => 'Descuento',
+            'sobrecargo' => 'Sobrecargo',
+            default      => 'Desconocido',
+        };
+    }
+
     private function getTipoText(): string
     {
         return match ($this->tipo) {
             'porcentual' => 'Porcentual',
             'valor_fijo' => 'Valor Fijo',
-            default => 'Desconocido',
+            default      => 'Desconocido',
         };
     }
 
-    /**
-     * Obtiene el texto de la aplicación del descuento.
-     *
-     * @return string
-     */
     private function getAplicacionText(): string
     {
         return match ($this->aplicacion) {
-            'valor_total' => 'Valor Total',
-            'matricula' => 'Matrícula',
-            'cuota' => 'Cuota',
-            default => 'Desconocido',
+            'valor_total'   => 'Valor Total',
+            'matricula'     => 'Matrícula',
+            'cuota'         => 'Cuota',
+            'valor_recibo'  => 'Valor del Recibo',
+            'saldo_cartera' => 'Saldo de Cartera (Mora)',
+            default         => 'Desconocido',
         };
     }
 
-    /**
-     * Obtiene el texto del tipo de activación.
-     *
-     * @return string
-     */
     private function getTipoActivacionText(): string
     {
         return match ($this->tipo_activacion) {
-            'pago_anticipado' => 'Pago Anticipado',
+            'pago_anticipado'     => 'Pago Anticipado',
             'promocion_matricula' => 'Promoción de Matrícula',
-            'codigo_promocional' => 'Código Promocional',
-            default => 'Desconocido',
+            'codigo_promocional'  => 'Código Promocional',
+            'medio_pago'          => 'Medio de Pago',
+            'mora_automatica'     => 'Mora Automática',
+            default               => 'Desconocido',
         };
     }
 }

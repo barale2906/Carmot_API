@@ -64,15 +64,24 @@ class StoreReciboPagoRequest extends FormRequest
             'conceptos_adicionales.*.concepto_pago_id' => 'required|integer|exists:conceptos_pago,id',
             'conceptos_adicionales.*.cantidad'          => 'required|integer|min:1',
 
-            // Medios de pago — la suma debe igualar monto_a_pagar
+            // Medios de pago — la suma debe igualar monto_a_pagar (bruto, incluye sobrecargos)
             'medios_pago'                               => 'required|array|min:1',
             'medios_pago.*.medio_pago'                  => ['required', 'string', Rule::in([
                 'efectivo', 'transferencia', 'tarjeta_debito',
                 'tarjeta_credito', 'cheque', 'consignacion',
             ])],
+            // tipo_tarjeta: libre y configurable (visa, mastercard, amex, etc.)
+            // Solo aplica cuando medio_pago es tarjeta_debito o tarjeta_credito.
+            'medios_pago.*.tipo_tarjeta'                => 'nullable|string|max:60',
             'medios_pago.*.valor'                       => 'required|numeric|min:0',
             'medios_pago.*.referencia'                  => 'nullable|string|max:100',
             'medios_pago.*.banco'                       => 'nullable|string|max:100',
+
+            // Sobrecargos seleccionados por el cajero (pre-calculados vía /precalcular-sobrecargos)
+            // Cada ítem vincula un sobrecargo a un índice de medio de pago
+            'sobrecargos'                               => 'nullable|array',
+            'sobrecargos.*.descuento_id'                => 'required|exists:descuentos,id',
+            'sobrecargos.*.medio_pago_index'            => 'required|integer|min:0', // índice en medios_pago[]
         ];
     }
 
@@ -89,8 +98,22 @@ class StoreReciboPagoRequest extends FormRequest
                 if (abs($suma - (float) $this->monto_a_pagar) > 0.01) {
                     $validator->errors()->add(
                         'medios_pago',
-                        'La suma de los medios de pago debe ser igual al monto a pagar.'
+                        'La suma de los medios de pago debe ser igual al monto a pagar (incluyendo sobrecargos).'
                     );
+                }
+            }
+
+            // Validar que los índices de sobrecargos referencien medios_pago existentes
+            if ($this->has('sobrecargos') && $this->has('medios_pago')) {
+                $totalMedios = count($this->medios_pago);
+                foreach ($this->input('sobrecargos', []) as $i => $s) {
+                    $idx = (int) ($s['medio_pago_index'] ?? -1);
+                    if ($idx < 0 || $idx >= $totalMedios) {
+                        $validator->errors()->add(
+                            "sobrecargos.{$i}.medio_pago_index",
+                            "El índice de medio de pago no es válido."
+                        );
+                    }
                 }
             }
         });
@@ -123,8 +146,12 @@ class StoreReciboPagoRequest extends FormRequest
             'medios_pago.min'                                    => 'Debe incluir al menos un medio de pago.',
             'medios_pago.*.medio_pago.required'                  => 'El tipo de medio de pago es obligatorio.',
             'medios_pago.*.medio_pago.in'                        => 'El medio de pago no es válido.',
+            'medios_pago.*.tipo_tarjeta.max'                     => 'La marca de tarjeta no puede exceder 60 caracteres.',
             'medios_pago.*.valor.required'                       => 'El valor del medio de pago es obligatorio.',
             'medios_pago.*.valor.min'                            => 'El valor del medio de pago no puede ser negativo.',
+            'sobrecargos.*.descuento_id.required'                => 'El ID del sobrecargo es obligatorio.',
+            'sobrecargos.*.descuento_id.exists'                  => 'El sobrecargo seleccionado no existe.',
+            'sobrecargos.*.medio_pago_index.required'            => 'El índice de medio de pago del sobrecargo es obligatorio.',
             'conceptos_adicionales.*.concepto_pago_id.required'  => 'El concepto adicional es obligatorio.',
             'conceptos_adicionales.*.concepto_pago_id.exists'    => 'Uno de los conceptos adicionales no existe.',
             'conceptos_adicionales.*.cantidad.required'          => 'La cantidad es obligatoria para cada concepto adicional.',

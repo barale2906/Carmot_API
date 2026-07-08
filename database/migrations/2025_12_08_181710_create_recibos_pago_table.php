@@ -25,8 +25,9 @@ return new class extends Migration
             $table->integer('origen')->default(1)->comment('Tipo de origen (0=Inventarios, 1=Académico)');
             $table->date('fecha_recibo')->comment('Fecha del recibo');
             $table->dateTime('fecha_transaccion')->comment('Momento en que ingresó el dinero');
-            $table->decimal('valor_total', 15, 2)->comment('Valor total del recibo');
-            $table->decimal('descuento_total', 15, 2)->default(0)->comment('Descuento total aplicado');
+            $table->decimal('valor_total', 15, 2)->comment('Monto bruto recibido del pagador (incluye sobrecargos)');
+            $table->decimal('descuento_total', 15, 2)->default(0)->comment('Descuento total aplicado a la deuda');
+            $table->decimal('sobrecargo_total', 15, 2)->default(0)->comment('Total de sobrecargos cobrados (cargos por medio de pago, etc.)');
             $table->string('banco', 100)->nullable()->comment('Banco donde ingresó el dinero');
             $table->integer('status')->default(0)->comment('Estado del recibo (0=En proceso, 1=Creado, 2=Cerrado, 3=Anulado)');
             $table->unsignedInteger('cierre')->nullable()->comment('Número de cierre de caja');

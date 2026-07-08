@@ -21,8 +21,11 @@ return new class extends Migration
 
             $table->foreignId('recibo_pago_id')->constrained('recibos_pago')->onDelete('cascade')->comment('ID del recibo de pago');
 
-            $table->string('medio_pago', 50)->comment('Medio de pago (efectivo, tarjeta, transferencia, cheque, etc.)');
-            $table->decimal('valor', 15, 2)->comment('Valor pagado con este medio');
+            $table->string('medio_pago', 50)->comment('Medio de pago: efectivo, transferencia, tarjeta_debito, tarjeta_credito, cheque, consignacion');
+            // tipo_tarjeta es libre y configurable: "visa", "mastercard", "amex", etc.
+            // Solo aplica cuando medio_pago es tarjeta_credito o tarjeta_debito.
+            $table->string('tipo_tarjeta', 60)->nullable()->comment('Marca de tarjeta (visa, mastercard, amex…); libre y configurable, solo para medios tarjeta_*');
+            $table->decimal('valor', 15, 2)->comment('Valor pagado con este medio (incluye el sobrecargo si aplica)');
             $table->string('referencia', 100)->nullable()->comment('Referencia del pago (número de cheque, transferencia, etc.)');
             $table->string('banco', 100)->nullable()->comment('Banco relacionado (si aplica)');
 

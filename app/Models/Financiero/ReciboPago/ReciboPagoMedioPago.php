@@ -41,11 +41,6 @@ class ReciboPagoMedioPago extends Model
      */
     protected $guarded = ['id', 'created_at', 'updated_at'];
 
-    /**
-     * Los atributos que deben ser convertidos a tipos nativos.
-     *
-     * @var array<string, string>
-     */
     protected $casts = [
         'valor' => 'decimal:2',
     ];

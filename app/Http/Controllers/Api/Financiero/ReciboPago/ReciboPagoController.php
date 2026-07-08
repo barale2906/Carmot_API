@@ -11,7 +11,11 @@ use App\Models\Academico\Matricula;
 use App\Models\Financiero\Cartera\Cartera;
 use App\Models\Financiero\ConceptoPago\ConceptoPago;
 use App\Models\Financiero\ReciboPago\ReciboPago;
+use App\Models\Financiero\Descuento\Descuento;
 use App\Models\Financiero\ReciboPago\ReciboPagoMedioPago;
+use App\Models\Financiero\ReciboPago\ReciboPagoSobrecargo;
+use App\Services\Financiero\AjusteService;
+use App\Services\Financiero\CarteraDescuentoService;
 use App\Services\Financiero\ReciboPagoPDFService;
 use App\Services\Financiero\ReciboPagoDistribucionService;
 use Carbon\Carbon;
@@ -34,15 +38,18 @@ class ReciboPagoController extends Controller
 {
     public function __construct(
         private readonly ReciboPagoDistribucionService $distribucionService,
+        private readonly AjusteService $ajusteService,
+        private readonly CarteraDescuentoService $carteraDescuentoService,
     ) {
         $this->middleware('auth:sanctum');
         $this->middleware('permission:fin_recibos_pago')->only(['index', 'show']);
-        $this->middleware('permission:fin_reciboPagoCrear')->only(['store']);
+        $this->middleware('permission:fin_reciboPagoCrear')->only(['store', 'agregarMedioPago']);
         $this->middleware('permission:fin_reciboPagoEditar')->only(['update']);
         $this->middleware('permission:fin_reciboPagoAnular')->only(['anular']);
         $this->middleware('permission:fin_reciboPagoCerrar')->only(['cerrar']);
         $this->middleware('permission:fin_reciboPagoPDF')->only(['generarPDF']);
         $this->middleware('permission:fin_reciboPagoReportes')->only(['reportes']);
+        $this->middleware('permission:fin_recibos_pago')->only(['precalcularSobrecargos', 'precalcularDescuento']);
     }
 
     /**
@@ -287,19 +294,36 @@ class ReciboPagoController extends Controller
             }
 
             // ── 6. Medios de pago ─────────────────────────────────────────────
+            $mediosPagoCreados = [];
             foreach ($data['medios_pago'] as $medio) {
-                ReciboPagoMedioPago::create([
+                $mediosPagoCreados[] = ReciboPagoMedioPago::create([
                     'recibo_pago_id' => $recibo->id,
                     'medio_pago'     => $medio['medio_pago'],
+                    'tipo_tarjeta'   => $medio['tipo_tarjeta'] ?? null,
                     'valor'          => $medio['valor'],
                     'referencia'     => $medio['referencia'] ?? null,
                     'banco'          => $medio['banco'] ?? null,
                 ]);
             }
 
+            // ── 7. Sobrecargos seleccionados por el cajero ────────────────────
+            $sobrecargoTotal = 0.0;
+            foreach ($data['sobrecargos'] ?? [] as $sc) {
+                $sobrecargo = Descuento::findOrFail($sc['descuento_id']);
+                $medioPago  = $mediosPagoCreados[$sc['medio_pago_index']];
+                $registro   = $this->ajusteService->aplicarSobrecargo($sobrecargo, $recibo, $medioPago);
+                $sobrecargoTotal += (float) $registro->valor_sobrecargo;
+            }
+
+            // Actualizar sobrecargo_total y valor_total (bruto = neto + sobrecargos)
+            if ($sobrecargoTotal > 0) {
+                $recibo->increment('sobrecargo_total', $sobrecargoTotal);
+                $recibo->increment('valor_total', $sobrecargoTotal);
+            }
+
             DB::commit();
 
-            $recibo->load(['sede', 'cajero', 'matricula', 'conceptosPago', 'listasPrecio', 'mediosPago']);
+            $recibo->load(['sede', 'cajero', 'matricula', 'conceptosPago', 'listasPrecio', 'mediosPago', 'sobrecargos.sobrecargo']);
 
             return response()->json([
                 'message' => 'Recibo de pago creado exitosamente.',
@@ -430,28 +454,39 @@ class ReciboPagoController extends Controller
                 }
             }
 
-            // Actualizar medios de pago
+            // Actualizar medios de pago (borra y recrea todos)
             if (isset($data['medios_pago'])) {
+                // Borrar sobrecargos vinculados a los medios actuales antes de eliminarlos
+                $reciboPago->sobrecargos()->delete();
                 $reciboPago->mediosPago()->delete();
+
+                $mediosPagoCreados = [];
                 foreach ($data['medios_pago'] as $medio) {
-                    ReciboPagoMedioPago::create([
+                    $mediosPagoCreados[] = ReciboPagoMedioPago::create([
                         'recibo_pago_id' => $reciboPago->id,
-                        'medio_pago' => $medio['medio_pago'],
-                        'valor' => $medio['valor'],
-                        'referencia' => $medio['referencia'] ?? null,
-                        'banco' => $medio['banco'] ?? null,
+                        'medio_pago'     => $medio['medio_pago'],
+                        'tipo_tarjeta'   => $medio['tipo_tarjeta'] ?? null,
+                        'valor'          => $medio['valor'],
+                        'referencia'     => $medio['referencia'] ?? null,
+                        'banco'          => $medio['banco'] ?? null,
                     ]);
+                }
+
+                // Re-aplicar sobrecargos si se proporcionan
+                foreach ($data['sobrecargos'] ?? [] as $sc) {
+                    $sobrecargo = Descuento::findOrFail($sc['descuento_id']);
+                    $medioPago  = $mediosPagoCreados[$sc['medio_pago_index']];
+                    $this->ajusteService->aplicarSobrecargo($sobrecargo, $reciboPago, $medioPago);
                 }
             }
 
-            // Recalcular totales
+            // Recalcular totales (incluye sobrecargo_total)
             $totales = $reciboPago->calcularTotales();
             $reciboPago->update($totales);
 
             DB::commit();
 
-            // Cargar relaciones para la respuesta
-            $reciboPago->load(['sede', 'estudiante', 'cajero', 'matricula', 'conceptosPago', 'listasPrecio', 'productos', 'descuentos', 'mediosPago']);
+            $reciboPago->load(['sede', 'estudiante', 'cajero', 'matricula', 'conceptosPago', 'listasPrecio', 'productos', 'descuentos', 'mediosPago', 'sobrecargos.sobrecargo']);
 
             return response()->json([
                 'message' => 'Recibo de pago actualizado exitosamente.',
@@ -464,6 +499,134 @@ class ReciboPagoController extends Controller
                 'message' => 'Error al actualizar el recibo de pago.',
                 'error' => $e->getMessage(),
             ], 500);
+        }
+    }
+
+    /**
+     * Pre-calcula los sobrecargos aplicables a una lista de medios de pago sin persistir nada.
+     * El cajero lo llama al seleccionar el medio de pago para ver el recargo antes de confirmar.
+     *
+     * @param Request $request medios_pago: [{medio_pago, tipo_tarjeta, valor}]
+     * @return JsonResponse Sobrecargos calculados y total
+     */
+    public function precalcularSobrecargos(Request $request): JsonResponse
+    {
+        try {
+            $request->validate([
+                'medios_pago'                  => 'required|array|min:1',
+                'medios_pago.*.medio_pago'     => ['required', 'string'],
+                'medios_pago.*.tipo_tarjeta'   => 'nullable|string|max:60',
+                'medios_pago.*.valor'          => 'required|numeric|min:0',
+            ]);
+
+            $resultado = $this->ajusteService->precalcular($request->input('medios_pago'));
+
+            return response()->json(['data' => $resultado]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json(['message' => 'Error de validación.', 'errors' => $e->errors()], 422);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Error al pre-calcular sobrecargos.', 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Pre-calcula si aplica un descuento por pronto pago para una matrícula y monto dados.
+     * No persiste nada. Debe llamarse antes de crear el recibo para informar al cajero
+     * si puede enviar aplicar_descuento=true en el store.
+     *
+     * @param Request $request matricula_id, monto_a_pagar, fecha_transaccion (opcional)
+     * @return JsonResponse aplica, valor, motivo y datos del descuento
+     */
+    public function precalcularDescuento(Request $request): JsonResponse
+    {
+        try {
+            $request->validate([
+                'matricula_id'      => 'required|integer|exists:matriculas,id',
+                'monto_a_pagar'     => 'required|numeric|min:0.01',
+                'fecha_transaccion' => 'nullable|date',
+            ]);
+
+            $matricula = Matricula::findOrFail($request->integer('matricula_id'));
+            $monto     = (float) $request->input('monto_a_pagar');
+            $fecha     = $request->filled('fecha_transaccion')
+                ? Carbon::parse($request->input('fecha_transaccion'))
+                : Carbon::today();
+
+            $resultado = $this->carteraDescuentoService->calcular($matricula, $monto, $fecha);
+
+            return response()->json([
+                'data' => [
+                    'aplica'  => $resultado['aplica'],
+                    'valor'   => $resultado['valor'],
+                    'motivo'  => $resultado['motivo'],
+                    'descuento' => $resultado['descuento'] ? [
+                        'id'     => $resultado['descuento']->id,
+                        'nombre' => $resultado['descuento']->nombre,
+                        'tipo'   => $resultado['descuento']->tipo,
+                        'valor'  => (float) $resultado['descuento']->valor,
+                    ] : null,
+                ],
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json(['message' => 'Error de validación.', 'errors' => $e->errors()], 422);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Error al pre-calcular descuento.', 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Agrega un nuevo medio de pago a un recibo existente.
+     * El valor del nuevo medio no puede superar el saldo no cubierto del recibo.
+     *
+     * @param Request $request medio_pago, tipo_tarjeta, valor, referencia, banco
+     * @param ReciboPago $reciboPago Recibo al que se agrega el medio de pago
+     * @return JsonResponse
+     */
+    public function agregarMedioPago(Request $request, ReciboPago $reciboPago): JsonResponse
+    {
+        try {
+            $request->validate([
+                'medio_pago'   => ['required', 'string', \Illuminate\Validation\Rule::in([
+                    'efectivo', 'transferencia', 'tarjeta_debito', 'tarjeta_credito', 'cheque', 'consignacion',
+                ])],
+                'tipo_tarjeta' => 'nullable|string|max:60',
+                'valor'        => 'required|numeric|min:0.01',
+                'referencia'   => 'nullable|string|max:100',
+                'banco'        => 'nullable|string|max:100',
+            ]);
+
+            // Calcular el saldo no cubierto por medios de pago ya registrados
+            $yaRegistrado = (float) $reciboPago->mediosPago()->sum('valor');
+            $disponible   = (float) $reciboPago->valor_total - $yaRegistrado;
+
+            if ((float) $request->input('valor') > $disponible + 0.01) {
+                return response()->json([
+                    'message' => "El valor ingresado ({$request->input('valor')}) supera el saldo no cubierto ({$disponible}).",
+                ], 422);
+            }
+
+            $medio = ReciboPagoMedioPago::create([
+                'recibo_pago_id' => $reciboPago->id,
+                'medio_pago'     => $request->string('medio_pago'),
+                'tipo_tarjeta'   => $request->input('tipo_tarjeta'),
+                'valor'          => $request->input('valor'),
+                'referencia'     => $request->input('referencia'),
+                'banco'          => $request->input('banco'),
+            ]);
+
+            return response()->json([
+                'message' => 'Medio de pago agregado exitosamente.',
+                'data'    => [
+                    'id'           => $medio->id,
+                    'medio_pago'   => $medio->medio_pago,
+                    'tipo_tarjeta' => $medio->tipo_tarjeta,
+                    'valor'        => (float) $medio->valor,
+                ],
+            ], 201);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json(['message' => 'Error de validación.', 'errors' => $e->errors()], 422);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Error al agregar medio de pago.', 'error' => $e->getMessage()], 500);
         }
     }
 

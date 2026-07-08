@@ -286,8 +286,11 @@ class HorarioController extends Controller
      * Obtiene el semanario de un área para dibujar ocupación y disponibilidad.
      *
      * Requiere sede_id y area_id. Devuelve por cada día de la semana:
-     * - disponibilidad: ventana de horario de atención (inicio/fin)
-     * - ocupados: bloques ocupados por grupos con hora_inicio, hora_fin y grupo_nombre
+     * - disponible: ventana de horario de atención (inicio/fin)
+     * - ocupados: lista de TODOS los grupos asignados en ese día, con hora_inicio, hora_fin
+     *   y grupo_nombre. Un área puede aparecer en varios grupos al mismo tiempo (no existe
+     *   restricción de exclusividad); el frontend debe mostrar todos los bloques sin bloquear
+     *   la asignación de grupos adicionales al mismo slot.
      *
      * @param Request $request Parámetros: sede_id (requerido), area_id (requerido)
      * @return JsonResponse

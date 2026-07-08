@@ -3,7 +3,6 @@
 namespace Tests\Feature\Api\Financiero\Lp;
 
 use App\Models\Configuracion\Poblacion;
-use App\Models\Financiero\Descuento\Descuento;
 use App\Models\Financiero\Lp\LpListaPrecio;
 use App\Models\Financiero\Lp\LpPrecioProducto;
 use App\Models\Financiero\Lp\LpProducto;
@@ -176,25 +175,6 @@ class LpListaPrecioTest extends TestCase
             ->assertJsonPath('data.status', LpListaPrecio::STATUS_APROBADA);
 
         $this->assertDatabaseHas('lp_listas_precios', ['id' => $lista->id, 'status' => LpListaPrecio::STATUS_APROBADA]);
-    }
-
-    /** @test */
-    public function aprobar_lista_aprueba_en_cascada_los_descuentos_en_proceso(): void
-    {
-        $lista = LpListaPrecio::factory()->enProceso()->create();
-
-        $descEnProceso = Descuento::factory()->enProceso()->create();
-        $descAprobado  = Descuento::factory()->aprobado()->create();
-
-        $lista->descuentos()->attach([$descEnProceso->id, $descAprobado->id]);
-
-        $this->actingAs($this->usuario)
-            ->postJson(route('listas-precios.aprobar', $lista))
-            ->assertOk();
-
-        $this->assertDatabaseHas('descuentos', ['id' => $descEnProceso->id, 'status' => Descuento::STATUS_APROBADO]);
-        // El que ya estaba aprobado no debe cambiar
-        $this->assertDatabaseHas('descuentos', ['id' => $descAprobado->id, 'status' => Descuento::STATUS_APROBADO]);
     }
 
     /** @test */

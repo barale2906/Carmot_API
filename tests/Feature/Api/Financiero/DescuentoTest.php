@@ -44,6 +44,7 @@ class DescuentoTest extends TestCase
     private function datosBase(array $overrides = []): array
     {
         return array_merge([
+            'tipo_movimiento'   => Descuento::MOVIMIENTO_DESCUENTO,
             'nombre'            => 'Descuento pronto pago',
             'tipo'              => Descuento::TIPO_PORCENTUAL,
             'valor'             => 10,
@@ -123,7 +124,18 @@ class DescuentoTest extends TestCase
         $this->actingAs($this->usuario)
             ->postJson(route('descuentos.store'), [])
             ->assertUnprocessable()
-            ->assertJsonValidationErrors(['nombre', 'tipo', 'valor', 'aplicacion', 'tipo_activacion', 'fecha_inicio', 'fecha_fin']);
+            ->assertJsonValidationErrors(['tipo_movimiento', 'nombre', 'tipo', 'valor', 'aplicacion', 'tipo_activacion', 'fecha_inicio', 'fecha_fin']);
+    }
+
+    /** @test */
+    public function crea_un_descuento_y_retorna_tipo_movimiento(): void
+    {
+        $response = $this->actingAs($this->usuario)
+            ->postJson(route('descuentos.store'), $this->datosBase());
+
+        $response->assertCreated()
+            ->assertJsonPath('data.tipo_movimiento', Descuento::MOVIMIENTO_DESCUENTO)
+            ->assertJsonPath('data.es_sobrecargo', false);
     }
 
     /** @test */

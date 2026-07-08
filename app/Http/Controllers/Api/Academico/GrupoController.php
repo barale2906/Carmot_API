@@ -102,8 +102,11 @@ class GrupoController extends Controller
 
             // Si se proporcionan horarios, asignarlos al grupo
             if ($request->has('horarios') && !empty($request->horarios)) {
-                // Validar que no haya solapamientos
-                $validacion = $this->validarSolapamientoHorarios($request->horarios);
+                // Deduplicar por (dia, hora): conserva la última ocurrencia de cada slot
+                $horarios = $this->deduplicarHorariosPorSlot($request->horarios);
+
+                // Validar que no haya solapamientos reales
+                $validacion = $this->validarSolapamientoHorarios($horarios);
                 if (!$validacion['valido']) {
                     DB::rollBack();
                     return response()->json([
@@ -113,7 +116,7 @@ class GrupoController extends Controller
                 }
 
                 // Asignar horarios al grupo
-                if (!$this->asignarHorariosAGrupo($grupo, $request->horarios)) {
+                if (!$this->asignarHorariosAGrupo($grupo, $horarios)) {
                     DB::rollBack();
                     return response()->json([
                         'message' => 'Error al asignar horarios al grupo.',
@@ -382,8 +385,11 @@ class GrupoController extends Controller
      */
     public function storeHorarios(StoreGrupoHorarioRequest $request, Grupo $grupo): JsonResponse
     {
-        // Validar que no haya solapamientos
-        $validacion = $this->validarSolapamientoHorarios($request->horarios);
+        // Deduplicar por (dia, hora) antes de validar
+        $horarios = $this->deduplicarHorariosPorSlot($request->horarios);
+
+        // Validar que no haya solapamientos reales
+        $validacion = $this->validarSolapamientoHorarios($horarios);
         if (!$validacion['valido']) {
             return response()->json([
                 'message' => 'Error en la validación de horarios.',
@@ -391,7 +397,7 @@ class GrupoController extends Controller
             ], 422);
         }
 
-        if ($this->asignarHorariosAGrupo($grupo, $request->horarios)) {
+        if ($this->asignarHorariosAGrupo($grupo, $horarios)) {
             // Recargar el grupo con sus horarios
             $grupo->load(['horarios.area']);
 
@@ -415,10 +421,13 @@ class GrupoController extends Controller
      */
     public function updateHorarios(UpdateGrupoHorarioRequest $request, Grupo $grupo): JsonResponse
     {
-        // Si se proporcionan nuevos horarios, validar y actualizar
+        // Si se proporcionan nuevos horarios, deduplicar, validar y actualizar
         if ($request->has('horarios')) {
-            // Validar que no haya solapamientos
-            $validacion = $this->validarSolapamientoHorarios($request->horarios);
+            // Deduplicar por (dia, hora): conserva la última ocurrencia de cada slot
+            $horarios = $this->deduplicarHorariosPorSlot($request->horarios);
+
+            // Validar que no haya solapamientos reales
+            $validacion = $this->validarSolapamientoHorarios($horarios);
             if (!$validacion['valido']) {
                 return response()->json([
                     'message' => 'Error en la validación de horarios.',
@@ -426,7 +435,7 @@ class GrupoController extends Controller
                 ], 422);
             }
 
-            if (!$this->actualizarHorariosDeGrupo($grupo, $request->horarios)) {
+            if (!$this->actualizarHorariosDeGrupo($grupo, $horarios)) {
                 return response()->json([
                     'message' => 'Error al actualizar horarios del grupo.',
                 ], 500);

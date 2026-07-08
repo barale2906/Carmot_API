@@ -5,6 +5,7 @@ namespace App\Http\Resources\Api\Academico;
 use App\Traits\HasActiveStatus;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use App\Http\Resources\Api\Academico\AplazamientoResource;
 
 class CicloResource extends JsonResource
 {
@@ -61,10 +62,32 @@ class CicloResource extends JsonResource
 
             'grupos' => $this->getGruposData(),
 
+            // Aplazamiento activo (Pendiente), si existe
+            'aplazamiento_activo' => $this->whenLoaded('aplazamientoActivo', function () {
+                $activo = $this->aplazamientoActivo->first();
+                if (!$activo) {
+                    return null;
+                }
+                return [
+                    'id'                      => $activo->id,
+                    'fecha_inicio_original'   => $activo->fecha_inicio_original?->format('Y-m-d'),
+                    'fecha_reinicio_probable'  => $activo->fecha_reinicio_probable?->format('Y-m-d'),
+                    'dias_aplazamiento'       => $activo->dias_aplazamiento,
+                    'tipo_aplazamiento'       => $activo->tipoAplazamiento?->nombre,
+                    'mover_cartera'           => $activo->mover_cartera,
+                    'estado_text'             => $activo->estado_text,
+                ];
+            }),
+
+            'aplazamientos' => $this->whenLoaded('aplazamientos', fn () =>
+                AplazamientoResource::collection($this->aplazamientos)
+            ),
+
             // Contadores
-            'sede_count' => $this->when(isset($this->sede_count), (int) $this->sede_count),
-            'curso_count' => $this->when(isset($this->curso_count), (int) $this->curso_count),
-            'grupos_count' => $this->when(isset($this->grupos_count), (int) $this->grupos_count),
+            'sede_count'          => $this->when(isset($this->sede_count), (int) $this->sede_count),
+            'curso_count'         => $this->when(isset($this->curso_count), (int) $this->curso_count),
+            'grupos_count'        => $this->when(isset($this->grupos_count), (int) $this->grupos_count),
+            'aplazamientos_count' => $this->when(isset($this->aplazamientos_count), (int) $this->aplazamientos_count),
         ];
     }
 

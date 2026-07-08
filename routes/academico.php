@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\Academico\AplazamientoController;
 use App\Http\Controllers\Api\Academico\AsistenciaClaseProgramadaController;
 use App\Http\Controllers\Api\Academico\AsistenciaConfiguracionController;
 use App\Http\Controllers\Api\Academico\AsistenciaController;
@@ -13,6 +14,7 @@ use App\Http\Controllers\Api\Academico\ModuloController;
 use App\Http\Controllers\Api\Academico\NotaEstudianteController;
 use App\Http\Controllers\Api\Academico\ProgramacionController;
 use App\Http\Controllers\Api\Academico\TemaController;
+use App\Http\Controllers\Api\Academico\TipoAplazamientoController;
 use App\Http\Controllers\Api\Academico\TopicoController;
 use Illuminate\Support\Facades\Route;
 
@@ -117,8 +119,36 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('{ciclo}/reordenar-grupos', [CicloController::class, 'reordenarGrupos'])->name('ciclos.reordenar-grupos');
         Route::get('{ciclo}/cronograma', [CicloController::class, 'cronograma'])->name('ciclos.cronograma');
         Route::get('{ciclo}/siguiente-orden', [CicloController::class, 'siguienteOrden'])->name('ciclos.siguiente-orden');
+
+        // Aplazamientos del ciclo
+        Route::post('{ciclo}/aplazar', [AplazamientoController::class, 'aplazar'])->name('ciclos.aplazar');
+        Route::get('{ciclo}/aplazamientos', [AplazamientoController::class, 'historialCiclo'])->name('ciclos.aplazamientos');
     });
     Route::apiResource('ciclos', CicloController::class);
+
+    // -------------------------------------------------------------------------
+    // Tipos de aplazamiento
+    // -------------------------------------------------------------------------
+    Route::prefix('tipos-aplazamiento')->group(function () {
+        Route::get('trashed', [TipoAplazamientoController::class, 'trashed'])->name('tipos-aplazamiento.trashed');
+        Route::get('filters', [TipoAplazamientoController::class, 'filters'])->name('tipos-aplazamiento.filters');
+        Route::post('{id}/restore', [TipoAplazamientoController::class, 'restore'])->name('tipos-aplazamiento.restore');
+        Route::delete('{id}/force-delete', [TipoAplazamientoController::class, 'forceDelete'])->name('tipos-aplazamiento.force-delete');
+    });
+    Route::apiResource('tipos-aplazamiento', TipoAplazamientoController::class)
+        ->parameters(['tipos-aplazamiento' => 'tipo_aplazamiento']);
+
+    // -------------------------------------------------------------------------
+    // Aplazamientos (lectura general + acciones sobre aplazamientos existentes)
+    // -------------------------------------------------------------------------
+    Route::prefix('aplazamientos')->group(function () {
+        Route::post('{aplazamiento}/confirmar', [AplazamientoController::class, 'confirmar'])->name('aplazamientos.confirmar');
+        Route::post('{aplazamiento}/ampliar', [AplazamientoController::class, 'ampliar'])->name('aplazamientos.ampliar');
+        Route::post('{aplazamiento}/interrumpir', [AplazamientoController::class, 'interrumpir'])->name('aplazamientos.interrumpir');
+        Route::post('{aplazamiento}/revertir', [AplazamientoController::class, 'revertir'])->name('aplazamientos.revertir');
+    });
+    Route::get('aplazamientos', [AplazamientoController::class, 'index'])->name('aplazamientos.index');
+    Route::get('aplazamientos/{aplazamiento}', [AplazamientoController::class, 'show'])->name('aplazamientos.show');
 
     // -------------------------------------------------------------------------
     // Programaciones

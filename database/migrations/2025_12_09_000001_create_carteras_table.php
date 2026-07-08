@@ -35,9 +35,13 @@ return new class extends Migration
                 ->comment('0 = cargo matrícula; 1..N = cuotas mensuales');
 
             $table->decimal('valor', 15, 2)->comment('valor total de la cuota');
-            $table->decimal('saldo', 15, 2)->comment('saldo pendiente por pagar');
+            $table->decimal('saldo', 15, 2)->comment('saldo pendiente por pagar (excluye mora)');
             $table->decimal('abono', 15, 2)->default(0)->comment('total abonado hasta la fecha');
             $table->decimal('descuento', 15, 2)->default(0)->comment('descuento acumulado aplicado');
+            // mora_acumulada: suma de todos los recargos por mora calculados por el cron diario.
+            // Se registra también en descuento_aplicado (tipo_movimiento=sobrecargo) para historial detallado.
+            $table->decimal('mora_acumulada', 15, 2)->default(0)->comment('Total de mora cobrada por vencimiento (cron diario)');
+            $table->date('fecha_ultimo_cobro_mora')->nullable()->comment('Última fecha en que el cron aplicó mora; evita doble cobro en el mismo día');
 
             $table->date('fecha_vencimiento')->index()
                 ->comment('fecha límite de pago de esta cuota');

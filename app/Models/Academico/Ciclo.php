@@ -120,6 +120,22 @@ class Ciclo extends Model
     }
 
     /**
+     * Historial de aplazamientos del ciclo.
+     */
+    public function aplazamientos(): HasMany
+    {
+        return $this->hasMany(Aplazamiento::class)->orderBy('created_at', 'desc');
+    }
+
+    /**
+     * Aplazamiento activo (estado Pendiente), si existe.
+     */
+    public function aplazamientoActivo(): HasMany
+    {
+        return $this->hasMany(Aplazamiento::class)->where('estado', 0);
+    }
+
+    /**
      * Scope para filtrar por búsqueda de nombre.
      */
     public function scopeSearch($query, $search)
@@ -154,7 +170,9 @@ class Ciclo extends Model
             'curso',
             'grupos',
             'clasesProgramadas',
-            'asistencias'
+            'asistencias',
+            'aplazamientos',
+            'aplazamientoActivo',
         ];
     }
 

@@ -292,6 +292,14 @@ class ReciboPago extends Model
     }
 
     /**
+     * Sobrecargos aplicados en este recibo (recargo por tarjeta, mora, etc.).
+     */
+    public function sobrecargos(): HasMany
+    {
+        return $this->hasMany(\App\Models\Financiero\ReciboPago\ReciboPagoSobrecargo::class, 'recibo_pago_id');
+    }
+
+    /**
      * Scope para filtrar por sede.
      *
      * @param \Illuminate\Database\Eloquent\Builder $query
@@ -479,21 +487,18 @@ class ReciboPago extends Model
      */
     public function calcularTotales(): array
     {
-        $valorTotal = 0;
-        $descuentoTotal = 0;
+        $valorConceptos = (float) $this->conceptosPago()->sum('subtotal');
+        $valorProductos = (float) $this->productos()->sum('subtotal');
+        $descuentoTotal = (float) $this->descuentos()->sum('valor_descuento');
+        $sobrecargoTotal = (float) $this->sobrecargos()->sum('valor_sobrecargo');
 
-        // Sumar subtotales de conceptos de pago
-        $valorTotal += $this->conceptosPago()->sum('subtotal');
-
-        // Sumar subtotales de productos
-        $valorTotal += $this->productos()->sum('subtotal');
-
-        // Sumar descuentos aplicados
-        $descuentoTotal = $this->descuentos()->sum('valor_descuento');
+        // valor_total = lo que el estudiante paga por sus deudas + sobrecargos (monto bruto recibido)
+        $valorTotal = $valorConceptos + $valorProductos + $sobrecargoTotal;
 
         return [
-            'valor_total' => $valorTotal,
+            'valor_total'     => $valorTotal,
             'descuento_total' => $descuentoTotal,
+            'sobrecargo_total' => $sobrecargoTotal,
         ];
     }
 
@@ -504,8 +509,9 @@ class ReciboPago extends Model
      */
     public function validarMediosPago(): bool
     {
-        $sumaMediosPago = $this->mediosPago()->sum('valor');
-        return abs($sumaMediosPago - $this->valor_total) < 0.01; // Tolerancia para decimales
+        $sumaMediosPago = (float) $this->mediosPago()->sum('valor');
+        // valor_total ya incluye sobrecargo_total (monto bruto recibido)
+        return abs($sumaMediosPago - (float) $this->valor_total) < 0.01;
     }
 
     /**

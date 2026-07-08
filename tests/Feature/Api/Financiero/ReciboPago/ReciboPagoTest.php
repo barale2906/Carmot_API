@@ -6,6 +6,7 @@ use App\Models\Academico\Matricula;
 use App\Models\Configuracion\Sede;
 use App\Models\Financiero\Cartera\Cartera;
 use App\Models\Financiero\ConceptoPago\ConceptoPago;
+use App\Models\Financiero\Descuento\Descuento;
 use App\Models\Financiero\ReciboPago\ReciboPago;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -459,5 +460,101 @@ class ReciboPagoTest extends TestCase
         $this->actingAs($sinPermiso)
             ->postJson(route('recibos-pago.cerrar', $recibo))
             ->assertForbidden();
+    }
+
+    // ─── precalcular-descuento ────────────────────────────────────────────────
+
+    /** @test */
+    public function precalcular_descuento_retorna_aplica_true_cuando_hay_descuento_activo_y_sin_mora(): void
+    {
+        // Descuento por pronto pago activo, aplicado a cuota
+        Descuento::factory()->vigente()->pagoAnticipado()->create([
+            'tipo'      => Descuento::TIPO_PORCENTUAL,
+            'valor'     => 10,
+            'aplicacion' => Descuento::APLICACION_CUOTA,
+        ]);
+
+        // Cuota próxima (no vencida)
+        $cartera = Cartera::factory()->create([
+            'matricula_id'    => $this->matricula->id,
+            'sede_id'         => $this->sede->id,
+            'estudiante_id'   => $this->matricula->estudiante_id,
+            'numero_cuota'    => 1,
+            'valor'           => 100000,
+            'saldo'           => 100000,
+            'fecha_vencimiento' => now()->addDays(5)->toDateString(),
+            'status'          => Cartera::getStatusKey('Activa'),
+        ]);
+
+        $this->actingAs($this->usuario)
+            ->postJson(route('recibos-pago.precalcular-descuento'), [
+                'matricula_id'  => $this->matricula->id,
+                'monto_a_pagar' => $cartera->saldo,
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.aplica', true)
+            ->assertJsonPath('data.descuento.tipo', Descuento::TIPO_PORCENTUAL);
+    }
+
+    /** @test */
+    public function precalcular_descuento_retorna_aplica_false_cuando_hay_cuotas_vencidas(): void
+    {
+        Descuento::factory()->vigente()->pagoAnticipado()->create([
+            'aplicacion' => Descuento::APLICACION_CUOTA,
+        ]);
+
+        // Cuota vencida pendiente
+        Cartera::factory()->create([
+            'matricula_id'    => $this->matricula->id,
+            'sede_id'         => $this->sede->id,
+            'estudiante_id'   => $this->matricula->estudiante_id,
+            'numero_cuota'    => 1,
+            'valor'           => 100000,
+            'saldo'           => 100000,
+            'fecha_vencimiento' => now()->subDays(5)->toDateString(),
+            'status'          => Cartera::getStatusKey('Activa'),
+        ]);
+
+        $this->actingAs($this->usuario)
+            ->postJson(route('recibos-pago.precalcular-descuento'), [
+                'matricula_id'  => $this->matricula->id,
+                'monto_a_pagar' => 100000,
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.aplica', false);
+    }
+
+    /** @test */
+    public function precalcular_descuento_retorna_aplica_false_sin_descuento_activo(): void
+    {
+        Cartera::factory()->create([
+            'matricula_id'    => $this->matricula->id,
+            'sede_id'         => $this->sede->id,
+            'estudiante_id'   => $this->matricula->estudiante_id,
+            'numero_cuota'    => 1,
+            'valor'           => 100000,
+            'saldo'           => 100000,
+            'fecha_vencimiento' => now()->addDays(5)->toDateString(),
+            'status'          => Cartera::getStatusKey('Activa'),
+        ]);
+
+        // No existe ningún descuento activo de pronto pago
+
+        $this->actingAs($this->usuario)
+            ->postJson(route('recibos-pago.precalcular-descuento'), [
+                'matricula_id'  => $this->matricula->id,
+                'monto_a_pagar' => 100000,
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.aplica', false);
+    }
+
+    /** @test */
+    public function precalcular_descuento_valida_campos_requeridos(): void
+    {
+        $this->actingAs($this->usuario)
+            ->postJson(route('recibos-pago.precalcular-descuento'), [])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['matricula_id', 'monto_a_pagar']);
     }
 }

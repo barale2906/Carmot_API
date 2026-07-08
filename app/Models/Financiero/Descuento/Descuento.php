@@ -21,97 +21,68 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 /**
  * Modelo Descuento
  *
- * Representa un descuento en el sistema financiero.
- * Los descuentos pueden aplicarse a productos dentro de listas de precios,
- * con capacidad de variación por ubicación y condiciones de activación.
+ * Representa un ajuste de precio (descuento o sobrecargo) en el sistema financiero.
+ * El campo tipo_movimiento distingue el sentido: 'descuento' reduce el precio,
+ * 'sobrecargo' lo incrementa (ej. recargo por tarjeta, mora por vencimiento).
  *
- * @property int $id Identificador único del descuento
- * @property string $nombre Nombre descriptivo del descuento
- * @property string|null $codigo_descuento Código promocional alfanumérico único
- * @property string|null $descripcion Descripción del descuento
- * @property string $tipo Tipo de descuento: 'porcentual' o 'valor_fijo'
- * @property float $valor Valor del descuento (porcentaje 0-100 o monto fijo)
- * @property string $aplicacion Aplicación: 'valor_total', 'matricula' o 'cuota'
- * @property string $tipo_activacion Tipo de activación: 'pago_anticipado', 'promocion_matricula' o 'codigo_promocional'
- * @property int|null $dias_anticipacion Días mínimos de anticipación (solo para pago anticipado)
- * @property bool $permite_acumulacion Indica si el descuento puede acumularse con otros
- * @property \Carbon\Carbon $fecha_inicio Fecha de inicio de vigencia
- * @property \Carbon\Carbon $fecha_fin Fecha de fin de vigencia
- * @property int $status Estado del descuento (0: inactivo, 1: en proceso, 2: aprobado, 3: activo)
- * @property \Carbon\Carbon $created_at Fecha de creación
- * @property \Carbon\Carbon $updated_at Fecha de última actualización
- * @property \Carbon\Carbon|null $deleted_at Fecha de eliminación (soft delete)
+ * @property int $id
+ * @property string $nombre
+ * @property string|null $codigo_descuento
+ * @property string|null $descripcion
+ * @property string $tipo_movimiento 'descuento' | 'sobrecargo'
+ * @property string $tipo 'porcentual' | 'valor_fijo' (sobrecargos siempre porcentual)
+ * @property float $valor Porcentaje (0-100) o monto fijo
+ * @property string $aplicacion 'valor_total'|'matricula'|'cuota'|'valor_recibo'|'saldo_cartera'
+ * @property string $tipo_activacion 'pago_anticipado'|'promocion_matricula'|'codigo_promocional'|'medio_pago'|'mora_automatica'
+ * @property int|null $dias_anticipacion Solo para pago_anticipado
+ * @property bool $permite_acumulacion Siempre false para sobrecargos
+ * @property array|null $medios_pago Medios que activan el sobrecargo (solo medio_pago)
+ * @property array|null $marca_tarjeta Marcas específicas; null = cualquier marca
+ * @property \Carbon\Carbon $fecha_inicio
+ * @property \Carbon\Carbon $fecha_fin
+ * @property int $status 0=Inactivo, 1=En Proceso, 2=Aprobado, 3=Activo
+ * @property \Carbon\Carbon $created_at
+ * @property \Carbon\Carbon $updated_at
+ * @property \Carbon\Carbon|null $deleted_at
  *
- * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Financiero\Lp\LpListaPrecio> $listasPrecios Listas de precios donde aplica
- * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Financiero\Lp\LpProducto> $productos Productos específicos donde aplica (si está vacío, aplica a todos)
- * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Configuracion\Sede> $sedes Sedes específicas donde aplica (si está vacío, aplica según ciudades o globalmente)
- * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Configuracion\Poblacion> $poblaciones Ciudades donde aplica (si está vacío, aplica globalmente)
- * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Financiero\Descuento\DescuentoAplicado> $descuentosAplicados Historial de descuentos aplicados
+ * @property-read \Illuminate\Database\Eloquent\Collection $listasPrecios
+ * @property-read \Illuminate\Database\Eloquent\Collection $productos
+ * @property-read \Illuminate\Database\Eloquent\Collection $sedes
+ * @property-read \Illuminate\Database\Eloquent\Collection $poblaciones
+ * @property-read \Illuminate\Database\Eloquent\Collection $descuentosAplicados
  */
 class Descuento extends Model
 {
     use HasFactory, SoftDeletes, HasFilterScopes, HasGenericScopes,
         HasSortingScopes, HasRelationScopes, HasDescuentoStatus;
 
-    /**
-     * Constante para tipo de descuento porcentual.
-     */
-    const TIPO_PORCENTUAL = 'porcentual';
+    // ── tipo_movimiento ───────────────────────────────────────────────────────
+    const MOVIMIENTO_DESCUENTO  = 'descuento';
+    const MOVIMIENTO_SOBRECARGO = 'sobrecargo';
 
-    /**
-     * Constante para tipo de descuento valor fijo.
-     */
-    const TIPO_VALOR_FIJO = 'valor_fijo';
+    // ── tipo ──────────────────────────────────────────────────────────────────
+    const TIPO_PORCENTUAL  = 'porcentual';
+    const TIPO_VALOR_FIJO  = 'valor_fijo';
 
-    /**
-     * Constante para aplicación al valor total.
-     */
-    const APLICACION_VALOR_TOTAL = 'valor_total';
+    // ── aplicacion ────────────────────────────────────────────────────────────
+    const APLICACION_VALOR_TOTAL  = 'valor_total';
+    const APLICACION_MATRICULA    = 'matricula';
+    const APLICACION_CUOTA        = 'cuota';
+    const APLICACION_VALOR_RECIBO = 'valor_recibo';   // sobrecargo sobre el total del recibo
+    const APLICACION_SALDO_CARTERA = 'saldo_cartera'; // mora sobre el saldo pendiente de cartera
 
-    /**
-     * Constante para aplicación a la matrícula.
-     */
-    const APLICACION_MATRICULA = 'matricula';
-
-    /**
-     * Constante para aplicación a la cuota.
-     */
-    const APLICACION_CUOTA = 'cuota';
-
-    /**
-     * Constante para activación por pago anticipado.
-     */
-    const ACTIVACION_PAGO_ANTICIPADO = 'pago_anticipado';
-
-    /**
-     * Constante para activación por promoción de matrícula.
-     */
+    // ── tipo_activacion ───────────────────────────────────────────────────────
+    const ACTIVACION_PAGO_ANTICIPADO     = 'pago_anticipado';
     const ACTIVACION_PROMOCION_MATRICULA = 'promocion_matricula';
+    const ACTIVACION_CODIGO_PROMOCIONAL  = 'codigo_promocional';
+    const ACTIVACION_MEDIO_PAGO          = 'medio_pago';      // sobrecargo disparado por el cajero al elegir medio
+    const ACTIVACION_MORA_AUTOMATICA     = 'mora_automatica'; // mora calculada por cron diario
 
-    /**
-     * Constante para activación por código promocional.
-     */
-    const ACTIVACION_CODIGO_PROMOCIONAL = 'codigo_promocional';
-
-    /**
-     * Constante para el estado Inactivo.
-     */
-    const STATUS_INACTIVO = 0;
-
-    /**
-     * Constante para el estado En Proceso.
-     */
+    // ── status ────────────────────────────────────────────────────────────────
+    const STATUS_INACTIVO   = 0;
     const STATUS_EN_PROCESO = 1;
-
-    /**
-     * Constante para el estado Aprobado.
-     */
-    const STATUS_APROBADO = 2;
-
-    /**
-     * Constante para el estado Activo.
-     */
-    const STATUS_ACTIVO = 3;
+    const STATUS_APROBADO   = 2;
+    const STATUS_ACTIVO     = 3;
 
     /**
      * Nombre de la tabla asociada al modelo.
@@ -133,12 +104,14 @@ class Descuento extends Model
      * @var array<string, string>
      */
     protected $casts = [
-        'valor' => 'decimal:2',
+        'valor'            => 'decimal:2',
         'dias_anticipacion' => 'integer',
-        'fecha_inicio' => 'date',
-        'fecha_fin' => 'date',
-        'status' => 'integer',
+        'fecha_inicio'     => 'date',
+        'fecha_fin'        => 'date',
+        'status'           => 'integer',
         'permite_acumulacion' => 'boolean',
+        'medios_pago'      => 'array',
+        'marca_tarjeta'    => 'array',
     ];
 
     /**
@@ -286,7 +259,11 @@ class Descuento extends Model
                 return $diasAnticipacion >= ($this->dias_anticipacion ?? 0);
 
             case self::ACTIVACION_PROMOCION_MATRICULA:
-                // Para promoción de matrícula, solo se requiere que esté vigente
+                return true;
+
+            // Sobrecargos: la activación la gestiona el cajero (medio_pago) o el cron (mora_automatica)
+            case self::ACTIVACION_MEDIO_PAGO:
+            case self::ACTIVACION_MORA_AUTOMATICA:
                 return true;
 
             default:
@@ -381,12 +358,11 @@ class Descuento extends Model
     }
 
     /**
-     * Calcula el valor del descuento aplicado a un monto.
-     * Los descuentos se calculan sobre el valor a pagar, no sobre el valor pagado.
-     * El resultado nunca puede ser negativo.
+     * Calcula el monto de un descuento sobre una base.
+     * Para descuentos de valor fijo el resultado no puede exceder el monto base.
      *
-     * @param float $monto Monto base sobre el cual aplicar el descuento (valor a pagar)
-     * @return float Valor del descuento calculado (nunca negativo)
+     * @param float $monto Monto base
+     * @return float Valor absoluto del descuento (nunca negativo)
      */
     public function calcularDescuento(float $monto): float
     {
@@ -394,25 +370,67 @@ class Descuento extends Model
             return 0;
         }
 
-        $descuento = 0;
-
         if ($this->tipo === self::TIPO_PORCENTUAL) {
-            $descuento = ($monto * $this->valor) / 100;
-        } else {
-            // Tipo valor fijo
-            $descuento = min($this->valor, $monto); // No puede exceder el monto
+            return max(0, ($monto * $this->valor) / 100);
         }
 
-        // Asegurar que el descuento nunca sea negativo
-        return max(0, $descuento);
+        return max(0, min($this->valor, $monto));
     }
 
     /**
-     * Scope para filtrar descuentos vigentes.
-     * Solo retorna descuentos que están activos y cuya fecha está dentro del rango de vigencia.
+     * Calcula el monto de un sobrecargo porcentual sobre una base.
+     * Solo aplica para registros con tipo_movimiento='sobrecargo'.
+     *
+     * @param float $monto Monto base (valor del medio de pago o saldo de cartera)
+     * @return float Valor del sobrecargo (nunca negativo)
+     */
+    public function calcularSobrecargo(float $monto): float
+    {
+        if ($monto <= 0 || $this->tipo_movimiento !== self::MOVIMIENTO_SOBRECARGO) {
+            return 0;
+        }
+
+        return max(0, ($monto * $this->valor) / 100);
+    }
+
+    /**
+     * Indica si este registro es un sobrecargo.
+     */
+    public function esSobrecargo(): bool
+    {
+        return $this->tipo_movimiento === self::MOVIMIENTO_SOBRECARGO;
+    }
+
+    /**
+     * Verifica si este sobrecargo aplica al medio de pago y marca dados.
+     *
+     * @param string $medioPago Medio de pago del recibo
+     * @param string|null $marcaTarjeta Marca de tarjeta (solo para tarjeta_*)
+     */
+    public function aplicaAMedioPago(string $medioPago, ?string $marcaTarjeta = null): bool
+    {
+        if ($this->tipo_activacion !== self::ACTIVACION_MEDIO_PAGO) {
+            return false;
+        }
+
+        $medios = $this->medios_pago ?? [];
+        if (!in_array($medioPago, $medios, true)) {
+            return false;
+        }
+
+        // Si el sobrecargo no restringe por marca, aplica a todas
+        if (empty($this->marca_tarjeta)) {
+            return true;
+        }
+
+        return in_array($marcaTarjeta, $this->marca_tarjeta, true);
+    }
+
+    /**
+     * Scope: ajustes vigentes (activos y dentro del rango de fechas).
      *
      * @param \Illuminate\Database\Eloquent\Builder $query
-     * @param Carbon|null $fecha Fecha a verificar. Si es null, usa la fecha actual
+     * @param Carbon|null $fecha
      * @return \Illuminate\Database\Eloquent\Builder
      */
     public function scopeVigentes($query, ?Carbon $fecha = null)
@@ -424,11 +442,55 @@ class Descuento extends Model
     }
 
     /**
-     * Scope para filtrar por tipo de descuento.
+     * Scope: solo registros de tipo 'descuento'.
+     */
+    public function scopeDescuentos($query)
+    {
+        return $query->where('tipo_movimiento', self::MOVIMIENTO_DESCUENTO);
+    }
+
+    /**
+     * Scope: solo registros de tipo 'sobrecargo'.
+     */
+    public function scopeSobrecargos($query)
+    {
+        return $query->where('tipo_movimiento', self::MOVIMIENTO_SOBRECARGO);
+    }
+
+    /**
+     * Scope: sobrecargos activos para un medio de pago y opcionalmente una marca de tarjeta.
      *
      * @param \Illuminate\Database\Eloquent\Builder $query
-     * @param string $tipo Tipo de descuento (porcentual o valor_fijo)
-     * @return \Illuminate\Database\Eloquent\Builder
+     * @param string $medioPago Medio de pago (tarjeta_credito, tarjeta_debito, etc.)
+     * @param string|null $marcaTarjeta Marca de tarjeta (visa, mastercard, etc.)
+     */
+    public function scopePorMedioPago($query, string $medioPago, ?string $marcaTarjeta = null)
+    {
+        return $query->sobrecargos()
+            ->vigentes()
+            ->where('tipo_activacion', self::ACTIVACION_MEDIO_PAGO)
+            ->whereJsonContains('medios_pago', $medioPago)
+            ->when($marcaTarjeta, function ($q) use ($marcaTarjeta) {
+                // Si el sobrecargo tiene marcas específicas, filtrar; si no tiene (null), aplica a todas
+                $q->where(function ($inner) use ($marcaTarjeta) {
+                    $inner->whereNull('marca_tarjeta')
+                          ->orWhereJsonContains('marca_tarjeta', $marcaTarjeta);
+                });
+            });
+    }
+
+    /**
+     * Scope: sobrecargos de mora automática vigentes.
+     */
+    public function scopeMoraAutomatica($query)
+    {
+        return $query->sobrecargos()
+            ->vigentes()
+            ->where('tipo_activacion', self::ACTIVACION_MORA_AUTOMATICA);
+    }
+
+    /**
+     * Scope para filtrar por tipo de cálculo.
      */
     public function scopePorTipo($query, string $tipo)
     {
@@ -436,11 +498,7 @@ class Descuento extends Model
     }
 
     /**
-     * Scope para filtrar por aplicación del descuento.
-     *
-     * @param \Illuminate\Database\Eloquent\Builder $query
-     * @param string $aplicacion Aplicación del descuento (valor_total, matricula, cuota)
-     * @return \Illuminate\Database\Eloquent\Builder
+     * Scope para filtrar por campo de aplicación.
      */
     public function scopePorAplicacion($query, string $aplicacion)
     {
@@ -449,10 +507,6 @@ class Descuento extends Model
 
     /**
      * Scope para filtrar por tipo de activación.
-     *
-     * @param \Illuminate\Database\Eloquent\Builder $query
-     * @param string $tipoActivacion Tipo de activación
-     * @return \Illuminate\Database\Eloquent\Builder
      */
     public function scopePorTipoActivacion($query, string $tipoActivacion)
     {
@@ -467,17 +521,9 @@ class Descuento extends Model
     protected function getAllowedSortFields(): array
     {
         return [
-            'nombre',
-            'codigo_descuento',
-            'tipo',
-            'valor',
-            'aplicacion',
-            'tipo_activacion',
-            'fecha_inicio',
-            'fecha_fin',
-            'status',
-            'created_at',
-            'updated_at'
+            'nombre', 'codigo_descuento', 'tipo_movimiento', 'tipo', 'valor',
+            'aplicacion', 'tipo_activacion', 'fecha_inicio', 'fecha_fin',
+            'status', 'created_at', 'updated_at',
         ];
     }
 

@@ -40,10 +40,14 @@ class ReciboPagoResource extends JsonResource
             'origen_text' => $this->origen_text,
             'fecha_recibo' => $this->fecha_recibo?->format('Y-m-d'),
             'fecha_transaccion' => $this->fecha_transaccion?->format('Y-m-d H:i:s'),
-            'valor_total' => (float) $this->valor_total,
-            'valor_total_formatted' => number_format((float) $this->valor_total, 2, '.', ','),
-            'descuento_total' => (float) $this->descuento_total,
+            'valor_total'               => (float) $this->valor_total,
+            'valor_total_formatted'     => number_format((float) $this->valor_total, 2, '.', ','),
+            'descuento_total'           => (float) $this->descuento_total,
             'descuento_total_formatted' => number_format((float) $this->descuento_total, 2, '.', ','),
+            'sobrecargo_total'          => (float) $this->sobrecargo_total,
+            'sobrecargo_total_formatted' => number_format((float) $this->sobrecargo_total, 2, '.', ','),
+            // Monto neto destinado a cubrir deudas (valor bruto - sobrecargos)
+            'valor_neto'                => (float) $this->valor_total - (float) $this->sobrecargo_total,
             'banco' => $this->banco,
             'status' => $this->status,
             'status_text' => $this->status_text,
@@ -117,12 +121,30 @@ class ReciboPagoResource extends JsonResource
             'medios_pago' => $this->whenLoaded('mediosPago', function () {
                 return $this->mediosPago->map(function ($medio) {
                     return [
-                        'id' => $medio->id,
-                        'medio_pago' => $medio->medio_pago,
-                        'valor' => (float) $medio->valor,
+                        'id'              => $medio->id,
+                        'medio_pago'      => $medio->medio_pago,
+                        'tipo_tarjeta'    => $medio->tipo_tarjeta,
+                        'valor'           => (float) $medio->valor,
                         'valor_formatted' => number_format((float) $medio->valor, 2, '.', ','),
-                        'referencia' => $medio->referencia,
-                        'banco' => $medio->banco,
+                        'referencia'      => $medio->referencia,
+                        'banco'           => $medio->banco,
+                    ];
+                });
+            }),
+
+            // Sobrecargos aplicados en el recibo (detalle por medio de pago)
+            'sobrecargos' => $this->whenLoaded('sobrecargos', function () {
+                return $this->sobrecargos->map(function ($s) {
+                    return [
+                        'id'                        => $s->id,
+                        'descuento_id'              => $s->descuento_id,
+                        'nombre'                    => $s->sobrecargo?->nombre,
+                        'porcentaje'                => $s->sobrecargo ? (float) $s->sobrecargo->valor : null,
+                        'recibo_pago_medio_pago_id' => $s->recibo_pago_medio_pago_id,
+                        'valor_base'                => (float) $s->valor_base,
+                        'valor_sobrecargo'          => (float) $s->valor_sobrecargo,
+                        'valor_sobrecargo_formatted' => number_format((float) $s->valor_sobrecargo, 2, '.', ','),
+                        'valor_final'               => (float) $s->valor_final,
                     ];
                 });
             }),

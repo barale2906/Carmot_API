@@ -3,7 +3,6 @@
 namespace App\Models\Financiero\Lp;
 
 use App\Models\Configuracion\Poblacion;
-use App\Models\Financiero\Descuento\Descuento;
 use App\Models\Financiero\ReciboPago\ReciboPago;
 use App\Traits\Financiero\HasListaPrecioStatus;
 use App\Traits\HasFilterScopes;
@@ -39,7 +38,6 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Configuracion\Poblacion> $poblaciones Poblaciones donde aplica la lista
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Financiero\Lp\LpPrecioProducto> $preciosProductos Precios de productos en esta lista
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Financiero\Lp\LpProducto> $productos Productos incluidos en esta lista
- * @property-read \Illuminate\Database\Eloquent\Collection<int, Descuento> $descuentos Descuentos asociados a esta lista de precios
  */
 class LpListaPrecio extends Model
 {
@@ -126,23 +124,6 @@ class LpListaPrecio extends Model
         return $this->belongsToMany(LpProducto::class, 'lp_precios_producto', 'lista_precio_id', 'producto_id')
                     ->withPivot(['precio_contado', 'precio_total', 'matricula', 'numero_cuotas', 'valor_cuota', 'observaciones'])
                     ->withTimestamps();
-    }
-
-    /**
-     * Relación con Descuentos (muchos a muchos).
-     * Una lista de precios puede tener múltiples descuentos asociados.
-     * La relación se establece a través de la tabla pivot descuento_lista_precio.
-     *
-     * @return BelongsToMany
-     */
-    public function descuentos(): BelongsToMany
-    {
-        return $this->belongsToMany(
-            Descuento::class,
-            'descuento_lista_precio',
-            'lista_precio_id',
-            'descuento_id'
-        )->withTimestamps();
     }
 
     /**
@@ -283,7 +264,6 @@ class LpListaPrecio extends Model
             'poblaciones',
             'preciosProductos',
             'productos',
-            'descuentos',
             'preciosProductos.producto',
             'preciosProductos.producto.tipoProducto',
             'recibosPago'
@@ -311,7 +291,6 @@ class LpListaPrecio extends Model
             'poblaciones',
             'preciosProductos',
             'productos',
-            'descuentos'
         ];
     }
 }

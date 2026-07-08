@@ -23,7 +23,7 @@ class DescuentoFactory extends Factory
     protected $model = Descuento::class;
 
     /**
-     * Define el estado por defecto del modelo.
+     * Define el estado por defecto del modelo (descuento clásico).
      *
      * @return array<string, mixed>
      */
@@ -42,18 +42,17 @@ class DescuentoFactory extends Factory
             Descuento::ACTIVACION_CODIGO_PROMOCIONAL
         ]);
 
-        // Si es pago anticipado, siempre debe tener dias_anticipacion
-        // Si es código promocional, debe tener código_descuento
         $diasAnticipacion = null;
         if ($tipoActivacion === Descuento::ACTIVACION_PAGO_ANTICIPADO) {
             $diasAnticipacion = fake()->numberBetween(1, 30);
-            $codigoDescuento = null; // No puede tener código si es pago anticipado
+            $codigoDescuento = null;
         } elseif ($tipoActivacion === Descuento::ACTIVACION_CODIGO_PROMOCIONAL) {
             $codigoDescuento = $codigoDescuento ?? fake()->unique()->regexify('[A-Z0-9]{8,15}');
             $diasAnticipacion = null;
         }
 
         return [
+            'tipo_movimiento' => Descuento::MOVIMIENTO_DESCUENTO,
             'nombre' => fake()->sentence(3),
             'codigo_descuento' => $codigoDescuento,
             'descripcion' => fake()->optional()->paragraph(),
@@ -69,7 +68,9 @@ class DescuentoFactory extends Factory
             ]),
             'tipo_activacion' => $tipoActivacion,
             'dias_anticipacion' => $diasAnticipacion,
-            'permite_acumulacion' => fake()->boolean(30), // 30% de probabilidad de ser true
+            'permite_acumulacion' => fake()->boolean(30),
+            'medios_pago' => null,
+            'marca_tarjeta' => null,
             'fecha_inicio' => $fechaInicio,
             'fecha_fin' => $fechaFin,
             'status' => Descuento::STATUS_EN_PROCESO,
@@ -269,6 +270,50 @@ class DescuentoFactory extends Factory
                 'fecha_fin' => $fechaFin,
             ];
         });
+    }
+
+    // ─── Estados de sobrecargo ────────────────────────────────────────────────
+
+    /**
+     * Crea un sobrecargo por medio de pago (porcentual, sin acumulación).
+     *
+     * @return static
+     */
+    public function sobrecargoPorMedioPago(array $mediosPago = ['tarjeta_credito'], ?array $marcas = null): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'tipo_movimiento'  => Descuento::MOVIMIENTO_SOBRECARGO,
+            'tipo'             => Descuento::TIPO_PORCENTUAL,
+            'valor'            => fake()->randomFloat(2, 1, 5),
+            'aplicacion'       => Descuento::APLICACION_VALOR_RECIBO,
+            'tipo_activacion'  => Descuento::ACTIVACION_MEDIO_PAGO,
+            'permite_acumulacion' => false,
+            'dias_anticipacion' => null,
+            'codigo_descuento' => null,
+            'medios_pago'      => $mediosPago,
+            'marca_tarjeta'    => $marcas,
+        ]);
+    }
+
+    /**
+     * Crea un sobrecargo de mora automática (porcentual, aplicado sobre saldo cartera por cron).
+     *
+     * @return static
+     */
+    public function sobrecargoMora(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'tipo_movimiento'  => Descuento::MOVIMIENTO_SOBRECARGO,
+            'tipo'             => Descuento::TIPO_PORCENTUAL,
+            'valor'            => fake()->randomFloat(2, 0.1, 2),
+            'aplicacion'       => Descuento::APLICACION_SALDO_CARTERA,
+            'tipo_activacion'  => Descuento::ACTIVACION_MORA_AUTOMATICA,
+            'permite_acumulacion' => false,
+            'dias_anticipacion' => null,
+            'codigo_descuento' => null,
+            'medios_pago'      => null,
+            'marca_tarjeta'    => null,
+        ]);
     }
 }
 
