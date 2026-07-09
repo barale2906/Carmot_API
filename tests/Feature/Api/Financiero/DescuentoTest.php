@@ -205,4 +205,41 @@ class DescuentoTest extends TestCase
             ->postJson(route('descuentos.aprobar', $descuento))
             ->assertForbidden();
     }
+
+    // ─── activar ──────────────────────────────────────────────────────────────
+
+    /** @test */
+    public function activa_un_descuento_aprobado(): void
+    {
+        $descuento = Descuento::factory()->aprobado()->create();
+
+        $this->actingAs($this->usuario)
+            ->postJson(route('descuentos.activar', $descuento))
+            ->assertOk()
+            ->assertJsonPath('data.status', Descuento::STATUS_ACTIVO);
+
+        $this->assertDatabaseHas('descuentos', ['id' => $descuento->id, 'status' => Descuento::STATUS_ACTIVO]);
+    }
+
+    /** @test */
+    public function rechaza_activar_si_no_esta_aprobado(): void
+    {
+        $descuento = Descuento::factory()->enProceso()->create();
+
+        $this->actingAs($this->usuario)
+            ->postJson(route('descuentos.activar', $descuento))
+            ->assertStatus(422);
+    }
+
+    /** @test */
+    public function rechaza_activar_sin_permiso(): void
+    {
+        $sinPermiso = User::factory()->create();
+        $sinPermiso->givePermissionTo('fin_descuentos');
+        $descuento = Descuento::factory()->aprobado()->create();
+
+        $this->actingAs($sinPermiso)
+            ->postJson(route('descuentos.activar', $descuento))
+            ->assertForbidden();
+    }
 }

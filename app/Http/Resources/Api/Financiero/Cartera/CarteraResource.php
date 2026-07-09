@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\Api\Financiero\Cartera;
 
+use App\Models\Financiero\ConceptoPago\ConceptoPago;
 use App\Traits\Financiero\HasCarteraStatus;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -10,6 +11,9 @@ use Illuminate\Http\Resources\Json\JsonResource;
  * Recurso CarteraResource
  *
  * Da forma a la respuesta JSON de un registro de cartera.
+ * Expone el campo `concepto` ('Matrícula' para numero_cuota=0,
+ * 'Pago de mensualidad' para cuotas ≥1) para que el frontend
+ * muestre el label correcto en el panel de ítems a cobrar.
  */
 class CarteraResource extends JsonResource
 {
@@ -28,6 +32,7 @@ class CarteraResource extends JsonResource
             'sede_id'          => $this->sede_id,
             'estudiante_id'    => $this->estudiante_id,
             'numero_cuota'     => $this->numero_cuota,
+            'concepto'         => $this->numero_cuota === 0 ? ConceptoPago::MATRICULA : ConceptoPago::MENSUALIDAD,
             'valor'            => $this->valor,
             'saldo'            => $this->saldo,
             'abono'            => $this->abono,

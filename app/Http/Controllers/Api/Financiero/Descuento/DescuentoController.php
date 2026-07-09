@@ -38,6 +38,7 @@ class DescuentoController extends Controller
         $this->middleware('permission:fin_descuentoEditar')->only(['update']);
         $this->middleware('permission:fin_descuentoInactivar')->only(['destroy']);
         $this->middleware('permission:fin_descuentoAprobar')->only(['aprobar']);
+        $this->middleware('permission:fin_descuentoAprobar')->only(['activar']);
         $this->middleware('permission:fin_descuentoAplicar')->only(['aplicarDescuento']);
     }
 
@@ -333,6 +334,30 @@ class DescuentoController extends Controller
                 'error' => $e->getMessage(),
             ], 500);
         }
+    }
+
+    /**
+     * Activa un descuento aprobado, cambiando su estado a "Activo".
+     * Solo es posible si el descuento está en estado "Aprobado" y la fecha de inicio ya llegó.
+     * Sin este paso, el scope vigentes() no lo devuelve y no se aplica en recibos.
+     *
+     * @param Descuento $descuento Descuento a activar
+     * @return JsonResponse Respuesta JSON con el descuento activado
+     */
+    public function activar(Descuento $descuento): JsonResponse
+    {
+        if ($descuento->status !== Descuento::STATUS_APROBADO) {
+            return response()->json([
+                'message' => 'Solo se pueden activar descuentos en estado Aprobado.',
+            ], 422);
+        }
+
+        $descuento->update(['status' => Descuento::STATUS_ACTIVO]);
+
+        return response()->json([
+            'message' => 'Descuento activado exitosamente.',
+            'data'    => new DescuentoResource($descuento->fresh()),
+        ]);
     }
 
     /**

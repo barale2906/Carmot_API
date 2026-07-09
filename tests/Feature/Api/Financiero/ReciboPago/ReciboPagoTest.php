@@ -557,4 +557,110 @@ class ReciboPagoTest extends TestCase
             ->assertUnprocessable()
             ->assertJsonValidationErrors(['matricula_id', 'monto_a_pagar']);
     }
+
+    /** @test */
+    public function precalcular_descuento_suma_descuento_de_todas_las_cuotas_proximas_cubiertas(): void
+    {
+        // Descuento del 10 % por pronto pago
+        Descuento::factory()->vigente()->pagoAnticipado()->create([
+            'tipo'       => Descuento::TIPO_PORCENTUAL,
+            'valor'      => 10,
+            'aplicacion' => Descuento::APLICACION_CUOTA,
+        ]);
+
+        // Dos cuotas próximas
+        foreach ([1, 2] as $num) {
+            Cartera::factory()->create([
+                'matricula_id'     => $this->matricula->id,
+                'sede_id'          => $this->sede->id,
+                'estudiante_id'    => $this->matricula->estudiante_id,
+                'numero_cuota'     => $num,
+                'valor'            => 100000,
+                'saldo'            => 100000,
+                'fecha_vencimiento' => now()->addDays(5 * $num)->toDateString(),
+                'status'           => Cartera::getStatusKey('Activa'),
+            ]);
+        }
+
+        // Paga las dos cuotas completas = 200 000
+        $response = $this->actingAs($this->usuario)
+            ->postJson(route('recibos-pago.precalcular-descuento'), [
+                'matricula_id'  => $this->matricula->id,
+                'monto_a_pagar' => 200000,
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.aplica', true);
+
+        // Descuento total = 10 % × 100 000 × 2 = 20 000
+        $this->assertEquals(20000, $response->json('data.valor'));
+    }
+
+    /** @test */
+    public function precalcular_descuento_no_aplica_a_cuota_solo_cubierta_parcialmente(): void
+    {
+        Descuento::factory()->vigente()->pagoAnticipado()->create([
+            'tipo'       => Descuento::TIPO_PORCENTUAL,
+            'valor'      => 10,
+            'aplicacion' => Descuento::APLICACION_CUOTA,
+        ]);
+
+        // Dos cuotas próximas de 100 000 cada una
+        foreach ([1, 2] as $num) {
+            Cartera::factory()->create([
+                'matricula_id'     => $this->matricula->id,
+                'sede_id'          => $this->sede->id,
+                'estudiante_id'    => $this->matricula->estudiante_id,
+                'numero_cuota'     => $num,
+                'valor'            => 100000,
+                'saldo'            => 100000,
+                'fecha_vencimiento' => now()->addDays(5 * $num)->toDateString(),
+                'status'           => Cartera::getStatusKey('Activa'),
+            ]);
+        }
+
+        // Solo paga 150 000: cubre la primera completa y la segunda a medias
+        $response = $this->actingAs($this->usuario)
+            ->postJson(route('recibos-pago.precalcular-descuento'), [
+                'matricula_id'  => $this->matricula->id,
+                'monto_a_pagar' => 150000,
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.aplica', true);
+
+        // Solo la primera cuota da descuento = 10 % × 100 000 = 10 000
+        $this->assertEquals(10000, $response->json('data.valor'));
+    }
+
+    /** @test */
+    public function store_aplica_descuento_a_multiples_cuotas_proximas_cubiertas(): void
+    {
+        Descuento::factory()->vigente()->pagoAnticipado()->create([
+            'tipo'       => Descuento::TIPO_PORCENTUAL,
+            'valor'      => 10,
+            'aplicacion' => Descuento::APLICACION_CUOTA,
+        ]);
+
+        foreach ([1, 2] as $num) {
+            Cartera::factory()->create([
+                'matricula_id'     => $this->matricula->id,
+                'sede_id'          => $this->sede->id,
+                'estudiante_id'    => $this->matricula->estudiante_id,
+                'numero_cuota'     => $num,
+                'valor'            => 100000,
+                'saldo'            => 100000,
+                'fecha_vencimiento' => now()->addDays(5 * $num)->toDateString(),
+                'status'           => Cartera::getStatusKey('Activa'),
+            ]);
+        }
+
+        $response = $this->actingAs($this->usuario)
+            ->postJson(route('recibos-pago.store'), $this->payloadCartera(200000, [
+                'aplicar_descuento' => true,
+                'medios_pago'       => [['medio_pago' => 'efectivo', 'valor' => 200000]],
+            ]))
+            ->assertCreated();
+
+        // descuento_total = 10 % × 100 000 × 2 = 20 000
+        $this->assertEquals(20000, $response->json('data.descuento_total'));
+    }
 }

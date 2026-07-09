@@ -174,6 +174,34 @@ class CarteraTest extends TestCase
             ->assertJsonPath('data.status_text', 'Activa');
     }
 
+    /** @test */
+    public function cartera_resource_expone_concepto_segun_numero_cuota(): void
+    {
+        $matricula = Cartera::factory()->create([
+            'matricula_id'  => $this->matricula->id,
+            'sede_id'       => $this->sede->id,
+            'estudiante_id' => $this->matricula->estudiante_id,
+            'numero_cuota'  => 0,
+        ]);
+
+        $mensualidad = Cartera::factory()->create([
+            'matricula_id'  => $this->matricula->id,
+            'sede_id'       => $this->sede->id,
+            'estudiante_id' => $this->matricula->estudiante_id,
+            'numero_cuota'  => 1,
+        ]);
+
+        $this->actingAs($this->usuario)
+            ->getJson(route('carteras.show', $matricula))
+            ->assertOk()
+            ->assertJsonPath('data.concepto', 'Matrícula');
+
+        $this->actingAs($this->usuario)
+            ->getJson(route('carteras.show', $mensualidad))
+            ->assertOk()
+            ->assertJsonPath('data.concepto', 'Pago de mensualidad');
+    }
+
     // ─── deudasEstudiante ─────────────────────────────────────────────────────
 
     /** @test */

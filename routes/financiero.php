@@ -132,6 +132,10 @@ Route::middleware('auth:sanctum')->group(function () {
         // Ruta para aprobar un descuento (cambiar de "en proceso" a "aprobado")
         Route::post('{descuento}/aprobar', [DescuentoController::class, 'aprobar'])
             ->name('descuentos.aprobar');
+
+        // Ruta para activar un descuento aprobado (cambiar de "aprobado" a "activo")
+        Route::post('{descuento}/activar', [DescuentoController::class, 'activar'])
+            ->name('descuentos.activar');
     });
 
     // Rutas principales de descuentos (CRUD estándar)

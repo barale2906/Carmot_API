@@ -65,25 +65,28 @@ class ReciboPagoDistribucionService
             : ['aplica' => false, 'valor' => 0.0, 'descuento' => null];
 
         // Distribuir de la más antigua a la más reciente
-        $plan      = [];
-        $restante  = $monto;
-        $primeraLinea = true;
+        $plan     = [];
+        $restante = $monto;
 
         foreach ($carteras as $cartera) {
             if ($restante <= 0) {
                 break;
             }
 
-            $aCubrir = min($restante, (float) $cartera->saldo);
+            $saldo   = (float) $cartera->saldo;
+            $aCubrir = min($restante, $saldo);
 
             if ($aCubrir <= 0) {
                 continue;
             }
 
-            // El descuento por pronto pago aplica solo a la primera cuota cubierta
+            // El descuento aplica a cada cuota próxima (no vencida) que queda completamente cubierta.
             $descuentoLinea = 0.0;
-            if ($primeraLinea && $infoDescuento['aplica']) {
-                $descuentoLinea = $infoDescuento['valor'];
+            if ($infoDescuento['aplica'] && $infoDescuento['descuento'] !== null) {
+                $esProxima = $cartera->fecha_vencimiento >= $fecha->toDateString();
+                if ($aCubrir >= $saldo - 0.01 && $esProxima) {
+                    $descuentoLinea = $infoDescuento['descuento']->calcularDescuento($saldo);
+                }
             }
 
             $plan[] = [
@@ -92,8 +95,7 @@ class ReciboPagoDistribucionService
                 'descuento' => $descuentoLinea,
             ];
 
-            $restante    -= $aCubrir;
-            $primeraLinea = false;
+            $restante -= $aCubrir;
         }
 
         return $plan;
