@@ -97,6 +97,10 @@ class AuthController extends Controller
      */
     public function user(Request $request)
     {
-        return response()->json($request->user());
+        $user = $request->user();
+        return response()->json(array_merge($user->toArray(), [
+            'roles'       => $user->getRoleNames()->toArray(),
+            'permissions' => $user->getAllPermissions()->pluck('name')->toArray(),
+        ]));
     }
 }

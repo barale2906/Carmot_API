@@ -7,6 +7,7 @@ use App\Http\Requests\Api\Academico\StoreAsistenciaClaseProgramadaRequest;
 use App\Http\Requests\Api\Academico\UpdateAsistenciaClaseProgramadaRequest;
 use App\Http\Resources\Api\Academico\AsistenciaClaseProgramadaResource;
 use App\Models\Academico\AsistenciaClaseProgramada;
+use App\Services\Asistencia\GenerarClasesProgramadasService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -15,10 +16,9 @@ class AsistenciaClaseProgramadaController extends Controller
     /**
      * Constructor del controlador.
      */
-    public function __construct()
+    public function __construct(private readonly GenerarClasesProgramadasService $generador)
     {
-        $this->middleware('permission:aca_claseProgramar')->only(['index', 'show', 'generarAutomaticas']);
-        $this->middleware('permission:aca_claseProgramar')->only(['store', 'update', 'destroy']);
+        $this->middleware('permission:aca_claseProgramar')->only(['index', 'show', 'generarAutomaticas', 'store', 'update', 'destroy']);
     }
 
     /**
@@ -90,31 +90,31 @@ class AsistenciaClaseProgramadaController extends Controller
     }
 
     /**
-     * Genera clases automáticamente para un grupo y ciclo.
+     * Genera las clases programadas automáticamente para un grupo y ciclo,
+     * basándose en los horarios del grupo y las fechas de inicio/fin del grupo
+     * en el pivot ciclo_grupo. Omite clases ya existentes para ese slot.
      *
      * @param Request $request
      * @return JsonResponse
      */
     public function generarAutomaticas(Request $request): JsonResponse
     {
-        try {
-            $request->validate([
-                'grupo_id' => 'required|integer|exists:grupos,id',
-                'ciclo_id' => 'required|integer|exists:ciclos,id',
-            ]);
+        $request->validate([
+            'grupo_id' => 'required|integer|exists:grupos,id',
+            'ciclo_id' => 'required|integer|exists:ciclos,id',
+        ]);
 
-            // Este método será implementado en el servicio GenerarClasesProgramadasService
-            // Por ahora retornamos un mensaje indicando que está pendiente
-            return response()->json([
-                'message' => 'La generación automática de clases será implementada en el servicio GenerarClasesProgramadasService.',
-                'note' => 'Este endpoint requiere la implementación del servicio para generar clases basadas en horarios y fechas del grupo.',
-            ], 501);
-        } catch (\Exception $e) {
-            return response()->json([
-                'message' => 'Error al generar las clases automáticas.',
-                'error' => $e->getMessage(),
-            ], 500);
-        }
+        $resultado = $this->generador->generarParaGrupoCiclo(
+            (int) $request->grupo_id,
+            (int) $request->ciclo_id
+        );
+
+        $status = $resultado['success'] ? 200 : 422;
+
+        return response()->json([
+            'message'          => $resultado['message'],
+            'clases_generadas' => $resultado['clases_generadas'],
+        ], $status);
     }
 
     /**

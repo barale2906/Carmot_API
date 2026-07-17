@@ -256,22 +256,6 @@ class Ciclo extends Model
     }
 
     /**
-     * Boot del modelo para eventos automáticos.
-     */
-    protected static function boot()
-    {
-        parent::boot();
-
-        // Actualizar fecha de fin cuando se actualiza un ciclo
-        static::updated(function ($ciclo) {
-            if ($ciclo->fecha_fin_automatica) {
-                $ciclo->actualizarFechaFin();
-                $ciclo->saveQuietly(); // Guardar sin disparar eventos
-            }
-        });
-    }
-
-    /**
      * Obtiene la duración estimada del ciclo en días.
      *
      * @return int

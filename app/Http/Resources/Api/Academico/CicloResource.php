@@ -70,11 +70,17 @@ class CicloResource extends JsonResource
                 }
                 return [
                     'id'                      => $activo->id,
+                    'tipo_aplazamiento_id'    => $activo->tipo_aplazamiento_id,
+                    'fecha_aplazamiento'      => $activo->fecha_aplazamiento?->format('Y-m-d'),
                     'fecha_inicio_original'   => $activo->fecha_inicio_original?->format('Y-m-d'),
                     'fecha_reinicio_probable'  => $activo->fecha_reinicio_probable?->format('Y-m-d'),
                     'dias_aplazamiento'       => $activo->dias_aplazamiento,
-                    'tipo_aplazamiento'       => $activo->tipoAplazamiento?->nombre,
+                    'tipo_aplazamiento'       => $activo->tipoAplazamiento ? [
+                        'id'     => $activo->tipoAplazamiento->id,
+                        'nombre' => $activo->tipoAplazamiento->nombre,
+                    ] : null,
                     'mover_cartera'           => $activo->mover_cartera,
+                    'observaciones'           => $activo->observaciones,
                     'estado_text'             => $activo->estado_text,
                 ];
             }),

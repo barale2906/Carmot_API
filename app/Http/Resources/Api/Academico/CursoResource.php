@@ -77,6 +77,7 @@ class CursoResource extends JsonResource
                         'status' => $modulo->status,
                         'status_text' => self::getActiveStatusText($modulo->status),
                         'pivot' => [
+                            'orden' => $modulo->pivot->orden ?? 0,
                             'created_at' => $modulo->pivot->created_at?->format('Y-m-d H:i:s'),
                             'updated_at' => $modulo->pivot->updated_at?->format('Y-m-d H:i:s'),
                         ],

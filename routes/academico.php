@@ -41,6 +41,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('statistics', [CursoController::class, 'statistics'])->name('cursos.statistics');
         Route::post('{id}/restore', [CursoController::class, 'restore'])->name('cursos.restore');
         Route::delete('{id}/force-delete', [CursoController::class, 'forceDelete'])->name('cursos.force-delete');
+        Route::put('{curso}/modulos-orden', [CursoController::class, 'sincronizarOrdenModulos'])->name('cursos.modulos-orden');
     });
     Route::apiResource('cursos', CursoController::class);
 
@@ -108,6 +109,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('trashed', [CicloController::class, 'trashed'])->name('ciclos.trashed');
         Route::get('filters', [CicloController::class, 'filters'])->name('ciclos.filters');
         Route::get('statistics', [CicloController::class, 'statistics'])->name('ciclos.statistics');
+        Route::get('previsualizar', [CicloController::class, 'previsualizarCalendario'])->name('ciclos.previsualizar');
         Route::post('{id}/restore', [CicloController::class, 'restore'])->name('ciclos.restore');
         Route::delete('{id}/force-delete', [CicloController::class, 'forceDelete'])->name('ciclos.force-delete');
 

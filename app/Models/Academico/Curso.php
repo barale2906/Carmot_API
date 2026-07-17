@@ -78,7 +78,20 @@ class Curso extends Model
     public function modulos(): BelongsToMany
     {
         return $this->belongsToMany(Modulo::class, 'modulo_curso')
+                    ->withPivot(['orden'])
                     ->withTimestamps();
+    }
+
+    /**
+     * Módulos del curso en el orden canónico del ciclo académico.
+     * Este orden determina la secuencia de ejecución cíclica de los grupos.
+     */
+    public function modulosOrdenados(): BelongsToMany
+    {
+        return $this->belongsToMany(Modulo::class, 'modulo_curso')
+                    ->withPivot(['orden'])
+                    ->withTimestamps()
+                    ->orderBy('modulo_curso.orden');
     }
 
     /**

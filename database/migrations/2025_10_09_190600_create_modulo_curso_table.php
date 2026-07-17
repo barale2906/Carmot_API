@@ -15,6 +15,7 @@ return new class extends Migration
             $table->id();
             $table->unsignedBigInteger('modulo_id');
             $table->unsignedBigInteger('curso_id');
+            $table->integer('orden')->default(0)->comment('Orden del módulo dentro del ciclo del curso (base del calendario cíclico)');
             $table->timestamps();
 
             $table->foreign('modulo_id')->references('id')->on('modulos')->onDelete('cascade');

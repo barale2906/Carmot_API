@@ -33,7 +33,7 @@ class CursoController extends Controller
     {
         $this->middleware('permission:aca_cursos')->only(['index', 'show', 'filters', 'statistics']);
         $this->middleware('permission:aca_cursoCrear')->only(['store']);
-        $this->middleware('permission:aca_cursoEditar')->only(['update']);
+        $this->middleware('permission:aca_cursoEditar')->only(['update', 'sincronizarOrdenModulos']);
         $this->middleware('permission:aca_cursoInactivar')->only(['destroy', 'restore', 'forceDelete', 'trashed']);
     }
 
@@ -274,6 +274,46 @@ class CursoController extends Controller
                 'from' => $cursos->firstItem(),
                 'to' => $cursos->lastItem(),
             ],
+        ]);
+    }
+
+    /**
+     * Establece el orden canónico de los módulos dentro del curso.
+     *
+     * Recibe el listado completo de módulos del curso con su nuevo orden y
+     * actualiza el campo `orden` en la tabla pivote `modulo_curso`. El orden
+     * es la base que usa CalendarioGrupoService para calcular fechas cíclicas.
+     *
+     * @param Request $request
+     * @param Curso   $curso
+     * @return JsonResponse
+     */
+    public function sincronizarOrdenModulos(Request $request, Curso $curso): JsonResponse
+    {
+        $request->validate([
+            'modulos'              => 'required|array|min:1',
+            'modulos.*.modulo_id' => 'required|integer',
+            'modulos.*.orden'     => 'required|integer|min:1',
+        ]);
+
+        $idsEnviados    = collect($request->modulos)->pluck('modulo_id')->sort()->values();
+        $idsDelCurso    = $curso->modulos()->pluck('modulos.id')->sort()->values();
+
+        if ($idsEnviados->toArray() !== $idsDelCurso->toArray()) {
+            return response()->json([
+                'message' => 'El listado de módulos no coincide con los módulos asignados al curso. Debe incluirlos todos.',
+            ], 422);
+        }
+
+        foreach ($request->modulos as $item) {
+            $curso->modulos()->updateExistingPivot($item['modulo_id'], ['orden' => $item['orden']]);
+        }
+
+        $curso->load('modulos');
+
+        return response()->json([
+            'message' => 'Orden de módulos actualizado exitosamente.',
+            'data'    => new CursoResource($curso),
         ]);
     }
 
