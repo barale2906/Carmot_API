@@ -20,6 +20,23 @@ class UpdateCicloRequest extends FormRequest
     }
 
     /**
+     * Normaliza los campos de fecha extrayendo solo la parte YYYY-MM-DD,
+     * evitando desfases de zona horaria cuando el frontend envía ISO con sufijo UTC.
+     */
+    protected function prepareForValidation(): void
+    {
+        $campos = [];
+        foreach (['fecha_inicio', 'fecha_fin'] as $campo) {
+            if ($this->has($campo) && $this->$campo) {
+                $campos[$campo] = substr((string) $this->$campo, 0, 10);
+            }
+        }
+        if ($campos) {
+            $this->merge($campos);
+        }
+    }
+
+    /**
      * Obtiene las reglas de validación que se aplican a la solicitud.
      *
      * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
