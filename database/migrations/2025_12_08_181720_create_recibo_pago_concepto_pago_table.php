@@ -30,6 +30,10 @@ return new class extends Migration
             $table->decimal('subtotal', 15, 2)->comment('Subtotal (cantidad * unitario)');
             $table->unsignedBigInteger('id_relacional')->nullable()->comment('ID de relación (cartera pagada o inventario)');
             $table->text('observaciones')->nullable()->comment('Observaciones adicionales');
+            // Snapshot del estado de la cartera al momento del pago: permite reimprimir el
+            // recibo con la misma "fotografía" sin importar los pagos posteriores.
+            $table->tinyInteger('status_cartera')->nullable()->comment('0=Activa 1=Abonada 2=Cerrada (snapshot al momento del pago)');
+            $table->decimal('saldo_cartera', 15, 2)->nullable()->comment('Saldo pendiente de la cartera tras aplicar este pago (snapshot)');
 
             $table->timestamps();
 

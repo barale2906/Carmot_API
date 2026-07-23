@@ -2,6 +2,7 @@
 
 namespace App\Models\Academico;
 
+use App\Models\Configuracion\Eps;
 use App\Models\Configuracion\Poblacion;
 use App\Models\Configuracion\Sede;
 use App\Models\Financiero\Cartera\Cartera;
@@ -201,6 +202,14 @@ class Matricula extends Model
     public function comercial(): BelongsTo
     {
         return $this->belongsTo(User::class, 'comercial_id');
+    }
+
+    /**
+     * EPS a la que pertenece el estudiante al momento de la matrícula.
+     */
+    public function eps(): BelongsTo
+    {
+        return $this->belongsTo(Eps::class);
     }
 
     /**

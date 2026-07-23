@@ -268,6 +268,28 @@ class RolesAndPermissionsSeeder extends Seeder
                     //'modulo'=>'configuracion'
                     ])->syncRoles([$Superusuario,$financiero,$coordinador]);
 
+        // Create permissions EPS
+        Permission::create([
+                    'name'=>'co_eps',
+                    'descripcion'=>'ver EPS',
+                    ])->syncRoles([$Superusuario,$financiero,$coordinador,$auxiliar]);
+        Permission::create([
+                    'name'=>'co_epsCrear',
+                    'descripcion'=>'crear EPS',
+                    ])->syncRoles([$Superusuario,$financiero,$coordinador]);
+        Permission::create([
+                    'name'=>'co_epsEditar',
+                    'descripcion'=>'editar EPS',
+                    ])->syncRoles([$Superusuario,$financiero,$coordinador]);
+        Permission::create([
+                    'name'=>'co_epsInactivar',
+                    'descripcion'=>'inactivar EPS',
+                    ])->syncRoles([$Superusuario]);
+        Permission::create([
+                    'name'=>'co_epsImportar',
+                    'descripcion'=>'carga masiva de EPS',
+                    ])->syncRoles([$Superusuario,$coordinador]);
+
         // Create permissions horario
         Permission::create([
                             'name'=>'co_horarios',

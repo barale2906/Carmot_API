@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\Configuracion\AreaController;
+use App\Http\Controllers\Api\Configuracion\EpsController;
 use App\Http\Controllers\Api\Configuracion\HorarioController;
 use App\Http\Controllers\Api\Configuracion\PermissionController;
 use App\Http\Controllers\Api\Configuracion\PoblacionController;
@@ -96,6 +97,29 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('horarios/force/{horario}', [HorarioController::class, 'forceDelete'])
         ->name('horarios.force-delete');
     Route::apiResource('horarios', HorarioController::class);
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Rutas de EPS (rutas específicas antes del apiResource para evitar conflictos con {ep})
+    // ──────────────────────────────────────────────────────────────────────────
+    Route::prefix('eps')->group(function () {
+        Route::get('activas', [EpsController::class, 'activas'])
+            ->name('eps.activas');
+        Route::get('trashed', [EpsController::class, 'trashed'])
+            ->name('eps.trashed');
+        Route::get('filters/options', [EpsController::class, 'filters'])
+            ->name('eps.filters');
+        Route::get('statistics', [EpsController::class, 'statistics'])
+            ->name('eps.statistics');
+        Route::get('importar/plantilla', [EpsController::class, 'plantilla'])
+            ->name('eps.plantilla');
+        Route::post('importar', [EpsController::class, 'importar'])
+            ->name('eps.importar');
+    });
+    Route::post('eps/restore/{ep}', [EpsController::class, 'restore'])
+        ->name('eps.restore');
+    Route::delete('eps/force/{ep}', [EpsController::class, 'forceDelete'])
+        ->name('eps.force-delete');
+    Route::apiResource('eps', EpsController::class)->parameters(['eps' => 'ep']);
 
     // ──────────────────────────────────────────────────────────────────────────
     // Rutas de roles

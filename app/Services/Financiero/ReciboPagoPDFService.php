@@ -2,7 +2,6 @@
 
 namespace App\Services\Financiero;
 
-use App\Models\Financiero\Cartera\Cartera;
 use App\Models\Financiero\ReciboPago\ReciboPago;
 use Illuminate\Support\Facades\Storage;
 
@@ -42,30 +41,17 @@ class ReciboPagoPDFService
             'mediosPago',
         ]);
 
-        // Cargar estado de cartera para líneas con id_relacional (mismo enriquecimiento que el frontend)
-        $idRelacionales = $reciboPago->conceptosPago
-            ->pluck('pivot.id_relacional')
-            ->filter()
-            ->unique()
-            ->values();
-
-        $carteras = collect();
-        if ($idRelacionales->isNotEmpty()) {
-            $carteras = Cartera::whereIn('id', $idRelacionales)
-                ->get()
-                ->keyBy('id');
-        }
-
         $logoBase64 = null;
         $logoPath = public_path('images/logo.svg');
         if (file_exists($logoPath)) {
             $logoBase64 = 'data:image/svg+xml;base64,' . base64_encode(file_get_contents($logoPath));
         }
 
+        // El estado de cada cartera se lee del pivot (snapshot guardado al crear el recibo),
+        // no del estado actual, para que el PDF sea siempre idéntico a la impresión original.
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('recibos-pago.pdf', [
-            'recibo'      => $reciboPago,
-            'carteras'    => $carteras,
-            'logoBase64'  => $logoBase64,
+            'recibo'     => $reciboPago,
+            'logoBase64' => $logoBase64,
         ]);
 
         $pdf->setPaper('letter', 'portrait');

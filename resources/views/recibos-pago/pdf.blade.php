@@ -92,7 +92,8 @@
             vertical-align: top;
         }
         .concepto-nombre { font-weight: 500; }
-        .concepto-obs    { font-size: 9px; color: #64748b; display: block; margin-top: 1px; }
+        .concepto-obs    { font-size: 9px; color: #64748b; }
+        .concepto-saldo  { font-size: 9px; color: #92400e; font-weight: 500; }
 
         /* Badges de estado de cartera — colores iguales al frontend */
         .badge {
@@ -101,11 +102,10 @@
             padding: 1px 5px;
             border-radius: 3px;
             display: inline-block;
-            margin-top: 2px;
         }
         .badge-0 { background-color: #dbeafe; color: #1e40af; } /* Activa */
         .badge-1 { background-color: #fef3c7; color: #92400e; } /* Abonada */
-        .badge-2 { background-color: #d1fae5; color: #065f46; } /* Cerrada */
+        .badge-2 { background-color: #d1fae5; color: #065f46; } /* Pagada */
         .badge-3 { background-color: #f1f5f9; color: #64748b; } /* Anulada */
         .badge-4 { background-color: #ede9fe; color: #5b21b6; } /* En Acuerdo */
 
@@ -208,17 +208,32 @@
         <tbody>
             @forelse($recibo->conceptosPago as $cp)
                 @php
-                    $idRel   = $cp->pivot->id_relacional;
-                    $cartera = $idRel ? ($carteras[$idRel] ?? null) : null;
+                    $obs    = $cp->pivot->observaciones ?? '';
+                    $nombre = $cp->nombre;
+                    if ($obs && str_contains($obs, 'cuota 0')) {
+                        $nombre = 'Matrícula';
+                    } elseif ($nombre === 'Pago de mensualidad') {
+                        $nombre = 'Pago mes';
+                    }
+                    // Snapshot guardado en el pivot al momento de crear el recibo
+                    $statusSnapshot = $cp->pivot->status_cartera;
+                    $saldoSnapshot  = $cp->pivot->saldo_cartera;
+                    $statusTextos   = [0 => 'Activa', 1 => 'Abonada', 2 => 'Cerrada', 3 => 'Anulada', 4 => 'En Acuerdo'];
+                    $badgeTexto     = $statusSnapshot !== null
+                        ? ($statusSnapshot === 2 ? 'Pagada' : ($statusTextos[$statusSnapshot] ?? ''))
+                        : null;
                 @endphp
                 <tr>
                     <td>
-                        <span class="concepto-nombre">{{ $cp->nombre }}</span>
-                        @if($cp->pivot->observaciones)
-                            <span class="concepto-obs">— {{ $cp->pivot->observaciones }}</span>
+                        <span class="concepto-nombre">{{ $nombre }}</span>
+                        @if($obs)
+                            <span class="concepto-obs">&nbsp;— {{ $obs }}</span>
                         @endif
-                        @if($cartera)
-                            <span class="badge badge-{{ $cartera->status }}">{{ $cartera->status_text }}</span>
+                        @if($badgeTexto)
+                            <span class="badge badge-{{ $statusSnapshot }}">&nbsp;{{ $badgeTexto }}</span>
+                        @endif
+                        @if($statusSnapshot === 1 && $saldoSnapshot > 0)
+                            <span class="concepto-saldo">&nbsp;· Saldo: $ {{ number_format($saldoSnapshot, 0, ',', '.') }}</span>
                         @endif
                     </td>
                     <td class="right">{{ $cp->pivot->cantidad }}</td>

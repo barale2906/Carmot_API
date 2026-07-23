@@ -256,20 +256,36 @@ class ReciboPagoController extends Controller
             // ── 5. Líneas de cartera y actualización de saldos ───────────────
             foreach ($planCartera as $linea) {
                 /** @var Cartera $cartera */
-                $cartera  = $linea['cartera'];
+                $cartera = $linea['cartera'];
+
+                // Aplicar el descuento antes del pago para que aplicarPago() lo
+                // incluya en el cálculo del saldo final.
+                if (($linea['descuento'] ?? 0) > 0) {
+                    $cartera->increment('descuento', $linea['descuento']);
+                }
+
+                // Aplicar el pago primero: el modelo queda actualizado con el
+                // estado y saldo resultantes, que luego se guardan en el pivot
+                // como snapshot inmutable ("fotografía" del recibo en ese instante).
+                $cartera->aplicarPago($linea['valor']);
+                $statusSnapshot = $cartera->status;
+                $saldoSnapshot  = (float) $cartera->saldo;
+
                 $concepto = ConceptoPago::porNombre(
                     $cartera->numero_cuota === 0 ? ConceptoPago::MATRICULA : ConceptoPago::MENSUALIDAD
                 );
 
                 if ($concepto) {
                     $recibo->conceptosPago()->attach($concepto->id, [
-                        'tipo'          => $concepto->tipo,
-                        'valor'         => $linea['valor'],
-                        'cantidad'      => 1,
-                        'unitario'      => $linea['valor'],
-                        'subtotal'      => $linea['valor'],
-                        'id_relacional' => $cartera->id,
-                        'observaciones' => "Pago cuota {$cartera->numero_cuota}",
+                        'tipo'           => $concepto->tipo,
+                        'valor'          => $linea['valor'],
+                        'cantidad'       => 1,
+                        'unitario'       => $linea['valor'],
+                        'subtotal'       => $linea['valor'],
+                        'id_relacional'  => $cartera->id,
+                        'observaciones'  => "Pago cuota {$cartera->numero_cuota}",
+                        'status_cartera' => $statusSnapshot,
+                        'saldo_cartera'  => $saldoSnapshot,
                     ]);
                 }
 
@@ -278,19 +294,18 @@ class ReciboPagoController extends Controller
                     $conceptoDesc = ConceptoPago::porNombre(ConceptoPago::DESCUENTO);
                     if ($conceptoDesc) {
                         $recibo->conceptosPago()->attach($conceptoDesc->id, [
-                            'tipo'          => $conceptoDesc->tipo,
-                            'valor'         => $linea['descuento'],
-                            'cantidad'      => 1,
-                            'unitario'      => $linea['descuento'],
-                            'subtotal'      => $linea['descuento'],
-                            'id_relacional' => $cartera->id,
-                            'observaciones' => 'Descuento pronto pago',
+                            'tipo'           => $conceptoDesc->tipo,
+                            'valor'          => $linea['descuento'],
+                            'cantidad'       => 1,
+                            'unitario'       => $linea['descuento'],
+                            'subtotal'       => $linea['descuento'],
+                            'id_relacional'  => $cartera->id,
+                            'observaciones'  => 'Descuento pronto pago',
+                            'status_cartera' => $statusSnapshot,
+                            'saldo_cartera'  => $saldoSnapshot,
                         ]);
                     }
-                    $cartera->increment('descuento', $linea['descuento']);
                 }
-
-                $cartera->aplicarPago($linea['valor']);
             }
 
             // ── 6. Medios de pago ─────────────────────────────────────────────

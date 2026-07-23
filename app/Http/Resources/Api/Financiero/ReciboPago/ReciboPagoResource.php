@@ -81,6 +81,8 @@ class ReciboPagoResource extends JsonResource
                         'subtotal' => (float) $concepto->pivot->subtotal,
                         'id_relacional' => $concepto->pivot->id_relacional,
                         'observaciones' => $concepto->pivot->observaciones,
+                        'status_cartera' => $concepto->pivot->status_cartera !== null ? (int) $concepto->pivot->status_cartera : null,
+                        'saldo_cartera'  => $concepto->pivot->saldo_cartera  !== null ? (float) $concepto->pivot->saldo_cartera  : null,
                     ];
                 });
             }),

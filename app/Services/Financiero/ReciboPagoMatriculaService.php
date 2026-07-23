@@ -71,22 +71,25 @@ class ReciboPagoMatriculaService
                 ? ConceptoPago::MENSUALIDAD   // Contado: todo el valor se considera mensualidad/pago único
                 : ConceptoPago::MATRICULA;    // Cuotas: cuota 0 es el cargo de matrícula
 
+            // Aplicar el pago primero para capturar el estado resultante como snapshot
+            $valorCartera = $cartera->valor;
+            $cartera->aplicarPago($valorCartera);
+
             $concepto = ConceptoPago::porNombre($nombreConcepto);
 
             if ($concepto) {
                 $recibo->conceptosPago()->attach($concepto->id, [
-                    'tipo'          => $concepto->tipo,
-                    'valor'         => $cartera->valor,
-                    'cantidad'      => 1,
-                    'unitario'      => $cartera->valor,
-                    'subtotal'      => $cartera->valor,
-                    'id_relacional' => $cartera->id,
-                    'observaciones' => "Auto-generado al matricular — cuota {$cartera->numero_cuota}",
+                    'tipo'           => $concepto->tipo,
+                    'valor'          => $valorCartera,
+                    'cantidad'       => 1,
+                    'unitario'       => $valorCartera,
+                    'subtotal'       => $valorCartera,
+                    'id_relacional'  => $cartera->id,
+                    'observaciones'  => "Auto-generado al matricular — cuota {$cartera->numero_cuota}",
+                    'status_cartera' => $cartera->status,
+                    'saldo_cartera'  => (float) $cartera->saldo,
                 ]);
             }
-
-            // Marcar la cartera cuota 0 como Cerrada
-            $cartera->aplicarPago($cartera->valor);
         });
     }
 }
