@@ -56,10 +56,14 @@ class CarteraController extends Controller
             if ($request->boolean('solo_vencidas')) {
                 $q->vencidas();
             }
+            if ($request->filled('concepto')) {
+                $q->byConcepto($request->input('concepto'));
+            }
         };
 
         // Query de Cartera para calcular totales globales según los mismos filtros.
         // Las columnas matricula_id / estudiante_id / sede_id existen directamente en carteras.
+        // ciclo_id y curso_id se resuelven vía whereHas('matricula').
         $agregado = Cartera::query();
         if ($request->filled('matricula_id')) {
             $agregado->byMatricula($request->integer('matricula_id'));
@@ -69,6 +73,12 @@ class CarteraController extends Controller
         }
         if ($request->filled('sede_id')) {
             $agregado->bySede($request->integer('sede_id'));
+        }
+        if ($request->filled('ciclo_id')) {
+            $agregado->byCiclo($request->integer('ciclo_id'));
+        }
+        if ($request->filled('curso_id')) {
+            $agregado->byCurso($request->integer('curso_id'));
         }
         $filtrarCarteras($agregado);
 
@@ -95,6 +105,12 @@ class CarteraController extends Controller
         }
         if ($request->filled('sede_id')) {
             $query->where('sede_id', $request->integer('sede_id'));
+        }
+        if ($request->filled('ciclo_id')) {
+            $query->where('ciclo_id', $request->integer('ciclo_id'));
+        }
+        if ($request->filled('curso_id')) {
+            $query->where('curso_id', $request->integer('curso_id'));
         }
 
         $matriculas = $query

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Api\Financiero\Cartera;
 
+use App\Models\Academico\Ciclo;
 use App\Models\Academico\Curso;
 use App\Models\Academico\Matricula;
 use App\Models\Configuracion\Sede;
@@ -158,6 +159,85 @@ class CarteraTest extends TestCase
         $data = $response->json('data');
         $this->assertCount(1, $data);
         $this->assertEquals($this->matricula->id, $data[0]['matricula_id']);
+    }
+
+    /** @test */
+    public function filtra_carteras_por_ciclo_id(): void
+    {
+        $cicloA = Ciclo::factory()->create();
+        $cicloB = Ciclo::factory()->create();
+
+        $matriculaA = Matricula::factory()->create(['ciclo_id' => $cicloA->id, 'lp_precio_producto_id' => null]);
+        $matriculaB = Matricula::factory()->create(['ciclo_id' => $cicloB->id, 'lp_precio_producto_id' => null]);
+
+        Cartera::factory()->create(['matricula_id' => $matriculaA->id, 'sede_id' => $this->sede->id, 'estudiante_id' => $matriculaA->estudiante_id]);
+        Cartera::factory()->create(['matricula_id' => $matriculaB->id, 'sede_id' => $this->sede->id, 'estudiante_id' => $matriculaB->estudiante_id]);
+
+        $response = $this->actingAs($this->usuario)
+            ->getJson(route('carteras.index', ['ciclo_id' => $cicloA->id]));
+
+        $response->assertOk();
+        $data = $response->json('data');
+        $this->assertCount(1, $data);
+        $this->assertEquals($matriculaA->id, $data[0]['matricula_id']);
+    }
+
+    /** @test */
+    public function filtra_carteras_por_curso_id(): void
+    {
+        $cursoA = Curso::factory()->create();
+        $cursoB = Curso::factory()->create();
+
+        $matriculaA = Matricula::factory()->create(['curso_id' => $cursoA->id, 'lp_precio_producto_id' => null]);
+        $matriculaB = Matricula::factory()->create(['curso_id' => $cursoB->id, 'lp_precio_producto_id' => null]);
+
+        Cartera::factory()->create(['matricula_id' => $matriculaA->id, 'sede_id' => $this->sede->id, 'estudiante_id' => $matriculaA->estudiante_id]);
+        Cartera::factory()->create(['matricula_id' => $matriculaB->id, 'sede_id' => $this->sede->id, 'estudiante_id' => $matriculaB->estudiante_id]);
+
+        $response = $this->actingAs($this->usuario)
+            ->getJson(route('carteras.index', ['curso_id' => $cursoA->id]));
+
+        $response->assertOk();
+        $data = $response->json('data');
+        $this->assertCount(1, $data);
+        $this->assertEquals($matriculaA->id, $data[0]['matricula_id']);
+    }
+
+    /** @test */
+    public function filtra_carteras_por_concepto_matricula(): void
+    {
+        // Cuota 0 = cargo de matrícula
+        $this->crearCartera(['numero_cuota' => 0, 'saldo' => 100000]);
+        // Cuota 1 = mensualidad
+        $this->crearCartera(['numero_cuota' => 1, 'saldo' => 200000]);
+
+        $response = $this->actingAs($this->usuario)
+            ->getJson(route('carteras.index', ['concepto' => 'matricula']));
+
+        $response->assertOk();
+        $data = $response->json('data');
+        $this->assertCount(1, $data);
+        $this->assertCount(1, $data[0]['carteras']);
+        $this->assertEquals(0, $data[0]['carteras'][0]['numero_cuota']);
+        // Los totales solo reflejan la cuota filtrada
+        $this->assertEquals(100000, $response->json('meta.total_saldo_filtrado'));
+    }
+
+    /** @test */
+    public function filtra_carteras_por_concepto_mensualidad(): void
+    {
+        $this->crearCartera(['numero_cuota' => 0, 'saldo' => 100000]);
+        $this->crearCartera(['numero_cuota' => 1, 'saldo' => 200000]);
+        $this->crearCartera(['numero_cuota' => 2, 'saldo' => 200000]);
+
+        $response = $this->actingAs($this->usuario)
+            ->getJson(route('carteras.index', ['concepto' => 'mensualidad']));
+
+        $response->assertOk();
+        $data = $response->json('data');
+        $this->assertCount(1, $data);
+        $this->assertCount(2, $data[0]['carteras']);
+        $this->assertEquals(400000, $response->json('meta.total_saldo_filtrado'));
     }
 
     // ─── show ─────────────────────────────────────────────────────────────────

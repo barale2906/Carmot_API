@@ -222,6 +222,41 @@ class Cartera extends Model
         return $query->whereBetween('fecha_vencimiento', [$desde, $hasta]);
     }
 
+    /**
+     * Filtra por ciclo lectivo a través de la matrícula.
+     *
+     * @param \Illuminate\Database\Eloquent\Builder $query
+     */
+    public function scopeByCiclo($query, int $cicloId)
+    {
+        return $query->whereHas('matricula', fn ($q) => $q->where('ciclo_id', $cicloId));
+    }
+
+    /**
+     * Filtra por curso a través de la matrícula.
+     *
+     * @param \Illuminate\Database\Eloquent\Builder $query
+     */
+    public function scopeByCurso($query, int $cursoId)
+    {
+        return $query->whereHas('matricula', fn ($q) => $q->where('curso_id', $cursoId));
+    }
+
+    /**
+     * Filtra por concepto de cartera según numero_cuota:
+     * 'matricula' → cuota 0 (cargo de matrícula)
+     * 'mensualidad' → cuotas ≥1 (cuotas mensuales / acuerdo)
+     *
+     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @param string $concepto 'matricula' | 'mensualidad'
+     */
+    public function scopeByConcepto($query, string $concepto)
+    {
+        return $concepto === 'matricula'
+            ? $query->where('numero_cuota', 0)
+            : $query->where('numero_cuota', '>', 0);
+    }
+
     // -------------------------------------------------------------------------
     // HasRelationScopes / HasSortingScopes / HasFilterScopes — configuración
     // -------------------------------------------------------------------------
