@@ -44,6 +44,7 @@ use App\Services\Financiero\ReciboPagoNumeracionService;
  * @property float $descuento_total Descuento total aplicado
  * @property string|null $banco Banco donde ingresó el dinero
  * @property int $status Estado del recibo (0=En proceso, 1=Creado, 2=Cerrado, 3=Anulado)
+ * @property string|null $motivo_anulacion Motivo obligatorio registrado al anular el recibo
  * @property int|null $cierre Número de cierre de caja
  * @property int $sede_id ID de la sede que genera el recibo
  * @property int|null $estudiante_id ID del estudiante (User)
@@ -516,16 +517,21 @@ class ReciboPago extends Model
 
     /**
      * Anula el recibo cambiando su estado a ANULADO.
+     * El motivo es obligatorio para trazabilidad y auditoría.
      *
+     * @param string $motivo Razón de la anulación
      * @return bool True si se anuló correctamente
      */
-    public function anular(): bool
+    public function anular(string $motivo): bool
     {
         if ($this->status === self::STATUS_CERRADO) {
             throw new \Exception("No se puede anular un recibo cerrado.");
         }
 
-        return $this->update(['status' => self::STATUS_ANULADO]);
+        return $this->update([
+            'status'           => self::STATUS_ANULADO,
+            'motivo_anulacion' => $motivo,
+        ]);
     }
 
     /**

@@ -151,6 +151,28 @@ class Cartera extends Model
     }
 
     /**
+     * Revierte un descuento de pronto pago previamente aplicado (al anular un recibo).
+     * Debe llamarse después de revertirPago() para que el abono ya esté restaurado.
+     *
+     * @param  float $monto   monto del descuento a revertir
+     */
+    public function revertirDescuento(float $monto): void
+    {
+        $nuevoDescuento = max(0, (float) $this->descuento - $monto);
+        $nuevoSaldo     = (float) $this->valor - (float) $this->abono - $nuevoDescuento;
+
+        $status = (float) $this->abono > 0
+            ? self::getStatusKey('Abonada')
+            : self::getStatusKey('Activa');
+
+        $this->update([
+            'descuento' => $nuevoDescuento,
+            'saldo'     => $nuevoSaldo,
+            'status'    => $status,
+        ]);
+    }
+
+    /**
      * Marca la cartera como Anulada.
      */
     public function anular(): void

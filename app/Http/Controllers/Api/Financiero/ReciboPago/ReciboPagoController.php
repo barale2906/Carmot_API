@@ -678,15 +678,23 @@ class ReciboPagoController extends Controller
 
     /**
      * Anula el recibo de pago especificado.
+     * Requiere un motivo de anulación para trazabilidad y auditoría.
      * Si el recibo tenía líneas de cartera (id_relacional), revierte el saldo y estado
      * de cada cartera afectada para dejarla como si el pago nunca se hubiera realizado.
      *
-     * @param Request    $request
+     * @param Request    $request Debe contener motivo_anulacion (requerido, max 500)
      * @param ReciboPago $reciboPago Recibo de pago a anular
      * @return JsonResponse Respuesta JSON de confirmación
      */
     public function anular(Request $request, ReciboPago $reciboPago): JsonResponse
     {
+        $request->validate([
+            'motivo_anulacion' => 'required|string|max:500',
+        ], [
+            'motivo_anulacion.required' => 'El motivo de anulación es obligatorio.',
+            'motivo_anulacion.max'      => 'El motivo no puede superar los 500 caracteres.',
+        ]);
+
         DB::beginTransaction();
         try {
             if ($reciboPago->estaCerrado()) {
@@ -696,25 +704,41 @@ class ReciboPagoController extends Controller
                 return response()->json(['message' => 'El recibo ya está anulado.'], 422);
             }
 
-            // Revertir carteras afectadas vía la pivot (tipo Cartera = 0)
-            $reciboPago->conceptosPago()
+            // Cargar todas las líneas de cartera del pivot en una sola consulta
+            $lineasCartera = $reciboPago->conceptosPago()
                 ->wherePivot('tipo', 0)
                 ->wherePivotNotNull('id_relacional')
                 ->withPivot(['subtotal', 'id_relacional'])
-                ->get()
+                ->get();
+
+            $idDescuento = ConceptoPago::porNombre(ConceptoPago::DESCUENTO)?->id;
+
+            // 1. Revertir abonos (todas las líneas excepto la de descuento pronto pago)
+            $lineasCartera->filter(fn($c) => $c->id !== $idDescuento)
                 ->each(function ($concepto) {
                     $cartera = Cartera::find($concepto->pivot->id_relacional);
-                    if ($cartera && $concepto->pivot->subtotal > 0) {
+                    if ($cartera && (float) $concepto->pivot->subtotal > 0) {
                         $cartera->revertirPago((float) $concepto->pivot->subtotal);
                     }
                 });
 
-            $reciboPago->anular();
+            // 2. Revertir descuentos de pronto pago (después de los abonos para usar el
+            //    estado de cartera ya actualizado y recalcular el saldo correctamente)
+            $lineasCartera->filter(fn($c) => $idDescuento && $c->id === $idDescuento)
+                ->each(function ($concepto) {
+                    $cartera = Cartera::find($concepto->pivot->id_relacional);
+                    if ($cartera && (float) $concepto->pivot->subtotal > 0) {
+                        $cartera->revertirDescuento((float) $concepto->pivot->subtotal);
+                    }
+                });
+
+            $reciboPago->anular($request->string('motivo_anulacion'));
 
             Log::info('Recibo de pago anulado', [
-                'recibo_id'     => $reciboPago->id,
-                'numero_recibo' => $reciboPago->numero_recibo,
-                'user_id'       => auth()->id(),
+                'recibo_id'        => $reciboPago->id,
+                'numero_recibo'    => $reciboPago->numero_recibo,
+                'motivo_anulacion' => $request->string('motivo_anulacion'),
+                'user_id'          => auth()->id(),
             ]);
 
             DB::commit();

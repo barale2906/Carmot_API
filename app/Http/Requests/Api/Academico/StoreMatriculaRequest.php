@@ -77,6 +77,7 @@ class StoreMatriculaRequest extends FormRequest
             'empresa'         => 'nullable|string|max:150',
             'estrato'         => 'nullable|integer|min:1|max:6',
             'regimen_salud'   => ['nullable', 'string', Rule::in(array_keys(Matricula::REGIMENES_SALUD))],
+            'eps_id'          => 'nullable|integer|exists:eps,id',
 
             // ----------------------------------------------------------------
             // Datos de salud y condición
@@ -155,6 +156,7 @@ class StoreMatriculaRequest extends FormRequest
             'estrato.min'                 => 'El estrato debe ser entre 1 y 6.',
             'estrato.max'                 => 'El estrato debe ser entre 1 y 6.',
             'regimen_salud.in'            => 'El régimen de salud no es válido. Valores permitidos: ' . implode(', ', array_keys(Matricula::REGIMENES_SALUD)) . '.',
+            'eps_id.exists'               => 'La EPS seleccionada no existe.',
             'correo_contacto.email'       => 'El correo del contacto debe ser una dirección de correo válida.',
 
             // Foto
@@ -216,6 +218,7 @@ class StoreMatriculaRequest extends FormRequest
             'lugar_origen_id'         => 'lugar de origen',
             'nivel_educacion'         => 'nivel de educación',
             'regimen_salud'           => 'régimen de salud',
+            'eps_id'                  => 'EPS',
             'enfermedad_prioritaria'  => 'enfermedad de atención prioritaria',
             'conocimiento_curso'      => 'conocimiento del curso',
             'como_entero_curso'       => 'cómo se enteró del curso',

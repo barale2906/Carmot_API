@@ -51,6 +51,7 @@ class ReciboPagoResource extends JsonResource
             'banco' => $this->banco,
             'status' => $this->status,
             'status_text' => $this->status_text,
+            'motivo_anulacion' => $this->motivo_anulacion,
             'cierre' => $this->cierre,
             'sede_id' => $this->sede_id,
             'estudiante_id' => $this->estudiante_id,

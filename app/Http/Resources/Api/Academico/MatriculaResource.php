@@ -78,6 +78,7 @@ class MatriculaResource extends JsonResource
             'estrato'                => $this->estrato,
             'regimen_salud'          => $this->regimen_salud,
             'regimen_salud_texto'    => $this->regimen_salud_texto,
+            'eps_id'                 => $this->eps_id,
 
             // ----------------------------------------------------------------
             // Datos de salud y condición
@@ -159,10 +160,15 @@ class MatriculaResource extends JsonResource
             ]),
 
             'lugar_origen' => $this->whenLoaded('lugarOrigen', fn () => $this->lugarOrigen ? [
-                'id'       => $this->lugarOrigen->id,
-                'pais'     => $this->lugarOrigen->pais,
+                'id'        => $this->lugarOrigen->id,
+                'pais'      => $this->lugarOrigen->pais,
                 'provincia' => $this->lugarOrigen->provincia,
-                'nombre'   => $this->lugarOrigen->nombre,
+                'nombre'    => $this->lugarOrigen->nombre,
+            ] : null),
+
+            'eps' => $this->whenLoaded('eps', fn () => $this->eps ? [
+                'id'     => $this->eps->id,
+                'nombre' => $this->eps->nombre,
             ] : null),
         ];
     }

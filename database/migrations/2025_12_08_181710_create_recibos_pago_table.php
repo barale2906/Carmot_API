@@ -30,6 +30,7 @@ return new class extends Migration
             $table->decimal('sobrecargo_total', 15, 2)->default(0)->comment('Total de sobrecargos cobrados (cargos por medio de pago, etc.)');
             $table->string('banco', 100)->nullable()->comment('Banco donde ingresó el dinero');
             $table->integer('status')->default(0)->comment('Estado del recibo (0=En proceso, 1=Creado, 2=Cerrado, 3=Anulado)');
+            $table->string('motivo_anulacion', 500)->nullable()->comment('Motivo obligatorio al anular el recibo');
             $table->unsignedInteger('cierre')->nullable()->comment('Número de cierre de caja');
 
             $table->foreignId('sede_id')->constrained('sedes')->onDelete('restrict')->comment('ID de la sede que genera el recibo');

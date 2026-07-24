@@ -345,14 +345,29 @@ class ReciboPagoTest extends TestCase
         $recibo = $this->crearRecibo(['status' => ReciboPago::STATUS_CREADO]);
 
         $this->actingAs($this->usuario)
-            ->postJson(route('recibos-pago.anular', $recibo))
+            ->postJson(route('recibos-pago.anular', $recibo), [
+                'motivo_anulacion' => 'Pago duplicado por error del cajero.',
+            ])
             ->assertOk()
-            ->assertJsonPath('data.status', ReciboPago::STATUS_ANULADO);
+            ->assertJsonPath('data.status', ReciboPago::STATUS_ANULADO)
+            ->assertJsonPath('data.motivo_anulacion', 'Pago duplicado por error del cajero.');
 
         $this->assertDatabaseHas('recibos_pago', [
-            'id'     => $recibo->id,
-            'status' => ReciboPago::STATUS_ANULADO,
+            'id'               => $recibo->id,
+            'status'           => ReciboPago::STATUS_ANULADO,
+            'motivo_anulacion' => 'Pago duplicado por error del cajero.',
         ]);
+    }
+
+    /** @test */
+    public function rechaza_anular_sin_motivo_de_anulacion(): void
+    {
+        $recibo = $this->crearRecibo(['status' => ReciboPago::STATUS_CREADO]);
+
+        $this->actingAs($this->usuario)
+            ->postJson(route('recibos-pago.anular', $recibo), [])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['motivo_anulacion']);
     }
 
     /** @test */
@@ -382,11 +397,69 @@ class ReciboPagoTest extends TestCase
         ]);
 
         $this->actingAs($this->usuario)
-            ->postJson(route('recibos-pago.anular', $recibo))
+            ->postJson(route('recibos-pago.anular', $recibo), [
+                'motivo_anulacion' => 'Error en el registro de pago.',
+            ])
             ->assertOk();
 
         $cartera->refresh();
         $this->assertEquals(100000, $cartera->saldo);
+        $this->assertEquals(Cartera::getStatusKey('Activa'), $cartera->status);
+    }
+
+    /** @test */
+    public function anular_recibo_revierte_descuento_pronto_pago(): void
+    {
+        // Escenario: cuota de 100 000, descuento 5 000, pago neto 95 000 → saldo 0
+        $conceptoDescuento = ConceptoPago::factory()->tipoCartera()->create([
+            'nombre' => ConceptoPago::DESCUENTO,
+            'valor'  => 0,
+        ]);
+
+        $recibo  = $this->crearRecibo(['status' => ReciboPago::STATUS_CREADO]);
+        $cartera = Cartera::factory()->create([
+            'matricula_id'  => $this->matricula->id,
+            'sede_id'       => $this->sede->id,
+            'estudiante_id' => $this->matricula->estudiante_id,
+            'valor'         => 100000,
+            'saldo'         => 0,
+            'abono'         => 95000,
+            'descuento'     => 5000,
+            'status'        => Cartera::getStatusKey('Cerrada'),
+        ]);
+
+        // Línea de abono
+        $recibo->conceptosPago()->attach($this->conceptoMatricula->id, [
+            'tipo'          => 0,
+            'valor'         => 95000,
+            'cantidad'      => 1,
+            'unitario'      => 95000,
+            'subtotal'      => 95000,
+            'id_relacional' => $cartera->id,
+            'observaciones' => 'Pago cuota 0',
+        ]);
+
+        // Línea de descuento pronto pago
+        $recibo->conceptosPago()->attach($conceptoDescuento->id, [
+            'tipo'          => 0,
+            'valor'         => 5000,
+            'cantidad'      => 1,
+            'unitario'      => 5000,
+            'subtotal'      => 5000,
+            'id_relacional' => $cartera->id,
+            'observaciones' => 'Descuento pronto pago',
+        ]);
+
+        $this->actingAs($this->usuario)
+            ->postJson(route('recibos-pago.anular', $recibo), [
+                'motivo_anulacion' => 'Pago ingresado en recibo equivocado.',
+            ])
+            ->assertOk();
+
+        $cartera->refresh();
+        $this->assertEquals(0,      $cartera->abono,    'El abono debe quedar en 0');
+        $this->assertEquals(0,      $cartera->descuento, 'El descuento debe quedar en 0');
+        $this->assertEquals(100000, $cartera->saldo,    'El saldo debe quedar en el valor original');
         $this->assertEquals(Cartera::getStatusKey('Activa'), $cartera->status);
     }
 
@@ -396,7 +469,9 @@ class ReciboPagoTest extends TestCase
         $recibo = $this->crearRecibo(['status' => ReciboPago::STATUS_ANULADO]);
 
         $this->actingAs($this->usuario)
-            ->postJson(route('recibos-pago.anular', $recibo))
+            ->postJson(route('recibos-pago.anular', $recibo), [
+                'motivo_anulacion' => 'Intento de re-anulación.',
+            ])
             ->assertUnprocessable();
     }
 
@@ -406,7 +481,9 @@ class ReciboPagoTest extends TestCase
         $recibo = $this->crearRecibo(['status' => ReciboPago::STATUS_CERRADO]);
 
         $this->actingAs($this->usuario)
-            ->postJson(route('recibos-pago.anular', $recibo))
+            ->postJson(route('recibos-pago.anular', $recibo), [
+                'motivo_anulacion' => 'Cierre equivocado.',
+            ])
             ->assertUnprocessable();
     }
 
@@ -418,7 +495,9 @@ class ReciboPagoTest extends TestCase
         $recibo = $this->crearRecibo(['status' => ReciboPago::STATUS_CREADO]);
 
         $this->actingAs($sinPermiso)
-            ->postJson(route('recibos-pago.anular', $recibo))
+            ->postJson(route('recibos-pago.anular', $recibo), [
+                'motivo_anulacion' => 'Sin permiso.',
+            ])
             ->assertForbidden();
     }
 
