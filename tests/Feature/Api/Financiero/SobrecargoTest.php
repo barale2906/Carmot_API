@@ -108,14 +108,22 @@ class SobrecargoTest extends TestCase
     // ─── Validaciones específicas de sobrecargo ────────────────────────────────
 
     /** @test */
-    public function rechaza_sobrecargo_de_valor_fijo(): void
+    public function crea_sobrecargo_de_valor_fijo(): void
     {
-        $this->actingAs($this->usuario)
+        $response = $this->actingAs($this->usuario)
             ->postJson(route('descuentos.store'), $this->datosSobrecargo([
-                'tipo' => Descuento::TIPO_VALOR_FIJO,
-            ]))
-            ->assertUnprocessable()
-            ->assertJsonValidationErrors(['tipo']);
+                'tipo'  => Descuento::TIPO_VALOR_FIJO,
+                'valor' => 5000,
+            ]));
+
+        $response->assertCreated()
+            ->assertJsonPath('data.tipo', Descuento::TIPO_VALOR_FIJO)
+            ->assertJsonPath('data.valor', 5000);
+
+        $this->assertDatabaseHas('descuentos', [
+            'tipo'  => Descuento::TIPO_VALOR_FIJO,
+            'valor' => 5000,
+        ]);
     }
 
     /** @test */
@@ -211,7 +219,7 @@ class SobrecargoTest extends TestCase
             ]));
 
         $response->assertOk()
-            ->assertJsonStructure(['data' => [['descuento_id', 'nombre', 'porcentaje', 'valor_sobrecargo', 'valor_final']]]);
+            ->assertJsonStructure(['data' => [['descuento_id', 'nombre', 'tipo', 'valor', 'valor_base', 'valor_sobrecargo', 'valor_final']]]);
     }
 
     /** @test */

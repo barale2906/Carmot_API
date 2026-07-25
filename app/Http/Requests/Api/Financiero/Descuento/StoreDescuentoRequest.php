@@ -50,14 +50,12 @@ class StoreDescuentoRequest extends FormRequest
             'descripcion' => 'nullable|string',
             'tipo' => [
                 'required',
-                Rule::in($esSobrecargo ? [Descuento::TIPO_PORCENTUAL] : [Descuento::TIPO_PORCENTUAL, Descuento::TIPO_VALOR_FIJO]),
+                Rule::in([Descuento::TIPO_PORCENTUAL, Descuento::TIPO_VALOR_FIJO]),
             ],
             'valor' => [
                 'required', 'numeric', 'min:0',
-                // Los porcentuales (y todos los sobrecargos) no pueden superar 100
-                ...($esSobrecargo || $this->input('tipo') === Descuento::TIPO_PORCENTUAL
-                    ? ['max:100']
-                    : []),
+                // El límite de 100 solo aplica a los tipos porcentuales
+                ...($this->input('tipo') === Descuento::TIPO_PORCENTUAL ? ['max:100'] : []),
                 'regex:/^\d+(\.\d{1,2})?$/',
             ],
             'aplicacion' => [
@@ -148,7 +146,7 @@ class StoreDescuentoRequest extends FormRequest
             'codigo_descuento.unique'  => 'El código de descuento ya está en uso.',
             'codigo_descuento.required' => 'El código es obligatorio cuando el tipo de activación es código promocional.',
             'tipo.required'            => 'El tipo de cálculo es obligatorio.',
-            'tipo.in'                  => 'Los sobrecargos solo admiten tipo porcentual.',
+            'tipo.in'                  => 'El tipo de cálculo debe ser porcentual o valor_fijo.',
             'valor.required'           => 'El valor es obligatorio.',
             'valor.numeric'            => 'El valor debe ser numérico.',
             'valor.min'                => 'El valor no puede ser negativo.',

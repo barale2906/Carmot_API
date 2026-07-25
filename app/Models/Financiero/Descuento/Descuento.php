@@ -30,7 +30,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property string|null $codigo_descuento
  * @property string|null $descripcion
  * @property string $tipo_movimiento 'descuento' | 'sobrecargo'
- * @property string $tipo 'porcentual' | 'valor_fijo' (sobrecargos siempre porcentual)
+ * @property string $tipo 'porcentual' | 'valor_fijo'
  * @property float $valor Porcentaje (0-100) o monto fijo
  * @property string $aplicacion 'valor_total'|'matricula'|'cuota'|'valor_recibo'|'saldo_cartera'
  * @property string $tipo_activacion 'pago_anticipado'|'promocion_matricula'|'codigo_promocional'|'medio_pago'|'mora_automatica'
@@ -378,7 +378,8 @@ class Descuento extends Model
     }
 
     /**
-     * Calcula el monto de un sobrecargo porcentual sobre una base.
+     * Calcula el monto del sobrecargo sobre una base.
+     * Soporta tipo porcentual (% sobre la base) y valor fijo (monto fijo independiente de la base).
      * Solo aplica para registros con tipo_movimiento='sobrecargo'.
      *
      * @param float $monto Monto base (valor del medio de pago o saldo de cartera)
@@ -388,6 +389,10 @@ class Descuento extends Model
     {
         if ($monto <= 0 || $this->tipo_movimiento !== self::MOVIMIENTO_SOBRECARGO) {
             return 0;
+        }
+
+        if ($this->tipo === self::TIPO_VALOR_FIJO) {
+            return max(0, (float) $this->valor);
         }
 
         return max(0, ($monto * $this->valor) / 100);

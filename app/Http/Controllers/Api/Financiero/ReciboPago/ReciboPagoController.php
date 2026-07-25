@@ -271,6 +271,11 @@ class ReciboPagoController extends Controller
                 $statusSnapshot = $cartera->status;
                 $saldoSnapshot  = (float) $cartera->saldo;
 
+                // Cuota totalmente pagada → mostrar el valor bruto acordado.
+                // Cuota con abono parcial → mostrar solo lo pagado en este recibo.
+                $esCerrada      = $statusSnapshot === Cartera::getStatusKey('Cerrada');
+                $unitarioDisplay = $esCerrada ? (float) $cartera->valor : $linea['valor'];
+
                 $concepto = ConceptoPago::porNombre(
                     $cartera->numero_cuota === 0 ? ConceptoPago::MATRICULA : ConceptoPago::MENSUALIDAD
                 );
@@ -280,8 +285,8 @@ class ReciboPagoController extends Controller
                         'tipo'           => $concepto->tipo,
                         'valor'          => $linea['valor'],
                         'cantidad'       => 1,
-                        'unitario'       => $linea['valor'],
-                        'subtotal'       => $linea['valor'],
+                        'unitario'       => $unitarioDisplay,
+                        'subtotal'       => $unitarioDisplay,
                         'id_relacional'  => $cartera->id,
                         'observaciones'  => "Pago cuota {$cartera->numero_cuota}",
                         'status_cartera' => $statusSnapshot,
@@ -289,10 +294,15 @@ class ReciboPagoController extends Controller
                     ]);
                 }
 
-                // Línea de descuento por pronto pago (valor negativo implícito en el total)
-                if (($linea['descuento'] ?? 0) > 0) {
+                // Línea de descuento (matrícula o pronto pago): muestra nombre + tipo/valor del descuento
+                if (($linea['descuento'] ?? 0) > 0 && ($linea['descuento_obj'] ?? null) !== null) {
                     $conceptoDesc = ConceptoPago::porNombre(ConceptoPago::DESCUENTO);
                     if ($conceptoDesc) {
+                        $desc = $linea['descuento_obj'];
+                        $observacionDesc = $desc->tipo === Descuento::TIPO_PORCENTUAL
+                            ? "{$desc->nombre} {$desc->valor}%"
+                            : "{$desc->nombre} $" . number_format($linea['descuento'], 0, ',', '.');
+
                         $recibo->conceptosPago()->attach($conceptoDesc->id, [
                             'tipo'           => $conceptoDesc->tipo,
                             'valor'          => $linea['descuento'],
@@ -300,7 +310,7 @@ class ReciboPagoController extends Controller
                             'unitario'       => $linea['descuento'],
                             'subtotal'       => $linea['descuento'],
                             'id_relacional'  => $cartera->id,
-                            'observaciones'  => 'Descuento pronto pago',
+                            'observaciones'  => $observacionDesc,
                             'status_cartera' => $statusSnapshot,
                             'saldo_cartera'  => $saldoSnapshot,
                         ]);
@@ -545,12 +555,14 @@ class ReciboPagoController extends Controller
     }
 
     /**
-     * Pre-calcula si aplica un descuento por pronto pago para una matrícula y monto dados.
-     * No persiste nada. Debe llamarse antes de crear el recibo para informar al cajero
-     * si puede enviar aplicar_descuento=true en el store.
+     * Pre-calcula los descuentos aplicables para una matrícula y monto dados.
+     * No persiste nada. Devuelve:
+     *   - Descuento por pronto pago (pago_anticipado): aplica/valor/motivo.
+     *   - Descuento de matrícula (promocion_matricula): aplica siempre que exista descuento activo y haya cuota 0 pendiente.
+     * El frontend debe usar estos valores para mostrar el costo efectivo y calcular el monto neto a pagar.
      *
      * @param Request $request matricula_id, monto_a_pagar, fecha_transaccion (opcional)
-     * @return JsonResponse aplica, valor, motivo y datos del descuento
+     * @return JsonResponse Descuento pronto pago + descuento_matricula
      */
     public function precalcularDescuento(Request $request): JsonResponse
     {
@@ -567,19 +579,31 @@ class ReciboPagoController extends Controller
                 ? Carbon::parse($request->input('fecha_transaccion'))
                 : Carbon::today();
 
-            $resultado = $this->carteraDescuentoService->calcular($matricula, $monto, $fecha);
+            $resultado         = $this->carteraDescuentoService->calcular($matricula, $monto, $fecha);
+            $resultadoMatricula = $this->carteraDescuentoService->calcularDescuentoMatricula($matricula, $fecha);
 
             return response()->json([
                 'data' => [
-                    'aplica'  => $resultado['aplica'],
-                    'valor'   => $resultado['valor'],
-                    'motivo'  => $resultado['motivo'],
+                    'aplica'   => $resultado['aplica'],
+                    'valor'    => $resultado['valor'],
+                    'motivo'   => $resultado['motivo'],
                     'descuento' => $resultado['descuento'] ? [
                         'id'     => $resultado['descuento']->id,
                         'nombre' => $resultado['descuento']->nombre,
                         'tipo'   => $resultado['descuento']->tipo,
                         'valor'  => (float) $resultado['descuento']->valor,
                     ] : null,
+                    'descuento_matricula' => [
+                        'aplica' => $resultadoMatricula['aplica'],
+                        'valor'  => $resultadoMatricula['valor'],
+                        'motivo' => $resultadoMatricula['motivo'],
+                        'descuento' => $resultadoMatricula['descuento'] ? [
+                            'id'     => $resultadoMatricula['descuento']->id,
+                            'nombre' => $resultadoMatricula['descuento']->nombre,
+                            'tipo'   => $resultadoMatricula['descuento']->tipo,
+                            'valor'  => (float) $resultadoMatricula['descuento']->valor,
+                        ] : null,
+                    ],
                 ],
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
@@ -704,11 +728,13 @@ class ReciboPagoController extends Controller
                 return response()->json(['message' => 'El recibo ya está anulado.'], 422);
             }
 
-            // Cargar todas las líneas de cartera del pivot en una sola consulta
+            // Cargar todas las líneas de cartera del pivot en una sola consulta.
+            // Se carga 'valor' (abono real aplicado) en lugar de 'subtotal' (valor bruto de cuota
+            // para display), ya que revertirPago necesita el monto exacto que fue abonado.
             $lineasCartera = $reciboPago->conceptosPago()
                 ->wherePivot('tipo', 0)
                 ->wherePivotNotNull('id_relacional')
-                ->withPivot(['subtotal', 'id_relacional'])
+                ->withPivot(['valor', 'id_relacional'])
                 ->get();
 
             $idDescuento = ConceptoPago::porNombre(ConceptoPago::DESCUENTO)?->id;
@@ -717,8 +743,8 @@ class ReciboPagoController extends Controller
             $lineasCartera->filter(fn($c) => $c->id !== $idDescuento)
                 ->each(function ($concepto) {
                     $cartera = Cartera::find($concepto->pivot->id_relacional);
-                    if ($cartera && (float) $concepto->pivot->subtotal > 0) {
-                        $cartera->revertirPago((float) $concepto->pivot->subtotal);
+                    if ($cartera && (float) $concepto->pivot->valor > 0) {
+                        $cartera->revertirPago((float) $concepto->pivot->valor);
                     }
                 });
 
@@ -727,8 +753,8 @@ class ReciboPagoController extends Controller
             $lineasCartera->filter(fn($c) => $idDescuento && $c->id === $idDescuento)
                 ->each(function ($concepto) {
                     $cartera = Cartera::find($concepto->pivot->id_relacional);
-                    if ($cartera && (float) $concepto->pivot->subtotal > 0) {
-                        $cartera->revertirDescuento((float) $concepto->pivot->subtotal);
+                    if ($cartera && (float) $concepto->pivot->valor > 0) {
+                        $cartera->revertirDescuento((float) $concepto->pivot->valor);
                     }
                 });
 

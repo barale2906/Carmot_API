@@ -420,9 +420,11 @@ class DescuentoController extends Controller
     /**
      * Retorna los sobrecargos activos aplicables a un medio de pago y marca de tarjeta.
      * El frontend lo llama cuando el cajero selecciona el medio de pago para pre-calcular el recargo.
+     * El campo valor_base es el monto a pagar con ese medio específico (ej. valor de la tarjeta),
+     * no el total del recibo. Así el sobrecargo porcentual aplica solo sobre la porción con tarjeta.
      *
      * @param Request $request Parámetros: medio_pago (requerido), tipo_tarjeta (opcional), valor_base (requerido)
-     * @return JsonResponse Lista de sobrecargos con montos calculados
+     * @return JsonResponse Lista de sobrecargos con tipo, valor configurado y monto calculado
      */
     public function sobrecargoPorMedioPago(Request $request): JsonResponse
     {
@@ -433,7 +435,7 @@ class DescuentoController extends Controller
                 'valor_base'   => 'required|numeric|min:0',
             ]);
 
-            $service  = new AjusteService();
+            $service   = new AjusteService();
             $resultado = $service->resolverSobrecargosPorMedioPago(
                 $request->string('medio_pago'),
                 $request->filled('tipo_tarjeta') ? $request->string('tipo_tarjeta') : null,
@@ -444,7 +446,8 @@ class DescuentoController extends Controller
                 'data' => $resultado->map(fn ($item) => [
                     'descuento_id'     => $item['sobrecargo']->id,
                     'nombre'           => $item['sobrecargo']->nombre,
-                    'porcentaje'       => (float) $item['sobrecargo']->valor,
+                    'tipo'             => $item['sobrecargo']->tipo,
+                    'valor'            => (float) $item['sobrecargo']->valor,
                     'medio_pago'       => $request->string('medio_pago'),
                     'tipo_tarjeta'     => $request->input('tipo_tarjeta'),
                     'valor_base'       => $item['valor_base'],

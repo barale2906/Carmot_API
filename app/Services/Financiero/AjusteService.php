@@ -21,12 +21,12 @@ class AjusteService extends DescuentoService
 {
     /**
      * Retorna los sobrecargos activos aplicables a un medio de pago y marca de tarjeta.
-     * Cada ítem del resultado incluye el porcentaje y el monto calculado sobre valor_base.
+     * Cada ítem incluye el tipo, el valor configurado y el monto calculado sobre valor_base.
      *
      * @param string $medioPago Medio de pago (tarjeta_credito, tarjeta_debito, etc.)
      * @param string|null $marcaTarjeta Marca de tarjeta (visa, mastercard, etc.)
      * @param float $valorBase Monto del medio de pago para calcular el sobrecargo
-     * @return Collection Colección de arrays con keys: sobrecargo, valor_sobrecargo, valor_final
+     * @return Collection Colección de arrays con keys: sobrecargo, valor_base, valor_sobrecargo, valor_final
      */
     public function resolverSobrecargosPorMedioPago(
         string $medioPago,
@@ -90,9 +90,9 @@ class AjusteService extends DescuentoService
         $totalSobrecargo = 0.0;
 
         foreach ($mediosPago as $medio) {
-            $medioPago   = $medio['medio_pago'];
+            $medioPago    = $medio['medio_pago'];
             $marcaTarjeta = $medio['tipo_tarjeta'] ?? null;
-            $valorBase   = (float) ($medio['valor'] ?? 0);
+            $valorBase    = (float) ($medio['valor'] ?? 0);
 
             $sobrecargosAplicables = $this->resolverSobrecargosPorMedioPago($medioPago, $marcaTarjeta, $valorBase);
 
@@ -101,7 +101,8 @@ class AjusteService extends DescuentoService
                 $lineas[] = [
                     'descuento_id'     => $item['sobrecargo']->id,
                     'nombre'           => $item['sobrecargo']->nombre,
-                    'porcentaje'       => (float) $item['sobrecargo']->valor,
+                    'tipo'             => $item['sobrecargo']->tipo,
+                    'valor'            => (float) $item['sobrecargo']->valor,
                     'medio_pago'       => $medioPago,
                     'tipo_tarjeta'     => $marcaTarjeta,
                     'valor_base'       => $item['valor_base'],
@@ -112,7 +113,7 @@ class AjusteService extends DescuentoService
         }
 
         return [
-            'sobrecargos'     => $lineas,
+            'sobrecargos'      => $lineas,
             'total_sobrecargo' => $totalSobrecargo,
         ];
     }

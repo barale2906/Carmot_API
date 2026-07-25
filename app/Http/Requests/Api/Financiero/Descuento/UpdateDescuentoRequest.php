@@ -50,13 +50,12 @@ class UpdateDescuentoRequest extends FormRequest
             'descripcion' => 'nullable|string',
             'tipo' => [
                 'sometimes',
-                Rule::in($esSobrecargo ? [Descuento::TIPO_PORCENTUAL] : [Descuento::TIPO_PORCENTUAL, Descuento::TIPO_VALOR_FIJO]),
+                Rule::in([Descuento::TIPO_PORCENTUAL, Descuento::TIPO_VALOR_FIJO]),
             ],
             'valor' => [
                 'sometimes', 'numeric', 'min:0',
-                ...($esSobrecargo || $this->input('tipo') === Descuento::TIPO_PORCENTUAL
-                    ? ['max:100']
-                    : []),
+                // El límite de 100 solo aplica a los tipos porcentuales
+                ...($this->input('tipo') === Descuento::TIPO_PORCENTUAL ? ['max:100'] : []),
                 'regex:/^\d+(\.\d{1,2})?$/',
             ],
             'aplicacion' => [
@@ -144,7 +143,7 @@ class UpdateDescuentoRequest extends FormRequest
         return [
             'tipo_movimiento.in'       => 'El tipo de movimiento debe ser: descuento o sobrecargo.',
             'codigo_descuento.unique'  => 'El código de descuento ya está en uso.',
-            'tipo.in'                  => 'Los sobrecargos solo admiten tipo porcentual.',
+            'tipo.in'                  => 'El tipo de cálculo debe ser porcentual o valor_fijo.',
             'valor.max'                => 'El valor no puede superar 100.',
             'valor.regex'              => 'El valor admite máximo 2 decimales.',
             'aplicacion.in'            => 'Valor de aplicación no válido para este tipo de movimiento.',
