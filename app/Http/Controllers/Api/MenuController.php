@@ -203,87 +203,149 @@ class MenuController extends Controller
             }
         }
 
-        // Financiero - módulo con varios submenús
+        // Financiero - módulo con 3 sub-dropdowns: Listas de precios, Recibos de pago, Cartera
         if ($this->hasAnyPermission($user, [
             'fin_lp_tipos_producto', 'fin_lp_productos', 'fin_lp_listas_precios',
-            'fin_conceptos_pago', 'fin_descuentos', 'fin_recibos_pago', 'fin_carteras',
+            'fin_conceptos_pago', 'fin_descuentos', 'fin_recibos_pago',
+            'fin_reciboPagoAprobar', 'fin_carteras',
         ])) {
             $financieroChildren = [];
 
-            // Tipos de producto
+            // Sub-dropdown: Listas de precios
+            $listasChildren = [];
+
             if ($user->can('fin_lp_tipos_producto')) {
-                $financieroChildren[] = [
+                $listasChildren[] = [
                     'id' => 'financiero-tipos-producto',
                     'title' => 'Tipos de producto',
                     'icon' => 'category',
                     'route' => '/financiero/tipos-producto',
                     'permission' => 'fin_lp_tipos_producto',
+                    'children' => [],
+                    'disabled' => false,
                 ];
             }
 
-            // Productos
             if ($user->can('fin_lp_productos')) {
-                $financieroChildren[] = [
+                $listasChildren[] = [
                     'id' => 'financiero-productos',
                     'title' => 'Productos',
                     'icon' => 'inventory_2',
                     'route' => '/financiero/productos',
                     'permission' => 'fin_lp_productos',
+                    'children' => [],
+                    'disabled' => false,
                 ];
             }
 
-            // Listas de precios
             if ($user->can('fin_lp_listas_precios')) {
-                $financieroChildren[] = [
+                $listasChildren[] = [
                     'id' => 'financiero-listas-precios',
                     'title' => 'Listas de precios',
                     'icon' => 'list_alt',
                     'route' => '/financiero/listas-precios',
                     'permission' => 'fin_lp_listas_precios',
+                    'children' => [],
+                    'disabled' => false,
                 ];
             }
 
-            // Conceptos de pago
             if ($user->can('fin_conceptos_pago')) {
-                $financieroChildren[] = [
+                $listasChildren[] = [
                     'id' => 'financiero-conceptos-pago',
                     'title' => 'Conceptos de pago',
                     'icon' => 'payments',
                     'route' => '/financiero/conceptos-pago',
                     'permission' => 'fin_conceptos_pago',
+                    'children' => [],
+                    'disabled' => false,
                 ];
             }
 
-            // Descuentos
             if ($user->can('fin_descuentos')) {
-                $financieroChildren[] = [
+                $listasChildren[] = [
                     'id' => 'financiero-descuentos',
                     'title' => 'Descuentos',
                     'icon' => 'local_offer',
                     'route' => '/financiero/descuentos',
                     'permission' => 'fin_descuentos',
+                    'children' => [],
+                    'disabled' => false,
                 ];
             }
 
-            // Recibos de pago
-            if ($user->can('fin_recibos_pago')) {
+            if (!empty($listasChildren)) {
                 $financieroChildren[] = [
+                    'id' => 'financiero-grupo-listas',
+                    'title' => 'Listas de precios',
+                    'icon' => 'price_change',
+                    'route' => '#financiero-listas',
+                    'children' => $listasChildren,
+                    'disabled' => false,
+                ];
+            }
+
+            // Sub-dropdown: Recibos de pago
+            $recibosChildren = [];
+
+            if ($user->can('fin_recibos_pago')) {
+                $recibosChildren[] = [
                     'id' => 'financiero-recibos-pago',
-                    'title' => 'Recibos de pago',
+                    'title' => 'Listado de recibos',
                     'icon' => 'receipt',
                     'route' => '/financiero/recibos-pago',
                     'permission' => 'fin_recibos_pago',
+                    'children' => [],
+                    'disabled' => false,
                 ];
             }
 
-            // Cartera
-            if ($user->can('fin_carteras')) {
+            if ($user->can('fin_reciboPagoAprobar')) {
+                $recibosChildren[] = [
+                    'id' => 'financiero-transferencias-pendientes',
+                    'title' => 'Transferencias pendientes',
+                    'icon' => 'swap_horiz',
+                    'route' => '/financiero/transferencias-pendientes',
+                    'permission' => 'fin_reciboPagoAprobar',
+                    'children' => [],
+                    'disabled' => false,
+                ];
+            }
+
+            if (!empty($recibosChildren)) {
                 $financieroChildren[] = [
+                    'id' => 'financiero-grupo-recibos',
+                    'title' => 'Recibos de pago',
+                    'icon' => 'receipt_long',
+                    'route' => '#financiero-recibos',
+                    'children' => $recibosChildren,
+                    'disabled' => false,
+                ];
+            }
+
+            // Sub-dropdown: Cartera
+            $carteraChildren = [];
+
+            if ($user->can('fin_carteras')) {
+                $carteraChildren[] = [
                     'id' => 'financiero-cartera',
-                    'title' => 'Cartera',
+                    'title' => 'Listado de cartera',
                     'icon' => 'account_balance_wallet',
                     'route' => '/financiero/cartera',
                     'permission' => 'fin_carteras',
+                    'children' => [],
+                    'disabled' => false,
+                ];
+            }
+
+            if (!empty($carteraChildren)) {
+                $financieroChildren[] = [
+                    'id' => 'financiero-grupo-cartera',
+                    'title' => 'Cartera',
+                    'icon' => 'savings',
+                    'route' => '#financiero-cartera',
+                    'children' => $carteraChildren,
+                    'disabled' => false,
                 ];
             }
 
@@ -294,6 +356,7 @@ class MenuController extends Controller
                     'icon' => 'account_balance',
                     'route' => '/financiero',
                     'children' => $financieroChildren,
+                    'disabled' => false,
                 ];
             }
         }
