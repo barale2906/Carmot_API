@@ -15,6 +15,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 /**
@@ -244,6 +245,27 @@ class ReciboTransferenciaTest extends TestCase
             $this->validador,
             \App\Notifications\Financiero\TransferenciaPendienteNotification::class
         );
+    }
+
+    /** @test */
+    public function notificar_no_envia_correo_a_superusuarios(): void
+    {
+        Notification::fake();
+
+        $superusuario = Role::create(['name' => 'superusuario']);
+        $super = User::factory()->create();
+        $super->assignRole($superusuario);
+        $super->givePermissionTo('fin_reciboPagoAprobar');
+
+        $recibo = $this->crearReciboPendiente();
+
+        $this->actingAs($this->cajero)
+            ->postJson(route('recibos-pago.notificar-transferencia', $recibo))
+            ->assertOk()
+            ->assertJsonPath('aprobadores', 1); // solo el validador, no el superusuario
+
+        Notification::assertSentTo($this->validador, \App\Notifications\Financiero\TransferenciaPendienteNotification::class);
+        Notification::assertNotSentTo($super, \App\Notifications\Financiero\TransferenciaPendienteNotification::class);
     }
 
     /** @test */

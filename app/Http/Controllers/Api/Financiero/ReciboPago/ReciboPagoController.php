@@ -788,7 +788,9 @@ class ReciboPagoController extends Controller
 
         $reciboPago->load(['cajero', 'sede', 'estudiante']);
 
-        $aprobadores = \App\Models\User::permission('fin_reciboPagoAprobar')->get();
+        $aprobadores = \App\Models\User::permission('fin_reciboPagoAprobar')
+            ->whereDoesntHave('roles', fn ($q) => $q->where('name', 'superusuario'))
+            ->get();
 
         if ($aprobadores->isEmpty()) {
             return response()->json([
@@ -1111,8 +1113,10 @@ class ReciboPagoController extends Controller
 
         $reciboPago->load(['sede', 'cajero', 'estudiante']);
 
-        // Notificar aprobadores
-        $aprobadores = \App\Models\User::permission('fin_reciboPagoAprobar')->get();
+        // Notificar aprobadores (excluye superusuarios)
+        $aprobadores = \App\Models\User::permission('fin_reciboPagoAprobar')
+            ->whereDoesntHave('roles', fn ($q) => $q->where('name', 'superusuario'))
+            ->get();
         foreach ($aprobadores as $aprobador) {
             $aprobador->notify(new TransferenciaPendienteNotification($reciboPago));
         }
