@@ -187,6 +187,28 @@ Route::middleware('auth:sanctum')->group(function () {
         // Agrega un nuevo medio de pago a un recibo existente (sin reemplazar los ya registrados)
         Route::post('{reciboPago}/agregar-medio-pago', [ReciboPagoController::class, 'agregarMedioPago'])
             ->name('recibos-pago.agregar-medio-pago');
+
+        // ── Flujo de aprobación de transferencias ──────────────────────────────
+
+        // Listado de recibos por transferencia pendientes de aprobación (para el validador)
+        Route::get('pendientes-transferencia', [ReciboPagoController::class, 'pendientesTransferencia'])
+            ->name('recibos-pago.pendientes-transferencia');
+
+        // El cajero notifica al validador que el recibo está listo para revisión
+        Route::post('{reciboPago}/notificar-transferencia', [ReciboPagoController::class, 'notificarTransferencia'])
+            ->name('recibos-pago.notificar-transferencia');
+
+        // El validador aprueba: asigna número, distribuye cartera, envía correo al estudiante
+        Route::post('{reciboPago}/aprobar-transferencia', [ReciboPagoController::class, 'aprobarTransferencia'])
+            ->name('recibos-pago.aprobar-transferencia');
+
+        // El validador rechaza e informa el motivo al cajero
+        Route::post('{reciboPago}/rechazar-transferencia', [ReciboPagoController::class, 'rechazarTransferencia'])
+            ->name('recibos-pago.rechazar-transferencia');
+
+        // El cajero corrige el recibo rechazado y lo reenvía a aprobación
+        Route::post('{reciboPago}/reenviar-transferencia', [ReciboPagoController::class, 'reenviarTransferencia'])
+            ->name('recibos-pago.reenviar-transferencia');
     });
 
     // Rutas principales de recibos de pago (CRUD estándar)

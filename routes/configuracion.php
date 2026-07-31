@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\Configuracion\AreaController;
+use App\Http\Controllers\Api\Configuracion\BancoController;
 use App\Http\Controllers\Api\Configuracion\EpsController;
 use App\Http\Controllers\Api\Configuracion\HorarioController;
 use App\Http\Controllers\Api\Configuracion\PermissionController;
@@ -141,4 +142,23 @@ Route::middleware('auth:sanctum')->group(function () {
     // ──────────────────────────────────────────────────────────────────────────
     Route::get('permisos', [PermissionController::class, 'index'])
         ->name('permisos.index');
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Rutas de bancos
+    // ──────────────────────────────────────────────────────────────────────────
+    Route::prefix('bancos')->group(function () {
+        Route::get('activos', [BancoController::class, 'activos'])
+            ->name('bancos.activos');
+        Route::get('trashed', [BancoController::class, 'trashed'])
+            ->name('bancos.trashed');
+        Route::get('filters/options', [BancoController::class, 'filters'])
+            ->name('bancos.filters');
+        Route::get('statistics', [BancoController::class, 'statistics'])
+            ->name('bancos.statistics');
+    });
+    Route::post('bancos/restore/{banco}', [BancoController::class, 'restore'])
+        ->name('bancos.restore');
+    Route::delete('bancos/force/{banco}', [BancoController::class, 'forceDelete'])
+        ->name('bancos.force-delete');
+    Route::apiResource('bancos', BancoController::class);
 });

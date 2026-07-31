@@ -89,6 +89,16 @@ class ReciboPago extends Model
     const STATUS_ANULADO = 3;
 
     /**
+     * Constante para el estado Pendiente de Aprobación (solo transferencias).
+     */
+    const STATUS_PENDIENTE_APROBACION = 4;
+
+    /**
+     * Constante para el estado Rechazado (el cajero debe corregir o eliminar).
+     */
+    const STATUS_RECHAZADO = 5;
+
+    /**
      * Constante para el origen Inventarios.
      */
     const ORIGEN_INVENTARIOS = 0;
@@ -118,14 +128,17 @@ class ReciboPago extends Model
      * @var array<string, string>
      */
     protected $casts = [
-        'fecha_recibo' => 'date',
+        'fecha_recibo'      => 'date',
         'fecha_transaccion' => 'datetime',
-        'valor_total' => 'decimal:2',
-        'descuento_total' => 'decimal:2',
-        'status' => 'integer',
-        'origen' => 'integer',
-        'consecutivo' => 'integer',
-        'cierre' => 'integer',
+        'fecha_aprobacion'  => 'datetime',
+        'valor_total'       => 'decimal:2',
+        'descuento_total'   => 'decimal:2',
+        'sobrecargo_total'  => 'decimal:2',
+        'status'            => 'integer',
+        'origen'            => 'integer',
+        'consecutivo'       => 'integer',
+        'cierre'            => 'integer',
+        'aplicar_descuento' => 'boolean',
     ];
 
     /**
@@ -139,8 +152,9 @@ class ReciboPago extends Model
         parent::boot();
 
         static::creating(function ($reciboPago) {
-            // Si no tiene número de recibo, generarlo automáticamente
-            if (empty($reciboPago->numero_recibo) && $reciboPago->sede_id && isset($reciboPago->origen)) {
+            // Los recibos pendientes de aprobación (transferencia) reciben su número al ser aprobados.
+            if (empty($reciboPago->numero_recibo) && $reciboPago->sede_id && isset($reciboPago->origen)
+                && $reciboPago->status !== self::STATUS_PENDIENTE_APROBACION) {
                 try {
                     $numeracionService = app(ReciboPagoNumeracionService::class);
                     
@@ -201,6 +215,16 @@ class ReciboPago extends Model
     public function cajero(): BelongsTo
     {
         return $this->belongsTo(User::class, 'cajero_id');
+    }
+
+    /**
+     * Usuario que aprobó el recibo por transferencia (muchos a uno, nullable).
+     *
+     * @return BelongsTo
+     */
+    public function aprobadoPor(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'aprobado_por_id');
     }
 
     /**
@@ -535,6 +559,44 @@ class ReciboPago extends Model
     }
 
     /**
+     * Asigna número de recibo al aprobar una transferencia.
+     * Debe llamarse dentro de una transacción activa.
+     *
+     * @param int $aprobadoPorId
+     * @param string $numeroRecibo
+     * @param int $consecutivo
+     * @param string $prefijo
+     * @return bool
+     */
+    public function aprobar(int $aprobadoPorId, string $numeroRecibo, int $consecutivo, string $prefijo): bool
+    {
+        return $this->update([
+            'status'           => self::STATUS_CREADO,
+            'numero_recibo'    => $numeroRecibo,
+            'consecutivo'      => $consecutivo,
+            'prefijo'          => $prefijo,
+            'fecha_aprobacion' => now(),
+            'aprobado_por_id'  => $aprobadoPorId,
+        ]);
+    }
+
+    /**
+     * Rechaza el recibo de transferencia notificando el motivo al cajero.
+     *
+     * @param int $rechazadoPorId
+     * @param string $motivo
+     * @return bool
+     */
+    public function rechazar(int $rechazadoPorId, string $motivo): bool
+    {
+        return $this->update([
+            'status'          => self::STATUS_RECHAZADO,
+            'aprobado_por_id' => $rechazadoPorId,
+            'motivo_rechazo'  => $motivo,
+        ]);
+    }
+
+    /**
      * Cierra el recibo cambiando su estado a CERRADO.
      *
      * @param int|null $numeroCierre Número de cierre de caja
@@ -585,6 +647,37 @@ class ReciboPago extends Model
     }
 
     /**
+     * Verifica si el recibo está pendiente de aprobación (transferencia).
+     *
+     * @return bool
+     */
+    public function estaPendienteAprobacion(): bool
+    {
+        return $this->status === self::STATUS_PENDIENTE_APROBACION;
+    }
+
+    /**
+     * Verifica si el recibo fue rechazado por el validador.
+     *
+     * @return bool
+     */
+    public function estaRechazado(): bool
+    {
+        return $this->status === self::STATUS_RECHAZADO;
+    }
+
+    /**
+     * Verifica si el recibo es editable por el cajero.
+     * Los recibos en proceso o rechazados pueden ser corregidos.
+     *
+     * @return bool
+     */
+    public function esEditable(): bool
+    {
+        return in_array($this->status, [self::STATUS_EN_PROCESO, self::STATUS_RECHAZADO]);
+    }
+
+    /**
      * Obtiene los campos permitidos para ordenamiento.
      *
      * @return array<string>
@@ -619,11 +712,13 @@ class ReciboPago extends Model
             'cajero',
             'matricula',
             'cartera',
+            'aprobadoPor',
             'conceptosPago',
             'listasPrecio',
             'productos',
             'descuentos',
             'mediosPago',
+            'mediosPago.banco',
             'sede.poblacion',
         ];
     }

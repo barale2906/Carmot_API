@@ -48,18 +48,22 @@ class ReciboPagoResource extends JsonResource
             'sobrecargo_total_formatted' => number_format((float) $this->sobrecargo_total, 2, '.', ','),
             // Monto neto destinado a cubrir deudas (valor bruto - sobrecargos)
             'valor_neto'                => (float) $this->valor_total - (float) $this->sobrecargo_total,
-            'banco' => $this->banco,
-            'status' => $this->status,
-            'status_text' => $this->status_text,
-            'motivo_anulacion' => $this->motivo_anulacion,
-            'cierre' => $this->cierre,
-            'sede_id' => $this->sede_id,
-            'estudiante_id' => $this->estudiante_id,
-            'cajero_id' => $this->cajero_id,
-            'matricula_id' => $this->matricula_id,
-            'created_at' => $this->created_at?->format('Y-m-d H:i:s'),
-            'updated_at' => $this->updated_at?->format('Y-m-d H:i:s'),
-            'deleted_at' => $this->deleted_at?->format('Y-m-d H:i:s'),
+            'banco'             => $this->banco,
+            'aplicar_descuento' => (bool) $this->aplicar_descuento,
+            'status'            => $this->status,
+            'status_text'       => $this->status_text,
+            'motivo_anulacion'  => $this->motivo_anulacion,
+            'motivo_rechazo'    => $this->motivo_rechazo,
+            'fecha_aprobacion'  => $this->fecha_aprobacion?->format('Y-m-d H:i:s'),
+            'aprobado_por_id'   => $this->aprobado_por_id,
+            'cierre'            => $this->cierre,
+            'sede_id'           => $this->sede_id,
+            'estudiante_id'     => $this->estudiante_id,
+            'cajero_id'         => $this->cajero_id,
+            'matricula_id'      => $this->matricula_id,
+            'created_at'        => $this->created_at?->format('Y-m-d H:i:s'),
+            'updated_at'        => $this->updated_at?->format('Y-m-d H:i:s'),
+            'deleted_at'        => $this->deleted_at?->format('Y-m-d H:i:s'),
 
             // Relaciones opcionales
             'sede' => $this->whenLoaded('sede', fn () => new SedeResource($this->sede)),
@@ -124,13 +128,18 @@ class ReciboPagoResource extends JsonResource
             'medios_pago' => $this->whenLoaded('mediosPago', function () {
                 return $this->mediosPago->map(function ($medio) {
                     return [
-                        'id'              => $medio->id,
-                        'medio_pago'      => $medio->medio_pago,
-                        'tipo_tarjeta'    => $medio->tipo_tarjeta,
-                        'valor'           => (float) $medio->valor,
-                        'valor_formatted' => number_format((float) $medio->valor, 2, '.', ','),
-                        'referencia'      => $medio->referencia,
-                        'banco'           => $medio->banco,
+                        'id'                  => $medio->id,
+                        'medio_pago'          => $medio->medio_pago,
+                        'tipo_tarjeta'        => $medio->tipo_tarjeta,
+                        'valor'               => (float) $medio->valor,
+                        'valor_formatted'     => number_format((float) $medio->valor, 2, '.', ','),
+                        'referencia'          => $medio->referencia,
+                        'banco'               => $medio->relationLoaded('banco') ? $medio->getRelation('banco') : null,
+                        'banco_id'            => $medio->banco_id,
+                        'banco_nombre'        => $medio->relationLoaded('banco') ? $medio->getRelation('banco')?->nombre : null,
+                        'numero_transaccion'  => $medio->numero_transaccion,
+                        'comprobante_path'    => $medio->comprobante_path,
+                        'comprobante_url'     => $medio->comprobante_url,
                     ];
                 });
             }),
@@ -152,10 +161,15 @@ class ReciboPagoResource extends JsonResource
                 });
             }),
 
+            'aprobado_por' => $this->whenLoaded('aprobadoPor', fn () => new \App\Http\Resources\Api\Configuracion\UserResource($this->aprobadoPor)),
+
             // Métodos de verificación
-            'esta_anulado' => $this->estaAnulado(),
-            'esta_cerrado' => $this->estaCerrado(),
-            'esta_en_proceso' => $this->estaEnProceso(),
+            'esta_anulado'              => $this->estaAnulado(),
+            'esta_cerrado'              => $this->estaCerrado(),
+            'esta_en_proceso'           => $this->estaEnProceso(),
+            'esta_pendiente_aprobacion' => $this->estaPendienteAprobacion(),
+            'esta_rechazado'            => $this->estaRechazado(),
+            'es_editable'               => $this->esEditable(),
         ];
     }
 }

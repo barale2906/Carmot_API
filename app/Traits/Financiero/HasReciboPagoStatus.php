@@ -30,6 +30,8 @@ trait HasReciboPagoStatus
             1 => 'Creado',
             2 => 'Cerrado',
             3 => 'Anulado',
+            4 => 'Pendiente Aprobación',
+            5 => 'Rechazado',
         ];
     }
 

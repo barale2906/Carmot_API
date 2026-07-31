@@ -64,18 +64,23 @@ class StoreReciboPagoRequest extends FormRequest
             'conceptos_adicionales.*.concepto_pago_id' => 'required|integer|exists:conceptos_pago,id',
             'conceptos_adicionales.*.cantidad'          => 'required|integer|min:1',
 
-            // Medios de pago — la suma debe igualar monto_a_pagar (bruto, incluye sobrecargos)
+            // Medios de pago — la suma debe igualar monto_a_pagar (bruto, incluye sobrecargos).
+            // Si el medio es 'transferencia' solo puede haber un elemento en este array.
             'medios_pago'                               => 'required|array|min:1',
             'medios_pago.*.medio_pago'                  => ['required', 'string', Rule::in([
                 'efectivo', 'transferencia', 'tarjeta_debito',
                 'tarjeta_credito', 'cheque', 'consignacion',
             ])],
-            // tipo_tarjeta: libre y configurable (visa, mastercard, amex, etc.)
-            // Solo aplica cuando medio_pago es tarjeta_debito o tarjeta_credito.
             'medios_pago.*.tipo_tarjeta'                => 'nullable|string|max:60',
             'medios_pago.*.valor'                       => 'required|numeric|min:0',
             'medios_pago.*.referencia'                  => 'nullable|string|max:100',
             'medios_pago.*.banco'                       => 'nullable|string|max:100',
+            // Campos exclusivos de transferencia
+            'medios_pago.*.banco_id'                    => 'nullable|exists:bancos,id',
+            'medios_pago.*.numero_transaccion'          => 'nullable|string|max:100|unique:recibo_pago_medio_pago,numero_transaccion',
+
+            // Comprobante de transferencia (foto del soporte) — campo de archivo a nivel raíz
+            'comprobante'                               => 'nullable|file|mimes:jpg,jpeg,png,pdf,webp|max:5120',
 
             // Sobrecargos seleccionados por el cajero (pre-calculados vía /precalcular-sobrecargos)
             // Cada ítem vincula un sobrecargo a un índice de medio de pago
@@ -93,8 +98,31 @@ class StoreReciboPagoRequest extends FormRequest
     public function withValidator($validator): void
     {
         $validator->after(function ($validator) {
+            $mediosPago = $this->input('medios_pago', []);
+
+            // Transferencia exclusiva: no puede combinarse con otros medios de pago
+            $esTransferencia = collect($mediosPago)->contains('medio_pago', 'transferencia');
+            if ($esTransferencia && count($mediosPago) > 1) {
+                $validator->errors()->add(
+                    'medios_pago',
+                    'El pago por transferencia no puede combinarse con otros medios de pago.'
+                );
+            }
+
+            // Transferencia requiere banco_id y numero_transaccion
+            if ($esTransferencia) {
+                $transfer = collect($mediosPago)->firstWhere('medio_pago', 'transferencia');
+                if (empty($transfer['banco_id'])) {
+                    $validator->errors()->add('medios_pago.0.banco_id', 'El banco es obligatorio para pagos por transferencia.');
+                }
+                if (empty($transfer['numero_transaccion'])) {
+                    $validator->errors()->add('medios_pago.0.numero_transaccion', 'El número de transacción es obligatorio para pagos por transferencia.');
+                }
+            }
+
+            // Suma de medios de pago debe igualar monto_a_pagar
             if ($this->has('medios_pago') && $this->has('monto_a_pagar')) {
-                $suma = collect($this->medios_pago)->sum('valor');
+                $suma = collect($mediosPago)->sum('valor');
                 if (abs($suma - (float) $this->monto_a_pagar) > 0.01) {
                     $validator->errors()->add(
                         'medios_pago',
@@ -103,9 +131,9 @@ class StoreReciboPagoRequest extends FormRequest
                 }
             }
 
-            // Validar que los índices de sobrecargos referencien medios_pago existentes
+            // Índices de sobrecargos deben referenciar medios_pago existentes
             if ($this->has('sobrecargos') && $this->has('medios_pago')) {
-                $totalMedios = count($this->medios_pago);
+                $totalMedios = count($mediosPago);
                 foreach ($this->input('sobrecargos', []) as $i => $s) {
                     $idx = (int) ($s['medio_pago_index'] ?? -1);
                     if ($idx < 0 || $idx >= $totalMedios) {
@@ -149,6 +177,12 @@ class StoreReciboPagoRequest extends FormRequest
             'medios_pago.*.tipo_tarjeta.max'                     => 'La marca de tarjeta no puede exceder 60 caracteres.',
             'medios_pago.*.valor.required'                       => 'El valor del medio de pago es obligatorio.',
             'medios_pago.*.valor.min'                            => 'El valor del medio de pago no puede ser negativo.',
+            'medios_pago.*.banco_id.exists'                      => 'El banco seleccionado no existe.',
+            'medios_pago.*.numero_transaccion.unique'            => 'El número de transacción ya fue registrado en otro recibo.',
+            'medios_pago.*.numero_transaccion.max'               => 'El número de transacción no puede exceder los 100 caracteres.',
+            'comprobante.file'                                   => 'El comprobante debe ser un archivo.',
+            'comprobante.mimes'                                  => 'El comprobante debe ser jpg, jpeg, png, pdf o webp.',
+            'comprobante.max'                                    => 'El comprobante no puede superar los 5 MB.',
             'sobrecargos.*.descuento_id.required'                => 'El ID del sobrecargo es obligatorio.',
             'sobrecargos.*.descuento_id.exists'                  => 'El sobrecargo seleccionado no existe.',
             'sobrecargos.*.medio_pago_index.required'            => 'El índice de medio de pago del sobrecargo es obligatorio.',

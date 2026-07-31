@@ -14,16 +14,21 @@ use App\Models\Financiero\ReciboPago\ReciboPago;
 use App\Models\Financiero\Descuento\Descuento;
 use App\Models\Financiero\ReciboPago\ReciboPagoMedioPago;
 use App\Models\Financiero\ReciboPago\ReciboPagoSobrecargo;
+use App\Notifications\Financiero\TransferenciaAprobadaNotification;
+use App\Notifications\Financiero\TransferenciaPendienteNotification;
+use App\Notifications\Financiero\TransferenciaRechazadaNotification;
 use App\Services\Financiero\AjusteService;
 use App\Services\Financiero\CarteraDescuentoService;
 use App\Services\Financiero\ReciboPagoPDFService;
 use App\Services\Financiero\ReciboPagoDistribucionService;
+use App\Services\Financiero\ReciboPagoNumeracionService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * Controlador ReciboPagoController
@@ -40,16 +45,18 @@ class ReciboPagoController extends Controller
         private readonly ReciboPagoDistribucionService $distribucionService,
         private readonly AjusteService $ajusteService,
         private readonly CarteraDescuentoService $carteraDescuentoService,
+        private readonly ReciboPagoNumeracionService $numeracionService,
     ) {
         $this->middleware('auth:sanctum');
         $this->middleware('permission:fin_recibos_pago')->only(['index', 'show']);
-        $this->middleware('permission:fin_reciboPagoCrear')->only(['store', 'agregarMedioPago']);
+        $this->middleware('permission:fin_reciboPagoCrear')->only(['store', 'agregarMedioPago', 'notificarTransferencia', 'reenviarTransferencia']);
         $this->middleware('permission:fin_reciboPagoEditar')->only(['update']);
         $this->middleware('permission:fin_reciboPagoAnular')->only(['anular']);
         $this->middleware('permission:fin_reciboPagoCerrar')->only(['cerrar']);
         $this->middleware('permission:fin_reciboPagoPDF')->only(['generarPDF']);
         $this->middleware('permission:fin_reciboPagoReportes')->only(['reportes']);
         $this->middleware('permission:fin_recibos_pago')->only(['precalcularSobrecargos', 'precalcularDescuento']);
+        $this->middleware('permission:fin_reciboPagoAprobar')->only(['pendientesTransferencia', 'aprobarTransferencia', 'rechazarTransferencia']);
     }
 
     /**
@@ -206,11 +213,25 @@ class ReciboPagoController extends Controller
                 ], 422);
             }
 
-            // ── 2. Distribución automática entre cuotas de cartera ────────────
+            // ── 2. Determinar si es un pago por transferencia ─────────────────
+            // Debe evaluarse ANTES de correr la distribución para no tocar cartera
+            $esTransferencia = collect($data['medios_pago'])->contains('medio_pago', 'transferencia');
+
+            // Resolver nombre del banco desde banco_id para poblar el campo texto legado
+            $bancoNombre = null;
+            if ($esTransferencia) {
+                $bancoId = collect($data['medios_pago'])->firstWhere('medio_pago', 'transferencia')['banco_id'] ?? null;
+                if ($bancoId) {
+                    $bancoNombre = \App\Models\Configuracion\Banco::find($bancoId)?->nombre;
+                }
+            }
+
+            // ── 3. Distribución automática entre cuotas de cartera ────────────
+            // Para transferencias se omite: la distribución ocurre al aprobar el recibo
             $planCartera    = [];
             $descuentoTotal = 0.0;
 
-            if ($montoCartera > 0.01) {
+            if (! $esTransferencia && $montoCartera > 0.01) {
                 $planCartera    = $this->distribucionService->distribuir(
                     $matricula,
                     $montoCartera,
@@ -220,7 +241,7 @@ class ReciboPagoController extends Controller
                 $descuentoTotal = collect($planCartera)->sum('descuento');
             }
 
-            // ── 3. Crear el encabezado del ReciboPago ─────────────────────────
+            // ── 4. Crear el encabezado del ReciboPago ─────────────────────────
             $recibo = ReciboPago::create([
                 'origen'            => $data['origen'],
                 'matricula_id'      => $matricula->id,
@@ -231,8 +252,11 @@ class ReciboPagoController extends Controller
                 'fecha_transaccion' => $data['fecha_transaccion'],
                 'valor_total'       => $montoAPagar,
                 'descuento_total'   => $descuentoTotal,
-                'banco'             => $data['banco'] ?? null,
-                'status'            => ReciboPago::STATUS_CREADO,
+                'banco'             => $esTransferencia ? $bancoNombre : ($data['banco'] ?? null),
+                'aplicar_descuento' => (bool) ($data['aplicar_descuento'] ?? false),
+                'status'            => $esTransferencia
+                    ? ReciboPago::STATUS_PENDIENTE_APROBACION
+                    : ReciboPago::STATUS_CREADO,
             ]);
 
             // Vincular lista de precios de referencia si se informa
@@ -240,7 +264,7 @@ class ReciboPagoController extends Controller
                 $recibo->listasPrecio()->attach($data['lista_precio_id']);
             }
 
-            // ── 4. Líneas de conceptos adicionales ───────────────────────────
+            // ── 5. Líneas de conceptos adicionales ───────────────────────────
             foreach ($lineasAdicionales as $linea) {
                 $recibo->conceptosPago()->attach($linea['concepto']->id, [
                     'tipo'          => $linea['concepto']->tipo,
@@ -253,10 +277,16 @@ class ReciboPagoController extends Controller
                 ]);
             }
 
-            // ── 5. Líneas de cartera y actualización de saldos ───────────────
+            // ── 6. Líneas de cartera y actualización de saldos ───────────────
+            // Para transferencias este bloque no aplica: se ejecuta en aprobarTransferencia()
             foreach ($planCartera as $linea) {
                 /** @var Cartera $cartera */
                 $cartera = $linea['cartera'];
+
+                // Capturar saldo pendiente ANTES del descuento/pago para usarlo
+                // como importe a mostrar en el concepto cuando la cuota cierra.
+                // Usar cartera.valor sobreestimaría si la cuota ya tenía abono previo.
+                $saldoAntes = (float) $cartera->saldo;
 
                 // Aplicar el descuento antes del pago para que aplicarPago() lo
                 // incluya en el cálculo del saldo final.
@@ -271,10 +301,12 @@ class ReciboPagoController extends Controller
                 $statusSnapshot = $cartera->status;
                 $saldoSnapshot  = (float) $cartera->saldo;
 
-                // Cuota totalmente pagada → mostrar el valor bruto acordado.
+                // Cuota totalmente cerrada en este recibo → mostrar lo que se cubría
+                // (saldo pendiente antes de este pago). Si ya tenía abonos previos,
+                // saldoAntes < cartera.valor, evitando que los subtotales superen el total del recibo.
                 // Cuota con abono parcial → mostrar solo lo pagado en este recibo.
-                $esCerrada      = $statusSnapshot === Cartera::getStatusKey('Cerrada');
-                $unitarioDisplay = $esCerrada ? (float) $cartera->valor : $linea['valor'];
+                $esCerrada       = $statusSnapshot === Cartera::getStatusKey('Cerrada');
+                $unitarioDisplay = $esCerrada ? $saldoAntes : $linea['valor'];
 
                 $concepto = ConceptoPago::porNombre(
                     $cartera->numero_cuota === 0 ? ConceptoPago::MATRICULA : ConceptoPago::MENSUALIDAD
@@ -318,20 +350,46 @@ class ReciboPagoController extends Controller
                 }
             }
 
-            // ── 6. Medios de pago ─────────────────────────────────────────────
+            // ── 7. Medios de pago ─────────────────────────────────────────────
             $mediosPagoCreados = [];
             foreach ($data['medios_pago'] as $medio) {
                 $mediosPagoCreados[] = ReciboPagoMedioPago::create([
-                    'recibo_pago_id' => $recibo->id,
-                    'medio_pago'     => $medio['medio_pago'],
-                    'tipo_tarjeta'   => $medio['tipo_tarjeta'] ?? null,
-                    'valor'          => $medio['valor'],
-                    'referencia'     => $medio['referencia'] ?? null,
-                    'banco'          => $medio['banco'] ?? null,
+                    'recibo_pago_id'     => $recibo->id,
+                    'medio_pago'         => $medio['medio_pago'],
+                    'tipo_tarjeta'       => $medio['tipo_tarjeta'] ?? null,
+                    'valor'              => $medio['valor'],
+                    'referencia'         => $medio['referencia'] ?? null,
+                    'banco'              => ($medio['medio_pago'] === 'transferencia') ? $bancoNombre : ($medio['banco'] ?? null),
+                    'banco_id'           => $medio['banco_id'] ?? null,
+                    'numero_transaccion' => $medio['numero_transaccion'] ?? null,
                 ]);
             }
 
-            // ── 7. Sobrecargos seleccionados por el cajero ────────────────────
+            // Guardar comprobante de transferencia — se mueve el archivo con move()
+            // (PHP nativo) para evitar el paso de chmod de Flysystem que con 'throw'=>false
+            // crea el archivo pero devuelve false, impidiendo guardar la ruta en BD.
+            // El UPDATE de la ruta se aplica DESPUÉS del commit con DB::table() directo.
+            $comprobanteInfo = null;
+            if ($esTransferencia && $request->hasFile('comprobante')) {
+                $file      = $request->file('comprobante');
+                $extension = $file->getClientOriginalExtension() ?: $file->extension();
+                $nombre    = $recibo->id . '_' . now()->format('Ymd_Hi') . ($extension ? ".{$extension}" : '');
+                $destDir   = storage_path('app/public/recibos_transferencia');
+                if (! is_dir($destDir)) {
+                    mkdir($destDir, 0755, true);
+                }
+                try {
+                    $file->move($destDir, $nombre);
+                    $comprobanteInfo = ['id' => $mediosPagoCreados[0]->id, 'path' => 'recibos_transferencia/' . $nombre];
+                } catch (\Exception $e) {
+                    Log::warning('No se pudo guardar el comprobante de transferencia', [
+                        'recibo_id' => $recibo->id,
+                        'error'     => $e->getMessage(),
+                    ]);
+                }
+            }
+
+            // ── 8. Sobrecargos seleccionados por el cajero ────────────────────
             $sobrecargoTotal = 0.0;
             foreach ($data['sobrecargos'] ?? [] as $sc) {
                 $sobrecargo = Descuento::findOrFail($sc['descuento_id']);
@@ -348,10 +406,22 @@ class ReciboPagoController extends Controller
 
             DB::commit();
 
-            $recibo->load(['sede', 'cajero', 'matricula', 'conceptosPago', 'listasPrecio', 'mediosPago', 'sobrecargos.sobrecargo']);
+            // Persistir ruta del comprobante fuera de la transacción con query directa
+            // para garantizar que el UPDATE llega a la BD sin interferencia del ORM.
+            if ($comprobanteInfo) {
+                DB::table('recibo_pago_medio_pago')
+                    ->where('id', $comprobanteInfo['id'])
+                    ->update(['comprobante_path' => $comprobanteInfo['path'], 'updated_at' => now()]);
+            }
+
+            $recibo->load(['sede', 'cajero', 'matricula', 'conceptosPago', 'listasPrecio', 'mediosPago.banco', 'sobrecargos.sobrecargo']);
+
+            $mensaje = $esTransferencia
+                ? 'Recibo por transferencia creado. Notifique al validador cuando el comprobante esté listo.'
+                : 'Recibo de pago creado exitosamente.';
 
             return response()->json([
-                'message' => 'Recibo de pago creado exitosamente.',
+                'message' => $mensaje,
                 'data'    => new ReciboPagoResource($recibo),
             ], 201);
 
@@ -670,6 +740,390 @@ class ReciboPagoController extends Controller
     }
 
     /**
+     * Lista los recibos con pago por transferencia pendientes de aprobación.
+     * Incluye todos los datos necesarios para que el validador revise el comprobante.
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function pendientesTransferencia(Request $request): JsonResponse
+    {
+        $query = ReciboPago::where('status', ReciboPago::STATUS_PENDIENTE_APROBACION)
+            ->with(['sede', 'cajero', 'estudiante', 'matricula', 'mediosPago.banco']);
+
+        if ($request->filled('sede_id')) {
+            $query->bySede($request->integer('sede_id'));
+        }
+
+        $recibos = $query->orderBy('created_at', 'asc')
+            ->paginate($request->get('per_page', 15));
+
+        return response()->json([
+            'data' => ReciboPagoResource::collection($recibos),
+            'meta' => [
+                'current_page' => $recibos->currentPage(),
+                'last_page'    => $recibos->lastPage(),
+                'per_page'     => $recibos->perPage(),
+                'total'        => $recibos->total(),
+                'from'         => $recibos->firstItem(),
+                'to'           => $recibos->lastItem(),
+            ],
+        ]);
+    }
+
+    /**
+     * El cajero notifica al validador que el recibo de transferencia está listo para revisión.
+     * Solo aplica a recibos en estado PENDIENTE_APROBACION.
+     *
+     * @param ReciboPago $reciboPago
+     * @return JsonResponse
+     */
+    public function notificarTransferencia(ReciboPago $reciboPago): JsonResponse
+    {
+        if (! $reciboPago->estaPendienteAprobacion()) {
+            return response()->json([
+                'message' => 'Solo se pueden notificar recibos pendientes de aprobación.',
+            ], 422);
+        }
+
+        $reciboPago->load(['cajero', 'sede', 'estudiante']);
+
+        $aprobadores = \App\Models\User::permission('fin_reciboPagoAprobar')->get();
+
+        if ($aprobadores->isEmpty()) {
+            return response()->json([
+                'message' => 'No hay usuarios con permiso de aprobación registrados en el sistema.',
+            ], 422);
+        }
+
+        foreach ($aprobadores as $aprobador) {
+            $aprobador->notify(new TransferenciaPendienteNotification($reciboPago));
+        }
+
+        return response()->json([
+            'message'      => "Notificación enviada a {$aprobadores->count()} validador(es).",
+            'aprobadores'  => $aprobadores->count(),
+        ]);
+    }
+
+    /**
+     * El validador aprueba un recibo de transferencia.
+     * Asigna el número de recibo, ejecuta la distribución de cartera con la fecha
+     * de generación para los descuentos, cierra el recibo y envía el correo al estudiante.
+     *
+     * @param Request    $request
+     * @param ReciboPago $reciboPago
+     * @return JsonResponse
+     */
+    public function aprobarTransferencia(Request $request, ReciboPago $reciboPago): JsonResponse
+    {
+        if (! $reciboPago->estaPendienteAprobacion()) {
+            return response()->json([
+                'message' => 'Solo se pueden aprobar recibos pendientes de aprobación.',
+            ], 422);
+        }
+
+        DB::beginTransaction();
+        try {
+            $reciboPago->load(['matricula', 'conceptosPago', 'mediosPago.banco', 'cajero', 'estudiante', 'sede']);
+            $matricula   = $reciboPago->matricula;
+            $fechaRecibo = Carbon::parse($reciboPago->fecha_recibo);
+
+            // Calcular monto de cartera: total pagado - sobrecargos - adicionales ya registrados
+            $totalAdicionales = (float) $reciboPago->conceptosPago()
+                ->wherePivotNull('id_relacional')
+                ->sum('recibo_pago_concepto_pago.valor');
+
+            $montoCartera = (float) $reciboPago->valor_total
+                - (float) $reciboPago->sobrecargo_total
+                - $totalAdicionales;
+
+            $descuentoTotal = 0.0;
+            $planCartera    = [];
+
+            if ($montoCartera > 0.01) {
+                $planCartera = $this->distribucionService->distribuir(
+                    $matricula,
+                    $montoCartera,
+                    (bool) $reciboPago->aplicar_descuento,
+                    $fechaRecibo   // fecha de generación para elegibilidad de descuentos
+                );
+                $descuentoTotal = collect($planCartera)->sum('descuento');
+            }
+
+            // Aplicar pagos a cartera y registrar líneas en pivot
+            foreach ($planCartera as $linea) {
+                /** @var \App\Models\Financiero\Cartera\Cartera $cartera */
+                $cartera = $linea['cartera'];
+
+                // Capturar saldo pendiente ANTES del descuento/pago (ver comentario equivalente en store())
+                $saldoAntes = (float) $cartera->saldo;
+
+                if (($linea['descuento'] ?? 0) > 0) {
+                    $cartera->increment('descuento', $linea['descuento']);
+                }
+
+                $cartera->aplicarPago($linea['valor']);
+                $statusSnapshot  = $cartera->status;
+                $saldoSnapshot   = (float) $cartera->saldo;
+                $esCerrada       = $statusSnapshot === \App\Models\Financiero\Cartera\Cartera::getStatusKey('Cerrada');
+                $unitarioDisplay = $esCerrada ? $saldoAntes : $linea['valor'];
+
+                $concepto = \App\Models\Financiero\ConceptoPago\ConceptoPago::porNombre(
+                    $cartera->numero_cuota === 0
+                        ? \App\Models\Financiero\ConceptoPago\ConceptoPago::MATRICULA
+                        : \App\Models\Financiero\ConceptoPago\ConceptoPago::MENSUALIDAD
+                );
+
+                if ($concepto) {
+                    $reciboPago->conceptosPago()->attach($concepto->id, [
+                        'tipo'           => $concepto->tipo,
+                        'valor'          => $linea['valor'],
+                        'cantidad'       => 1,
+                        'unitario'       => $unitarioDisplay,
+                        'subtotal'       => $unitarioDisplay,
+                        'id_relacional'  => $cartera->id,
+                        'observaciones'  => "Pago cuota {$cartera->numero_cuota}",
+                        'status_cartera' => $statusSnapshot,
+                        'saldo_cartera'  => $saldoSnapshot,
+                    ]);
+                }
+
+                if (($linea['descuento'] ?? 0) > 0 && ($linea['descuento_obj'] ?? null) !== null) {
+                    $conceptoDesc = \App\Models\Financiero\ConceptoPago\ConceptoPago::porNombre(
+                        \App\Models\Financiero\ConceptoPago\ConceptoPago::DESCUENTO
+                    );
+                    if ($conceptoDesc) {
+                        $desc            = $linea['descuento_obj'];
+                        $observacionDesc = $desc->tipo === \App\Models\Financiero\Descuento\Descuento::TIPO_PORCENTUAL
+                            ? "{$desc->nombre} {$desc->valor}%"
+                            : "{$desc->nombre} $" . number_format($linea['descuento'], 0, ',', '.');
+
+                        $reciboPago->conceptosPago()->attach($conceptoDesc->id, [
+                            'tipo'           => $conceptoDesc->tipo,
+                            'valor'          => $linea['descuento'],
+                            'cantidad'       => 1,
+                            'unitario'       => $linea['descuento'],
+                            'subtotal'       => $linea['descuento'],
+                            'id_relacional'  => $cartera->id,
+                            'observaciones'  => $observacionDesc,
+                            'status_cartera' => $statusSnapshot,
+                            'saldo_cartera'  => $saldoSnapshot,
+                        ]);
+                    }
+                }
+            }
+
+            // Actualizar descuento_total en el encabezado
+            if ($descuentoTotal > 0) {
+                $reciboPago->update(['descuento_total' => $descuentoTotal]);
+            }
+
+            // Generar número de recibo (dentro de la transacción activa para evitar duplicados)
+            $numeroRecibo = $this->numeracionService->generarNumeroRecibo(
+                $reciboPago->sede_id,
+                $reciboPago->origen
+            );
+            preg_match('/-(\d+)$/', $numeroRecibo, $matches);
+            $consecutivo = isset($matches[1]) ? (int) $matches[1] : 1;
+            $prefijo     = $this->numeracionService->obtenerPrefijo($reciboPago->sede_id, $reciboPago->origen);
+
+            $reciboPago->aprobar(auth()->id(), $numeroRecibo, $consecutivo, $prefijo);
+
+            DB::commit();
+
+            $reciboPago->load(['sede', 'cajero', 'estudiante', 'matricula', 'conceptosPago', 'mediosPago.banco', 'aprobadoPor']);
+
+            // Notificar al cajero (confirmación interna)
+            $reciboPago->cajero?->notify(new TransferenciaAprobadaNotification($reciboPago));
+
+            // Enviar correo al estudiante
+            if ($reciboPago->estudiante?->email) {
+                Mail::to($reciboPago->estudiante->email)->send(new \App\Mail\ReciboPagoMail($reciboPago));
+            }
+
+            Log::info('Recibo de transferencia aprobado', [
+                'recibo_id'     => $reciboPago->id,
+                'numero_recibo' => $reciboPago->numero_recibo,
+                'aprobado_por'  => auth()->id(),
+            ]);
+
+            return response()->json([
+                'message' => "Recibo {$reciboPago->numero_recibo} aprobado y enviado al estudiante.",
+                'data'    => new ReciboPagoResource($reciboPago),
+            ]);
+
+        } catch (\InvalidArgumentException $e) {
+            DB::rollBack();
+            return response()->json(['message' => $e->getMessage()], 422);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error al aprobar recibo de transferencia: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+            ]);
+            return response()->json([
+                'message' => 'Error al aprobar el recibo.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * El validador rechaza un recibo de transferencia e informa el motivo al cajero.
+     * El recibo queda en estado RECHAZADO para que el cajero pueda corregirlo o eliminarlo.
+     *
+     * @param Request    $request motivo_rechazo (requerido)
+     * @param ReciboPago $reciboPago
+     * @return JsonResponse
+     */
+    public function rechazarTransferencia(Request $request, ReciboPago $reciboPago): JsonResponse
+    {
+        $request->validate([
+            'motivo_rechazo' => 'required|string|max:500',
+        ], [
+            'motivo_rechazo.required' => 'El motivo del rechazo es obligatorio.',
+            'motivo_rechazo.max'      => 'El motivo no puede superar los 500 caracteres.',
+        ]);
+
+        if (! $reciboPago->estaPendienteAprobacion()) {
+            return response()->json([
+                'message' => 'Solo se pueden rechazar recibos pendientes de aprobación.',
+            ], 422);
+        }
+
+        $reciboPago->rechazar(auth()->id(), $request->string('motivo_rechazo'));
+        $reciboPago->load(['cajero', 'estudiante', 'aprobadoPor']);
+
+        $reciboPago->cajero?->notify(
+            new TransferenciaRechazadaNotification($reciboPago, $request->string('motivo_rechazo'))
+        );
+
+        Log::info('Recibo de transferencia rechazado', [
+            'recibo_id'      => $reciboPago->id,
+            'rechazado_por'  => auth()->id(),
+            'motivo_rechazo' => $request->string('motivo_rechazo'),
+        ]);
+
+        return response()->json([
+            'message' => 'Recibo rechazado. Se notificó al cajero con el motivo.',
+            'data'    => new ReciboPagoResource($reciboPago->fresh()),
+        ]);
+    }
+
+    /**
+     * El cajero corrige un recibo rechazado (nuevo número de transacción, banco o comprobante)
+     * y lo reenvía a aprobación notificando nuevamente al validador.
+     *
+     * @param Request    $request banco_id, numero_transaccion, comprobante (file)
+     * @param ReciboPago $reciboPago
+     * @return JsonResponse
+     */
+    public function reenviarTransferencia(Request $request, ReciboPago $reciboPago): JsonResponse
+    {
+        $request->validate([
+            'banco_id'           => 'nullable|exists:bancos,id',
+            'numero_transaccion' => [
+                'nullable', 'string', 'max:100',
+                \Illuminate\Validation\Rule::unique('recibo_pago_medio_pago', 'numero_transaccion')
+                    ->whereNot('recibo_pago_id', $reciboPago->id),
+            ],
+            'comprobante'        => 'nullable|file|mimes:jpg,jpeg,png,pdf,webp|max:5120',
+        ], [
+            'banco_id.exists'                => 'El banco seleccionado no existe.',
+            'numero_transaccion.unique'      => 'El número de transacción ya fue registrado en otro recibo.',
+            'numero_transaccion.max'         => 'El número de transacción no puede exceder los 100 caracteres.',
+            'comprobante.mimes'              => 'El comprobante debe ser jpg, jpeg, png, pdf o webp.',
+            'comprobante.max'                => 'El comprobante no puede superar los 5 MB.',
+        ]);
+
+        if (! $reciboPago->estaRechazado()) {
+            return response()->json([
+                'message' => 'Solo se pueden reenviar recibos en estado Rechazado.',
+            ], 422);
+        }
+
+        // Actualizar medio de pago por transferencia
+        $medioPago = $reciboPago->mediosPago()->where('medio_pago', 'transferencia')->first();
+
+        if (! $medioPago) {
+            return response()->json([
+                'message' => 'No se encontró el medio de pago por transferencia en este recibo.',
+            ], 422);
+        }
+
+        $updateData  = [];
+        $bancoNombre = null;
+
+        if ($request->filled('banco_id')) {
+            $bancoNombre = \App\Models\Configuracion\Banco::find($request->integer('banco_id'))?->nombre;
+            $updateData['banco_id'] = $request->integer('banco_id');
+            $updateData['banco']    = $bancoNombre;
+        }
+        if ($request->filled('numero_transaccion')) {
+            $updateData['numero_transaccion'] = $request->string('numero_transaccion');
+        }
+        $comprobanteReenvioPath = null;
+        if ($request->hasFile('comprobante')) {
+            // Eliminar comprobante anterior si existe
+            if ($medioPago->comprobante_path && $medioPago->comprobante_path !== '0') {
+                Storage::disk('public')->delete($medioPago->comprobante_path);
+            }
+            $file      = $request->file('comprobante');
+            $extension = $file->getClientOriginalExtension() ?: $file->extension();
+            $nombre    = $reciboPago->id . '_' . now()->format('Ymd_Hi') . ($extension ? ".{$extension}" : '');
+            $destDir   = storage_path('app/public/recibos_transferencia');
+            if (! is_dir($destDir)) {
+                mkdir($destDir, 0755, true);
+            }
+            try {
+                $file->move($destDir, $nombre);
+                $comprobanteReenvioPath = 'recibos_transferencia/' . $nombre;
+            } catch (\Exception $e) {
+                Log::warning('No se pudo guardar el comprobante en reenvío', [
+                    'recibo_id' => $reciboPago->id,
+                    'error'     => $e->getMessage(),
+                ]);
+            }
+        }
+
+        // Actualizar campos del medio de pago con DB::table() para garantizar
+        // que comprobante_path persiste sin interferencia de Eloquent.
+        $medioPagoUpdate = $updateData;
+        if ($comprobanteReenvioPath !== null) {
+            $medioPagoUpdate['comprobante_path'] = $comprobanteReenvioPath;
+        }
+        if (! empty($medioPagoUpdate)) {
+            DB::table('recibo_pago_medio_pago')
+                ->where('id', $medioPago->id)
+                ->update($medioPagoUpdate + ['updated_at' => now()]);
+        }
+
+        // Volver a PENDIENTE_APROBACION y limpiar motivo de rechazo
+        $reciboUpdate = [
+            'status'          => ReciboPago::STATUS_PENDIENTE_APROBACION,
+            'motivo_rechazo'  => null,
+            'aprobado_por_id' => null,
+        ];
+        if ($bancoNombre !== null) {
+            $reciboUpdate['banco'] = $bancoNombre;
+        }
+        $reciboPago->update($reciboUpdate);
+
+        $reciboPago->load(['sede', 'cajero', 'estudiante']);
+
+        // Notificar aprobadores
+        $aprobadores = \App\Models\User::permission('fin_reciboPagoAprobar')->get();
+        foreach ($aprobadores as $aprobador) {
+            $aprobador->notify(new TransferenciaPendienteNotification($reciboPago));
+        }
+
+        return response()->json([
+            'message' => 'Recibo corregido y reenviado a aprobación.',
+            'data'    => new ReciboPagoResource($reciboPago->fresh(['mediosPago.banco'])),
+        ]);
+    }
+
+    /**
      * Elimina (soft delete) el recibo de pago especificado.
      * Solo permite eliminar recibos en proceso.
      *
@@ -679,11 +1133,18 @@ class ReciboPagoController extends Controller
     public function destroy(ReciboPago $reciboPago): JsonResponse
     {
         try {
-            // Validar que el recibo esté en proceso
-            if (!$reciboPago->estaEnProceso()) {
+            // Solo recibos en proceso o rechazados pueden eliminarse
+            if (! $reciboPago->esEditable() && ! $reciboPago->estaPendienteAprobacion()) {
                 return response()->json([
-                    'message' => 'Solo se pueden eliminar recibos en proceso.',
+                    'message' => 'Solo se pueden eliminar recibos en proceso, pendientes de aprobación o rechazados.',
                 ], 422);
+            }
+
+            // Eliminar comprobantes del storage antes del soft delete
+            foreach ($reciboPago->mediosPago as $medio) {
+                if ($medio->comprobante_path) {
+                    Storage::disk('public')->delete($medio->comprobante_path);
+                }
             }
 
             $reciboPago->delete();

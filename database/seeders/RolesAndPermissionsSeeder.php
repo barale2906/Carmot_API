@@ -290,6 +290,24 @@ class RolesAndPermissionsSeeder extends Seeder
                     'descripcion'=>'carga masiva de EPS',
                     ])->syncRoles([$Superusuario,$coordinador]);
 
+        // Create permissions Bancos
+        Permission::create([
+                    'name'=>'co_bancos',
+                    'descripcion'=>'ver bancos',
+                    ])->syncRoles([$Superusuario,$financiero,$coordinador,$auxiliar]);
+        Permission::create([
+                    'name'=>'co_bancosCrear',
+                    'descripcion'=>'crear banco',
+                    ])->syncRoles([$Superusuario,$financiero,$coordinador]);
+        Permission::create([
+                    'name'=>'co_bancosEditar',
+                    'descripcion'=>'editar banco',
+                    ])->syncRoles([$Superusuario,$financiero,$coordinador]);
+        Permission::create([
+                    'name'=>'co_bancosInactivar',
+                    'descripcion'=>'inactivar banco',
+                    ])->syncRoles([$Superusuario]);
+
         // Create permissions horario
         Permission::create([
                             'name'=>'co_horarios',
@@ -746,6 +764,11 @@ class RolesAndPermissionsSeeder extends Seeder
                     'descripcion'=>'generar PDF de recibo de pago',
                     //'modulo'=>'financiero'
                     ])->syncRoles([$Superusuario,$financiero,$coordinador,$auxiliar,$alumno]);
+        Permission::create([
+                    'name'=>'fin_reciboPagoAprobar',
+                    'descripcion'=>'aprobar o rechazar recibos de pago por transferencia bancaria',
+                    //'modulo'=>'financiero'
+                    ])->syncRoles([$Superusuario,$financiero]);
 
         // Create permissions - Cartera
         Permission::create([

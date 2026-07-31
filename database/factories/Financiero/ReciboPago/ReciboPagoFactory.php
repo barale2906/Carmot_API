@@ -123,6 +123,39 @@ class ReciboPagoFactory extends Factory
     }
 
     /**
+     * Indica que el recibo está pendiente de aprobación (transferencia).
+     * No genera número de recibo.
+     *
+     * @return static
+     */
+    public function pendienteAprobacion(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'status'         => ReciboPago::STATUS_PENDIENTE_APROBACION,
+            'numero_recibo'  => null,
+            'consecutivo'    => null,
+            'prefijo'        => null,
+            'aplicar_descuento' => false,
+        ]);
+    }
+
+    /**
+     * Indica que el recibo fue rechazado por el validador.
+     *
+     * @return static
+     */
+    public function rechazado(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'status'         => ReciboPago::STATUS_RECHAZADO,
+            'numero_recibo'  => null,
+            'consecutivo'    => null,
+            'prefijo'        => null,
+            'motivo_rechazo' => 'Número de transacción no corresponde al banco indicado.',
+        ]);
+    }
+
+    /**
      * Indica que el recibo es de origen académico.
      *
      * @return static
