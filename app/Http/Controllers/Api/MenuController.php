@@ -361,24 +361,197 @@ class MenuController extends Controller
             }
         }
 
-        // Inventario - módulo marcado como en desarrollo
-        if ($this->hasAnyPermission($user, ['inv_modulo'])) {
-            $menu[] = [
-                'id' => 'inventario',
-                'title' => 'Inventario',
-                'icon' => 'warehouse',
-                'route' => '/inventario',
-                'children' => [
-                    [
-                        'id' => 'inventario-desarrollo',
-                        'title' => 'En desarrollo',
-                        'icon' => 'construction',
-                        'route' => '/inventario/desarrollo',
-                        'permission' => 'inv_modulo',
-                        'disabled' => true,
-                    ]
-                ],
-            ];
+        // Inventario - módulo con 4 grupos: catálogos, stock/movimientos, ventas/entregas, OC
+        $allInvPerms = [
+            'inv_categorias', 'inv_unidades', 'inv_productos', 'inv_almacenes', 'inv_proveedores',
+            'inv_stock', 'inv_movimientos', 'inv_precios',
+            'inv_ventas', 'inv_pedidos', 'inv_entregas',
+            'inv_oc',
+        ];
+        if ($this->hasAnyPermission($user, $allInvPerms)) {
+            $inventarioChildren = [];
+
+            // ── Grupo: Catálogos ──────────────────────────────────────────────
+            $catalogosChildren = [];
+            if ($user->can('inv_categorias')) {
+                $catalogosChildren[] = [
+                    'id' => 'inv-categorias',
+                    'title' => 'Categorías',
+                    'icon' => 'label',
+                    'route' => '/inventario/categorias',
+                    'permission' => 'inv_categorias',
+                    'children' => [],
+                    'disabled' => false,
+                ];
+            }
+            if ($user->can('inv_unidades')) {
+                $catalogosChildren[] = [
+                    'id' => 'inv-unidades',
+                    'title' => 'Unidades de medida',
+                    'icon' => 'straighten',
+                    'route' => '/inventario/unidades-medida',
+                    'permission' => 'inv_unidades',
+                    'children' => [],
+                    'disabled' => false,
+                ];
+            }
+            if ($user->can('inv_productos')) {
+                $catalogosChildren[] = [
+                    'id' => 'inv-productos',
+                    'title' => 'Productos',
+                    'icon' => 'inventory_2',
+                    'route' => '/inventario/productos',
+                    'permission' => 'inv_productos',
+                    'children' => [],
+                    'disabled' => false,
+                ];
+            }
+            if ($user->can('inv_almacenes')) {
+                $catalogosChildren[] = [
+                    'id' => 'inv-almacenes',
+                    'title' => 'Almacenes',
+                    'icon' => 'warehouse',
+                    'route' => '/inventario/almacenes',
+                    'permission' => 'inv_almacenes',
+                    'children' => [],
+                    'disabled' => false,
+                ];
+            }
+            if ($user->can('inv_proveedores')) {
+                $catalogosChildren[] = [
+                    'id' => 'inv-proveedores',
+                    'title' => 'Proveedores',
+                    'icon' => 'local_shipping',
+                    'route' => '/inventario/proveedores',
+                    'permission' => 'inv_proveedores',
+                    'children' => [],
+                    'disabled' => false,
+                ];
+            }
+            if (!empty($catalogosChildren)) {
+                $inventarioChildren[] = [
+                    'id' => 'inv-grupo-catalogos',
+                    'title' => 'Catálogos',
+                    'icon' => 'category',
+                    'route' => '#inv-catalogos',
+                    'children' => $catalogosChildren,
+                    'disabled' => false,
+                ];
+            }
+
+            // ── Grupo: Stock y movimientos ────────────────────────────────────
+            $stockChildren = [];
+            if ($user->can('inv_stock')) {
+                $stockChildren[] = [
+                    'id' => 'inv-stock',
+                    'title' => 'Stock',
+                    'icon' => 'inventory',
+                    'route' => '/inventario/stock',
+                    'permission' => 'inv_stock',
+                    'children' => [],
+                    'disabled' => false,
+                ];
+            }
+            if ($user->can('inv_movimientos')) {
+                $stockChildren[] = [
+                    'id' => 'inv-movimientos',
+                    'title' => 'Movimientos',
+                    'icon' => 'swap_vert',
+                    'route' => '/inventario/movimientos',
+                    'permission' => 'inv_movimientos',
+                    'children' => [],
+                    'disabled' => false,
+                ];
+            }
+            if ($user->can('inv_precios')) {
+                $stockChildren[] = [
+                    'id' => 'inv-precios',
+                    'title' => 'Precios',
+                    'icon' => 'sell',
+                    'route' => '/inventario/precios',
+                    'permission' => 'inv_precios',
+                    'children' => [],
+                    'disabled' => false,
+                ];
+            }
+            if (!empty($stockChildren)) {
+                $inventarioChildren[] = [
+                    'id' => 'inv-grupo-stock',
+                    'title' => 'Stock y movimientos',
+                    'icon' => 'stacked_line_chart',
+                    'route' => '#inv-stock',
+                    'children' => $stockChildren,
+                    'disabled' => false,
+                ];
+            }
+
+            // ── Grupo: Ventas y entregas ──────────────────────────────────────
+            $ventasChildren = [];
+            if ($user->can('inv_ventas') || $user->can('inv_pedidos')) {
+                $ventasChildren[] = [
+                    'id' => 'inv-ventas',
+                    'title' => 'Ventas',
+                    'icon' => 'point_of_sale',
+                    'route' => '/inventario/ventas',
+                    'permission' => 'inv_ventas',
+                    'children' => [],
+                    'disabled' => false,
+                ];
+            }
+            if ($user->can('inv_entregas')) {
+                $ventasChildren[] = [
+                    'id' => 'inv-entregas',
+                    'title' => 'Entregas',
+                    'icon' => 'local_mall',
+                    'route' => '/inventario/entregas',
+                    'permission' => 'inv_entregas',
+                    'children' => [],
+                    'disabled' => false,
+                ];
+            }
+            if (!empty($ventasChildren)) {
+                $inventarioChildren[] = [
+                    'id' => 'inv-grupo-ventas',
+                    'title' => 'Ventas y entregas',
+                    'icon' => 'shopping_cart',
+                    'route' => '#inv-ventas',
+                    'children' => $ventasChildren,
+                    'disabled' => false,
+                ];
+            }
+
+            // ── Grupo: Órdenes de compra ──────────────────────────────────────
+            if ($user->can('inv_oc')) {
+                $inventarioChildren[] = [
+                    'id' => 'inv-grupo-oc',
+                    'title' => 'Órdenes de compra',
+                    'icon' => 'request_quote',
+                    'route' => '#inv-oc',
+                    'children' => [
+                        [
+                            'id' => 'inv-ordenes-compra',
+                            'title' => 'Órdenes de compra',
+                            'icon' => 'receipt_long',
+                            'route' => '/inventario/ordenes-compra',
+                            'permission' => 'inv_oc',
+                            'children' => [],
+                            'disabled' => false,
+                        ]
+                    ],
+                    'disabled' => false,
+                ];
+            }
+
+            if (!empty($inventarioChildren)) {
+                $menu[] = [
+                    'id' => 'inventario',
+                    'title' => 'Inventario',
+                    'icon' => 'warehouse',
+                    'route' => '/inventario',
+                    'children' => $inventarioChildren,
+                    'disabled' => false,
+                ];
+            }
         }
 
         return new MenuResponseResource($menu);

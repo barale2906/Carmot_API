@@ -46,6 +46,10 @@ class DatabaseSeeder extends Seeder
             //LpPrecioProductoSeeder::class,
             //DescuentoSeeder::class,
             //ReciboPagoSeeder::class,
+            AddInventariosOcPermissionsSeeder::class,
+            AddInventariosPermissionsSeeder::class,
+            AddInventariosStockPermissionsSeeder::class,
+            AddInventariosVentaPermissionsSeeder::class,
         ]);
         // \App\Models\User::factory(10)->create();
 

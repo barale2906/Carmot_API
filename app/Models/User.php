@@ -14,6 +14,7 @@ use App\Models\Crm\Seguimiento;
 use App\Models\Dashboard\Dashboard;
 use App\Models\Configuracion\Sede;
 use App\Models\Financiero\ReciboPago\ReciboPago;
+use App\Models\Inventarios\InvAlmacen;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -191,5 +192,15 @@ class User extends Authenticatable
     public function recibosPagoComoCajero(): HasMany
     {
         return $this->hasMany(ReciboPago::class, 'cajero_id');
+    }
+
+    /**
+     * Almacenes a los que tiene acceso el usuario como cajero.
+     *
+     * @return BelongsToMany
+     */
+    public function almacenes(): BelongsToMany
+    {
+        return $this->belongsToMany(InvAlmacen::class, 'inv_almacen_usuario', 'user_id', 'almacen_id');
     }
 }
