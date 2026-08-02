@@ -71,6 +71,7 @@ Route::middleware('auth:sanctum')
         // Productos (catálogo)
         // ──────────────────────────────────────────────────────────────────────
         Route::prefix('productos')->group(function () {
+            Route::get('buscar',     [InvProductoController::class, 'buscar'])->name('productos.buscar');
             Route::get('activos',    [InvProductoController::class, 'activos'])->name('productos.activos');
             Route::get('trashed',    [InvProductoController::class, 'trashed'])->name('productos.trashed');
             Route::get('filters',    [InvProductoController::class, 'filters'])->name('productos.filters');

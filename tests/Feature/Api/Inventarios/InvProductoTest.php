@@ -352,4 +352,104 @@ class InvProductoTest extends TestCase
             ->postJson(route('inv-productos.importar'), ['archivo' => $archivo])
             ->assertForbidden();
     }
+
+    // ─── buscar ───────────────────────────────────────────────────────────────
+
+    /** @test */
+    public function buscar_retorna_productos_por_nombre(): void
+    {
+        InvProducto::factory()->create(['codigo' => 'CAM-001', 'nombre' => 'Camisa Azul',  'status' => 1]);
+        InvProducto::factory()->create(['codigo' => 'PAN-001', 'nombre' => 'Pantalon Gris', 'status' => 1]);
+
+        $this->actingAs($this->usuario)
+            ->getJson(route('inv-productos.buscar', ['q' => 'Cam']))
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.codigo', 'CAM-001')
+            ->assertJsonStructure(['data' => [['id', 'codigo', 'nombre', 'tipo']], 'meta' => ['total', 'scope']]);
+    }
+
+    /** @test */
+    public function buscar_retorna_productos_por_codigo(): void
+    {
+        InvProducto::factory()->create(['codigo' => 'CAM-001', 'nombre' => 'Camisa', 'status' => 1]);
+        InvProducto::factory()->create(['codigo' => 'PAN-001', 'nombre' => 'Pantalon', 'status' => 1]);
+
+        $response = $this->actingAs($this->usuario)
+            ->getJson(route('inv-productos.buscar', ['q' => 'PAN']))
+            ->assertOk();
+
+        $this->assertEquals(1, $response->json('meta.total'));
+        $this->assertEquals('PAN-001', $response->json('data.0.codigo'));
+    }
+
+    /** @test */
+    public function buscar_falla_si_q_tiene_menos_de_3_caracteres(): void
+    {
+        $this->actingAs($this->usuario)
+            ->getJson(route('inv-productos.buscar', ['q' => 'AB']))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['q']);
+    }
+
+    /** @test */
+    public function buscar_falla_si_q_esta_ausente(): void
+    {
+        $this->actingAs($this->usuario)
+            ->getJson(route('inv-productos.buscar'))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['q']);
+    }
+
+    /** @test */
+    public function buscar_filtra_por_tipo(): void
+    {
+        InvProducto::factory()->create(['nombre' => 'Camisa Simple', 'tipo' => 'simple', 'status' => 1]);
+        InvProducto::factory()->create(['nombre' => 'Camisa Kit',    'tipo' => 'kit',    'status' => 1]);
+
+        $response = $this->actingAs($this->usuario)
+            ->getJson(route('inv-productos.buscar', ['q' => 'Cam', 'tipo' => 'simple']))
+            ->assertOk();
+
+        $tipos = collect($response->json('data'))->pluck('tipo')->unique()->values()->all();
+        $this->assertEquals(['simple'], $tipos);
+    }
+
+    /** @test */
+    public function buscar_no_retorna_productos_inactivos(): void
+    {
+        InvProducto::factory()->create(['nombre' => 'Camisa Activa',   'status' => 1]);
+        InvProducto::factory()->create(['nombre' => 'Camisa Inactiva', 'status' => 0]);
+
+        $response = $this->actingAs($this->usuario)
+            ->getJson(route('inv-productos.buscar', ['q' => 'Cam']))
+            ->assertOk();
+
+        $this->assertEquals(1, $response->json('meta.total'));
+        $this->assertEquals('Camisa Activa', $response->json('data.0.nombre'));
+    }
+
+    /** @test */
+    public function buscar_no_retorna_productos_eliminados(): void
+    {
+        $activo   = InvProducto::factory()->create(['nombre' => 'Camisa Activa',   'status' => 1]);
+        $eliminado = InvProducto::factory()->create(['nombre' => 'Camisa Eliminada', 'status' => 1]);
+        $eliminado->delete();
+
+        $response = $this->actingAs($this->usuario)
+            ->getJson(route('inv-productos.buscar', ['q' => 'Cam']))
+            ->assertOk();
+
+        $ids = collect($response->json('data'))->pluck('id')->all();
+        $this->assertContains($activo->id, $ids);
+        $this->assertNotContains($eliminado->id, $ids);
+    }
+
+    /** @test */
+    public function buscar_deniega_sin_permiso(): void
+    {
+        $this->actingAs(User::factory()->create())
+            ->getJson(route('inv-productos.buscar', ['q' => 'Cam']))
+            ->assertForbidden();
+    }
 }

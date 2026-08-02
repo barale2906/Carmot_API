@@ -5,7 +5,7 @@ namespace App\Http\Requests\Api\Inventarios;
 use Illuminate\Foundation\Http\FormRequest;
 
 /**
- * Validación para la importación masiva de stock inicial desde CSV.
+ * Validación para la importación masiva de stock inicial desde XLSX.
  */
 class ImportarInvStockRequest extends FormRequest
 {
@@ -20,7 +20,7 @@ class ImportarInvStockRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'archivo'    => ['required', 'file', 'mimes:csv,txt', 'max:5120'],
+            'archivo'    => ['required', 'file', 'mimes:xlsx', 'max:5120'],
             'almacen_id' => ['required', 'integer', 'exists:inv_almacenes,id'],
         ];
     }
@@ -31,9 +31,9 @@ class ImportarInvStockRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'archivo.required'    => 'El archivo CSV es obligatorio.',
+            'archivo.required'    => 'El archivo XLSX es obligatorio.',
             'archivo.file'        => 'El campo debe ser un archivo.',
-            'archivo.mimes'       => 'El archivo debe ser de tipo CSV o TXT.',
+            'archivo.mimes'       => 'El archivo debe ser de tipo XLSX (Excel).',
             'archivo.max'         => 'El archivo no puede superar 5 MB.',
             'almacen_id.required' => 'El almacén es obligatorio para la importación.',
             'almacen_id.exists'   => 'El almacén seleccionado no existe.',

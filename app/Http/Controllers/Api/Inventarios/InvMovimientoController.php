@@ -47,7 +47,7 @@ class InvMovimientoController extends Controller
         $filters = $request->only(['tipo_documento', 'almacen_id', 'status', 'fecha_inicio', 'fecha_fin']);
 
         $documentos = InvDocumentoMovimiento::withFilters($filters)
-            ->with(['almacen', 'almacenDestino', 'proveedor', 'usuario'])
+            ->with(['almacen', 'almacenDestino', 'proveedor', 'usuario', 'movimientos.producto'])
             ->withCount('movimientos')
             ->orderBy('id', 'desc')
             ->paginate($request->get('per_page', 15));

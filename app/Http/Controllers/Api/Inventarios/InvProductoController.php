@@ -30,7 +30,7 @@ class InvProductoController extends Controller
     public function __construct()
     {
         $this->middleware('auth:sanctum');
-        $this->middleware('permission:inv_productos')->only(['index', 'show', 'filters', 'activos', 'statistics']);
+        $this->middleware('permission:inv_productos')->only(['index', 'show', 'filters', 'activos', 'statistics', 'buscar']);
         $this->middleware('permission:inv_productosCrear')->only(['store']);
         $this->middleware('permission:inv_productosEditar')->only(['update']);
         $this->middleware('permission:inv_productosInactivar')->only(['destroy', 'restore', 'forceDelete', 'trashed']);
@@ -88,6 +88,57 @@ class InvProductoController extends Controller
                 'total'       => $productos->count(),
                 'scope'       => 'activos',
                 'descripcion' => 'Productos activos y sin eliminación lógica.',
+            ],
+        ]);
+    }
+
+    /**
+     * Busca productos por nombre o código para autocompletado.
+     *
+     * Solo devuelve resultados cuando el término tiene al menos 3 caracteres.
+     * Limita a 20 resultados ordenados por coincidencia exacta primero.
+     * Acepta filtro opcional por tipo (simple, kit, grupo).
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function buscar(Request $request): JsonResponse
+    {
+        $request->validate([
+            'q'    => ['required', 'string', 'min:3', 'max:100'],
+            'tipo' => ['nullable', 'string', 'in:simple,kit,grupo'],
+        ], [
+            'q.required' => 'El término de búsqueda es obligatorio.',
+            'q.min'      => 'El término de búsqueda debe tener al menos :min caracteres.',
+            'q.max'      => 'El término de búsqueda no puede superar :max caracteres.',
+            'tipo.in'    => 'El tipo debe ser simple, kit o grupo.',
+        ]);
+
+        $q = $request->get('q');
+
+        $productos = InvProducto::where('status', 1)
+            ->where(function ($query) use ($q) {
+                $query->where('nombre', 'like', '%' . $q . '%')
+                      ->orWhere('codigo', 'like', '%' . $q . '%');
+            })
+            ->when($request->filled('tipo'), fn ($query) => $query->where('tipo', $request->get('tipo')))
+            ->with(['categoria', 'unidadMedida'])
+            ->orderByRaw(
+                "CASE WHEN LOWER(codigo) = LOWER(?) THEN 0
+                      WHEN LOWER(nombre) = LOWER(?) THEN 1
+                      ELSE 2 END",
+                [$q, $q]
+            )
+            ->orderBy('nombre')
+            ->limit(20)
+            ->get();
+
+        return response()->json([
+            'data' => InvProductoResource::collection($productos),
+            'meta' => [
+                'total'       => $productos->count(),
+                'scope'       => 'buscar',
+                'descripcion' => 'Resultados de autocompletado por nombre o código.',
             ],
         ]);
     }

@@ -85,6 +85,30 @@ class InvMovimientoTest extends TestCase
     }
 
     /** @test */
+    public function index_incluye_lineas_con_producto_en_cada_documento(): void
+    {
+        $this->actingAs($this->usuario)
+            ->postJson(route('inv-movimientos.store'), [
+                'tipo_documento' => 'entrada',
+                'almacen_id'     => $this->almacen->id,
+                'lineas'         => [
+                    ['producto_id' => $this->producto->id, 'cantidad' => 5],
+                ],
+            ])
+            ->assertCreated();
+
+        $response = $this->actingAs($this->usuario)
+            ->getJson(route('inv-movimientos.index'))
+            ->assertOk();
+
+        $this->assertNotNull($response->json('data.0.movimientos'));
+        $this->assertNotEmpty($response->json('data.0.movimientos'));
+        $this->assertEquals($this->producto->id, $response->json('data.0.movimientos.0.producto_id'));
+        $this->assertNotNull($response->json('data.0.movimientos.0.producto'));
+        $this->assertEquals($this->producto->nombre, $response->json('data.0.movimientos.0.producto.nombre'));
+    }
+
+    /** @test */
     public function index_deniega_sin_permiso(): void
     {
         $sinPermiso = User::factory()->create();

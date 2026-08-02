@@ -11,12 +11,17 @@ use App\Models\Inventarios\InvStock;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use PhpOffice\PhpSpreadsheet\IOFactory;
 
 /**
  * Controlador para la consulta y administración del stock de inventario.
  *
  * Expone el stock actual por almacén y producto, indicadores de bajo stock
- * e importación masiva de stock inicial desde CSV.
+ * e importación masiva de stock inicial desde XLSX.
  *
  * @package App\Http\Controllers\Api\Inventarios
  */
@@ -117,95 +122,164 @@ class InvStockController extends Controller
     }
 
     /**
-     * Devuelve la plantilla CSV para la carga masiva de stock inicial.
+     * Devuelve la plantilla XLSX para la carga masiva de stock inicial.
+     *
+     * Hoja 1 «Plantilla»: columnas codigo_producto y cantidad con filas de ejemplo.
+     * Hoja 2 «Productos disponibles»: catálogo completo de productos simples activos
+     * para que el usuario pueda identificar el código correcto de cada producto.
      *
      * @return \Symfony\Component\HttpFoundation\StreamedResponse
      */
     public function plantilla()
     {
+        $spreadsheet = new Spreadsheet();
+
+        // ── Hoja 1: plantilla de carga ────────────────────────────────────────
+        $hoja1 = $spreadsheet->getActiveSheet();
+        $hoja1->setTitle('Plantilla');
+
+        $hoja1->setCellValue('A1', 'codigo_producto');
+        $hoja1->setCellValue('B1', 'cantidad');
+
+        $headerStyle = [
+            'font'      => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
+            'fill'      => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '1F4E79']],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
+        ];
+        $hoja1->getStyle('A1:B1')->applyFromArray($headerStyle);
+        $hoja1->getColumnDimension('A')->setWidth(22);
+        $hoja1->getColumnDimension('B')->setWidth(14);
+
+        // Filas de ejemplo
+        $hoja1->setCellValue('A2', 'PROD-001');
+        $hoja1->setCellValue('B2', 50);
+        $hoja1->setCellValue('A3', 'PROD-002');
+        $hoja1->setCellValue('B3', 30);
+
+        $hoja1->getStyle('B2:B3')->getNumberFormat()
+            ->setFormatCode('#,##0');
+
+        // Proteger las columnas de encabezado de ejemplo visual (solo estilo)
+        $hoja1->getStyle('A2:B3')->getFont()->getColor()->setRGB('808080');
+
+        // ── Hoja 2: catálogo de productos simples activos ─────────────────────
+        $hoja2 = $spreadsheet->createSheet();
+        $hoja2->setTitle('Productos disponibles');
+
+        $hoja2->setCellValue('A1', 'Código');
+        $hoja2->setCellValue('B1', 'Nombre');
+        $hoja2->setCellValue('C1', 'Categoría');
+        $hoja2->setCellValue('D1', 'Unidad de medida');
+        $hoja2->getStyle('A1:D1')->applyFromArray($headerStyle);
+        $hoja2->getColumnDimension('A')->setWidth(18);
+        $hoja2->getColumnDimension('B')->setWidth(36);
+        $hoja2->getColumnDimension('C')->setWidth(22);
+        $hoja2->getColumnDimension('D')->setWidth(22);
+
+        $productos = InvProducto::where('status', 1)
+            ->where('tipo', 'simple')
+            ->with(['categoria:id,nombre', 'unidadMedida:id,nombre'])
+            ->orderBy('codigo')
+            ->get(['id', 'codigo', 'nombre', 'categoria_id', 'unidad_medida_id']);
+
+        $fila = 2;
+        foreach ($productos as $producto) {
+            $hoja2->setCellValue("A{$fila}", $producto->codigo);
+            $hoja2->setCellValue("B{$fila}", $producto->nombre);
+            $hoja2->setCellValue("C{$fila}", $producto->categoria?->nombre ?? '—');
+            $hoja2->setCellValue("D{$fila}", $producto->unidadMedida?->nombre ?? '—');
+            $fila++;
+        }
+
+        // Volver a la primera hoja al abrir el archivo
+        $spreadsheet->setActiveSheetIndex(0);
+
         $headers = [
-            'Content-Type'        => 'text/csv; charset=UTF-8',
-            'Content-Disposition' => 'attachment; filename="plantilla_stock_inicial.csv"',
+            'Content-Type'        => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Content-Disposition' => 'attachment; filename="plantilla_stock_inicial.xlsx"',
+            'Cache-Control'       => 'max-age=0',
         ];
 
-        $callback = function () {
-            $handle = fopen('php://output', 'w');
-            fputs($handle, "\xEF\xBB\xBF");
-            fputcsv($handle, ['codigo_producto', 'cantidad']);
-            fputcsv($handle, ['CAM-001', '50']);
-            fputcsv($handle, ['CAM-002', '30']);
-            fclose($handle);
+        $callback = function () use ($spreadsheet) {
+            $writer = new Xlsx($spreadsheet);
+            $writer->save('php://output');
         };
 
         return response()->stream($callback, 200, $headers);
     }
 
     /**
-     * Procesa la carga masiva de stock inicial para un almacén desde CSV.
+     * Procesa la carga masiva de stock inicial para un almacén desde XLSX.
      *
-     * Columnas requeridas: codigo_producto, cantidad.
+     * Lee la primera hoja del archivo. Columnas requeridas: codigo_producto, cantidad.
      * Solo aplica a productos de tipo simple existentes y activos.
+     * El almacén de destino se recibe como campo de formulario (almacen_id),
+     * no dentro del archivo.
      *
      * @param ImportarInvStockRequest $request
      * @return JsonResponse
      */
     public function importar(ImportarInvStockRequest $request): JsonResponse
     {
-        $archivo    = $request->file('archivo');
-        $almacenId  = (int) $request->almacen_id;
-        $handle     = fopen($archivo->getRealPath(), 'r');
+        $archivo   = $request->file('archivo');
+        $almacenId = (int) $request->almacen_id;
 
-        $bom = fread($handle, 3);
-        if ($bom !== "\xEF\xBB\xBF") {
-            rewind($handle);
-        }
-
-        $encabezados = array_map('strtolower', array_map('trim', fgetcsv($handle) ?: []));
-        $columnasReq = ['codigo_producto', 'cantidad'];
-        $columnasFalt = array_diff($columnasReq, $encabezados);
-
-        if (!empty($columnasFalt)) {
-            fclose($handle);
+        try {
+            $spreadsheet = IOFactory::load($archivo->getRealPath());
+        } catch (\Throwable $e) {
             return response()->json([
-                'message' => 'El archivo CSV no tiene el formato correcto. Columnas faltantes: ' . implode(', ', $columnasFalt),
+                'message' => 'No se pudo leer el archivo XLSX: ' . $e->getMessage(),
             ], 422);
         }
 
+        $hoja        = $spreadsheet->getActiveSheet();
+        $filas       = $hoja->toArray(null, true, true, false);
+        $columnasReq = ['codigo_producto', 'cantidad'];
+
+        if (empty($filas)) {
+            return response()->json(['message' => 'El archivo XLSX está vacío.'], 422);
+        }
+
+        // La primera fila es el encabezado
+        $encabezados = array_map(fn ($v) => strtolower(trim((string) $v)), $filas[0]);
+        $columnasFalt = array_diff($columnasReq, $encabezados);
+
+        if (!empty($columnasFalt)) {
+            return response()->json([
+                'message' => 'El archivo XLSX no tiene el formato correcto. Columnas faltantes: ' . implode(', ', $columnasFalt),
+            ], 422);
+        }
+
+        $colIdx   = array_flip($encabezados);
         $resumen  = ['procesadas' => 0, 'omitidas' => 0, 'errores' => []];
-        $fila     = 1;
         $productos = InvProducto::where('status', 1)
             ->where('tipo', 'simple')
             ->pluck('id', 'codigo');
 
         DB::beginTransaction();
         try {
-            while (($filaData = fgetcsv($handle)) !== false) {
-                $fila++;
-                if (count($filaData) < count($columnasReq)) {
-                    $resumen['errores'][] = "Fila {$fila}: datos insuficientes.";
-                    $resumen['omitidas']++;
-                    continue;
-                }
+            foreach (array_slice($filas, 1) as $idx => $fila) {
+                $numeroFila = $idx + 2;
 
-                $datos = array_combine($encabezados, array_map('trim', $filaData));
+                $codigo   = trim((string) ($fila[$colIdx['codigo_producto']] ?? ''));
+                $cantidad = $fila[$colIdx['cantidad']] ?? null;
 
-                $codigo = $datos['codigo_producto'] ?? '';
                 if (empty($codigo)) {
-                    $resumen['errores'][] = "Fila {$fila}: el código del producto es obligatorio.";
+                    $resumen['errores'][] = "Fila {$numeroFila}: el código del producto es obligatorio.";
                     $resumen['omitidas']++;
                     continue;
                 }
 
                 $productoId = $productos->get($codigo);
                 if (!$productoId) {
-                    $resumen['errores'][] = "Fila {$fila}: producto '{$codigo}' no encontrado o no es de tipo simple.";
+                    $resumen['errores'][] = "Fila {$numeroFila}: producto '{$codigo}' no encontrado o no es de tipo simple.";
                     $resumen['omitidas']++;
                     continue;
                 }
 
-                $cantidad = (int) ($datos['cantidad'] ?? 0);
-                if ($cantidad <= 0) {
-                    $resumen['errores'][] = "Fila {$fila}: la cantidad debe ser mayor a 0.";
+                $cantidadInt = (int) $cantidad;
+                if ($cantidadInt <= 0) {
+                    $resumen['errores'][] = "Fila {$numeroFila}: la cantidad debe ser un número mayor a 0.";
                     $resumen['omitidas']++;
                     continue;
                 }
@@ -214,8 +288,8 @@ class InvStockController extends Controller
                     ['almacen_id' => $almacenId, 'producto_id' => $productoId],
                     ['cantidad_total' => 0, 'cantidad_reservada' => 0, 'cantidad_disponible' => 0]
                 );
-                $stock->cantidad_total      += $cantidad;
-                $stock->cantidad_disponible += $cantidad;
+                $stock->cantidad_total      += $cantidadInt;
+                $stock->cantidad_disponible += $cantidadInt;
                 $stock->ultimo_movimiento_at = now();
                 $stock->save();
 
@@ -225,13 +299,10 @@ class InvStockController extends Controller
             DB::commit();
         } catch (\Throwable $e) {
             DB::rollBack();
-            fclose($handle);
             return response()->json([
                 'message' => 'Error al procesar el archivo: ' . $e->getMessage(),
             ], 500);
         }
-
-        fclose($handle);
 
         return response()->json([
             'message' => "Carga de stock completada. Procesadas: {$resumen['procesadas']}, Omitidas: {$resumen['omitidas']}.",
