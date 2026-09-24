@@ -19,8 +19,6 @@ use Illuminate\Support\Facades\DB;
  *
  * Administra los precios que se asignan a productos dentro de una lista de precios,
  * permitiendo configurar el valor de venta por lista y población.
- *
- * @package App\Http\Controllers\Api\Inventarios
  */
 class InvPrecioProductoController extends Controller
 {
@@ -37,10 +35,17 @@ class InvPrecioProductoController extends Controller
     }
 
     /**
-     * Lista paginada de precios con filtros por lista y producto.
+     * Lista paginada de precios con filtros por lista, producto y vigencia.
      *
-     * @param Request $request
-     * @return JsonResponse
+     * Por defecto solo se muestran los precios de listas vigentes (estado "Activa" y
+     * dentro de su rango de fechas), para no mezclar en pantalla precios de listas
+     * activas e inactivas. Para analizar una lista puntual, sin importar su estado,
+     * se usa `lista_precio_id`. Para ver todas las listas mezcladas (sin filtro de
+     * vigencia) se envía `incluir_no_vigentes=1`.
+     *
+     * El orden agrupa los resultados por lista de precios (alfabético por nombre) y,
+     * dentro de cada lista, por nombre de producto — así la pantalla muestra primero
+     * todos los precios de una lista y luego los de la siguiente, en vez de mezclarlos.
      */
     public function index(Request $request): JsonResponse
     {
@@ -50,15 +55,24 @@ class InvPrecioProductoController extends Controller
                 fn ($q) => $q->where('lista_precio_id', $request->lista_precio_id)
             )
             ->when(
+                ! $request->filled('lista_precio_id') && ! $request->boolean('incluir_no_vigentes'),
+                fn ($q) => $q->whereHas('listaPrecio', fn ($lq) => $lq->vigentes())
+            )
+            ->when(
                 $request->filled('producto_id'),
                 fn ($q) => $q->where('producto_id', $request->producto_id)
             )
             ->when(
                 $request->filled('search'),
-                fn ($q) => $q->whereHas('producto', fn ($pq) =>
-                    $pq->where('nombre', 'like', "%{$request->search}%")
-                       ->orWhere('codigo', 'like', "%{$request->search}%")
+                fn ($q) => $q->whereHas('producto', fn ($pq) => $pq->where('nombre', 'like', "%{$request->search}%")
+                    ->orWhere('codigo', 'like', "%{$request->search}%")
                 )
+            )
+            ->orderBy(
+                LpListaPrecio::select('nombre')->whereColumn('lp_listas_precios.id', 'inv_precios_producto.lista_precio_id')
+            )
+            ->orderBy(
+                InvProducto::select('nombre')->whereColumn('inv_productos.id', 'inv_precios_producto.producto_id')
             )
             ->paginate($request->get('per_page', 15));
 
@@ -66,11 +80,11 @@ class InvPrecioProductoController extends Controller
             'data' => InvPrecioProductoResource::collection($precios),
             'meta' => [
                 'current_page' => $precios->currentPage(),
-                'last_page'    => $precios->lastPage(),
-                'per_page'     => $precios->perPage(),
-                'total'        => $precios->total(),
-                'from'         => $precios->firstItem(),
-                'to'           => $precios->lastItem(),
+                'last_page' => $precios->lastPage(),
+                'per_page' => $precios->perPage(),
+                'total' => $precios->total(),
+                'from' => $precios->firstItem(),
+                'to' => $precios->lastItem(),
             ],
         ]);
     }
@@ -78,36 +92,30 @@ class InvPrecioProductoController extends Controller
     /**
      * Crea o actualiza el precio de un producto en una lista de precios.
      * Usa updateOrCreate para manejar correctamente duplicados y soft-deletes previos.
-     *
-     * @param StoreInvPrecioProductoRequest $request
-     * @return JsonResponse
      */
     public function store(StoreInvPrecioProductoRequest $request): JsonResponse
     {
         $precio = InvPrecioProducto::withTrashed()->updateOrCreate(
             [
                 'lista_precio_id' => $request->lista_precio_id,
-                'producto_id'     => $request->producto_id,
+                'producto_id' => $request->producto_id,
             ],
             [
-                'precio'       => $request->precio,
+                'precio' => $request->precio,
                 'observaciones' => $request->observaciones,
-                'deleted_at'   => null,
+                'deleted_at' => null,
             ]
         );
         $precio->load(['listaPrecio', 'producto']);
 
         return response()->json([
             'message' => 'Precio guardado exitosamente.',
-            'data'    => new InvPrecioProductoResource($precio),
+            'data' => new InvPrecioProductoResource($precio),
         ], 201);
     }
 
     /**
      * Muestra el precio especificado.
-     *
-     * @param InvPrecioProducto $precio
-     * @return JsonResponse
      */
     public function show(InvPrecioProducto $precio): JsonResponse
     {
@@ -120,10 +128,6 @@ class InvPrecioProductoController extends Controller
 
     /**
      * Actualiza el valor y observaciones del precio especificado.
-     *
-     * @param UpdateInvPrecioProductoRequest $request
-     * @param InvPrecioProducto              $precio
-     * @return JsonResponse
      */
     public function update(UpdateInvPrecioProductoRequest $request, InvPrecioProducto $precio): JsonResponse
     {
@@ -132,15 +136,12 @@ class InvPrecioProductoController extends Controller
 
         return response()->json([
             'message' => 'Precio actualizado exitosamente.',
-            'data'    => new InvPrecioProductoResource($precio),
+            'data' => new InvPrecioProductoResource($precio),
         ]);
     }
 
     /**
      * Elimina el precio (soft delete).
-     *
-     * @param InvPrecioProducto $precio
-     * @return JsonResponse
      */
     public function destroy(InvPrecioProducto $precio): JsonResponse
     {
@@ -153,9 +154,6 @@ class InvPrecioProductoController extends Controller
 
     /**
      * Restaura un precio eliminado lógicamente.
-     *
-     * @param int $id
-     * @return JsonResponse
      */
     public function restore(int $id): JsonResponse
     {
@@ -164,15 +162,12 @@ class InvPrecioProductoController extends Controller
 
         return response()->json([
             'message' => 'Precio restaurado exitosamente.',
-            'data'    => new InvPrecioProductoResource($precio),
+            'data' => new InvPrecioProductoResource($precio),
         ]);
     }
 
     /**
      * Elimina permanentemente el precio.
-     *
-     * @param int $id
-     * @return JsonResponse
      */
     public function forceDelete(int $id): JsonResponse
     {
@@ -186,9 +181,6 @@ class InvPrecioProductoController extends Controller
 
     /**
      * Lista los precios eliminados lógicamente.
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function trashed(Request $request): JsonResponse
     {
@@ -200,11 +192,11 @@ class InvPrecioProductoController extends Controller
             'data' => InvPrecioProductoResource::collection($precios),
             'meta' => [
                 'current_page' => $precios->currentPage(),
-                'last_page'    => $precios->lastPage(),
-                'per_page'     => $precios->perPage(),
-                'total'        => $precios->total(),
-                'from'         => $precios->firstItem(),
-                'to'           => $precios->lastItem(),
+                'last_page' => $precios->lastPage(),
+                'per_page' => $precios->perPage(),
+                'total' => $precios->total(),
+                'from' => $precios->firstItem(),
+                'to' => $precios->lastItem(),
             ],
         ]);
     }
@@ -212,9 +204,6 @@ class InvPrecioProductoController extends Controller
     /**
      * Lista todos los precios vigentes de un producto dado.
      * Útil para que el frontend muestre el precio según la sede del estudiante.
-     *
-     * @param int $productoId
-     * @return JsonResponse
      */
     public function porProducto(int $productoId): JsonResponse
     {
@@ -236,10 +225,6 @@ class InvPrecioProductoController extends Controller
      * Comportamiento por tipo de producto:
      *  - simple / kit: se asigna el precio directamente al producto.
      *  - grupo: el precio se propaga a todas sus variantes activas (tipo=simple con producto_padre_id=grupo.id).
-     *
-     * @param SincronizarInvPreciosRequest $request
-     * @param LpListaPrecio               $listaPrecio
-     * @return JsonResponse
      */
     public function sincronizar(SincronizarInvPreciosRequest $request, LpListaPrecio $listaPrecio): JsonResponse
     {
@@ -263,14 +248,14 @@ class InvPrecioProductoController extends Controller
             if ($producto->tipo === 'grupo') {
                 foreach ($producto->variantes()->where('status', 1)->get() as $variante) {
                     $itemsExpandidos->put($variante->id, [
-                        'precio'       => $item['precio'],
+                        'precio' => $item['precio'],
                         'observaciones' => $item['observaciones'] ?? null,
                     ]);
                     $idsAConservar->push($variante->id);
                 }
             } else {
                 $itemsExpandidos->put($item['producto_id'], [
-                    'precio'       => $item['precio'],
+                    'precio' => $item['precio'],
                     'observaciones' => $item['observaciones'] ?? null,
                 ]);
                 $idsAConservar->push($item['producto_id']);
@@ -288,9 +273,9 @@ class InvPrecioProductoController extends Controller
             InvPrecioProducto::withTrashed()->updateOrCreate(
                 ['lista_precio_id' => $listaPrecio->id, 'producto_id' => $productoId],
                 [
-                    'precio'       => $datos['precio'],
+                    'precio' => $datos['precio'],
                     'observaciones' => $datos['observaciones'],
-                    'deleted_at'   => null,
+                    'deleted_at' => null,
                 ]
             );
         }
@@ -303,7 +288,7 @@ class InvPrecioProductoController extends Controller
 
         return response()->json([
             'message' => 'Precios sincronizados exitosamente.',
-            'data'    => InvPrecioProductoResource::collection($precios),
+            'data' => InvPrecioProductoResource::collection($precios),
         ]);
     }
 }

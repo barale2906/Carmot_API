@@ -21,7 +21,9 @@ class InvStockTest extends TestCase
     use RefreshDatabase;
 
     private User $usuario;
+
     private InvAlmacen $almacen;
+
     private InvProducto $producto;
 
     protected function setUp(): void
@@ -33,8 +35,8 @@ class InvStockTest extends TestCase
         Permission::create(['name' => 'inv_stock',          'descripcion' => 'ver stock']);
         Permission::create(['name' => 'inv_stockImportar',  'descripcion' => 'importar stock']);
 
-        $this->usuario  = User::factory()->create();
-        $this->almacen  = InvAlmacen::factory()->activo()->create();
+        $this->usuario = User::factory()->create();
+        $this->almacen = InvAlmacen::factory()->activo()->create();
         $this->producto = InvProducto::factory()->activo()->create(['tipo' => 'simple']);
     }
 
@@ -54,6 +56,39 @@ class InvStockTest extends TestCase
             ->getJson(route('inv-stock.index'))
             ->assertOk()
             ->assertJsonStructure(['data', 'meta']);
+    }
+
+    /** @test */
+    public function index_excluye_registros_sin_existencia(): void
+    {
+        $this->usuario->givePermissionTo('inv_stock');
+
+        $otroAlmacen = InvAlmacen::factory()->activo()->create();
+
+        $conSaldo = InvStock::factory()->create([
+            'almacen_id' => $this->almacen->id,
+            'producto_id' => $this->producto->id,
+            'cantidad_total' => 10,
+            'cantidad_reservada' => 0,
+            'cantidad_disponible' => 10,
+        ]);
+
+        $sinSaldo = InvStock::factory()->create([
+            'almacen_id' => $otroAlmacen->id,
+            'producto_id' => $this->producto->id,
+            'cantidad_total' => 0,
+            'cantidad_reservada' => 0,
+            'cantidad_disponible' => 0,
+        ]);
+
+        $response = $this->actingAs($this->usuario)
+            ->getJson(route('inv-stock.index'))
+            ->assertOk();
+
+        $ids = collect($response->json('data'))->pluck('id');
+
+        $this->assertTrue($ids->contains($conSaldo->id));
+        $this->assertFalse($ids->contains($sinSaldo->id));
     }
 
     /** @test */
@@ -91,6 +126,35 @@ class InvStockTest extends TestCase
                 'total_registros', 'total_unidades_fisicas', 'total_unidades_disp',
                 'total_unidades_reserv', 'productos_bajo_stock', 'almacenes_con_stock',
             ]]);
+    }
+
+    /** @test */
+    public function statistics_total_registros_excluye_registros_sin_existencia(): void
+    {
+        $this->usuario->givePermissionTo('inv_stock');
+
+        $otroAlmacen = InvAlmacen::factory()->activo()->create();
+
+        InvStock::factory()->create([
+            'almacen_id' => $this->almacen->id,
+            'producto_id' => $this->producto->id,
+            'cantidad_total' => 10,
+            'cantidad_reservada' => 0,
+            'cantidad_disponible' => 10,
+        ]);
+
+        InvStock::factory()->create([
+            'almacen_id' => $otroAlmacen->id,
+            'producto_id' => $this->producto->id,
+            'cantidad_total' => 0,
+            'cantidad_reservada' => 0,
+            'cantidad_disponible' => 0,
+        ]);
+
+        $this->actingAs($this->usuario)
+            ->getJson(route('inv-stock.statistics'))
+            ->assertOk()
+            ->assertJsonPath('data.total_registros', 1);
     }
 
     // ─── plantilla ────────────────────────────────────────────────────────────
@@ -136,7 +200,7 @@ class InvStockTest extends TestCase
 
         $this->actingAs($this->usuario)
             ->postJson(route('inv-stock.importar'), [
-                'archivo'    => $archivo,
+                'archivo' => $archivo,
                 'almacen_id' => $this->almacen->id,
             ])
             ->assertOk()
@@ -144,9 +208,9 @@ class InvStockTest extends TestCase
             ->assertJsonPath('data.omitidas', 0);
 
         $this->assertDatabaseHas('inv_stock', [
-            'almacen_id'          => $this->almacen->id,
-            'producto_id'         => $this->producto->id,
-            'cantidad_total'      => 10,
+            'almacen_id' => $this->almacen->id,
+            'producto_id' => $this->producto->id,
+            'cantidad_total' => 10,
             'cantidad_disponible' => 10,
         ]);
     }
@@ -157,11 +221,11 @@ class InvStockTest extends TestCase
         $this->usuario->givePermissionTo('inv_stockImportar');
 
         InvStock::factory()->create([
-            'almacen_id'          => $this->almacen->id,
-            'producto_id'         => $this->producto->id,
-            'cantidad_total'      => 5,
+            'almacen_id' => $this->almacen->id,
+            'producto_id' => $this->producto->id,
+            'cantidad_total' => 5,
             'cantidad_disponible' => 5,
-            'cantidad_reservada'  => 0,
+            'cantidad_reservada' => 0,
         ]);
 
         $archivo = $this->crearArchivoXlsx([
@@ -171,16 +235,16 @@ class InvStockTest extends TestCase
 
         $this->actingAs($this->usuario)
             ->postJson(route('inv-stock.importar'), [
-                'archivo'    => $archivo,
+                'archivo' => $archivo,
                 'almacen_id' => $this->almacen->id,
             ])
             ->assertOk()
             ->assertJsonPath('data.procesadas', 1);
 
         $this->assertDatabaseHas('inv_stock', [
-            'almacen_id'          => $this->almacen->id,
-            'producto_id'         => $this->producto->id,
-            'cantidad_total'      => 15,
+            'almacen_id' => $this->almacen->id,
+            'producto_id' => $this->producto->id,
+            'cantidad_total' => 15,
             'cantidad_disponible' => 15,
         ]);
     }
@@ -197,7 +261,7 @@ class InvStockTest extends TestCase
 
         $this->actingAs($this->usuario)
             ->postJson(route('inv-stock.importar'), [
-                'archivo'    => $archivo,
+                'archivo' => $archivo,
                 'almacen_id' => $this->almacen->id,
             ])
             ->assertOk()
@@ -218,7 +282,7 @@ class InvStockTest extends TestCase
 
         $this->actingAs($this->usuario)
             ->postJson(route('inv-stock.importar'), [
-                'archivo'    => $archivo,
+                'archivo' => $archivo,
                 'almacen_id' => $this->almacen->id,
             ])
             ->assertOk()
@@ -238,7 +302,7 @@ class InvStockTest extends TestCase
 
         $this->actingAs($this->usuario)
             ->postJson(route('inv-stock.importar'), [
-                'archivo'    => $archivo,
+                'archivo' => $archivo,
                 'almacen_id' => $this->almacen->id,
             ])
             ->assertUnprocessable()
@@ -281,7 +345,7 @@ class InvStockTest extends TestCase
 
         $this->actingAs($this->usuario)
             ->postJson(route('inv-stock.importar'), [
-                'archivo'    => $archivo,
+                'archivo' => $archivo,
                 'almacen_id' => $this->almacen->id,
             ])
             ->assertUnprocessable()
@@ -295,7 +359,7 @@ class InvStockTest extends TestCase
 
         $this->actingAs($this->usuario)
             ->postJson(route('inv-stock.importar'), [
-                'archivo'    => $archivo,
+                'archivo' => $archivo,
                 'almacen_id' => $this->almacen->id,
             ])
             ->assertForbidden();
@@ -306,11 +370,11 @@ class InvStockTest extends TestCase
     /**
      * Crea un UploadedFile XLSX en memoria a partir de filas de datos.
      *
-     * @param array<array<mixed>> $filas
+     * @param  array<array<mixed>>  $filas
      */
     private function crearArchivoXlsx(array $filas): UploadedFile
     {
-        $spreadsheet = new Spreadsheet();
+        $spreadsheet = new Spreadsheet;
         $hoja = $spreadsheet->getActiveSheet();
 
         foreach ($filas as $i => $fila) {
@@ -320,7 +384,7 @@ class InvStockTest extends TestCase
             }
         }
 
-        $ruta = tempnam(sys_get_temp_dir(), 'inv_stock_') . '.xlsx';
+        $ruta = tempnam(sys_get_temp_dir(), 'inv_stock_').'.xlsx';
         (new Xlsx($spreadsheet))->save($ruta);
 
         return new UploadedFile(

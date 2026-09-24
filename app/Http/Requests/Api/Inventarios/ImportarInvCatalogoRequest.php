@@ -11,6 +11,11 @@ use Illuminate\Foundation\Http\FormRequest;
  */
 class ImportarInvCatalogoRequest extends FormRequest
 {
+    /**
+     * La autorización se resuelve con el middleware de permisos de la ruta.
+     *
+     * @return bool
+     */
     public function authorize(): bool
     {
         return true;

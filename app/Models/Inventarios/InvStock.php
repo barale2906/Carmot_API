@@ -12,12 +12,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * Fila única por (almacen_id, producto_id). Actualizada atómicamente
  * cada vez que se registra un movimiento de stock.
  *
- * @property int         $id
- * @property int         $almacen_id
- * @property int         $producto_id
- * @property int         $cantidad_total
- * @property int         $cantidad_reservada
- * @property int         $cantidad_disponible
+ * @property int $id
+ * @property int $almacen_id
+ * @property int $producto_id
+ * @property int $cantidad_total
+ * @property int $cantidad_reservada
+ * @property int $cantidad_disponible
  * @property string|null $ultimo_movimiento_at
  */
 class InvStock extends Model
@@ -31,19 +31,17 @@ class InvStock extends Model
     protected $guarded = ['id'];
 
     protected $casts = [
-        'almacen_id'          => 'integer',
-        'producto_id'         => 'integer',
-        'cantidad_total'      => 'integer',
-        'cantidad_reservada'  => 'integer',
+        'almacen_id' => 'integer',
+        'producto_id' => 'integer',
+        'cantidad_total' => 'integer',
+        'cantidad_reservada' => 'integer',
         'cantidad_disponible' => 'integer',
         'ultimo_movimiento_at' => 'datetime',
-        'updated_at'          => 'datetime',
+        'updated_at' => 'datetime',
     ];
 
     /**
      * Almacén donde se encuentra el stock.
-     *
-     * @return BelongsTo
      */
     public function almacen(): BelongsTo
     {
@@ -52,8 +50,6 @@ class InvStock extends Model
 
     /**
      * Producto al que corresponde el stock.
-     *
-     * @return BelongsTo
      */
     public function producto(): BelongsTo
     {
@@ -63,22 +59,32 @@ class InvStock extends Model
     /**
      * Scope para filtrar productos con stock disponible por debajo del punto de reorden.
      *
-     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @param  \Illuminate\Database\Eloquent\Builder  $query
      * @return \Illuminate\Database\Eloquent\Builder
      */
     public function scopeBajoStock($query)
     {
         return $query->whereHas('producto', function ($q) {
             $q->whereColumn('inv_stock.cantidad_disponible', '<=', 'inv_productos.punto_reorden')
-              ->where('inv_productos.punto_reorden', '>', 0);
+                ->where('inv_productos.punto_reorden', '>', 0);
         });
+    }
+
+    /**
+     * Scope para filtrar solo el stock con existencia física (saldo mayor a cero).
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder  $query
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    public function scopeConExistencia($query)
+    {
+        return $query->where('cantidad_total', '>', 0);
     }
 
     /**
      * Scope para filtrar por almacén.
      *
-     * @param \Illuminate\Database\Eloquent\Builder $query
-     * @param int $almacenId
+     * @param  \Illuminate\Database\Eloquent\Builder  $query
      * @return \Illuminate\Database\Eloquent\Builder
      */
     public function scopeByAlmacen($query, int $almacenId)
@@ -89,8 +95,7 @@ class InvStock extends Model
     /**
      * Scope para filtrar por producto.
      *
-     * @param \Illuminate\Database\Eloquent\Builder $query
-     * @param int $productoId
+     * @param  \Illuminate\Database\Eloquent\Builder  $query
      * @return \Illuminate\Database\Eloquent\Builder
      */
     public function scopeByProducto($query, int $productoId)
@@ -101,23 +106,21 @@ class InvStock extends Model
     /**
      * Scope para búsqueda por nombre o código del producto.
      *
-     * @param \Illuminate\Database\Eloquent\Builder $query
-     * @param string $search
+     * @param  \Illuminate\Database\Eloquent\Builder  $query
      * @return \Illuminate\Database\Eloquent\Builder
      */
     public function scopeSearch($query, string $search)
     {
         return $query->whereHas('producto', function ($q) use ($search) {
-            $q->where('nombre', 'like', '%' . $search . '%')
-              ->orWhere('codigo', 'like', '%' . $search . '%');
+            $q->where('nombre', 'like', '%'.$search.'%')
+                ->orWhere('codigo', 'like', '%'.$search.'%');
         });
     }
 
     /**
      * Aplica filtros dinámicos para el listado de stock.
      *
-     * @param \Illuminate\Database\Eloquent\Builder $query
-     * @param array $filters
+     * @param  \Illuminate\Database\Eloquent\Builder  $query
      * @return \Illuminate\Database\Eloquent\Builder
      */
     public function scopeWithFilters($query, array $filters)
@@ -136,7 +139,7 @@ class InvStock extends Model
                 fn ($q) => $q->byProducto((int) $filters['producto_id'])
             )
             ->when(
-                !empty($filters['bajo_stock']),
+                ! empty($filters['bajo_stock']),
                 fn ($q) => $q->bajoStock()
             );
     }

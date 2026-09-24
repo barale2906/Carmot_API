@@ -30,11 +30,12 @@ class InvVentaService
      *   sede_id: int,
      *   almacen_id: int,
      *   cajero_id: int,
-     *   items: [{producto_id, cantidad, descuento_id?}],
+     *   items: [{producto_id, cantidad, descuento_id?, entregar?: bool, entrega_completa?: bool}],
      *   monto_abono: float,
      *   medios_pago: [{medio_pago, valor, referencia?, banco_id?}],
      *   observaciones?: string,
-     *   variantes_kit?: [{pedido_item_id, componentes: [{kit_componente_id, producto_entregado_id}]}]
+     *   entrega_inmediata?: bool,
+     *   variantes_kit?: [{item_index?: int, pedido_item_id?: int, componentes: [{kit_componente_id, producto_entregado_id}]}]
      * }
      * @return array{pedido: InvPedido, recibo: ReciboPago}
      * @throws \RuntimeException Si no se encuentra precio vigente para algún producto.
@@ -77,6 +78,7 @@ class InvVentaService
                 $itemsConPrecio[] = [
                     'producto_id'        => $item['producto_id'],
                     'cantidad'           => $item['cantidad'],
+                    'entrega_completa'   => (bool) ($item['entrega_completa'] ?? false),
                     'precio_lista'       => $precioLista,
                     'descuento_unitario' => $descuentoUnitario,
                     'precio_unitario'    => $precioFinal,
@@ -103,9 +105,13 @@ class InvVentaService
                 'observaciones'   => $datos['observaciones'] ?? null,
             ]);
 
-            // Crear los ítems
-            foreach ($itemsConPrecio as $itemData) {
-                InvPedidoItem::create(array_merge($itemData, ['pedido_id' => $pedido->id]));
+            // Crear los ítems conservando el orden del request para poder resolver
+            // las variantes de kit y los ítems a entregar por su índice.
+            $idsPorIndice = [];
+
+            foreach ($itemsConPrecio as $indice => $itemData) {
+                $pedidoItem = InvPedidoItem::create(array_merge($itemData, ['pedido_id' => $pedido->id]));
+                $idsPorIndice[$indice] = $pedidoItem->id;
             }
 
             // Crear el recibo de pago
@@ -113,13 +119,20 @@ class InvVentaService
                 'descuento_total' => round($descuentoTotalItems, 2),
             ]));
 
-            // Si ya está pagado, despachar
             if ($pedido->status === InvPedido::STATUS_PAGADO) {
-                InvDespachoService::despacharPedido(
-                    $pedido,
-                    $datos['cajero_id'],
-                    $datos['variantes_kit'] ?? []
-                );
+                // Todo ítem de un pedido pagado necesita su registro de entrega,
+                // se despache ahora o quede para que el estudiante lo retire después.
+                InvDespachoService::prepararEntregas($pedido, $datos['cajero_id']);
+
+                if ($datos['entrega_inmediata'] ?? true) {
+                    InvDespachoService::despacharPedido(
+                        $pedido,
+                        $datos['cajero_id'],
+                        static::resolverVariantes($datos['variantes_kit'] ?? [], $idsPorIndice),
+                        static::resolverItemsAEntregar($datos['items'], $idsPorIndice)
+                    );
+                }
+
                 $pedido->refresh();
             }
 
@@ -133,6 +146,68 @@ class InvVentaService
     }
 
     /**
+     * Traduce las variantes de kit recibidas en el request a IDs reales de inv_pedido_items.
+     *
+     * Al crear la venta el frontend todavía no conoce el `pedido_item_id` (los ítems
+     * no existen), así que referencia cada kit por `item_index`: la posición del
+     * producto dentro del arreglo `items`. Se acepta también `pedido_item_id` para
+     * el flujo de abono, donde los ítems ya existen.
+     *
+     * @param array           $variantesKit
+     * @param array<int, int> $idsPorIndice  indice del request => inv_pedido_items.id
+     * @return array<int, array<string, mixed>>
+     */
+    private static function resolverVariantes(array $variantesKit, array $idsPorIndice): array
+    {
+        return collect($variantesKit)
+            ->map(function (array $variante) use ($idsPorIndice) {
+                $pedidoItemId = $variante['pedido_item_id']
+                    ?? ($idsPorIndice[$variante['item_index']] ?? null);
+
+                if (! $pedidoItemId) {
+                    return null;
+                }
+
+                return [
+                    'pedido_item_id' => $pedidoItemId,
+                    'componentes'    => $variante['componentes'] ?? [],
+                ];
+            })
+            ->filter()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Determina qué ítems del pedido se despachan de inmediato.
+     *
+     * Cada ítem puede traer `entregar: false` para venderse sin descargar inventario
+     * (el estudiante lo retira después). Si ningún ítem lo indica, se despachan todos.
+     *
+     * @param array           $items         Ítems tal como llegaron en el request
+     * @param array<int, int> $idsPorIndice  indice del request => inv_pedido_items.id
+     * @return array<int, int>|null  IDs a despachar, o null para despachar todos
+     */
+    private static function resolverItemsAEntregar(array $items, array $idsPorIndice): ?array
+    {
+        $algunoExcluido = collect($items)->contains(
+            fn ($item) => array_key_exists('entregar', $item) && $item['entregar'] === false
+        );
+
+        if (! $algunoExcluido) {
+            return null;
+        }
+
+        return collect($items)
+            ->filter(fn ($item) => ($item['entregar'] ?? true) !== false)
+            ->keys()
+            ->map(fn ($indice) => $idsPorIndice[$indice] ?? null)
+            ->filter()
+            ->values()
+            ->all();
+    }
+
+    /**
      * Registra un abono a un pedido activo.
      *
      * @param InvPedido $pedido
@@ -140,6 +215,8 @@ class InvVentaService
      *   cajero_id: int,
      *   monto_abono: float,
      *   medios_pago: [{medio_pago, valor, referencia?, banco_id?}],
+     *   entrega_inmediata?: bool,
+     *   items_a_entregar?: int[],
      *   variantes_kit?: array
      * }
      * @return array{pedido: InvPedido, recibo: ReciboPago}
@@ -173,11 +250,17 @@ class InvVentaService
             $reciboResult = static::crearRecibo($pedido, $montoAbono, $datos);
 
             if ($nuevoStatus === InvPedido::STATUS_PAGADO) {
-                InvDespachoService::despacharPedido(
-                    $pedido,
-                    $datos['cajero_id'],
-                    $datos['variantes_kit'] ?? []
-                );
+                InvDespachoService::prepararEntregas($pedido, $datos['cajero_id']);
+
+                if ($datos['entrega_inmediata'] ?? true) {
+                    InvDespachoService::despacharPedido(
+                        $pedido,
+                        $datos['cajero_id'],
+                        $datos['variantes_kit'] ?? [],
+                        $datos['items_a_entregar'] ?? null
+                    );
+                }
+
                 $pedido->refresh();
             }
 

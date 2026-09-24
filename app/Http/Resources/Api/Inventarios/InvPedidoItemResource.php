@@ -26,6 +26,7 @@ class InvPedidoItemResource extends JsonResource
                 'tipo'   => $this->whenLoaded('producto', fn () => $this->producto->tipo),
             ],
             'cantidad'           => $this->cantidad,
+            'entrega_completa'   => (bool) $this->entrega_completa,
             'precio_lista'       => $this->precio_lista,
             'descuento_unitario' => $this->descuento_unitario,
             'precio_unitario'    => $this->precio_unitario,

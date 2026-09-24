@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Api\Inventarios;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\Inventarios\CompletarInvEntregaKitRequest;
+use App\Http\Requests\Api\Inventarios\CompletarInvEntregaSimpleRequest;
+use App\Http\Requests\Api\Inventarios\EntregarComponentesKitRequest;
 use App\Http\Resources\Api\Inventarios\InvEntregaKitResource;
 use App\Http\Resources\Api\Inventarios\InvEntregaSimpleResource;
 use App\Http\Resources\Api\Inventarios\InvNecesidadCompraResource;
@@ -14,6 +16,7 @@ use App\Models\Inventarios\InvNecesidadCompra;
 use App\Models\Inventarios\InvPedido;
 use App\Services\Inventarios\InvDespachoService;
 use App\Services\Inventarios\InvEntregaKitService;
+use App\Services\Inventarios\InvEntregaPendienteService;
 use App\Services\Inventarios\InvEntregaSimpleService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -36,11 +39,15 @@ class InvEntregaController extends Controller
     {
         $this->middleware('auth:sanctum');
         $this->middleware('permission:inv_entregas')->only(['pendientes', 'necesidades']);
-        $this->middleware('permission:inv_entregasCompletar')->only(['completarSimple', 'completarKit']);
+        $this->middleware('permission:inv_entregasCompletar')->only(['completarSimple', 'completarKit', 'entregarComponentes']);
     }
 
     /**
      * Lista los pedidos con entregas pendientes (status pagado o entregando).
+     *
+     * Cada ítem incluye su registro de entrega — existe siempre desde que el pedido
+     * queda pagado — enriquecido con el nombre y tipo de cada componente de kit, el
+     * stock en el almacén del pedido y las variantes elegibles.
      *
      * @param Request $request
      * @return JsonResponse
@@ -62,6 +69,11 @@ class InvEntregaController extends Controller
             ->latest()
             ->paginate($request->get('per_page', 15));
 
+        // Nombre y tipo de cada componente, stock en el almacén del pedido y
+        // variantes elegibles: datos que la pantalla necesita y que no están en
+        // las tablas de entrega.
+        InvEntregaPendienteService::enriquecer($pedidos->getCollection());
+
         return response()->json([
             'data' => InvPedidoResource::collection($pedidos),
             'meta' => [
@@ -76,13 +88,20 @@ class InvEntregaController extends Controller
     }
 
     /**
-     * Completa manualmente la entrega de un ítem simple que estaba pendiente por falta de stock.
+     * Entrega un ítem simple pendiente, total o parcialmente.
      *
-     * @param int     $entregaId  ID de la InvEntregaSimple pendiente
-     * @param Request $request
+     * Sin `cantidad` entrega todo lo que el stock permita; con `cantidad` entrega
+     * como máximo esa cifra. Si el stock no cubre todo, la entrega queda en
+     * 'parcial' y el faltante mantiene viva su necesidad de compra.
+     *
+     * Si el ítem está marcado con `entrega_completa`, no se descarga nada mientras
+     * el stock no cubra toda la cantidad pendiente, salvo `forzar_parcial: true`.
+     *
+     * @param CompletarInvEntregaSimpleRequest $request
+     * @param int                              $entregaId  ID de la InvEntregaSimple pendiente
      * @return JsonResponse
      */
-    public function completarSimple(int $entregaId, Request $request): JsonResponse
+    public function completarSimple(CompletarInvEntregaSimpleRequest $request, int $entregaId): JsonResponse
     {
         $entrega = InvEntregaSimple::findOrFail($entregaId);
 
@@ -91,23 +110,89 @@ class InvEntregaController extends Controller
         }
 
         $resultado = DB::transaction(function () use ($entrega, $request) {
-            $item   = $entrega->pedidoItem()->with('pedido')->firstOrFail();
+            $item     = $entrega->pedidoItem()->with('pedido')->firstOrFail();
             $cajeroId = $request->user()->id;
 
-            $entregaActualizada = InvEntregaSimpleService::entregar($item, $cajeroId);
+            $entregaActualizada = InvEntregaSimpleService::entregar(
+                $item,
+                $cajeroId,
+                $request->filled('cantidad') ? (int) $request->cantidad : null,
+                $request->boolean('forzar_parcial')
+            );
 
-            if ($entregaActualizada->status === InvEntregaSimple::STATUS_ENTREGADO) {
-                InvDespachoService::actualizarStatusPedido($item->pedido);
-            }
+            InvDespachoService::actualizarStatusPedido($item->pedido);
 
             return $entregaActualizada->fresh(['usuario']);
         });
 
+        $item = $resultado->pedidoItem;
+
         return response()->json([
-            'message' => $resultado->status === InvEntregaSimple::STATUS_ENTREGADO
-                ? 'Entrega completada exitosamente.'
-                : 'Stock insuficiente — la necesidad de compra se mantiene activa.',
+            'message' => match (true) {
+                $resultado->status === InvEntregaSimple::STATUS_ENTREGADO =>
+                    'Entrega completada exitosamente.',
+                $resultado->status === InvEntregaSimple::STATUS_PARCIAL =>
+                    'Entrega parcial registrada — el faltante sigue pendiente.',
+                $item && $item->entrega_completa =>
+                    'El ítem exige entrega completa y el stock no alcanza: no se descargó inventario.',
+                default =>
+                    'Stock insuficiente — la necesidad de compra se mantiene activa.',
+            },
             'data'    => new InvEntregaSimpleResource($resultado),
+        ]);
+    }
+
+    /**
+     * Entrega parcial dirigida: despacha solo los componentes de kit indicados.
+     *
+     * A diferencia de completarKit(), que recorre todo el kit, aquí el cajero elige
+     * exactamente qué componentes entrega ahora y en qué cantidad. Los componentes
+     * no listados quedan intactos para una entrega posterior. Es el flujo para kits
+     * cuyos productos se retiran en varias visitas o llegan a bodega por partes.
+     *
+     * Si el ítem está marcado con `entrega_completa`, la entrega parcial se rechaza
+     * sin descargar inventario, salvo que se envíe `forzar_parcial: true`.
+     *
+     * @param EntregarComponentesKitRequest $request
+     * @param int                           $entregaKitId  ID de la InvEntregaKit
+     * @return JsonResponse
+     */
+    public function entregarComponentes(EntregarComponentesKitRequest $request, int $entregaKitId): JsonResponse
+    {
+        $entregaKit = InvEntregaKit::findOrFail($entregaKitId);
+
+        if ($entregaKit->status === InvEntregaKit::STATUS_COMPLETO) {
+            return response()->json(['message' => 'La entrega del kit ya fue completada.'], 422);
+        }
+
+        $resultado = DB::transaction(function () use ($entregaKit, $request) {
+            $cajeroId = $request->user()->id;
+
+            $entregaActualizada = InvEntregaKitService::entregarComponentes(
+                $entregaKit,
+                $cajeroId,
+                $request->componentes,
+                $request->boolean('forzar_parcial')
+            );
+
+            $item = $entregaKit->pedidoItem()->with('pedido')->firstOrFail();
+            InvDespachoService::actualizarStatusPedido($item->pedido);
+
+            return $entregaActualizada->fresh(['componentes.productoEntregado', 'usuario']);
+        });
+
+        $item = $resultado->pedidoItem;
+
+        return response()->json([
+            'message' => match (true) {
+                $resultado->status === InvEntregaKit::STATUS_COMPLETO =>
+                    'Kit entregado completamente.',
+                $item && $item->entrega_completa && $resultado->status === InvEntregaKit::STATUS_PENDIENTE =>
+                    'El kit exige entrega completa y falta stock de algún componente: no se descargó inventario.',
+                default =>
+                    'Entrega parcial registrada — quedan componentes pendientes.',
+            },
+            'data'    => new InvEntregaKitResource($resultado),
         ]);
     }
 
@@ -151,6 +236,8 @@ class InvEntregaController extends Controller
     /**
      * Lista las necesidades de compra pendientes del módulo de inventarios.
      *
+     * Incluye el `pedido_id` resuelto desde el registro de entrega asociado.
+     *
      * @param Request $request
      * @return JsonResponse
      */
@@ -168,6 +255,8 @@ class InvEntregaController extends Controller
             ->with(['producto', 'almacen', 'estudiante'])
             ->latest()
             ->paginate($request->get('per_page', 15));
+
+        InvEntregaPendienteService::asignarPedidoId($necesidades->getCollection());
 
         return response()->json([
             'data' => InvNecesidadCompraResource::collection($necesidades),

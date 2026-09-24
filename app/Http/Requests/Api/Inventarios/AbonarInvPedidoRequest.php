@@ -10,6 +10,11 @@ use Illuminate\Validation\Validator;
  */
 class AbonarInvPedidoRequest extends FormRequest
 {
+    /**
+     * La autorización se resuelve con el middleware de permisos de la ruta.
+     *
+     * @return bool
+     */
     public function authorize(): bool
     {
         return true;
@@ -33,6 +38,11 @@ class AbonarInvPedidoRequest extends FormRequest
             'sobrecargos'                          => ['nullable', 'array'],
             'sobrecargos.*.descuento_id'           => ['required', 'integer', 'exists:descuentos,id'],
             'sobrecargos.*.medio_pago_index'       => ['required', 'integer', 'min:0'],
+
+            // Entrega inmediata al saldar el pedido
+            'entrega_inmediata'                                    => ['nullable', 'boolean'],
+            'items_a_entregar'                                     => ['nullable', 'array'],
+            'items_a_entregar.*'                                   => ['integer', 'exists:inv_pedido_items,id'],
 
             'variantes_kit'                                        => ['nullable', 'array'],
             'variantes_kit.*.pedido_item_id'                       => ['required', 'integer'],
@@ -71,6 +81,7 @@ class AbonarInvPedidoRequest extends FormRequest
             'medios_pago.required'             => 'Debe indicar al menos un medio de pago.',
             'medios_pago.*.medio_pago.required' => 'El tipo de medio de pago es obligatorio.',
             'medios_pago.*.valor.required'     => 'El valor del medio de pago es obligatorio.',
+            'items_a_entregar.*.exists'        => 'Uno de los ítems a entregar no existe.',
         ];
     }
 }

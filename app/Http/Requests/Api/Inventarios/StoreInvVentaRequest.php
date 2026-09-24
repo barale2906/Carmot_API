@@ -10,6 +10,11 @@ use Illuminate\Validation\Validator;
  */
 class StoreInvVentaRequest extends FormRequest
 {
+    /**
+     * La autorización se resuelve con el middleware de permisos de la ruta.
+     *
+     * @return bool
+     */
     public function authorize(): bool
     {
         return true;
@@ -31,6 +36,8 @@ class StoreInvVentaRequest extends FormRequest
             ],
             'items.*.cantidad'                => ['required', 'integer', 'min:1'],
             'items.*.descuento_id'            => ['nullable', 'integer', 'exists:descuentos,id'],
+            'items.*.entregar'                => ['nullable', 'boolean'],
+            'items.*.entrega_completa'        => ['nullable', 'boolean'],
             'monto_abono'                     => ['required', 'numeric', 'min:0.01'],
             'medios_pago'                          => ['required', 'array', 'min:1'],
             'medios_pago.*.medio_pago'             => ['required', 'string', 'max:50'],
@@ -45,9 +52,16 @@ class StoreInvVentaRequest extends FormRequest
             'sobrecargos.*.medio_pago_index'       => ['required', 'integer', 'min:0'],
             'observaciones'                        => ['nullable', 'string', 'max:1000'],
 
-            // Variantes de componentes de kit (opcional)
+            // Entrega inmediata del inventario en el mismo movimiento del recibo
+            'entrega_inmediata'                      => ['nullable', 'boolean'],
+
+            // Variantes de componentes de kit (opcional).
+            // Al crear la venta los ítems aún no existen, por eso se referencian por
+            // item_index (posición dentro de `items`). pedido_item_id queda disponible
+            // para flujos donde el ítem ya fue creado.
             'variantes_kit'                          => ['nullable', 'array'],
-            'variantes_kit.*.pedido_item_id'         => ['required', 'integer'],
+            'variantes_kit.*.item_index'             => ['nullable', 'integer', 'min:0'],
+            'variantes_kit.*.pedido_item_id'         => ['nullable', 'integer'],
             'variantes_kit.*.componentes'            => ['required', 'array'],
             'variantes_kit.*.componentes.*.kit_componente_id'      => ['required', 'integer', 'exists:inv_kit_componentes,id'],
             'variantes_kit.*.componentes.*.producto_entregado_id'  => ['nullable', 'integer', 'exists:inv_productos,id'],
@@ -55,7 +69,8 @@ class StoreInvVentaRequest extends FormRequest
     }
 
     /**
-     * Validación cruzada: suma de medios_pago debe igualar monto_abono.
+     * Validación cruzada: la suma de medios_pago debe igualar monto_abono y cada
+     * bloque de variantes_kit debe apuntar a un ítem existente del request.
      *
      * @param Validator $validator
      * @return void
@@ -68,6 +83,30 @@ class StoreInvVentaRequest extends FormRequest
 
             if (abs($sumaMP - (float) $this->monto_abono) > 0.01) {
                 $v->errors()->add('medios_pago', 'La suma de los medios de pago debe ser igual al monto a abonar.');
+            }
+
+            // Cada bloque de variantes debe poder asociarse a un ítem concreto del pedido.
+            $totalItems = count($this->items ?? []);
+
+            foreach ($this->variantes_kit ?? [] as $indice => $variante) {
+                $itemIndex    = $variante['item_index'] ?? null;
+                $pedidoItemId = $variante['pedido_item_id'] ?? null;
+
+                if ($itemIndex === null && $pedidoItemId === null) {
+                    $v->errors()->add(
+                        "variantes_kit.{$indice}.item_index",
+                        'Debe indicar item_index (posición del producto) o pedido_item_id.'
+                    );
+
+                    continue;
+                }
+
+                if ($itemIndex !== null && $itemIndex >= $totalItems) {
+                    $v->errors()->add(
+                        "variantes_kit.{$indice}.item_index",
+                        'El item_index no corresponde a ningún producto enviado.'
+                    );
+                }
             }
         });
     }

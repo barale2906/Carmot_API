@@ -13,6 +13,11 @@ use Illuminate\Validation\Rule;
 class StoreInvProductoRequest extends FormRequest
 {
     use HasActiveStatus, HasActiveStatusValidation;
+    /**
+     * La autorización se resuelve con el middleware de permisos de la ruta.
+     *
+     * @return bool
+     */
 
     public function authorize(): bool
     {

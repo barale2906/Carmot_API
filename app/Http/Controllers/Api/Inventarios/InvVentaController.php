@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Inventarios;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\Inventarios\AbonarInvPedidoRequest;
 use App\Http\Requests\Api\Inventarios\StoreInvVentaRequest;
+use App\Http\Requests\Api\Inventarios\VerificarDisponibilidadRequest;
 use App\Http\Resources\Api\Inventarios\InvPedidoResource;
 use App\Http\Resources\Api\Financiero\ReciboPago\ReciboPagoResource;
 use App\Models\Financiero\Descuento\Descuento;
@@ -15,6 +16,7 @@ use App\Notifications\Financiero\TransferenciaPendienteNotification;
 use App\Notifications\Financiero\TransferenciaRechazadaNotification;
 use App\Services\Financiero\AjusteService;
 use App\Services\Financiero\ReciboPagoNumeracionService;
+use App\Services\Inventarios\InvDisponibilidadService;
 use App\Services\Inventarios\InvVentaService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -44,7 +46,7 @@ class InvVentaController extends Controller
         private readonly ReciboPagoNumeracionService $numeracionService,
     ) {
         $this->middleware('auth:sanctum');
-        $this->middleware('permission:inv_ventasCrear')->only(['store', 'aprobarTransferencia', 'rechazarTransferencia', 'reenviarTransferencia', 'precalcularSobrecargos']);
+        $this->middleware('permission:inv_ventasCrear')->only(['store', 'aprobarTransferencia', 'rechazarTransferencia', 'reenviarTransferencia', 'precalcularSobrecargos', 'verificarDisponibilidad']);
         $this->middleware('permission:inv_ventasAbonar')->only(['abonar']);
     }
 
@@ -64,7 +66,8 @@ class InvVentaController extends Controller
         try {
             $data = $request->only([
                 'estudiante_id', 'sede_id', 'almacen_id', 'items',
-                'monto_abono', 'medios_pago', 'sobrecargos', 'observaciones', 'variantes_kit',
+                'monto_abono', 'medios_pago', 'sobrecargos', 'observaciones',
+                'variantes_kit', 'entrega_inmediata',
             ]);
             $data['cajero_id'] = $request->user()->id;
 
@@ -148,7 +151,10 @@ class InvVentaController extends Controller
     {
         try {
             $data = array_merge(
-                $request->only(['monto_abono', 'medios_pago', 'sobrecargos', 'variantes_kit']),
+                $request->only([
+                    'monto_abono', 'medios_pago', 'sobrecargos', 'variantes_kit',
+                    'entrega_inmediata', 'items_a_entregar',
+                ]),
                 ['cajero_id' => $request->user()->id]
             );
 
@@ -216,6 +222,27 @@ class InvVentaController extends Controller
         } catch (\RuntimeException $e) {
             return response()->json(['message' => $e->getMessage()], 422);
         }
+    }
+
+    /**
+     * Verifica la disponibilidad de stock de los productos antes de generar el recibo.
+     *
+     * Permite al cajero ver, producto por producto y componente por componente, qué
+     * puede entregar en el acto y qué quedará pendiente. Es informativo: la falta de
+     * stock nunca impide vender, solo determina si el ítem se despacha de inmediato
+     * o genera una entrega pendiente con su necesidad de compra.
+     *
+     * @param VerificarDisponibilidadRequest $request
+     * @return JsonResponse
+     */
+    public function verificarDisponibilidad(VerificarDisponibilidadRequest $request): JsonResponse
+    {
+        $resultado = InvDisponibilidadService::verificar(
+            (int) $request->almacen_id,
+            $request->items
+        );
+
+        return response()->json(['data' => $resultado]);
     }
 
     /**

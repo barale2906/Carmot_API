@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
  * @property int        $pedido_id
  * @property int        $producto_id
  * @property int        $cantidad
+ * @property bool       $entrega_completa   El comprador exige el ítem completo: no admite entregas parciales
  * @property float|null $precio_lista       Precio de lista antes de descuento
  * @property float      $descuento_unitario Descuento por unidad (precio_lista - precio_unitario)
  * @property float      $precio_unitario    Precio final cobrado por unidad
@@ -28,6 +29,7 @@ class InvPedidoItem extends Model
         'pedido_id'          => 'integer',
         'producto_id'        => 'integer',
         'cantidad'           => 'integer',
+        'entrega_completa'   => 'boolean',
         'precio_lista'       => 'decimal:2',
         'descuento_unitario' => 'decimal:2',
         'precio_unitario'    => 'decimal:2',

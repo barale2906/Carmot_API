@@ -86,16 +86,32 @@ class InvEntregaKit extends Model
      */
     public function recalcularStatus(): void
     {
-        $this->loadMissing('componentes');
-        $total     = $this->componentes->count();
-        $entregados = $this->componentes->where('status', InvEntregaKitComponente::STATUS_ENTREGADO)->count();
+        $this->load('componentes');
 
-        if ($entregados === 0) {
-            $nuevoStatus = self::STATUS_PENDIENTE;
-        } elseif ($entregados < $total) {
+        $total = $this->componentes->count();
+
+        if ($total === 0) {
+            $this->update(['status' => self::STATUS_PENDIENTE]);
+
+            return;
+        }
+
+        $entregados = $this->componentes
+            ->where('status', InvEntregaKitComponente::STATUS_ENTREGADO)
+            ->count();
+
+        // Un componente con entrega parcial ya cuenta como avance del kit, aunque
+        // todavía no esté completo.
+        $conAvance = $this->componentes
+            ->filter(fn (InvEntregaKitComponente $c) => $c->cantidad_entregada > 0)
+            ->count();
+
+        if ($entregados === $total) {
+            $nuevoStatus = self::STATUS_COMPLETO;
+        } elseif ($conAvance > 0) {
             $nuevoStatus = self::STATUS_PARCIAL;
         } else {
-            $nuevoStatus = self::STATUS_COMPLETO;
+            $nuevoStatus = self::STATUS_PENDIENTE;
         }
 
         $this->update(['status' => $nuevoStatus]);

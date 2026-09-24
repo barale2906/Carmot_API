@@ -34,6 +34,10 @@ class InvNecesidadCompraResource extends JsonResource
             ],
             'entregable_type'   => $this->entregable_type,
             'entregable_id'     => $this->entregable_id,
+            'pedido_id'         => $this->when(
+                array_key_exists('pedido_id', $this->resource->getAttributes()),
+                fn () => $this->pedido_id
+            ),
             'status'            => $this->status,
             'notificado'        => (bool) $this->notificado,
             'created_at'        => $this->created_at,

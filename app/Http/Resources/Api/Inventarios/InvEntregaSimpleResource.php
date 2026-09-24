@@ -21,6 +21,8 @@ class InvEntregaSimpleResource extends JsonResource
             'pedido_item_id'      => $this->pedido_item_id,
             'producto_id'         => $this->producto_id,
             'cantidad_entregada'  => $this->cantidad_entregada,
+            // Datos que solo resuelve la pantalla de entregas pendientes.
+            ...$this->datosDeEntregaPendiente(),
             'status'              => $this->status,
             'fecha_entrega'       => $this->fecha_entrega,
             'usuario'             => $this->whenLoaded('usuario', fn () => [
@@ -29,6 +31,24 @@ class InvEntregaSimpleResource extends JsonResource
             ]),
             'created_at'          => $this->created_at,
             'updated_at'          => $this->updated_at,
+        ];
+    }
+
+    /**
+     * Campos añadidos por InvEntregaPendienteService: cantidad aún por entregar y
+     * stock del producto en el almacén del pedido.
+     *
+     * @return array<string, mixed>
+     */
+    private function datosDeEntregaPendiente(): array
+    {
+        if (! array_key_exists('cantidad_pendiente', $this->resource->getAttributes())) {
+            return [];
+        }
+
+        return [
+            'cantidad_pendiente' => $this->cantidad_pendiente,
+            'stock_disponible'   => $this->stock_disponible,
         ];
     }
 }

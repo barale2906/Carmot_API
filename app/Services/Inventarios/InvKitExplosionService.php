@@ -17,10 +17,11 @@ class InvKitExplosionService
      * Explota un kit en sus componentes activos.
      *
      * Cada elemento del array resultante incluye:
-     *   - kit_componente_id: id del registro en inv_kit_componentes
-     *   - componente_tipo:   tipo del producto referenciado ('simple' o 'grupo')
-     *   - componente_id:     id del inv_producto del componente
-     *   - cantidad:          cantidad_por_kit × cantidad_kits
+     *   - kit_componente_id:  id del registro en inv_kit_componentes
+     *   - componente_tipo:    tipo del producto referenciado ('simple' o 'grupo')
+     *   - componente_id:      id del inv_producto del componente
+     *   - cantidad_unitaria:  cantidad_por_kit (sin multiplicar)
+     *   - cantidad:           cantidad_por_kit × cantidad_kits
      *
      * @param int $kitProductoId  id del producto de tipo kit
      * @param int $cantidadKits   cuántos kits se van a entregar
@@ -28,6 +29,7 @@ class InvKitExplosionService
      *   kit_componente_id: int,
      *   componente_tipo: string,
      *   componente_id: int,
+     *   cantidad_unitaria: int,
      *   cantidad: int
      * }>
      */
@@ -43,6 +45,7 @@ class InvKitExplosionService
                 'kit_componente_id' => $kc->id,
                 'componente_tipo'   => $kc->grupoProducto->tipo,
                 'componente_id'     => $kc->grupo_producto_id,
+                'cantidad_unitaria' => $kc->cantidad,
                 'cantidad'          => $kc->cantidad * $cantidadKits,
             ];
         })->all();

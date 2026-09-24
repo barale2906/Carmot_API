@@ -13,6 +13,57 @@ use App\Models\User;
 class InvNecesidadService
 {
     /**
+     * Registra una necesidad de compra solo por lo que realmente falta en bodega.
+     *
+     * Una necesidad significa "le debemos esto al estudiante y no lo tenemos". Si hay
+     * stock suficiente no hay nada que comprar, aunque la entrega siga pendiente por
+     * decisión del cajero o del comprador; en ese caso no se registra nada.
+     *
+     * @param int    $productoId
+     * @param int    $requerido       Unidades pendientes de entregar
+     * @param int    $almacenId
+     * @param int    $estudianteId
+     * @param string $entregableType  FQCN del modelo de entrega
+     * @param int    $entregableId
+     * @return InvNecesidadCompra|null  null si el stock ya cubre lo pendiente, caso
+     *                                   en el que además cierra la necesidad abierta
+     */
+    public static function registrarSiFaltaStock(
+        int $productoId,
+        int $requerido,
+        int $almacenId,
+        int $estudianteId,
+        string $entregableType,
+        int $entregableId
+    ): ?InvNecesidadCompra {
+        $stock = \App\Models\Inventarios\InvStock::where('almacen_id', $almacenId)
+            ->where('producto_id', $productoId)
+            ->value('cantidad_disponible') ?? 0;
+
+        $faltante = $requerido - $stock;
+
+        if ($faltante <= 0) {
+            // El stock ya cubre lo pendiente: si quedaba una necesidad abierta de un
+            // momento anterior, deja de tener sentido y se cierra.
+            InvNecesidadCompra::where('entregable_type', $entregableType)
+                ->where('entregable_id', $entregableId)
+                ->where('status', InvNecesidadCompra::STATUS_PENDIENTE)
+                ->update(['status' => InvNecesidadCompra::STATUS_ATENDIDA]);
+
+            return null;
+        }
+
+        return static::generarSiNoExiste(
+            $productoId,
+            $faltante,
+            $almacenId,
+            $estudianteId,
+            $entregableType,
+            $entregableId
+        );
+    }
+
+    /**
      * Crea una necesidad de compra si no existe una activa igual.
      * Evita duplicados por (producto_id, almacen_id, entregable_type, entregable_id).
      *
@@ -32,7 +83,7 @@ class InvNecesidadService
         string $entregableType,
         int $entregableId
     ): InvNecesidadCompra {
-        return InvNecesidadCompra::firstOrCreate(
+        $necesidad = InvNecesidadCompra::firstOrCreate(
             [
                 'producto_id'     => $productoId,
                 'almacen_id'      => $almacenId,
@@ -46,6 +97,14 @@ class InvNecesidadService
                 'notificado'         => false,
             ]
         );
+
+        // Tras una entrega parcial el faltante se reduce: la necesidad debe reflejar
+        // siempre lo que aún se debe entregar, sin tocar el flag de notificación.
+        if (! $necesidad->wasRecentlyCreated && $necesidad->cantidad_necesaria !== $cantidadNecesaria) {
+            $necesidad->update(['cantidad_necesaria' => $cantidadNecesaria]);
+        }
+
+        return $necesidad;
     }
 
     /**

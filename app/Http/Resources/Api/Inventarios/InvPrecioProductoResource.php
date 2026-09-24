@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\Api\Inventarios;
 
+use App\Traits\Financiero\HasListaPrecioStatus;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -10,28 +11,32 @@ use Illuminate\Http\Resources\Json\JsonResource;
  */
 class InvPrecioProductoResource extends JsonResource
 {
+    use HasListaPrecioStatus;
+
     /**
-     * @param  Request  $request
      * @return array<string, mixed>
      */
     public function toArray(Request $request): array
     {
         return [
-            'id'             => $this->id,
-            'lista_precio'   => [
-                'id'     => $this->lista_precio_id,
+            'id' => $this->id,
+            'lista_precio' => [
+                'id' => $this->lista_precio_id,
                 'nombre' => $this->whenLoaded('listaPrecio', fn () => $this->listaPrecio->nombre),
+                'status' => $this->whenLoaded('listaPrecio', fn () => $this->listaPrecio->status),
+                'status_text' => $this->whenLoaded('listaPrecio', fn () => self::getStatusText($this->listaPrecio->status)),
+                'esta_vigente' => $this->whenLoaded('listaPrecio', fn () => $this->listaPrecio->estaVigente()),
             ],
-            'producto'       => [
-                'id'     => $this->producto_id,
+            'producto' => [
+                'id' => $this->producto_id,
                 'nombre' => $this->whenLoaded('producto', fn () => $this->producto->nombre),
                 'codigo' => $this->whenLoaded('producto', fn () => $this->producto->codigo),
             ],
-            'precio'         => $this->precio,
-            'observaciones'  => $this->observaciones,
-            'deleted_at'     => $this->deleted_at,
-            'created_at'     => $this->created_at,
-            'updated_at'     => $this->updated_at,
+            'precio' => $this->precio,
+            'observaciones' => $this->observaciones,
+            'deleted_at' => $this->deleted_at,
+            'created_at' => $this->created_at,
+            'updated_at' => $this->updated_at,
         ];
     }
 }

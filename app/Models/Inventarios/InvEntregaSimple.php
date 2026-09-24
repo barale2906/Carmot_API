@@ -11,7 +11,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * Modelo InvEntregaSimple — seguimiento de entrega de un producto simple.
  *
  * Creado automáticamente cuando el pedido pasa a 'pagado'.
- * Status: pendiente → entregado.
+ * Status: pendiente → parcial → entregado.
+ * 'parcial' se usa cuando el stock solo alcanzó para una parte de la cantidad vendida.
  *
  * @property int         $id
  * @property int         $pedido_item_id
@@ -24,6 +25,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class InvEntregaSimple extends Model
 {
     public const STATUS_PENDIENTE = 'pendiente';
+    public const STATUS_PARCIAL   = 'parcial';
     public const STATUS_ENTREGADO = 'entregado';
 
     protected $table = 'inv_entregas_simple';

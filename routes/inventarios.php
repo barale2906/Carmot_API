@@ -189,6 +189,7 @@ Route::middleware('auth:sanctum')
         // ──────────────────────────────────────────────────────────────────────
         // Ventas (crear pedido + abonar + gestión de transferencias)
         // ──────────────────────────────────────────────────────────────────────
+        Route::post('ventas/verificar-disponibilidad', [InvVentaController::class, 'verificarDisponibilidad'])->name('ventas.verificar-disponibilidad');
         Route::post('ventas', [InvVentaController::class, 'store'])->name('ventas.store');
         Route::post('ventas/{pedido}/abonar', [InvVentaController::class, 'abonar'])->name('ventas.abonar');
         Route::post('ventas/precalcular-sobrecargos', [InvVentaController::class, 'precalcularSobrecargos'])->name('ventas.precalcular-sobrecargos');
@@ -224,6 +225,8 @@ Route::middleware('auth:sanctum')
                 ->name('entregas.completar-simple');
             Route::post('kit/{entregaKitId}/completar', [InvEntregaController::class, 'completarKit'])
                 ->name('entregas.completar-kit');
+            Route::post('kit/{entregaKitId}/entregar-componentes', [InvEntregaController::class, 'entregarComponentes'])
+                ->name('entregas.entregar-componentes');
         });
 
         // ──────────────────────────────────────────────────────────────────────
