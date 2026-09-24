@@ -4,6 +4,7 @@ namespace App\Models\Financiero\ReciboPago;
 
 use App\Models\Academico\Matricula;
 use App\Models\Financiero\Cartera\Cartera;
+use App\Models\Inventarios\ReciboPagoInvPedido;
 use App\Models\Configuracion\Sede;
 use App\Models\Financiero\ConceptoPago\ConceptoPago;
 use App\Models\Financiero\Descuento\Descuento;
@@ -262,6 +263,15 @@ class ReciboPago extends Model
         return $this->belongsToMany(ConceptoPago::class, 'recibo_pago_concepto_pago', 'recibo_pago_id', 'concepto_pago_id')
                     ->withPivot(['valor', 'tipo', 'producto', 'cantidad', 'unitario', 'subtotal', 'id_relacional', 'observaciones', 'status_cartera', 'saldo_cartera'])
                     ->withTimestamps();
+    }
+
+    /**
+     * Vínculo con pedidos de inventario (origen=0).
+     * Permite cargar los ítems del pedido para generar el PDF de inventario.
+     */
+    public function pedidoLinks(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(ReciboPagoInvPedido::class, 'recibo_pago_id');
     }
 
     /**

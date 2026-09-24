@@ -32,14 +32,25 @@ class ReciboPagoPDFService
             );
         }
 
-        $reciboPago->load([
-            'sede',
-            'estudiante',
-            'cajero',
-            'matricula.curso',
-            'conceptosPago',
-            'mediosPago',
-        ]);
+        if ($reciboPago->origen === ReciboPago::ORIGEN_INVENTARIOS) {
+            $reciboPago->load([
+                'sede',
+                'estudiante',
+                'cajero',
+                'mediosPago',
+                'pedidoLinks.pedido.almacen',
+                'pedidoLinks.pedido.items.producto',
+            ]);
+        } else {
+            $reciboPago->load([
+                'sede',
+                'estudiante',
+                'cajero',
+                'matricula.curso',
+                'conceptosPago',
+                'mediosPago',
+            ]);
+        }
 
         $logoBase64 = null;
         $logoPath = public_path('images/logo.svg');
@@ -49,9 +60,20 @@ class ReciboPagoPDFService
 
         // El estado de cada cartera se lee del pivot (snapshot guardado al crear el recibo),
         // no del estado actual, para que el PDF sea siempre idéntico a la impresión original.
+        // Para recibos de inventario, consolidar todos los ítems de los pedidos vinculados
+        $itemsInventario = collect();
+        if ($reciboPago->origen === ReciboPago::ORIGEN_INVENTARIOS) {
+            foreach ($reciboPago->pedidoLinks as $link) {
+                if ($link->pedido) {
+                    $itemsInventario = $itemsInventario->concat($link->pedido->items ?? collect());
+                }
+            }
+        }
+
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('recibos-pago.pdf', [
-            'recibo'     => $reciboPago,
-            'logoBase64' => $logoBase64,
+            'recibo'          => $reciboPago,
+            'logoBase64'      => $logoBase64,
+            'itemsInventario' => $itemsInventario,
         ]);
 
         $pdf->setPaper('letter', 'portrait');

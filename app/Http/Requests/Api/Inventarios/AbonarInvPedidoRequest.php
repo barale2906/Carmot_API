@@ -22,11 +22,17 @@ class AbonarInvPedidoRequest extends FormRequest
     {
         return [
             'monto_abono'                   => ['required', 'numeric', 'min:0.01'],
-            'medios_pago'                   => ['required', 'array', 'min:1'],
-            'medios_pago.*.medio_pago'      => ['required', 'string', 'max:50'],
-            'medios_pago.*.valor'           => ['required', 'numeric', 'min:0.01'],
-            'medios_pago.*.referencia'      => ['nullable', 'string', 'max:100'],
-            'medios_pago.*.banco_id'        => ['nullable', 'integer', 'exists:bancos,id'],
+            'medios_pago'                          => ['required', 'array', 'min:1'],
+            'medios_pago.*.medio_pago'             => ['required', 'string', 'max:50'],
+            'medios_pago.*.valor'                  => ['required', 'numeric', 'min:0.01'],
+            'medios_pago.*.referencia'             => ['nullable', 'string', 'max:100'],
+            'medios_pago.*.banco_id'               => ['nullable', 'integer', 'exists:bancos,id'],
+            'medios_pago.*.tipo_tarjeta'           => ['nullable', 'string', 'max:60'],
+            'medios_pago.*.numero_transaccion'     => ['nullable', 'string', 'max:100'],
+            'comprobante'                          => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf,webp', 'max:5120'],
+            'sobrecargos'                          => ['nullable', 'array'],
+            'sobrecargos.*.descuento_id'           => ['required', 'integer', 'exists:descuentos,id'],
+            'sobrecargos.*.medio_pago_index'       => ['required', 'integer', 'min:0'],
 
             'variantes_kit'                                        => ['nullable', 'array'],
             'variantes_kit.*.pedido_item_id'                       => ['required', 'integer'],

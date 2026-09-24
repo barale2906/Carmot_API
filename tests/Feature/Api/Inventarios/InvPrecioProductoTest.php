@@ -37,7 +37,7 @@ class InvPrecioProductoTest extends TestCase
             'inv_precios', 'inv_preciosCrear', 'inv_preciosEditar', 'inv_preciosEliminar',
         ]);
 
-        $this->lista    = LpListaPrecio::factory()->create(['origen' => 0]);
+        $this->lista    = LpListaPrecio::factory()->create(['origen' => 0, 'status' => LpListaPrecio::STATUS_EN_PROCESO]);
         $this->producto = InvProducto::factory()->create(['tipo' => 'simple']);
     }
 
@@ -108,7 +108,7 @@ class InvPrecioProductoTest extends TestCase
     }
 
     /** @test */
-    public function store_falla_con_precio_duplicado_en_misma_lista(): void
+    public function store_actualiza_precio_si_ya_existe_en_misma_lista(): void
     {
         InvPrecioProducto::create([
             'lista_precio_id' => $this->lista->id,
@@ -122,8 +122,16 @@ class InvPrecioProductoTest extends TestCase
                 'producto_id'     => $this->producto->id,
                 'precio'          => 60000,
             ])
-            ->assertUnprocessable()
-            ->assertJsonValidationErrors(['lista_precio_id']);
+            ->assertCreated()
+            ->assertJsonFragment(['precio' => '60000.00']);
+
+        $this->assertDatabaseHas('inv_precios_producto', [
+            'lista_precio_id' => $this->lista->id,
+            'producto_id'     => $this->producto->id,
+            'precio'          => 60000,
+        ]);
+        // Solo debe haber un registro (upsert, no duplicado)
+        $this->assertDatabaseCount('inv_precios_producto', 1);
     }
 
     // ─── show ─────────────────────────────────────────────────────────────────
@@ -229,6 +237,91 @@ class InvPrecioProductoTest extends TestCase
             ->assertOk();
 
         $this->assertDatabaseMissing('inv_precios_producto', ['id' => $precio->id]);
+    }
+
+    // ─── sincronizar ──────────────────────────────────────────────────────────
+
+    /** @test */
+    public function sincronizar_crea_y_actualiza_precios_masivamente(): void
+    {
+        $productoA = InvProducto::factory()->create(['tipo' => 'simple']);
+        $productoB = InvProducto::factory()->create(['tipo' => 'kit']);
+
+        $this->actingAs($this->usuario)
+            ->postJson(route('inv-precios.sincronizar', $this->lista), [
+                'items' => [
+                    ['producto_id' => $productoA->id, 'precio' => 45000],
+                    ['producto_id' => $productoB->id, 'precio' => 90000, 'observaciones' => 'Kit especial'],
+                ],
+            ])
+            ->assertOk()
+            ->assertJsonFragment(['message' => 'Precios sincronizados exitosamente.']);
+
+        $this->assertDatabaseHas('inv_precios_producto', ['lista_precio_id' => $this->lista->id, 'producto_id' => $productoA->id, 'precio' => 45000]);
+        $this->assertDatabaseHas('inv_precios_producto', ['lista_precio_id' => $this->lista->id, 'producto_id' => $productoB->id, 'precio' => 90000]);
+    }
+
+    /** @test */
+    public function sincronizar_elimina_precios_no_incluidos(): void
+    {
+        $productoA = InvProducto::factory()->create(['tipo' => 'simple']);
+        $productoB = InvProducto::factory()->create(['tipo' => 'simple']);
+
+        InvPrecioProducto::create(['lista_precio_id' => $this->lista->id, 'producto_id' => $productoA->id, 'precio' => 50000]);
+        InvPrecioProducto::create(['lista_precio_id' => $this->lista->id, 'producto_id' => $productoB->id, 'precio' => 60000]);
+
+        // Solo enviamos A → B debe quedar soft-deleted
+        $this->actingAs($this->usuario)
+            ->postJson(route('inv-precios.sincronizar', $this->lista), [
+                'items' => [['producto_id' => $productoA->id, 'precio' => 55000]],
+            ])
+            ->assertOk();
+
+        $this->assertDatabaseHas('inv_precios_producto', ['producto_id' => $productoA->id, 'precio' => 55000]);
+        $this->assertSoftDeleted('inv_precios_producto', ['lista_precio_id' => $this->lista->id, 'producto_id' => $productoB->id]);
+    }
+
+    /** @test */
+    public function sincronizar_rechaza_lista_no_en_proceso(): void
+    {
+        $this->lista->update(['status' => LpListaPrecio::STATUS_ACTIVA]);
+        $producto = InvProducto::factory()->create(['tipo' => 'simple']);
+
+        $this->actingAs($this->usuario)
+            ->postJson(route('inv-precios.sincronizar', $this->lista), [
+                'items' => [['producto_id' => $producto->id, 'precio' => 50000]],
+            ])
+            ->assertUnprocessable();
+    }
+
+    /** @test */
+    public function sincronizar_deniega_sin_permiso(): void
+    {
+        $sinPermiso = User::factory()->create();
+
+        $this->actingAs($sinPermiso)
+            ->postJson(route('inv-precios.sincronizar', $this->lista), ['items' => []])
+            ->assertForbidden();
+    }
+
+    /** @test */
+    public function sincronizar_expande_grupo_a_sus_variantes(): void
+    {
+        $grupo    = InvProducto::factory()->create(['tipo' => 'grupo']);
+        $variante1 = InvProducto::factory()->create(['tipo' => 'simple', 'producto_padre_id' => $grupo->id, 'status' => 1]);
+        $variante2 = InvProducto::factory()->create(['tipo' => 'simple', 'producto_padre_id' => $grupo->id, 'status' => 1]);
+
+        $this->actingAs($this->usuario)
+            ->postJson(route('inv-precios.sincronizar', $this->lista), [
+                'items' => [['producto_id' => $grupo->id, 'precio' => 35000]],
+            ])
+            ->assertOk()
+            ->assertJsonFragment(['message' => 'Precios sincronizados exitosamente.']);
+
+        // El precio se asigna a las variantes, no al grupo
+        $this->assertDatabaseMissing('inv_precios_producto', ['lista_precio_id' => $this->lista->id, 'producto_id' => $grupo->id]);
+        $this->assertDatabaseHas('inv_precios_producto', ['lista_precio_id' => $this->lista->id, 'producto_id' => $variante1->id, 'precio' => 35000]);
+        $this->assertDatabaseHas('inv_precios_producto', ['lista_precio_id' => $this->lista->id, 'producto_id' => $variante2->id, 'precio' => 35000]);
     }
 
     // ─── porProducto ──────────────────────────────────────────────────────────

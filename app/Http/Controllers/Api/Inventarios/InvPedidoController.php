@@ -5,8 +5,11 @@ namespace App\Http\Controllers\Api\Inventarios;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\Api\Inventarios\InvPedidoResource;
 use App\Models\Inventarios\InvPedido;
+use App\Services\Inventarios\InvAnulacionService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response as HttpResponse;
 
 /**
  * Controlador para consulta y gestión de pedidos de inventario.
@@ -24,8 +27,9 @@ class InvPedidoController extends Controller
     public function __construct()
     {
         $this->middleware('auth:sanctum');
-        $this->middleware('permission:inv_pedidos')->only(['index', 'show', 'porEstudiante']);
+        $this->middleware('permission:inv_pedidos')->only(['index', 'show', 'porEstudiante', 'ticketPdf']);
         $this->middleware('permission:inv_pedidosCancelar')->only(['cancelar']);
+        $this->middleware('permission:inv_pedidosAnular')->only(['anular']);
     }
 
     /**
@@ -72,7 +76,7 @@ class InvPedidoController extends Controller
             'items.producto',
             'items.entregaSimple',
             'items.entregaKit.componentes.productoEntregado',
-            'reciboLinks',
+            'reciboLinks.reciboPago',
         ]);
 
         return response()->json([
@@ -126,5 +130,52 @@ class InvPedidoController extends Controller
             'message' => 'Pedido cancelado exitosamente.',
             'data'    => new InvPedidoResource($pedido),
         ]);
+    }
+
+    /**
+     * Anula un pedido en cualquier estado y reintegra el stock de los ítems entregados.
+     *
+     * Para pedidos 'activo' solo cambia el status. Para pedidos 'pagado', 'entregando'
+     * o 'entregado' crea documentos de devolución e invierte los movimientos de stock.
+     *
+     * @param InvPedido $pedido
+     * @param Request   $request
+     * @return JsonResponse
+     */
+    public function anular(InvPedido $pedido, Request $request): JsonResponse
+    {
+        try {
+            InvAnulacionService::anularPedido($pedido, $request->user()->id);
+
+            return response()->json([
+                'message' => 'Pedido anulado exitosamente.',
+                'data'    => new InvPedidoResource($pedido->fresh()),
+            ]);
+        } catch (\RuntimeException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
+    }
+
+    /**
+     * Genera el ticket de venta en PDF para un pedido.
+     *
+     * @param InvPedido $pedido
+     * @return HttpResponse
+     */
+    public function ticketPdf(InvPedido $pedido): HttpResponse
+    {
+        $pedido->load([
+            'estudiante',
+            'sede',
+            'almacen',
+            'cajero',
+            'items.producto',
+            'reciboLinks',
+        ]);
+
+        $pdf = Pdf::loadView('pdf.inv_ticket', ['pedido' => $pedido])
+            ->setPaper('a4', 'portrait');
+
+        return $pdf->download("ticket-pedido-{$pedido->id}.pdf");
     }
 }

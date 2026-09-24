@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\Inventarios\InvAlmacenController;
 use App\Http\Controllers\Api\Inventarios\InvCategoriaController;
 use App\Http\Controllers\Api\Inventarios\InvEntregaController;
 use App\Http\Controllers\Api\Inventarios\InvKitComponenteController;
+use App\Http\Controllers\Api\Inventarios\InvListaPrecioController;
 use App\Http\Controllers\Api\Inventarios\InvMovimientoController;
 use App\Http\Controllers\Api\Inventarios\InvOrdenCompraController;
 use App\Http\Controllers\Api\Inventarios\InvPedidoController;
@@ -150,12 +151,33 @@ Route::middleware('auth:sanctum')
             ->only(['index', 'show', 'store']);
 
         // ──────────────────────────────────────────────────────────────────────
-        // Precios de productos de inventario
+        // Listas de precios de inventario (origen=0)
+        // ──────────────────────────────────────────────────────────────────────
+        Route::prefix('listas-precios')->group(function () {
+            Route::post('{listaPrecio}/aprobar',   [InvListaPrecioController::class, 'aprobar'])->name('listas-precios.aprobar');
+            Route::post('{listaPrecio}/activar',   [InvListaPrecioController::class, 'activar'])->name('listas-precios.activar');
+            Route::post('{listaPrecio}/inactivar', [InvListaPrecioController::class, 'inactivar'])->name('listas-precios.inactivar');
+            Route::post('{listaPrecio}/clonar',    [InvListaPrecioController::class, 'clonar'])->name('listas-precios.clonar');
+        });
+        Route::apiResource('listas-precios', InvListaPrecioController::class)
+            ->parameters(['listas-precios' => 'listaPrecio'])
+            ->names([
+                'index'   => 'listas-precios.index',
+                'store'   => 'listas-precios.store',
+                'show'    => 'listas-precios.show',
+                'update'  => 'listas-precios.update',
+                'destroy' => 'listas-precios.destroy',
+            ]);
+
+        // ──────────────────────────────────────────────────────────────────────
+        // Precios de productos de inventario (por lista o por producto)
         // ──────────────────────────────────────────────────────────────────────
         Route::prefix('precios')->group(function () {
             Route::get('trashed', [InvPrecioProductoController::class, 'trashed'])->name('precios.trashed');
             Route::get('producto/{productoId}', [InvPrecioProductoController::class, 'porProducto'])
                 ->name('precios.por-producto');
+            Route::post('lista/{listaPrecio}/sincronizar', [InvPrecioProductoController::class, 'sincronizar'])
+                ->name('precios.sincronizar');
         });
         Route::post('precios/{id}/restore', [InvPrecioProductoController::class, 'restore'])
             ->name('precios.restore');
@@ -165,10 +187,15 @@ Route::middleware('auth:sanctum')
             ->parameters(['precios' => 'precio']);
 
         // ──────────────────────────────────────────────────────────────────────
-        // Ventas (crear pedido + abonar)
+        // Ventas (crear pedido + abonar + gestión de transferencias)
         // ──────────────────────────────────────────────────────────────────────
         Route::post('ventas', [InvVentaController::class, 'store'])->name('ventas.store');
         Route::post('ventas/{pedido}/abonar', [InvVentaController::class, 'abonar'])->name('ventas.abonar');
+        Route::post('ventas/precalcular-sobrecargos', [InvVentaController::class, 'precalcularSobrecargos'])->name('ventas.precalcular-sobrecargos');
+        Route::post('ventas/{reciboPago}/notificar-transferencia', [InvVentaController::class, 'notificarTransferencia'])->name('ventas.notificar-transferencia');
+        Route::post('ventas/{reciboPago}/aprobar-transferencia', [InvVentaController::class, 'aprobarTransferencia'])->name('ventas.aprobar-transferencia');
+        Route::post('ventas/{reciboPago}/rechazar-transferencia', [InvVentaController::class, 'rechazarTransferencia'])->name('ventas.rechazar-transferencia');
+        Route::post('ventas/{reciboPago}/reenviar-transferencia', [InvVentaController::class, 'reenviarTransferencia'])->name('ventas.reenviar-transferencia');
 
         // ──────────────────────────────────────────────────────────────────────
         // Pedidos
@@ -179,6 +206,10 @@ Route::middleware('auth:sanctum')
         });
         Route::post('pedidos/{pedido}/cancelar', [InvPedidoController::class, 'cancelar'])
             ->name('pedidos.cancelar');
+        Route::post('pedidos/{pedido}/anular', [InvPedidoController::class, 'anular'])
+            ->name('pedidos.anular');
+        Route::get('pedidos/{pedido}/ticket-pdf', [InvPedidoController::class, 'ticketPdf'])
+            ->name('pedidos.ticket-pdf');
         Route::apiResource('pedidos', InvPedidoController::class)
             ->parameters(['pedidos' => 'pedido'])
             ->only(['index', 'show']);

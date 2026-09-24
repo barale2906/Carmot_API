@@ -153,15 +153,16 @@ class CalendarioGrupoTest extends TestCase
     /** @test */
     public function store_usa_fechas_existentes_cuando_grupo_tiene_ejecucion_activa(): void
     {
-        // Ciclo de referencia que establece fechas para grupoA
-        $this->crearCicloConFechasGrupo($this->grupoA, '2026-08-01', '2026-09-30');
+        $refInicio = Carbon::now()->subDays(30)->toDateString();
+        $refFin    = Carbon::now()->addDays(30)->toDateString();
+        $this->crearCicloConFechasGrupo($this->grupoA, $refInicio, $refFin);
 
         $response = $this->actingAs($this->usuario)
             ->postJson(route('ciclos.store'), [
                 'sede_id'             => $this->sede->id,
                 'curso_id'            => $this->curso->id,
                 'nombre'              => 'Ciclo Nuevo',
-                'fecha_inicio'        => '2026-08-10',
+                'fecha_inicio'        => Carbon::now()->addWeekdays(2)->toDateString(),
                 'fecha_fin_automatica' => true,
                 'status'              => 1,
                 'grupos'              => [$this->grupoA->id],
@@ -176,15 +177,15 @@ class CalendarioGrupoTest extends TestCase
             ->first();
 
         // Debe usar las fechas del ciclo de referencia, no calcular de cero
-        $this->assertEquals('2026-08-01', $pivot->fecha_inicio_grupo);
-        $this->assertEquals('2026-09-30', $pivot->fecha_fin_grupo);
+        $this->assertEquals($refInicio, $pivot->fecha_inicio_grupo);
+        $this->assertEquals($refFin, $pivot->fecha_fin_grupo);
     }
 
     /** @test */
     public function store_calcula_fechas_nuevas_cuando_grupo_esta_entre_ejecuciones(): void
     {
         // Sin ciclo de referencia → grupo entre ejecuciones
-        $fechaInicio = '2026-08-04'; // lunes
+        $fechaInicio = Carbon::now()->next(Carbon::MONDAY)->toDateString(); // próximo lunes
 
         $response = $this->actingAs($this->usuario)
             ->postJson(route('ciclos.store'), [
@@ -221,9 +222,11 @@ class CalendarioGrupoTest extends TestCase
     public function store_secuencia_mixta_combina_fechas_existentes_y_calculadas(): void
     {
         // grupoA tiene fechas activas, grupoB está entre ejecuciones
-        $this->crearCicloConFechasGrupo($this->grupoA, '2026-08-01', '2026-09-05');
+        $refInicio = Carbon::now()->subDays(30)->toDateString();
+        $refFin    = Carbon::now()->addDays(30)->toDateString();
+        $this->crearCicloConFechasGrupo($this->grupoA, $refInicio, $refFin);
 
-        $fechaInicio = '2026-08-10';
+        $fechaInicio = Carbon::now()->addWeekdays(2)->toDateString();
 
         $response = $this->actingAs($this->usuario)
             ->postJson(route('ciclos.store'), [
@@ -246,8 +249,8 @@ class CalendarioGrupoTest extends TestCase
             ->where('ciclo_id', $ciclo->id)->where('grupo_id', $this->grupoB->id)->first();
 
         // grupoA → fechas del ciclo de referencia
-        $this->assertEquals('2026-08-01', $pivotA->fecha_inicio_grupo);
-        $this->assertEquals('2026-09-05', $pivotA->fecha_fin_grupo);
+        $this->assertEquals($refInicio, $pivotA->fecha_inicio_grupo);
+        $this->assertEquals($refFin, $pivotA->fecha_fin_grupo);
 
         // grupoB → calculado desde fecha_inicio del ciclo
         $this->assertEquals($fechaInicio, $pivotB->fecha_inicio_grupo);

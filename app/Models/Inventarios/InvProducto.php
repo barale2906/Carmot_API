@@ -2,12 +2,14 @@
 
 namespace App\Models\Inventarios;
 
+use App\Models\Financiero\Descuento\Descuento;
 use App\Traits\HasActiveStatus;
 use App\Traits\HasInvProductoFilterScopes;
 use App\Traits\HasSortingScopes;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -111,6 +113,21 @@ class InvProducto extends Model
     public function enKits(): HasMany
     {
         return $this->hasMany(InvKitComponente::class, 'grupo_producto_id');
+    }
+
+    /**
+     * Descuentos de inventario configurados para este producto (pivot descuento_inv_producto).
+     *
+     * @return BelongsToMany
+     */
+    public function descuentosInventario(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            Descuento::class,
+            'descuento_inv_producto',
+            'producto_id',
+            'descuento_id'
+        );
     }
 
     /**

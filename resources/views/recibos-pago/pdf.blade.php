@@ -176,8 +176,13 @@
                 <span class="data-value">{{ $recibo->estudiante->name ?? 'ID ' . $recibo->estudiante_id }}</span>
             </td>
             <td style="width:50%;">
-                <span class="data-label">Programa</span>
-                <span class="data-value">{{ $recibo->matricula?->curso?->nombre ?? '—' }}</span>
+                @if($recibo->origen === 0)
+                    <span class="data-label">Almacén</span>
+                    <span class="data-value">{{ $recibo->pedidoLinks->first()?->pedido?->almacen?->nombre ?? '—' }}</span>
+                @else
+                    <span class="data-label">Programa</span>
+                    <span class="data-value">{{ $recibo->matricula?->curso?->nombre ?? '—' }}</span>
+                @endif
             </td>
         </tr>
         <tr style="border-top:1px solid #e2e8f0;">
@@ -194,61 +199,92 @@
         </tr>
     </table>
 
-    {{-- ── Conceptos de pago ───────────────────────────────────────────────── --}}
-    <div class="section-title">Conceptos de pago</div>
-    <table class="items-table">
-        <thead>
-            <tr>
-                <th>Concepto</th>
-                <th class="right" style="width:45px;">Cant.</th>
-                <th class="right" style="width:90px;">Valor unitario</th>
-                <th class="right" style="width:90px;">Subtotal</th>
-            </tr>
-        </thead>
-        <tbody>
-            @forelse($recibo->conceptosPago as $cp)
-                @php
-                    $obs    = $cp->pivot->observaciones ?? '';
-                    $nombre = $cp->nombre;
-                    if ($obs && str_contains($obs, 'cuota 0')) {
-                        $nombre = 'Matrícula';
-                    } elseif ($nombre === 'Pago de mensualidad') {
-                        $nombre = 'Pago mes';
-                    }
-                    // Snapshot guardado en el pivot al momento de crear el recibo
-                    $statusSnapshot = $cp->pivot->status_cartera;
-                    $saldoSnapshot  = $cp->pivot->saldo_cartera;
-                    $statusTextos   = [0 => 'Activa', 1 => 'Abonada', 2 => 'Cerrada', 3 => 'Anulada', 4 => 'En Acuerdo'];
-                    $badgeTexto     = $statusSnapshot !== null
-                        ? ($statusSnapshot === 2 ? 'Pagada' : ($statusTextos[$statusSnapshot] ?? ''))
-                        : null;
-                @endphp
+    {{-- ── Conceptos / Productos ───────────────────────────────────────────── --}}
+    @if($recibo->origen === 0)
+        {{-- Inventario: mostrar ítems del pedido --}}
+        <div class="section-title">Productos</div>
+        <table class="items-table">
+            <thead>
                 <tr>
-                    <td>
-                        <span class="concepto-nombre">{{ $nombre }}</span>
-                        @if($obs)
-                            <span class="concepto-obs">&nbsp;— {{ $obs }}</span>
-                        @endif
-                        @if($badgeTexto)
-                            <span class="badge badge-{{ $statusSnapshot }}">&nbsp;{{ $badgeTexto }}</span>
-                        @endif
-                        @if($statusSnapshot === 1 && $saldoSnapshot > 0)
-                            <span class="concepto-saldo">&nbsp;· Saldo: $ {{ number_format($saldoSnapshot, 0, ',', '.') }}</span>
-                        @endif
-                    </td>
-                    <td class="right">{{ $cp->pivot->cantidad }}</td>
-                    <td class="right">$ {{ number_format($cp->pivot->unitario, 0, ',', '.') }}</td>
-                    <td class="right">$ {{ number_format($cp->pivot->subtotal, 0, ',', '.') }}</td>
+                    <th>Producto</th>
+                    <th class="right" style="width:45px;">Cant.</th>
+                    <th class="right" style="width:90px;">Precio unit.</th>
+                    <th class="right" style="width:90px;">Subtotal</th>
                 </tr>
-            @empty
+            </thead>
+            <tbody>
+                @forelse($itemsInventario as $item)
+                    <tr>
+                        <td class="concepto-nombre">{{ $item->producto?->nombre ?? '—' }}</td>
+                        <td class="right">{{ $item->cantidad }}</td>
+                        <td class="right">$ {{ number_format($item->precio_unitario, 0, ',', '.') }}</td>
+                        <td class="right">$ {{ number_format($item->subtotal ?? ($item->precio_unitario * $item->cantidad), 0, ',', '.') }}</td>
+                    </tr>
+                @empty
+                    <tr>
+                        <td colspan="4" style="text-align:center; color:#94a3b8; padding:10px;">
+                            Sin productos registrados.
+                        </td>
+                    </tr>
+                @endforelse
+            </tbody>
+        </table>
+    @else
+        {{-- Académico: conceptos de cartera --}}
+        <div class="section-title">Conceptos de pago</div>
+        <table class="items-table">
+            <thead>
                 <tr>
-                    <td colspan="4" style="text-align:center; color:#94a3b8; padding:10px;">
-                        Sin conceptos registrados.
-                    </td>
+                    <th>Concepto</th>
+                    <th class="right" style="width:45px;">Cant.</th>
+                    <th class="right" style="width:90px;">Valor unitario</th>
+                    <th class="right" style="width:90px;">Subtotal</th>
                 </tr>
-            @endforelse
-        </tbody>
-    </table>
+            </thead>
+            <tbody>
+                @forelse($recibo->conceptosPago as $cp)
+                    @php
+                        $obs    = $cp->pivot->observaciones ?? '';
+                        $nombre = $cp->nombre;
+                        if ($obs && str_contains($obs, 'cuota 0')) {
+                            $nombre = 'Matrícula';
+                        } elseif ($nombre === 'Pago de mensualidad') {
+                            $nombre = 'Pago mes';
+                        }
+                        $statusSnapshot = $cp->pivot->status_cartera;
+                        $saldoSnapshot  = $cp->pivot->saldo_cartera;
+                        $statusTextos   = [0 => 'Activa', 1 => 'Abonada', 2 => 'Cerrada', 3 => 'Anulada', 4 => 'En Acuerdo'];
+                        $badgeTexto     = $statusSnapshot !== null
+                            ? ($statusSnapshot === 2 ? 'Pagada' : ($statusTextos[$statusSnapshot] ?? ''))
+                            : null;
+                    @endphp
+                    <tr>
+                        <td>
+                            <span class="concepto-nombre">{{ $nombre }}</span>
+                            @if($obs)
+                                <span class="concepto-obs">&nbsp;— {{ $obs }}</span>
+                            @endif
+                            @if($badgeTexto)
+                                <span class="badge badge-{{ $statusSnapshot }}">&nbsp;{{ $badgeTexto }}</span>
+                            @endif
+                            @if($statusSnapshot === 1 && $saldoSnapshot > 0)
+                                <span class="concepto-saldo">&nbsp;· Saldo: $ {{ number_format($saldoSnapshot, 0, ',', '.') }}</span>
+                            @endif
+                        </td>
+                        <td class="right">{{ $cp->pivot->cantidad }}</td>
+                        <td class="right">$ {{ number_format($cp->pivot->unitario, 0, ',', '.') }}</td>
+                        <td class="right">$ {{ number_format($cp->pivot->subtotal, 0, ',', '.') }}</td>
+                    </tr>
+                @empty
+                    <tr>
+                        <td colspan="4" style="text-align:center; color:#94a3b8; padding:10px;">
+                            Sin conceptos registrados.
+                        </td>
+                    </tr>
+                @endforelse
+            </tbody>
+        </table>
+    @endif
 
     {{-- Descuento y total --}}
     <table class="totals-table">

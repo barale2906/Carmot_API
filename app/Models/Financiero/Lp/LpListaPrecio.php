@@ -113,6 +113,17 @@ class LpListaPrecio extends Model
     }
 
     /**
+     * Relación con InvPrecioProducto (uno a muchos).
+     * Precios de productos de inventario asociados a esta lista (origen=0).
+     *
+     * @return HasMany
+     */
+    public function preciosInventario(): HasMany
+    {
+        return $this->hasMany(\App\Models\Inventarios\InvPrecioProducto::class, 'lista_precio_id');
+    }
+
+    /**
      * Relación con LpProducto (muchos a muchos).
      * Una lista de precios puede incluir múltiples productos.
      * La relación se establece a través de la tabla pivot lp_precios_producto.

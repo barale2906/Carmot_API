@@ -16,19 +16,15 @@ class StoreInvPrecioProductoRequest extends FormRequest
     }
 
     /**
+     * El endpoint store usa updateOrCreate, por lo que se permiten registros duplicados:
+     * si ya existe el precio para ese producto+lista, se actualiza en vez de fallar.
+     *
      * @return array<string, mixed>
      */
     public function rules(): array
     {
         return [
-            'lista_precio_id' => [
-                'required',
-                'integer',
-                'exists:lp_listas_precios,id',
-                Rule::unique('inv_precios_producto', 'lista_precio_id')
-                    ->where('producto_id', $this->producto_id)
-                    ->whereNull('deleted_at'),
-            ],
+            'lista_precio_id' => ['required', 'integer', 'exists:lp_listas_precios,id'],
             'producto_id'     => [
                 'required',
                 'integer',
@@ -47,7 +43,6 @@ class StoreInvPrecioProductoRequest extends FormRequest
         return [
             'lista_precio_id.required' => 'La lista de precios es obligatoria.',
             'lista_precio_id.exists'   => 'La lista de precios seleccionada no existe.',
-            'lista_precio_id.unique'   => 'Ya existe un precio para ese producto en esa lista.',
             'producto_id.required'     => 'El producto es obligatorio.',
             'producto_id.exists'       => 'El producto no existe o es de tipo grupo (sin precio).',
             'precio.required'          => 'El precio es obligatorio.',

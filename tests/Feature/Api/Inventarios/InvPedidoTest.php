@@ -4,7 +4,11 @@ namespace Tests\Feature\Api\Inventarios;
 
 use App\Models\Configuracion\Sede;
 use App\Models\Inventarios\InvAlmacen;
+use App\Models\Inventarios\InvEntregaSimple;
 use App\Models\Inventarios\InvPedido;
+use App\Models\Inventarios\InvPedidoItem;
+use App\Models\Inventarios\InvProducto;
+use App\Models\Inventarios\InvStock;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Permission\Models\Permission;
@@ -29,9 +33,10 @@ class InvPedidoTest extends TestCase
 
         Permission::create(['name' => 'inv_pedidos',         'descripcion' => 'ver pedidos']);
         Permission::create(['name' => 'inv_pedidosCancelar', 'descripcion' => 'cancelar pedidos']);
+        Permission::create(['name' => 'inv_pedidosAnular',   'descripcion' => 'anular pedidos']);
 
         $this->cajero  = User::factory()->create();
-        $this->cajero->givePermissionTo(['inv_pedidos', 'inv_pedidosCancelar']);
+        $this->cajero->givePermissionTo(['inv_pedidos', 'inv_pedidosCancelar', 'inv_pedidosAnular']);
 
         $this->sede    = Sede::factory()->create(['codigo_inventario' => 'TUN-INV']);
         $this->almacen = InvAlmacen::factory()->create(['sede_id' => $this->sede->id]);
@@ -178,6 +183,120 @@ class InvPedidoTest extends TestCase
 
         $this->actingAs($sinPermiso)
             ->postJson(route('inv-pedidos.cancelar', $pedido))
+            ->assertForbidden();
+    }
+
+    // ─── anular ───────────────────────────────────────────────────────────────
+
+    /** @test */
+    public function anular_cancela_pedido_activo_sin_reintegro(): void
+    {
+        $pedido = $this->crearPedido(['status' => InvPedido::STATUS_ACTIVO]);
+
+        $this->actingAs($this->cajero)
+            ->postJson(route('inv-pedidos.anular', $pedido))
+            ->assertOk()
+            ->assertJsonFragment(['status' => InvPedido::STATUS_CANCELADO]);
+
+        $this->assertDatabaseHas('inv_pedidos', ['id' => $pedido->id, 'status' => 'cancelado']);
+        // Pedido activo no generó movimientos de stock, no debe haber documento de devolución
+        $this->assertDatabaseMissing('inv_documentos_movimiento', ['pedido_id' => $pedido->id, 'tipo_documento' => 'devolucion']);
+    }
+
+    /** @test */
+    public function anular_reintegra_stock_de_entregas_completadas(): void
+    {
+        $producto = InvProducto::factory()->create(['tipo' => 'simple']);
+
+        // Pre-cargar stock para que la entrega haya funcionado
+        InvStock::create([
+            'almacen_id'          => $this->almacen->id,
+            'producto_id'         => $producto->id,
+            'cantidad_total'      => 0,
+            'cantidad_reservada'  => 0,
+            'cantidad_disponible' => 0,
+        ]);
+
+        $pedido = $this->crearPedido(['status' => InvPedido::STATUS_ENTREGANDO]);
+
+        $item = InvPedidoItem::create([
+            'pedido_id'       => $pedido->id,
+            'producto_id'     => $producto->id,
+            'cantidad'        => 2,
+            'precio_unitario' => 5000,
+            'subtotal'        => 10000,
+        ]);
+
+        InvEntregaSimple::create([
+            'pedido_item_id'     => $item->id,
+            'producto_id'        => $producto->id,
+            'cantidad_entregada' => 2,
+            'status'             => InvEntregaSimple::STATUS_ENTREGADO,
+            'fecha_entrega'      => now(),
+        ]);
+
+        $this->actingAs($this->cajero)
+            ->postJson(route('inv-pedidos.anular', $pedido))
+            ->assertOk()
+            ->assertJsonFragment(['status' => InvPedido::STATUS_CANCELADO]);
+
+        // Debe haberse creado un documento de devolución
+        $this->assertDatabaseHas('inv_documentos_movimiento', [
+            'pedido_id'     => $pedido->id,
+            'tipo_documento' => 'devolucion',
+        ]);
+
+        // El stock debe haber sido reintegrado
+        $this->assertDatabaseHas('inv_stock', [
+            'almacen_id'          => $this->almacen->id,
+            'producto_id'         => $producto->id,
+            'cantidad_disponible' => 2,
+        ]);
+    }
+
+    /** @test */
+    public function anular_rechaza_pedido_ya_cancelado(): void
+    {
+        $pedido = $this->crearPedido(['status' => InvPedido::STATUS_CANCELADO]);
+
+        $this->actingAs($this->cajero)
+            ->postJson(route('inv-pedidos.anular', $pedido))
+            ->assertUnprocessable()
+            ->assertJsonFragment(['message' => 'El pedido ya está cancelado.']);
+    }
+
+    /** @test */
+    public function anular_deniega_sin_permiso(): void
+    {
+        $sinPermiso = User::factory()->create();
+        $pedido     = $this->crearPedido();
+
+        $this->actingAs($sinPermiso)
+            ->postJson(route('inv-pedidos.anular', $pedido))
+            ->assertForbidden();
+    }
+
+    // ─── ticket-pdf ───────────────────────────────────────────────────────────
+
+    /** @test */
+    public function ticket_pdf_retorna_respuesta_pdf(): void
+    {
+        $pedido = $this->crearPedido(['status' => InvPedido::STATUS_PAGADO]);
+
+        $this->actingAs($this->cajero)
+            ->get(route('inv-pedidos.ticket-pdf', $pedido))
+            ->assertOk()
+            ->assertHeader('Content-Type', 'application/pdf');
+    }
+
+    /** @test */
+    public function ticket_pdf_deniega_sin_permiso(): void
+    {
+        $sinPermiso = User::factory()->create();
+        $pedido     = $this->crearPedido();
+
+        $this->actingAs($sinPermiso)
+            ->get(route('inv-pedidos.ticket-pdf', $pedido))
             ->assertForbidden();
     }
 }

@@ -4,6 +4,7 @@ namespace Tests\Feature\Api\Inventarios;
 
 use App\Models\Configuracion\Poblacion;
 use App\Models\Configuracion\Sede;
+use App\Models\Financiero\Descuento\Descuento;
 use App\Models\Financiero\Lp\LpListaPrecio;
 use App\Models\Inventarios\InvAlmacen;
 use App\Models\Inventarios\InvPedido;
@@ -109,7 +110,7 @@ class InvVentaTest extends TestCase
     /** @test */
     public function store_crea_pedido_con_pago_total(): void
     {
-        $this->actingAs($this->cajero)
+        $response = $this->actingAs($this->cajero)
             ->postJson(route('inv-ventas.store'), $this->payloadPedido())
             ->assertCreated()
             ->assertJsonStructure([
@@ -122,11 +123,33 @@ class InvVentaTest extends TestCase
             'sede_id'       => $this->sede->id,
         ]);
 
-        // Recibo de pago generado con número de inventario
+        // El recibo debe tener origen=inventarios y el prefijo codigo_inventario de la sede
         $this->assertDatabaseHas('recibos_pago', [
             'origen'  => 0,
             'sede_id' => $this->sede->id,
+            'prefijo' => $this->sede->codigo_inventario,
         ]);
+
+        // El numero_recibo debe comenzar con el codigo_inventario de la sede
+        $numeroRecibo = $response->json('recibo.numero_recibo');
+        $this->assertStringStartsWith($this->sede->codigo_inventario . '-', $numeroRecibo);
+    }
+
+    /** @test */
+    public function store_numero_recibo_usa_prefijo_codigo_inventario_de_la_sede(): void
+    {
+        $response = $this->actingAs($this->cajero)
+            ->postJson(route('inv-ventas.store'), $this->payloadPedido())
+            ->assertCreated();
+
+        $numeroRecibo = $response->json('recibo.numero_recibo');
+
+        // Formato esperado: {codigo_inventario}-NNNN, ej. "TST-INV-0001"
+        $this->assertMatchesRegularExpression(
+            '/^' . preg_quote($this->sede->codigo_inventario, '/') . '-\d{4}$/',
+            $numeroRecibo,
+            "El numero_recibo '{$numeroRecibo}' no comienza con el codigo_inventario de la sede '{$this->sede->codigo_inventario}'"
+        );
     }
 
     /** @test */
@@ -262,6 +285,47 @@ class InvVentaTest extends TestCase
                 'medios_pago' => [['medio_pago' => 'efectivo', 'valor' => 80000]],
             ])
             ->assertUnprocessable();
+    }
+
+    // ─── descuentos ───────────────────────────────────────────────────────────
+
+    /** @test */
+    public function store_aplica_descuento_porcentual_al_item(): void
+    {
+        $descuento = Descuento::factory()->create([
+            'tipo_movimiento' => 'descuento',
+            'tipo'            => 'porcentual',
+            'valor'           => 10,  // 10%
+            'status'          => Descuento::STATUS_ACTIVO,
+            'fecha_inicio'    => today()->subDay(),
+            'fecha_fin'       => today()->addMonth(),
+        ]);
+
+        $precioConDescuento = $this->precio * 0.90;
+        $abono = $precioConDescuento;
+
+        $response = $this->actingAs($this->cajero)
+            ->postJson(route('inv-ventas.store'), $this->payloadPedido([
+                'items'       => [['producto_id' => $this->producto->id, 'cantidad' => 1, 'descuento_id' => $descuento->id]],
+                'monto_abono' => $abono,
+                'medios_pago' => [['medio_pago' => 'efectivo', 'valor' => $abono]],
+            ]))
+            ->assertCreated();
+
+        // El valor total debe reflejar el precio con descuento
+        $this->assertEquals($precioConDescuento, (float) $response->json('data.valor_total'));
+    }
+
+    /** @test */
+    public function store_descuento_inexistente_ignora_y_aplica_precio_lista(): void
+    {
+        $response = $this->actingAs($this->cajero)
+            ->postJson(route('inv-ventas.store'), $this->payloadPedido([
+                'items'       => [['producto_id' => $this->producto->id, 'cantidad' => 1, 'descuento_id' => 99999]],
+                'monto_abono' => $this->precio,
+                'medios_pago' => [['medio_pago' => 'efectivo', 'valor' => $this->precio]],
+            ]))
+            ->assertUnprocessable(); // Falla validación exists:descuentos,id
     }
 
     /** @test */

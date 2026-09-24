@@ -9,12 +9,14 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 /**
  * Modelo InvPedidoItem — línea de producto de un pedido de inventario.
  *
- * @property int   $id
- * @property int   $pedido_id
- * @property int   $producto_id
- * @property int   $cantidad
- * @property float $precio_unitario
- * @property float $subtotal
+ * @property int        $id
+ * @property int        $pedido_id
+ * @property int        $producto_id
+ * @property int        $cantidad
+ * @property float|null $precio_lista       Precio de lista antes de descuento
+ * @property float      $descuento_unitario Descuento por unidad (precio_lista - precio_unitario)
+ * @property float      $precio_unitario    Precio final cobrado por unidad
+ * @property float      $subtotal           cantidad × precio_unitario
  */
 class InvPedidoItem extends Model
 {
@@ -23,13 +25,15 @@ class InvPedidoItem extends Model
     protected $guarded = ['id'];
 
     protected $casts = [
-        'pedido_id'      => 'integer',
-        'producto_id'    => 'integer',
-        'cantidad'       => 'integer',
-        'precio_unitario' => 'decimal:2',
-        'subtotal'       => 'decimal:2',
-        'created_at'     => 'datetime',
-        'updated_at'     => 'datetime',
+        'pedido_id'          => 'integer',
+        'producto_id'        => 'integer',
+        'cantidad'           => 'integer',
+        'precio_lista'       => 'decimal:2',
+        'descuento_unitario' => 'decimal:2',
+        'precio_unitario'    => 'decimal:2',
+        'subtotal'           => 'decimal:2',
+        'created_at'         => 'datetime',
+        'updated_at'         => 'datetime',
     ];
 
     /**
