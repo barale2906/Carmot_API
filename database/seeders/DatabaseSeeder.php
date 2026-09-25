@@ -50,6 +50,7 @@ class DatabaseSeeder extends Seeder
             AddInventariosPermissionsSeeder::class,
             AddInventariosStockPermissionsSeeder::class,
             AddInventariosVentaPermissionsSeeder::class,
+            AddDocumentacionPermissionsSeeder::class,
         ]);
         // \App\Models\User::factory(10)->create();
 
