@@ -7,6 +7,9 @@ use App\Http\Controllers\Api\Academico\AsistenciaController;
 use App\Http\Controllers\Api\Academico\BibliotecaController;
 use App\Http\Controllers\Api\Academico\CicloController;
 use App\Http\Controllers\Api\Academico\CursoController;
+use App\Http\Controllers\Api\Academico\Documentacion\DocDocumentoController;
+use App\Http\Controllers\Api\Academico\Documentacion\DocPlantillaController;
+use App\Http\Controllers\Api\Academico\Documentacion\DocTipoDocumentoController;
 use App\Http\Controllers\Api\Academico\EsquemaCalificacionController;
 use App\Http\Controllers\Api\Academico\GrupoController;
 use App\Http\Controllers\Api\Academico\MatriculaController;
@@ -241,4 +244,51 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('{biblioteca}/download', [BibliotecaController::class, 'download'])->name('biblioteca.download');
     });
     Route::apiResource('biblioteca', BibliotecaController::class);
+
+    // -------------------------------------------------------------------------
+    // Documentación
+    // -------------------------------------------------------------------------
+    Route::prefix('documentacion')->name('documentacion.')->group(function () {
+
+        // Tipos de documento
+        Route::prefix('tipos-documento')->group(function () {
+            Route::get('trashed', [DocTipoDocumentoController::class, 'trashed'])->name('tipos-documento.trashed');
+            Route::get('filters', [DocTipoDocumentoController::class, 'filters'])->name('tipos-documento.filters');
+            Route::get('{tipo_documento}/variables', [DocTipoDocumentoController::class, 'variablesDisponibles'])->name('tipos-documento.variables');
+            Route::put('{tipo_documento}/variables', [DocTipoDocumentoController::class, 'sincronizarVariables'])->name('tipos-documento.variables.sync');
+            Route::post('{id}/restore', [DocTipoDocumentoController::class, 'restore'])->name('tipos-documento.restore');
+            Route::delete('{id}/force-delete', [DocTipoDocumentoController::class, 'forceDelete'])->name('tipos-documento.force-delete');
+        });
+        Route::apiResource('tipos-documento', DocTipoDocumentoController::class)
+            ->parameters(['tipos-documento' => 'tipo_documento']);
+
+        // Plantillas (versiones de contenido)
+        Route::prefix('plantillas')->group(function () {
+            Route::get('trashed', [DocPlantillaController::class, 'trashed'])->name('plantillas.trashed');
+            Route::get('filters', [DocPlantillaController::class, 'filters'])->name('plantillas.filters');
+            Route::post('{plantilla}/aprobar', [DocPlantillaController::class, 'aprobar'])->name('plantillas.aprobar');
+            Route::post('{plantilla}/activar', [DocPlantillaController::class, 'activar'])->name('plantillas.activar');
+            Route::post('{plantilla}/inactivar', [DocPlantillaController::class, 'inactivar'])->name('plantillas.inactivar');
+            Route::post('{plantilla}/clonar', [DocPlantillaController::class, 'clonar'])->name('plantillas.clonar');
+            Route::get('{plantilla}/bloques', [DocPlantillaController::class, 'bloquesDisponibles'])->name('plantillas.bloques');
+            Route::put('{plantilla}/bloques', [DocPlantillaController::class, 'sincronizarBloques'])->name('plantillas.bloques.sync');
+            Route::post('{plantilla}/previsualizar', [DocPlantillaController::class, 'previsualizar'])->name('plantillas.previsualizar');
+            Route::post('{id}/restore', [DocPlantillaController::class, 'restore'])->name('plantillas.restore');
+            Route::delete('{id}/force-delete', [DocPlantillaController::class, 'forceDelete'])->name('plantillas.force-delete');
+        });
+        Route::apiResource('plantillas', DocPlantillaController::class);
+
+        // Documentos generados
+        Route::prefix('documentos')->group(function () {
+            Route::get('trashed', [DocDocumentoController::class, 'trashed'])->name('documentos.trashed');
+            Route::get('filters', [DocDocumentoController::class, 'filters'])->name('documentos.filters');
+            Route::post('generar', [DocDocumentoController::class, 'generar'])->name('documentos.generar');
+            Route::get('{documento}/pdf', [DocDocumentoController::class, 'pdf'])->name('documentos.pdf');
+            Route::post('{documento}/anular', [DocDocumentoController::class, 'anular'])->name('documentos.anular');
+            Route::post('{id}/restore', [DocDocumentoController::class, 'restore'])->name('documentos.restore');
+            Route::delete('{id}/force-delete', [DocDocumentoController::class, 'forceDelete'])->name('documentos.force-delete');
+        });
+        Route::apiResource('documentos', DocDocumentoController::class)
+            ->only(['index', 'show', 'destroy']);
+    });
 });

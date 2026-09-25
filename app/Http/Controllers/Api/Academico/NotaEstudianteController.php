@@ -16,7 +16,7 @@ use App\Models\Academico\Matricula;
 use App\Models\Academico\Modulo;
 use App\Models\Academico\NotaEstudiante;
 use App\Models\Academico\TipoNotaEsquema;
-use App\Models\User;
+use App\Services\Academico\SabanaNotasService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -25,8 +25,10 @@ class NotaEstudianteController extends Controller
 {
     /**
      * Constructor del controlador.
+     *
+     * @param SabanaNotasService $sabanaNotas Cálculo de la sábana de notas por estudiante.
      */
-    public function __construct()
+    public function __construct(private SabanaNotasService $sabanaNotas)
     {
         $this->middleware('permission:aca_notas')->only(['index', 'show', 'sabanaEstudiante', 'sabanaGrupal', 'calcularNotaFinal']);
         $this->middleware('permission:aca_notaCrear')->only(['store', 'storeMasivo']);
@@ -433,126 +435,17 @@ class NotaEstudianteController extends Controller
     public function sabanaEstudiante(Request $request, int $estudianteId): JsonResponse
     {
         try {
-            $estudiante = User::findOrFail($estudianteId);
-            $cicloId = $request->get('ciclo_id');
-            $cursoId = $request->get('curso_id');
+            $data = $this->sabanaNotas->porEstudiante(
+                $estudianteId,
+                $request->get('ciclo_id'),
+                $request->get('curso_id')
+            );
 
-            // Obtener matrícula activa del estudiante
-            $matriculaQuery = Matricula::where('estudiante_id', $estudianteId)
-                ->where('status', 1);
-
-            if ($cicloId) {
-                $matriculaQuery->where('ciclo_id', $cicloId);
-            }
-
-            if ($cursoId) {
-                $matriculaQuery->where('curso_id', $cursoId);
-            }
-
-            $matricula = $matriculaQuery->with(['curso', 'ciclo'])->first();
-
-            if (!$matricula) {
+            if (!$data) {
                 return response()->json([
                     'message' => 'No se encontró una matrícula activa para este estudiante.',
                 ], 404);
             }
-
-            // Obtener grupos del ciclo
-            $ciclo = $matricula->ciclo;
-            $grupos = $ciclo->grupos()->with('modulo')->get();
-
-            $modulosData = [];
-            $sumaNotasFinales = 0;
-            $modulosCompletos = 0;
-
-            foreach ($grupos as $grupo) {
-                $modulo = $grupo->modulo;
-                $moduloId = $modulo->id;
-
-                // Obtener esquema activo para este módulo/grupo
-                $esquema = EsquemaCalificacion::activoParaModuloGrupo($moduloId, $grupo->id);
-
-                if (!$esquema) {
-                    continue;
-                }
-
-                // Obtener todas las notas del estudiante en este módulo/grupo
-                $notas = NotaEstudiante::where('estudiante_id', $estudianteId)
-                    ->where('grupo_id', $grupo->id)
-                    ->where('modulo_id', $moduloId)
-                    ->where('esquema_calificacion_id', $esquema->id)
-                    ->where('status', 1)
-                    ->with('tipoNotaEsquema')
-                    ->get();
-
-                // Calcular nota final
-                $notaFinal = $notas->sum('nota_ponderada');
-
-                // Obtener tipos de nota del esquema
-                $tiposNota = $esquema->tiposNota;
-                $tiposConNota = $notas->pluck('tipo_nota_esquema_id')->toArray();
-
-                // Construir datos de tipos de nota
-                $tiposNotaData = $tiposNota->map(function ($tipo) use ($notas) {
-                    $nota = $notas->firstWhere('tipo_nota_esquema_id', $tipo->id);
-                    return [
-                        'id' => $tipo->id,
-                        'nombre_tipo' => $tipo->nombre_tipo,
-                        'peso' => (float) $tipo->peso,
-                        'nota' => $nota ? (float) $nota->nota : null,
-                        'nota_ponderada' => $nota ? (float) $nota->nota_ponderada : null,
-                        'pendiente' => !$nota,
-                    ];
-                });
-
-                $completo = $tiposConNota === $tiposNota->pluck('id')->toArray();
-
-                if ($completo) {
-                    $modulosCompletos++;
-                    $sumaNotasFinales += $notaFinal;
-                }
-
-                $modulosData[] = [
-                    'modulo' => [
-                        'id' => $modulo->id,
-                        'nombre' => $modulo->nombre,
-                    ],
-                    'grupo' => [
-                        'id' => $grupo->id,
-                        'nombre' => $grupo->nombre,
-                    ],
-                    'esquema_calificacion' => [
-                        'id' => $esquema->id,
-                        'nombre_esquema' => $esquema->nombre_esquema,
-                    ],
-                    'tipos_nota' => $tiposNotaData,
-                    'nota_final' => round($notaFinal, 2),
-                    'completo' => $completo,
-                ];
-            }
-
-            $promedioGeneral = $modulosCompletos > 0 ? round($sumaNotasFinales / $modulosCompletos, 2) : null;
-
-            $data = [
-                'estudiante' => [
-                    'id' => $estudiante->id,
-                    'name' => $estudiante->name,
-                    'email' => $estudiante->email,
-                    'documento' => $estudiante->documento,
-                ],
-                'curso' => [
-                    'id' => $matricula->curso->id,
-                    'nombre' => $matricula->curso->nombre,
-                ],
-                'ciclo' => [
-                    'id' => $matricula->ciclo->id,
-                    'nombre' => $matricula->ciclo->nombre,
-                ],
-                'modulos' => $modulosData,
-                'promedio_general' => $promedioGeneral,
-                'total_modulos' => count($modulosData),
-                'modulos_completos' => $modulosCompletos,
-            ];
 
             return response()->json([
                 'data' => new SabanaNotasEstudianteResource($data),
@@ -587,8 +480,9 @@ class NotaEstudianteController extends Controller
                 ], 422);
             }
 
-            // Obtener esquema activo
-            $esquema = EsquemaCalificacion::activoParaModuloGrupo($moduloId, $grupoId);
+            // Obtener esquema activo. activoParaModuloGrupo es un scope: sin ->first()
+            // devolvería el Builder y no el esquema, y el chequeo siguiente nunca aplicaría.
+            $esquema = EsquemaCalificacion::activoParaModuloGrupo($moduloId, $grupoId)->first();
 
             if (!$esquema) {
                 return response()->json([

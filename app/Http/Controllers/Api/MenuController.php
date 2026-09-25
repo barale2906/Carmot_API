@@ -144,7 +144,8 @@ class MenuController extends Controller
 
         // Académico - módulo con submenús según la estructura requerida
         if ($this->hasAnyPermission($user, [
-            'aca_programas', 'aca_programaciones', 'aca_matriculas', 'aca_cursos'
+            'aca_programas', 'aca_programaciones', 'aca_matriculas', 'aca_cursos',
+            'aca_documentos', 'aca_docPlantillas', 'aca_docTipos',
         ])) {
             $academicoChildren = [];
 
@@ -189,6 +190,16 @@ class MenuController extends Controller
                     'icon' => 'school',
                     'route' => '/academico/cursos',
                     'permission' => 'aca_cursos',
+                ];
+            }
+
+            // Documentación: documentos emitidos, plantillas versionadas y tipos
+            if ($this->hasAnyPermission($user, ['aca_documentos', 'aca_docPlantillas', 'aca_docTipos'])) {
+                $academicoChildren[] = [
+                    'id' => 'academico-documentacion',
+                    'title' => 'Documentación',
+                    'icon' => 'description',
+                    'route' => '/academico/documentacion',
                 ];
             }
 
