@@ -10,11 +10,15 @@ use App\Models\User;
 use App\Services\Academico\Documentacion\DocPlantillaPublicacionService;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 use Spatie\Permission\Models\Permission;
 use Tests\TestCase;
 
 /**
- * Pruebas de la generación, numeración y anulación de documentos.
+ * Pruebas de la impresión de documentos y de la bitácora de emisiones.
+ *
+ * Los documentos no se almacenan: se arman en cada impresión con los datos del
+ * estudiante y la plantilla que corresponde según el tipo.
  */
 class DocDocumentoTest extends TestCase
 {
@@ -31,9 +35,9 @@ class DocDocumentoTest extends TestCase
         app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
 
         $permisos = [
-            'aca_documentos'       => 'ver documentos',
-            'aca_documentoGenerar' => 'generar documentos',
-            'aca_documentoAnular'  => 'anular documentos',
+            'aca_documentos'       => 'ver la bitácora de documentos',
+            'aca_documentoGenerar' => 'imprimir documentos',
+            'aca_documentoAnular'  => 'eliminar registros de la bitácora',
         ];
 
         foreach ($permisos as $nombre => $descripcion) {
@@ -43,18 +47,18 @@ class DocDocumentoTest extends TestCase
         $this->usuario = User::factory()->create();
         $this->usuario->givePermissionTo(array_keys($permisos));
 
-        $this->tipo = DocTipoDocumento::factory()->atadoAMatricula()->create([
-            'nombre'         => 'Contrato de matrícula',
-            'prefijo_numero' => 'CONT',
+        $this->tipo = DocTipoDocumento::factory()->conformaMatricula()->create([
+            'codigo' => 'CONTRATO',
+            'nombre' => 'Contrato de matrícula',
         ]);
 
-        foreach (['estudiante.name', 'monto_letras', 'documento.numero'] as $variable) {
+        foreach (['numero_matricula', 'estudiante.name', 'monto_letras'] as $variable) {
             $this->tipo->variables()->create(['variable_key' => $variable]);
         }
     }
 
     /**
-     * Crea una versión de plantilla activa con contenido que usa variables.
+     * Crea una versión activa del tipo con el contenido indicado.
      *
      * @param string $fechaInicio
      * @param string $contenido
@@ -70,12 +74,27 @@ class DocDocumentoTest extends TestCase
         ]);
     }
 
+    /**
+     * Pide el documento en HTML para una matrícula.
+     *
+     * @param Matricula $matricula
+     * @return \Illuminate\Testing\TestResponse
+     */
+    private function render(Matricula $matricula)
+    {
+        return $this->actingAs($this->usuario)
+            ->getJson(route('documentacion.documentos.render', [
+                'tipo_documento_id' => $this->tipo->id,
+                'entidad_id'        => $matricula->id,
+            ]));
+    }
+
     /** @test */
-    public function genera_un_documento_resolviendo_las_variables(): void
+    public function arma_el_documento_resolviendo_las_variables(): void
     {
         $plantilla = $this->plantillaActiva(
             '2020-01-01',
-            '<p>{{ documento.numero }} — {{ estudiante.name }} pagará {{ monto_letras }}.</p>'
+            '<p>Matrícula {{ numero_matricula }}: {{ estudiante.name }} pagará {{ monto_letras }}.</p>'
         );
 
         $matricula = Matricula::factory()->create([
@@ -83,28 +102,39 @@ class DocDocumentoTest extends TestCase
             'monto'           => 1250000,
         ]);
 
-        $response = $this->actingAs($this->usuario)
-            ->postJson(route('documentacion.documentos.generar'), [
-                'tipo_documento_id' => $this->tipo->id,
-                'entidad_id'        => $matricula->id,
-            ]);
+        $response = $this->render($matricula);
 
-        $response->assertCreated()
+        $response->assertOk()
             ->assertJsonPath('data.plantilla_id', $plantilla->id)
-            ->assertJsonPath('data.numero_documento', 'CONT-' . Carbon::today()->year . '-000001')
-            ->assertJsonPath('data.fecha_referencia', '2024-06-15')
-            ->assertJsonPath('data.entidad_type', Matricula::class)
-            ->assertJsonPath('data.status_text', 'Vigente');
+            ->assertJsonPath('data.fecha_referencia', '2024-06-15');
 
-        $contenido = $response->json('data.contenido_renderizado');
+        $contenido = $response->json('data.contenido');
 
+        $this->assertStringContainsString('Matrícula ' . $matricula->id, $contenido);
         $this->assertStringContainsString($matricula->estudiante->name, $contenido);
         $this->assertStringContainsString('UN MILLON DOSCIENTOS CINCUENTA MIL PESOS M/CTE', $contenido);
         $this->assertStringNotContainsString('{{', $contenido);
     }
 
     /** @test */
-    public function usa_la_version_vigente_en_la_fecha_de_matricula(): void
+    public function no_guarda_el_contenido_del_documento(): void
+    {
+        $this->plantillaActiva('2020-01-01', '<p>{{ estudiante.name }}</p>');
+        $matricula = Matricula::factory()->create(['fecha_matricula' => '2024-06-15']);
+
+        $this->render($matricula)->assertOk();
+
+        // La bitácora guarda el rastro de la impresión, no el documento.
+        $emision = DocDocumento::firstOrFail();
+
+        $this->assertSame(DocDocumento::ORIGEN_GENERADO, $emision->origen);
+        $this->assertSame($matricula->id, $emision->entidad_id);
+        $this->assertSame($this->usuario->id, $emision->generado_por);
+        $this->assertFalse(\Illuminate\Support\Facades\Schema::hasColumn('doc_documentos', 'contenido_renderizado'));
+    }
+
+    /** @test */
+    public function un_documento_de_matricula_usa_la_plantilla_vigente_a_su_fecha(): void
     {
         DocPlantilla::factory()->historica('2020-01-01', '2025-12-31')->create([
             'tipo_documento_id' => $this->tipo->id,
@@ -115,28 +145,19 @@ class DocDocumentoTest extends TestCase
 
         $matricula = Matricula::factory()->create(['fecha_matricula' => '2024-06-15']);
 
-        $response = $this->actingAs($this->usuario)
-            ->postJson(route('documentacion.documentos.generar'), [
-                'tipo_documento_id' => $this->tipo->id,
-                'entidad_id'        => $matricula->id,
-            ]);
-
-        $response->assertCreated();
-        $this->assertStringContainsString('Condiciones antiguas', $response->json('data.contenido_renderizado'));
+        $this->assertStringContainsString(
+            'Condiciones antiguas',
+            $this->render($matricula)->assertOk()->json('data.contenido')
+        );
     }
 
     /** @test */
-    public function el_contenido_generado_no_cambia_al_publicar_una_version_nueva(): void
+    public function reimprimir_devuelve_lo_mismo_aunque_se_publique_una_version_nueva(): void
     {
-        $this->plantillaActiva('2020-01-01', '<p>Contenido original de {{ estudiante.name }}</p>');
-
+        $original = $this->plantillaActiva('2020-01-01', '<p>Contenido original de {{ estudiante.name }}</p>');
         $matricula = Matricula::factory()->create(['fecha_matricula' => '2024-06-15']);
 
-        $generado = $this->actingAs($this->usuario)
-            ->postJson(route('documentacion.documentos.generar'), [
-                'tipo_documento_id' => $this->tipo->id,
-                'entidad_id'        => $matricula->id,
-            ])->json('data');
+        $primera = $this->render($matricula)->assertOk()->json('data');
 
         $nueva = DocPlantilla::factory()->aprobada()->create([
             'tipo_documento_id' => $this->tipo->id,
@@ -145,160 +166,122 @@ class DocDocumentoTest extends TestCase
         ]);
         app(DocPlantillaPublicacionService::class)->activar($nueva, Carbon::today());
 
-        $response = $this->actingAs($this->usuario)
-            ->getJson(route('documentacion.documentos.show', $generado['id']));
+        $segunda = $this->render($matricula)->assertOk()->json('data');
 
-        $response->assertOk()
-            ->assertJsonPath('data.plantilla_id', $generado['plantilla_id']);
-
-        $this->assertStringContainsString('Contenido original', $response->json('data.contenido_renderizado'));
+        $this->assertSame($original->id, $segunda['plantilla_id']);
+        $this->assertSame($primera['contenido'], $segunda['contenido']);
+        $this->assertStringContainsString('Contenido original', $segunda['contenido']);
     }
 
     /** @test */
-    public function numera_los_documentos_consecutivamente(): void
+    public function un_documento_que_no_conforma_matricula_usa_la_plantilla_vigente_hoy(): void
     {
-        $this->plantillaActiva('2020-01-01', '<p>{{ estudiante.name }}</p>');
-
-        $matricula = Matricula::factory()->create(['fecha_matricula' => '2024-06-15']);
-        $anio      = Carbon::today()->year;
-
-        foreach (['000001', '000002', '000003'] as $consecutivo) {
-            $this->actingAs($this->usuario)
-                ->postJson(route('documentacion.documentos.generar'), [
-                    'tipo_documento_id' => $this->tipo->id,
-                    'entidad_id'        => $matricula->id,
-                ])
-                ->assertCreated()
-                ->assertJsonPath('data.numero_documento', "CONT-{$anio}-{$consecutivo}");
-        }
-    }
-
-    /** @test */
-    public function cada_tipo_de_documento_lleva_su_propia_numeracion(): void
-    {
-        $this->plantillaActiva('2020-01-01', '<p>{{ estudiante.name }}</p>');
-
-        $certificado = DocTipoDocumento::factory()->atadoAMatricula()->create([
-            'nombre'         => 'Certificado de estudio',
-            'prefijo_numero' => 'CERT',
+        $certificado = DocTipoDocumento::factory()->sinFecha()->create([
+            'codigo' => 'CERTIFICADO',
+            'nombre' => 'Certificado de estudio',
         ]);
-        DocPlantilla::factory()->activa('2020-01-01')->create([
+
+        DocPlantilla::factory()->historica('2020-01-01', '2025-12-31')->create([
             'tipo_documento_id' => $certificado->id,
-            'contenido_html'    => '<p>Certificado</p>',
+            'contenido_html'    => '<p>Formato antiguo</p>',
+            'version'           => 1,
+        ]);
+        DocPlantilla::factory()->activa('2026-01-01')->create([
+            'tipo_documento_id' => $certificado->id,
+            'contenido_html'    => '<p>Formato vigente</p>',
+            'version'           => 2,
         ]);
 
         $matricula = Matricula::factory()->create(['fecha_matricula' => '2024-06-15']);
-        $anio      = Carbon::today()->year;
 
-        foreach ([$this->tipo->id => "CONT-{$anio}-000001", $certificado->id => "CERT-{$anio}-000001"] as $tipoId => $esperado) {
-            $this->actingAs($this->usuario)
-                ->postJson(route('documentacion.documentos.generar'), [
-                    'tipo_documento_id' => $tipoId,
-                    'entidad_id'        => $matricula->id,
-                ])
-                ->assertCreated()
-                ->assertJsonPath('data.numero_documento', $esperado);
-        }
+        $response = $this->actingAs($this->usuario)
+            ->getJson(route('documentacion.documentos.render', [
+                'tipo_documento_id' => $certificado->id,
+                'entidad_id'        => $matricula->id,
+            ]));
+
+        $this->assertStringContainsString('Formato vigente', $response->assertOk()->json('data.contenido'));
     }
 
     /** @test */
-    public function rechaza_generar_si_no_hay_version_vigente(): void
+    public function se_puede_imprimir_cuantas_veces_sea_necesario(): void
     {
-        DocPlantilla::factory()->create(['tipo_documento_id' => $this->tipo->id]);
-
+        $this->plantillaActiva('2020-01-01', '<p>{{ estudiante.name }}</p>');
         $matricula = Matricula::factory()->create(['fecha_matricula' => '2024-06-15']);
 
-        $this->actingAs($this->usuario)
-            ->postJson(route('documentacion.documentos.generar'), [
+        foreach (range(1, 3) as $vez) {
+            $this->render($matricula)->assertOk();
+        }
+
+        // Cada impresión deja su rastro, sin bloquear las siguientes.
+        $this->assertDatabaseCount('doc_documentos', 3);
+    }
+
+    /** @test */
+    public function descarga_el_pdf_sin_almacenarlo(): void
+    {
+        Storage::fake('public');
+
+        $this->plantillaActiva('2020-01-01', '<h1>Contrato</h1><p>{{ estudiante.name }}</p>');
+        $matricula = Matricula::factory()->create(['fecha_matricula' => '2024-06-15']);
+
+        $response = $this->actingAs($this->usuario)
+            ->get(route('documentacion.documentos.pdf', [
                 'tipo_documento_id' => $this->tipo->id,
                 'entidad_id'        => $matricula->id,
-            ])
-            ->assertStatus(422);
+            ]));
+
+        $response->assertOk()
+            ->assertHeader('Content-Type', 'application/pdf')
+            ->assertDownload('CONTRATO-' . $matricula->id . '.pdf');
+
+        $this->assertStringStartsWith('%PDF', $response->getContent());
+        $this->assertEmpty(Storage::disk('public')->allFiles());
+        $this->assertDatabaseCount('doc_documentos', 1);
     }
 
     /** @test */
-    public function rechaza_generar_sin_el_registro_asociado(): void
+    public function rechaza_imprimir_si_no_hay_plantilla_vigente(): void
+    {
+        DocPlantilla::factory()->create(['tipo_documento_id' => $this->tipo->id]);
+        $matricula = Matricula::factory()->create(['fecha_matricula' => '2024-06-15']);
+
+        $this->render($matricula)->assertStatus(422);
+
+        $this->assertDatabaseCount('doc_documentos', 0);
+    }
+
+    /** @test */
+    public function rechaza_imprimir_sin_el_registro_asociado(): void
     {
         $this->plantillaActiva('2020-01-01', '<p>Contenido</p>');
 
         $this->actingAs($this->usuario)
-            ->postJson(route('documentacion.documentos.generar'), [
-                'tipo_documento_id' => $this->tipo->id,
-            ])
+            ->getJson(route('documentacion.documentos.render', ['tipo_documento_id' => $this->tipo->id]))
             ->assertJsonValidationErrors(['entidad_id']);
     }
 
     /** @test */
-    public function rechaza_generar_con_un_tipo_inactivo(): void
+    public function rechaza_imprimir_con_un_tipo_inactivo(): void
     {
         $this->plantillaActiva('2020-01-01', '<p>Contenido</p>');
         $this->tipo->update(['status' => 0]);
 
         $matricula = Matricula::factory()->create(['fecha_matricula' => '2024-06-15']);
 
-        $this->actingAs($this->usuario)
-            ->postJson(route('documentacion.documentos.generar'), [
-                'tipo_documento_id' => $this->tipo->id,
-                'entidad_id'        => $matricula->id,
-            ])
-            ->assertJsonValidationErrors(['tipo_documento_id']);
+        $this->render($matricula)->assertJsonValidationErrors(['tipo_documento_id']);
     }
 
     /** @test */
-    public function anula_un_documento_con_motivo(): void
-    {
-        $documento = $this->generarDocumento();
-
-        $response = $this->actingAs($this->usuario)
-            ->postJson(route('documentacion.documentos.anular', $documento['id']), [
-                'motivo' => 'Error en el valor de la matrícula',
-            ]);
-
-        $response->assertOk()
-            ->assertJsonPath('data.status', DocDocumento::STATUS_ANULADO)
-            ->assertJsonPath('data.status_text', 'Anulado')
-            ->assertJsonPath('data.motivo_anulacion', 'Error en el valor de la matrícula');
-    }
-
-    /** @test */
-    public function rechaza_anular_un_documento_ya_anulado(): void
-    {
-        $documento = $this->generarDocumento();
-
-        $this->actingAs($this->usuario)
-            ->postJson(route('documentacion.documentos.anular', $documento['id']), ['motivo' => 'Primera anulación'])
-            ->assertOk();
-
-        $this->actingAs($this->usuario)
-            ->postJson(route('documentacion.documentos.anular', $documento['id']), ['motivo' => 'Segunda anulación'])
-            ->assertStatus(422);
-    }
-
-    /** @test */
-    public function exige_motivo_para_anular(): void
-    {
-        $documento = $this->generarDocumento();
-
-        $this->actingAs($this->usuario)
-            ->postJson(route('documentacion.documentos.anular', $documento['id']), [])
-            ->assertJsonValidationErrors(['motivo']);
-    }
-
-    /** @test */
-    public function filtra_los_documentos_por_entidad(): void
+    public function la_bitacora_se_filtra_por_registro(): void
     {
         $this->plantillaActiva('2020-01-01', '<p>{{ estudiante.name }}</p>');
 
         $matriculaUno = Matricula::factory()->create(['fecha_matricula' => '2024-06-15']);
         $matriculaDos = Matricula::factory()->create(['fecha_matricula' => '2024-07-20']);
 
-        foreach ([$matriculaUno, $matriculaDos] as $matricula) {
-            $this->actingAs($this->usuario)
-                ->postJson(route('documentacion.documentos.generar'), [
-                    'tipo_documento_id' => $this->tipo->id,
-                    'entidad_id'        => $matricula->id,
-                ])->assertCreated();
-        }
+        $this->render($matriculaUno)->assertOk();
+        $this->render($matriculaDos)->assertOk();
 
         $response = $this->actingAs($this->usuario)
             ->getJson(route('documentacion.documentos.index', [
@@ -308,50 +291,36 @@ class DocDocumentoTest extends TestCase
 
         $response->assertOk()
             ->assertJsonCount(1, 'data')
-            ->assertJsonPath('data.0.entidad_id', $matriculaUno->id);
+            ->assertJsonPath('data.0.entidad_id', $matriculaUno->id)
+            ->assertJsonPath('data.0.origen_text', 'Impresión generada');
     }
 
     /** @test */
-    public function el_listado_omite_el_contenido_renderizado(): void
+    public function la_bitacora_no_expone_contenido(): void
     {
-        $this->generarDocumento();
+        $this->plantillaActiva('2020-01-01', '<p>{{ estudiante.name }}</p>');
+        $matricula = Matricula::factory()->create(['fecha_matricula' => '2024-06-15']);
+        $this->render($matricula)->assertOk();
 
         $this->actingAs($this->usuario)
             ->getJson(route('documentacion.documentos.index'))
             ->assertOk()
+            ->assertJsonMissingPath('data.0.contenido')
             ->assertJsonMissingPath('data.0.contenido_renderizado');
     }
 
     /** @test */
-    public function deniega_la_generacion_sin_permiso(): void
+    public function deniega_la_impresion_sin_permiso(): void
     {
         $this->plantillaActiva('2020-01-01', '<p>Contenido</p>');
         $matricula  = Matricula::factory()->create(['fecha_matricula' => '2024-06-15']);
         $sinPermiso = User::factory()->create();
 
         $this->actingAs($sinPermiso)
-            ->postJson(route('documentacion.documentos.generar'), [
+            ->getJson(route('documentacion.documentos.render', [
                 'tipo_documento_id' => $this->tipo->id,
                 'entidad_id'        => $matricula->id,
-            ])
+            ]))
             ->assertForbidden();
-    }
-
-    /**
-     * Genera un documento de apoyo para las pruebas que parten de uno existente.
-     *
-     * @return array<string, mixed>
-     */
-    private function generarDocumento(): array
-    {
-        $this->plantillaActiva('2020-01-01', '<p>{{ estudiante.name }}</p>');
-
-        $matricula = Matricula::factory()->create(['fecha_matricula' => '2024-06-15']);
-
-        return $this->actingAs($this->usuario)
-            ->postJson(route('documentacion.documentos.generar'), [
-                'tipo_documento_id' => $this->tipo->id,
-                'entidad_id'        => $matricula->id,
-            ])->json('data');
     }
 }

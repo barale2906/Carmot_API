@@ -32,7 +32,7 @@ class DocPlantillaVersionResolverTest extends TestCase
     /** @test */
     public function resuelve_la_version_vigente_en_la_fecha_de_referencia(): void
     {
-        $tipo = DocTipoDocumento::factory()->atadoAMatricula()->create();
+        $tipo = DocTipoDocumento::factory()->conformaMatricula()->create();
 
         $v2024 = DocPlantilla::factory()->historica('2024-01-01', '2024-12-31')
             ->create(['tipo_documento_id' => $tipo->id, 'version' => 1]);
@@ -56,7 +56,7 @@ class DocPlantillaVersionResolverTest extends TestCase
     }
 
     /** @test */
-    public function un_tipo_no_atado_a_fecha_siempre_usa_la_version_vigente_hoy(): void
+    public function un_tipo_que_no_conforma_matricula_usa_la_version_vigente_hoy(): void
     {
         $tipo = DocTipoDocumento::factory()->sinFecha()->create();
 
@@ -74,7 +74,7 @@ class DocPlantillaVersionResolverTest extends TestCase
     /** @test */
     public function no_resuelve_versiones_en_proceso_ni_aprobadas(): void
     {
-        $tipo = DocTipoDocumento::factory()->atadoAMatricula()->create();
+        $tipo = DocTipoDocumento::factory()->conformaMatricula()->create();
 
         DocPlantilla::factory()->create(['tipo_documento_id' => $tipo->id, 'version' => 1]);
         DocPlantilla::factory()->aprobada()->create(['tipo_documento_id' => $tipo->id, 'version' => 2]);
@@ -85,7 +85,7 @@ class DocPlantillaVersionResolverTest extends TestCase
     /** @test */
     public function no_resuelve_fuera_de_la_ventana_de_vigencia(): void
     {
-        $tipo = DocTipoDocumento::factory()->atadoAMatricula()->create();
+        $tipo = DocTipoDocumento::factory()->conformaMatricula()->create();
 
         DocPlantilla::factory()->activa('2026-01-01')->create(['tipo_documento_id' => $tipo->id, 'version' => 1]);
 
@@ -95,7 +95,7 @@ class DocPlantillaVersionResolverTest extends TestCase
     /** @test */
     public function la_fecha_de_referencia_se_lee_del_campo_configurado(): void
     {
-        $tipo = DocTipoDocumento::factory()->atadoAMatricula()->create();
+        $tipo = DocTipoDocumento::factory()->conformaMatricula()->create();
 
         $matricula                  = new Matricula();
         $matricula->fecha_matricula = '2024-05-20';
@@ -107,10 +107,10 @@ class DocPlantillaVersionResolverTest extends TestCase
     }
 
     /** @test */
-    public function un_tipo_sin_campo_de_fecha_usa_la_fecha_de_generacion(): void
+    public function un_tipo_sin_campo_de_fecha_usa_la_fecha_de_impresion(): void
     {
         $tipo = DocTipoDocumento::factory()->create([
-            'se_ata_fecha'           => true,
+            'conforma_matricula'     => true,
             'campo_fecha_referencia' => null,
         ]);
 
@@ -121,7 +121,7 @@ class DocPlantillaVersionResolverTest extends TestCase
     }
 
     /** @test */
-    public function un_tipo_no_atado_a_fecha_no_tiene_fecha_de_referencia(): void
+    public function un_tipo_que_no_conforma_matricula_no_tiene_fecha_de_referencia(): void
     {
         $tipo = DocTipoDocumento::factory()->sinFecha()->create();
 

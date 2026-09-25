@@ -87,12 +87,13 @@ class DocVariableResolverServiceTest extends TestCase
     public function resuelve_variables_globales_desde_el_contexto(): void
     {
         $valores = $this->resolver->resolver(
-            ['documento.numero', 'instituto.nombre'],
+            ['documento.fecha', 'documento.tipo', 'instituto.nombre'],
             null,
-            ['documento' => ['numero' => 'CONT-2026-000001']]
+            ['documento' => ['fecha' => '2026-09-24', 'tipo' => 'Contrato de matrícula']]
         );
 
-        $this->assertSame('CONT-2026-000001', $valores['documento.numero']);
+        $this->assertSame('24/09/2026', $valores['documento.fecha']);
+        $this->assertSame('Contrato de matrícula', $valores['documento.tipo']);
         $this->assertSame(config('documentacion.instituto.nombre'), $valores['instituto.nombre']);
     }
 

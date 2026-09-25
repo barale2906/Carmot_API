@@ -61,15 +61,14 @@ class DocTipoDocumentoTest extends TestCase
                 'codigo'                 => 'CONTRATO',
                 'nombre'                 => 'Contrato de matrícula',
                 'entidad_type'           => Matricula::class,
-                'se_ata_fecha'           => true,
+                'conforma_matricula'           => true,
                 'campo_fecha_referencia' => 'fecha_matricula',
-                'prefijo_numero'         => 'CONT',
                 'variables'              => ['estudiante.name', 'monto_letras', 'documento.fecha_larga'],
             ]);
 
         $response->assertCreated()
             ->assertJsonPath('data.codigo', 'CONTRATO')
-            ->assertJsonPath('data.se_ata_fecha', true)
+            ->assertJsonPath('data.conforma_matricula', true)
             ->assertJsonPath('data.entidad_nombre', 'Matrícula')
             ->assertJsonCount(3, 'data.variables');
 
@@ -86,7 +85,6 @@ class DocTipoDocumentoTest extends TestCase
             ->postJson(route('documentacion.tipos-documento.store'), [
                 'codigo'         => 'CARTA',
                 'nombre'         => 'Carta',
-                'prefijo_numero' => 'CAR',
             ]);
 
         $response->assertForbidden();
@@ -98,7 +96,7 @@ class DocTipoDocumentoTest extends TestCase
         $response = $this->actingAs($this->usuario)
             ->postJson(route('documentacion.tipos-documento.store'), []);
 
-        $response->assertJsonValidationErrors(['codigo', 'nombre', 'prefijo_numero']);
+        $response->assertJsonValidationErrors(['codigo', 'nombre']);
     }
 
     /** @test */
@@ -110,25 +108,9 @@ class DocTipoDocumentoTest extends TestCase
             ->postJson(route('documentacion.tipos-documento.store'), [
                 'codigo'         => 'PAGARE',
                 'nombre'         => 'Otro pagaré',
-                'prefijo_numero' => 'PAG',
             ]);
 
         $response->assertJsonValidationErrors(['codigo']);
-    }
-
-    /** @test */
-    public function rechaza_un_prefijo_de_numeracion_duplicado(): void
-    {
-        DocTipoDocumento::factory()->create(['prefijo_numero' => 'CONT']);
-
-        $response = $this->actingAs($this->usuario)
-            ->postJson(route('documentacion.tipos-documento.store'), [
-                'codigo'         => 'CONTRATO_2',
-                'nombre'         => 'Otro contrato',
-                'prefijo_numero' => 'CONT',
-            ]);
-
-        $response->assertJsonValidationErrors(['prefijo_numero']);
     }
 
     /** @test */
@@ -139,7 +121,6 @@ class DocTipoDocumentoTest extends TestCase
                 'codigo'         => 'CERTIFICADO',
                 'nombre'         => 'Certificado',
                 'entidad_type'   => Matricula::class,
-                'prefijo_numero' => 'CERT',
                 'variables'      => ['estudiante.name', 'variable.inventada'],
             ]);
 
@@ -154,9 +135,8 @@ class DocTipoDocumentoTest extends TestCase
                 'codigo'                 => 'HOJA',
                 'nombre'                 => 'Hoja de matrícula',
                 'entidad_type'           => Matricula::class,
-                'se_ata_fecha'           => true,
+                'conforma_matricula'           => true,
                 'campo_fecha_referencia' => 'fecha_inexistente',
-                'prefijo_numero'         => 'HM',
             ]);
 
         $response->assertJsonValidationErrors(['campo_fecha_referencia']);
@@ -184,7 +164,7 @@ class DocTipoDocumentoTest extends TestCase
     /** @test */
     public function lista_las_variables_disponibles_marcando_las_habilitadas(): void
     {
-        $tipo = DocTipoDocumento::factory()->atadoAMatricula()->create();
+        $tipo = DocTipoDocumento::factory()->conformaMatricula()->create();
         $tipo->variables()->create(['variable_key' => 'estudiante.name']);
 
         $response = $this->actingAs($this->usuario)
@@ -202,7 +182,7 @@ class DocTipoDocumentoTest extends TestCase
     /** @test */
     public function sincroniza_las_variables_habilitadas_reemplazando_la_seleccion(): void
     {
-        $tipo = DocTipoDocumento::factory()->atadoAMatricula()->create();
+        $tipo = DocTipoDocumento::factory()->conformaMatricula()->create();
         $tipo->variables()->create(['variable_key' => 'estudiante.name']);
 
         $response = $this->actingAs($this->usuario)

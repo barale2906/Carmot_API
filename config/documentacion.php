@@ -45,7 +45,7 @@ return [
         ],
         Cartera::class => [
             'nombre'       => 'Cuota de cartera',
-            'campos_fecha' => ['fecha_vencimiento', 'created_at'],
+            'campos_fecha' => ['matricula.fecha_matricula', 'fecha_vencimiento', 'created_at'],
         ],
         User::class => [
             'nombre'       => 'Estudiante',
@@ -78,6 +78,7 @@ return [
     'variables' => [
 
         Matricula::class => [
+            'numero_matricula'           => ['label' => 'Número de matrícula', 'type' => 'integer', 'origen' => 'id'],
             'estudiante.name'            => ['label' => 'Nombre completo del estudiante', 'type' => 'string'],
             'estudiante.primer_nombre'   => ['label' => 'Primer nombre del estudiante', 'type' => 'string'],
             'estudiante.primer_apellido' => ['label' => 'Primer apellido del estudiante', 'type' => 'string'],
@@ -109,6 +110,7 @@ return [
         ],
 
         Cartera::class => [
+            'numero_matricula'               => ['label' => 'Número de matrícula', 'type' => 'integer', 'origen' => 'matricula.id'],
             'numero_cuota'                   => ['label' => 'Número de cuota', 'type' => 'integer'],
             'valor'                          => ['label' => 'Valor de la cuota', 'type' => 'money'],
             'valor_letras'                   => ['label' => 'Valor de la cuota en letras', 'type' => 'money_letras', 'origen' => 'valor'],
@@ -184,7 +186,6 @@ return [
     */
 
     'variables_globales' => [
-        'documento.numero'       => ['label' => 'Número del documento', 'type' => 'string'],
         'documento.fecha'        => ['label' => 'Fecha de generación', 'type' => 'date'],
         'documento.fecha_larga'  => ['label' => 'Fecha de generación (en texto)', 'type' => 'date_larga'],
         'documento.tipo'         => ['label' => 'Tipo de documento', 'type' => 'string'],

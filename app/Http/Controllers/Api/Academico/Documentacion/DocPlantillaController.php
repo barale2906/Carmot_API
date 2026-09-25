@@ -365,8 +365,8 @@ class DocPlantillaController extends Controller
     /**
      * Previsualiza el contenido de una versión con datos reales.
      *
-     * Devuelve el HTML con variables y bloques ya resueltos sin emitir ningún
-     * documento, para revisar el diseño antes de publicar la versión.
+     * Devuelve el HTML con variables y bloques ya resueltos, sin registrar la
+     * impresión en la bitácora, para revisar el diseño antes de publicar.
      *
      * @param PrevisualizarDocPlantillaRequest $request
      * @param DocPlantilla                     $plantilla
@@ -385,7 +385,7 @@ class DocPlantillaController extends Controller
             'data' => [
                 'plantilla_id' => $plantilla->id,
                 'version'      => $plantilla->version,
-                'contenido'    => $this->generacion->previsualizar($plantilla, $entidad, $request->user()),
+                'contenido'    => $this->generacion->renderizar($plantilla, $entidad, $request->user()),
             ],
         ]);
     }

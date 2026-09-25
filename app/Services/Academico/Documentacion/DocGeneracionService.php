@@ -8,15 +8,18 @@ use App\Models\Academico\Documentacion\DocTipoDocumento;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\DB;
 
 /**
  * Servicio DocGeneracionService
  *
- * Genera documentos a partir de la versión de plantilla que corresponde y deja
- * congelado el resultado: el HTML con las variables ya resueltas y los valores
- * que se usaron quedan guardados en el documento. Volver a consultarlo devuelve
- * siempre lo mismo, aunque después cambie la plantilla o los datos de origen.
+ * Arma el contenido de un documento en el momento en que se pide, resolviendo la
+ * plantilla aplicable, las variables y los bloques contra los datos actuales del
+ * registro. Nada del contenido se almacena.
+ *
+ * Para los documentos que conforman la matrícula la plantilla aplicable es la que
+ * estaba vigente en la fecha de esa matrícula, así que reimprimir un contrato
+ * devuelve siempre las condiciones bajo las que se firmó, aunque hoy rija otra
+ * versión. Para los demás se usa la plantilla vigente hoy.
  *
  * @package App\Services\Academico\Documentacion
  */
@@ -35,7 +38,7 @@ class DocGeneracionService
     }
 
     /**
-     * Carga la entidad asociada a un tipo de documento.
+     * Carga el registro asociado a un tipo de documento.
      *
      * @param DocTipoDocumento $tipoDocumento
      * @param int|null         $entidadId
@@ -68,121 +71,76 @@ class DocGeneracionService
     }
 
     /**
-     * Genera un documento y guarda el contenido ya renderizado.
+     * Arma el contenido del documento con los datos del registro.
      *
-     * @param DocTipoDocumento $tipoDocumento
-     * @param DocPlantilla     $plantilla       Versión aplicable, ya resuelta.
-     * @param Model|null       $entidad         Entidad origen de los datos.
-     * @param Carbon|null      $fechaReferencia Fecha con la que se resolvió la versión.
-     * @param User|null        $usuario         Usuario que genera el documento.
-     * @return DocDocumento
-     */
-    public function generar(
-        DocTipoDocumento $tipoDocumento,
-        DocPlantilla $plantilla,
-        ?Model $entidad,
-        ?Carbon $fechaReferencia,
-        ?User $usuario
-    ): DocDocumento {
-        return DB::transaction(function () use ($tipoDocumento, $plantilla, $entidad, $fechaReferencia, $usuario) {
-            $numero = $this->siguienteNumero($tipoDocumento);
-
-            $valores = $this->variables->resolver(
-                $tipoDocumento->clavesHabilitadas(),
-                $entidad,
-                $this->contexto($tipoDocumento, $numero, $usuario)
-            );
-
-            return DocDocumento::create([
-                'tipo_documento_id'     => $tipoDocumento->id,
-                'plantilla_id'          => $plantilla->id,
-                'entidad_type'          => $entidad ? get_class($entidad) : null,
-                'entidad_id'            => $entidad?->getKey(),
-                'numero_documento'      => $numero,
-                'origen'                => DocDocumento::ORIGEN_GENERADO,
-                'contenido_renderizado' => $this->componer($plantilla, $entidad, $valores),
-                'variables_aplicadas'   => $valores,
-                'fecha_referencia'      => $fechaReferencia,
-                'status'                => DocDocumento::STATUS_VIGENTE,
-                'generado_por'          => $usuario?->id,
-            ]);
-        });
-    }
-
-    /**
-     * Previsualiza una versión de plantilla sin emitir el documento.
-     *
-     * Resuelve variables y bloques contra una entidad real para que quien diseña
-     * el documento vea el resultado antes de publicar la versión. No persiste nada.
+     * Primero sustituye las variables y después imprime los bloques, porque los
+     * marcadores de bloque no son claves del catálogo de variables y el primer
+     * paso los deja intactos.
      *
      * @param DocPlantilla $plantilla
      * @param Model|null   $entidad
      * @param User|null    $usuario
-     * @return string
+     * @return string HTML del documento, listo para mostrar o convertir a PDF.
      */
-    public function previsualizar(DocPlantilla $plantilla, ?Model $entidad, ?User $usuario): string
+    public function renderizar(DocPlantilla $plantilla, ?Model $entidad, ?User $usuario): string
     {
         $plantilla->loadMissing('tipoDocumento');
 
         $valores = $this->variables->resolver(
             $plantilla->tipoDocumento->clavesHabilitadas(),
             $entidad,
-            $this->contexto($plantilla->tipoDocumento, 'PREVISUALIZACIÓN', $usuario)
+            $this->contexto($plantilla->tipoDocumento, $usuario)
         );
 
-        return $this->componer($plantilla, $entidad, $valores);
-    }
-
-    /**
-     * Anula un documento conservando su contenido y su rastro.
-     *
-     * @param DocDocumento $documento
-     * @param string       $motivo
-     * @return DocDocumento
-     */
-    public function anular(DocDocumento $documento, string $motivo): DocDocumento
-    {
-        $documento->update([
-            'status'           => DocDocumento::STATUS_ANULADO,
-            'motivo_anulacion' => $motivo,
-        ]);
-
-        return $documento->fresh();
-    }
-
-    /**
-     * Compone el contenido final: primero las variables, luego los bloques.
-     *
-     * Los marcadores de bloque no son claves del catálogo de variables, así que
-     * el primer paso los deja intactos y el segundo los reemplaza por su tabla.
-     *
-     * @param DocPlantilla          $plantilla
-     * @param Model|null            $entidad
-     * @param array<string, string> $valores
-     * @return string
-     */
-    private function componer(DocPlantilla $plantilla, ?Model $entidad, array $valores): string
-    {
         $contenido = $this->variables->renderizar($plantilla->contenido_html, $valores);
 
         return $this->bloques->renderizar($contenido, $plantilla, $entidad);
     }
 
     /**
+     * Registra en la bitácora que se imprimió un documento.
+     *
+     * Guarda solo el rastro de la impresión, no su contenido: quién la hizo,
+     * cuándo, de qué tipo, para qué registro y con qué versión de plantilla.
+     *
+     * @param DocTipoDocumento $tipoDocumento
+     * @param DocPlantilla     $plantilla
+     * @param Model|null       $entidad
+     * @param Carbon|null      $fechaReferencia
+     * @param User|null        $usuario
+     * @return DocDocumento
+     */
+    public function registrarEmision(
+        DocTipoDocumento $tipoDocumento,
+        DocPlantilla $plantilla,
+        ?Model $entidad,
+        ?Carbon $fechaReferencia,
+        ?User $usuario
+    ): DocDocumento {
+        return DocDocumento::create([
+            'tipo_documento_id' => $tipoDocumento->id,
+            'plantilla_id'      => $plantilla->id,
+            'entidad_type'      => $entidad ? get_class($entidad) : null,
+            'entidad_id'        => $entidad?->getKey(),
+            'origen'            => DocDocumento::ORIGEN_GENERADO,
+            'fecha_referencia'  => $fechaReferencia,
+            'generado_por'      => $usuario?->id,
+        ]);
+    }
+
+    /**
      * Construye el contexto de las variables globales del documento.
      *
      * @param DocTipoDocumento $tipoDocumento
-     * @param string           $numero
      * @param User|null        $usuario
      * @return array<string, mixed>
      */
-    private function contexto(DocTipoDocumento $tipoDocumento, string $numero, ?User $usuario): array
+    private function contexto(DocTipoDocumento $tipoDocumento, ?User $usuario): array
     {
         $hoy = Carbon::today()->toDateString();
 
         return [
             'documento' => [
-                'numero'      => $numero,
                 'fecha'       => $hoy,
                 'fecha_larga' => $hoy,
                 'tipo'        => $tipoDocumento->nombre,
@@ -191,32 +149,5 @@ class DocGeneracionService
                 'nombre' => $usuario?->name,
             ],
         ];
-    }
-
-    /**
-     * Calcula el siguiente consecutivo del tipo de documento para el año en curso.
-     *
-     * Se ejecuta dentro de la transacción de creación y bloquea las filas del
-     * tipo para evitar números duplicados si se generan documentos en paralelo.
-     *
-     * @param DocTipoDocumento $tipoDocumento
-     * @return string
-     */
-    private function siguienteNumero(DocTipoDocumento $tipoDocumento): string
-    {
-        $prefijo = $tipoDocumento->prefijo_numero . '-' . Carbon::today()->year . '-';
-
-        $ultimo = DocDocumento::withTrashed()
-            ->where('tipo_documento_id', $tipoDocumento->id)
-            ->where('numero_documento', 'like', $prefijo . '%')
-            ->lockForUpdate()
-            ->orderByDesc('numero_documento')
-            ->value('numero_documento');
-
-        $consecutivo = $ultimo
-            ? ((int) substr($ultimo, strlen($prefijo))) + 1
-            : 1;
-
-        return $prefijo . str_pad((string) $consecutivo, 6, '0', STR_PAD_LEFT);
     }
 }

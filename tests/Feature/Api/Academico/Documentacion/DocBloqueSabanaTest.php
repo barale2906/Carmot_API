@@ -44,9 +44,8 @@ class DocBloqueSabanaTest extends TestCase
         $this->usuario = User::factory()->create();
         $this->usuario->givePermissionTo(['aca_notas', 'aca_docPlantillas']);
 
-        $this->tipo = DocTipoDocumento::factory()->atadoAMatricula()->create([
+        $this->tipo = DocTipoDocumento::factory()->conformaMatricula()->create([
             'nombre'         => 'Certificado de notas',
-            'prefijo_numero' => 'NOTA',
         ]);
 
         $this->matricula = $this->matriculaConNotas();
@@ -156,15 +155,7 @@ class DocBloqueSabanaTest extends TestCase
             'mostrar_resumen' => true,
         ]);
 
-        $documento = app(DocGeneracionService::class)->generar(
-            $this->tipo,
-            $plantilla,
-            $this->matricula,
-            Carbon::parse('2024-06-15'),
-            $this->usuario
-        );
-
-        $contenido = $documento->contenido_renderizado;
+        $contenido = app(DocGeneracionService::class)->renderizar($plantilla, $this->matricula, $this->usuario);
 
         $this->assertStringContainsString('<table class="bloque-tabla">', $contenido);
         $this->assertStringContainsString('Parcial: 4,00', $contenido);

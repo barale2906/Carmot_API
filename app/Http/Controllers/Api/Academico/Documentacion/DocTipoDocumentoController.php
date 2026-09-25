@@ -33,9 +33,8 @@ class DocTipoDocumentoController extends Controller
         'nombre',
         'descripcion',
         'entidad_type',
-        'se_ata_fecha',
+        'conforma_matricula',
         'campo_fecha_referencia',
-        'prefijo_numero',
         'status',
     ];
 

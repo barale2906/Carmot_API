@@ -2,50 +2,55 @@
 
 namespace App\Services\Academico\Documentacion;
 
-use App\Models\Academico\Documentacion\DocDocumento;
+use App\Models\Academico\Documentacion\DocTipoDocumento;
 use Barryvdh\DomPDF\Facade\Pdf;
 
 /**
  * Servicio DocPdfService
  *
- * Convierte a PDF el contenido ya renderizado de un documento, envolviéndolo en
- * una plantilla Blade con el encabezado y el pie institucionales.
+ * Envuelve el contenido ya armado de un documento en una plantilla Blade con el
+ * encabezado y el pie institucionales, y lo convierte a PDF.
  *
- * El PDF se arma en el momento en que se solicita y no se almacena: el archivo
- * sería una copia redundante del contenido que el documento ya tiene guardado.
- * Ese contenido fue resuelto y escapado al expedirlo, así que cada descarga
- * reproduce exactamente el mismo documento.
+ * El PDF se produce en el momento en que se solicita y no se almacena: el
+ * contenido se vuelve a resolver en cada impresión, así que guardar el archivo
+ * solo duplicaría información.
  *
  * @package App\Services\Academico\Documentacion
  */
 class DocPdfService
 {
     /**
-     * Construye el PDF de un documento.
+     * Construye el PDF de un documento ya renderizado.
      *
-     * @param DocDocumento $documento
+     * @param DocTipoDocumento $tipoDocumento Tipo del documento, para el título.
+     * @param string           $contenidoHtml Contenido con variables y bloques resueltos.
      * @return \Barryvdh\DomPDF\PDF
      */
-    public function generarPDF(DocDocumento $documento)
+    public function generarPDF(DocTipoDocumento $tipoDocumento, string $contenidoHtml)
     {
-        $documento->loadMissing('tipoDocumento');
-
         return Pdf::loadView('pdf.documentacion', [
-            'documento'  => $documento,
-            'instituto'  => config('documentacion.instituto', []),
-            'logoBase64' => $this->logoBase64(),
+            'tipoDocumento' => $tipoDocumento,
+            'contenido'     => $contenidoHtml,
+            'instituto'     => config('documentacion.instituto', []),
+            'logoBase64'    => $this->logoBase64(),
         ])->setPaper('letter', 'portrait');
     }
 
     /**
      * Nombre de archivo sugerido para la descarga.
      *
-     * @param DocDocumento $documento
+     * Usa el código del tipo y el identificador del registro, que para los
+     * documentos de matrícula es su número.
+     *
+     * @param DocTipoDocumento $tipoDocumento
+     * @param int|null         $entidadId
      * @return string
      */
-    public function nombreArchivo(DocDocumento $documento): string
+    public function nombreArchivo(DocTipoDocumento $tipoDocumento, ?int $entidadId): string
     {
-        return $documento->numero_documento . '.pdf';
+        return $entidadId
+            ? $tipoDocumento->codigo . '-' . $entidadId . '.pdf'
+            : $tipoDocumento->codigo . '.pdf';
     }
 
     /**

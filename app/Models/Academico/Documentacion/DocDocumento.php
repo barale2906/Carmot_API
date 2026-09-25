@@ -3,7 +3,6 @@
 namespace App\Models\Academico\Documentacion;
 
 use App\Models\User;
-use App\Traits\HasActiveStatus;
 use App\Traits\HasSortingScopes;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -13,33 +12,32 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
- * Modelo DocDocumento — documento generado o archivo subido al repositorio.
+ * Modelo DocDocumento — bitácora de impresiones y repositorio de archivos subidos.
  *
- * Un documento generado guarda en `contenido_renderizado` el HTML con las
- * variables ya resueltas al momento de generarlo. Ese contenido no se vuelve a
- * calcular: aunque después se publique otra versión de la plantilla o cambien
- * los datos del estudiante, el documento conserva exactamente lo que se emitió.
+ * Los documentos generados no se almacenan: se vuelven a resolver en cada
+ * impresión a partir de la plantilla aplicable y de los datos del estudiante. Lo
+ * que queda aquí es el rastro de cada impresión —de qué tipo, para qué registro,
+ * con qué versión de plantilla, quién y cuándo—, sin el contenido.
  *
- * Los archivos subidos (cédulas, diplomas) comparten la tabla y se distinguen
- * por `origen`, guardando la referencia al archivo en Google Drive.
+ * El número visible de un documento es el de la matrícula a la que corresponde,
+ * así que no lleva consecutivo propio: se inserta en la plantilla con la variable
+ * `numero_matricula`.
+ *
+ * Con `origen = ORIGEN_SUBIDO` la fila representa en cambio un archivo externo del
+ * estudiante (cédula, diploma) guardado en el repositorio.
  *
  * @property int         $id
  * @property int         $tipo_documento_id
- * @property int|null    $plantilla_id
+ * @property int|null    $plantilla_id   Versión de plantilla con la que se imprimió.
  * @property string|null $entidad_type
  * @property int|null    $entidad_id
- * @property string      $numero_documento
- * @property int         $origen                0=Generado, 1=Subido.
- * @property string|null $contenido_renderizado
- * @property array|null  $variables_aplicadas
- * @property \Carbon\Carbon|null $fecha_referencia
+ * @property int         $origen         0=Impresión generada, 1=Archivo subido.
+ * @property \Carbon\Carbon|null $fecha_referencia Fecha con la que se resolvió la versión.
  * @property string|null $google_drive_file_id
  * @property string|null $google_drive_url
  * @property string|null $nombre_original
  * @property string|null $mime_type
  * @property int|null    $tamano_bytes
- * @property int         $status                1=Vigente, 2=Anulado.
- * @property string|null $motivo_anulacion
  * @property int|null    $generado_por
  * @property \Carbon\Carbon|null $created_at
  * @property \Carbon\Carbon|null $updated_at
@@ -56,11 +54,7 @@ class DocDocumento extends Model
 {
     use HasFactory;
     use SoftDeletes;
-    use HasActiveStatus;
     use HasSortingScopes;
-
-    public const STATUS_VIGENTE = 1;
-    public const STATUS_ANULADO = 2;
 
     public const ORIGEN_GENERADO = 0;
     public const ORIGEN_SUBIDO   = 1;
@@ -70,35 +64,44 @@ class DocDocumento extends Model
     protected $guarded = ['id'];
 
     protected $casts = [
-        'tipo_documento_id'   => 'integer',
-        'plantilla_id'        => 'integer',
-        'entidad_id'          => 'integer',
-        'origen'              => 'integer',
-        'variables_aplicadas' => 'array',
-        'fecha_referencia'    => 'date',
-        'tamano_bytes'        => 'integer',
-        'status'              => 'integer',
-        'generado_por'        => 'integer',
-        'created_at'          => 'datetime',
-        'updated_at'          => 'datetime',
-        'deleted_at'          => 'datetime',
+        'tipo_documento_id' => 'integer',
+        'plantilla_id'      => 'integer',
+        'entidad_id'        => 'integer',
+        'origen'            => 'integer',
+        'fecha_referencia'  => 'date',
+        'tamano_bytes'      => 'integer',
+        'generado_por'      => 'integer',
+        'created_at'        => 'datetime',
+        'updated_at'        => 'datetime',
+        'deleted_at'        => 'datetime',
     ];
 
     /**
-     * Estados posibles de un documento.
+     * Orígenes posibles de una fila.
      *
      * @return array<int, string>
      */
-    public static function getActiveStatusOptions(): array
+    public static function getOrigenOptions(): array
     {
         return [
-            self::STATUS_VIGENTE => 'Vigente',
-            self::STATUS_ANULADO => 'Anulado',
+            self::ORIGEN_GENERADO => 'Impresión generada',
+            self::ORIGEN_SUBIDO   => 'Archivo subido',
         ];
     }
 
     /**
-     * Tipo de documento al que pertenece.
+     * Texto del origen.
+     *
+     * @param int|null $origen
+     * @return string
+     */
+    public static function getOrigenText(?int $origen): string
+    {
+        return self::getOrigenOptions()[$origen] ?? 'Desconocido';
+    }
+
+    /**
+     * Tipo de documento al que corresponde.
      *
      * @return BelongsTo
      */
@@ -108,7 +111,7 @@ class DocDocumento extends Model
     }
 
     /**
-     * Versión de plantilla con la que se generó el documento.
+     * Versión de plantilla con la que se imprimió.
      *
      * @return BelongsTo
      */
@@ -118,7 +121,7 @@ class DocDocumento extends Model
     }
 
     /**
-     * Entidad del sistema a la que se asocia el documento.
+     * Registro del sistema al que corresponde el documento.
      *
      * @return MorphTo
      */
@@ -128,7 +131,7 @@ class DocDocumento extends Model
     }
 
     /**
-     * Usuario que generó o subió el documento.
+     * Usuario que imprimió o subió el documento.
      *
      * @return BelongsTo
      */
@@ -138,7 +141,7 @@ class DocDocumento extends Model
     }
 
     /**
-     * Scope para filtrar documentos generados desde una plantilla.
+     * Scope de las impresiones de documentos generados.
      *
      * @param Builder $query
      * @return Builder
@@ -149,7 +152,7 @@ class DocDocumento extends Model
     }
 
     /**
-     * Scope para filtrar archivos subidos al repositorio.
+     * Scope de los archivos subidos al repositorio.
      *
      * @param Builder $query
      * @return Builder
@@ -160,7 +163,7 @@ class DocDocumento extends Model
     }
 
     /**
-     * Scope para aplicar los filtros del listado de documentos.
+     * Scope para aplicar los filtros del listado.
      *
      * @param Builder              $query
      * @param array<string, mixed> $filters
@@ -171,11 +174,7 @@ class DocDocumento extends Model
         return $query
             ->when(
                 isset($filters['search']) && $filters['search'],
-                fn (Builder $q) => $q->where('numero_documento', 'like', '%' . $filters['search'] . '%')
-            )
-            ->when(
-                isset($filters['status']) && $filters['status'] !== null && $filters['status'] !== '',
-                fn (Builder $q) => $q->where('status', (int) $filters['status'])
+                fn (Builder $q) => $q->where('nombre_original', 'like', '%' . $filters['search'] . '%')
             )
             ->when(
                 isset($filters['tipo_documento_id']) && $filters['tipo_documento_id'],
@@ -210,6 +209,6 @@ class DocDocumento extends Model
      */
     protected function getAllowedSortFields(): array
     {
-        return ['numero_documento', 'status', 'fecha_referencia', 'created_at', 'updated_at'];
+        return ['fecha_referencia', 'created_at', 'updated_at'];
     }
 }

@@ -282,9 +282,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::prefix('documentos')->group(function () {
             Route::get('trashed', [DocDocumentoController::class, 'trashed'])->name('documentos.trashed');
             Route::get('filters', [DocDocumentoController::class, 'filters'])->name('documentos.filters');
-            Route::post('generar', [DocDocumentoController::class, 'generar'])->name('documentos.generar');
-            Route::get('{documento}/pdf', [DocDocumentoController::class, 'pdf'])->name('documentos.pdf');
-            Route::post('{documento}/anular', [DocDocumentoController::class, 'anular'])->name('documentos.anular');
+            Route::get('render', [DocDocumentoController::class, 'render'])->name('documentos.render');
+            Route::get('pdf', [DocDocumentoController::class, 'pdf'])->name('documentos.pdf');
             Route::post('{id}/restore', [DocDocumentoController::class, 'restore'])->name('documentos.restore');
             Route::delete('{id}/force-delete', [DocDocumentoController::class, 'forceDelete'])->name('documentos.force-delete');
         });

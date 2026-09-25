@@ -26,29 +26,28 @@ class DocTipoDocumentoFactory extends Factory
             'nombre'                 => 'Documento ' . $this->faker->unique()->word(),
             'descripcion'            => $this->faker->optional()->sentence(),
             'entidad_type'           => null,
-            'se_ata_fecha'           => false,
+            'conforma_matricula'     => false,
             'campo_fecha_referencia' => null,
-            'prefijo_numero'         => Str::upper($this->faker->unique()->bothify('DOC###')),
             'status'                 => 1,
         ];
     }
 
     /**
-     * Tipo de documento atado a la fecha de matrícula (contratos, pagarés).
+     * Tipo que conforma la matrícula (contrato, pagaré, hoja de matrícula).
      *
      * @return static
      */
-    public function atadoAMatricula(): static
+    public function conformaMatricula(): static
     {
         return $this->state([
             'entidad_type'           => Matricula::class,
-            'se_ata_fecha'           => true,
+            'conforma_matricula'     => true,
             'campo_fecha_referencia' => 'fecha_matricula',
         ]);
     }
 
     /**
-     * Tipo de documento sin vigencia atada a fecha (cartas, certificaciones).
+     * Tipo que no conforma la matrícula: usa la plantilla vigente hoy.
      *
      * @return static
      */
@@ -56,7 +55,7 @@ class DocTipoDocumentoFactory extends Factory
     {
         return $this->state([
             'entidad_type'           => Matricula::class,
-            'se_ata_fecha'           => false,
+            'conforma_matricula'     => false,
             'campo_fecha_referencia' => null,
         ]);
     }

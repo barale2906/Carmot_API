@@ -45,9 +45,8 @@ class DocBloqueTest extends TestCase
         $this->usuario = User::factory()->create();
         $this->usuario->givePermissionTo(array_keys($permisos));
 
-        $this->tipo = DocTipoDocumento::factory()->atadoAMatricula()->create([
+        $this->tipo = DocTipoDocumento::factory()->conformaMatricula()->create([
             'nombre'         => 'Certificación de cartera',
-            'prefijo_numero' => 'CERT',
         ]);
         $this->tipo->variables()->create(['variable_key' => 'estudiante.name']);
     }
@@ -130,15 +129,7 @@ class DocBloqueTest extends TestCase
 
         $matricula = $this->matriculaConCartera();
 
-        $documento = app(DocGeneracionService::class)->generar(
-            $this->tipo,
-            $plantilla,
-            $matricula,
-            Carbon::parse('2024-06-15'),
-            $this->usuario
-        );
-
-        $contenido = $documento->contenido_renderizado;
+        $contenido = app(DocGeneracionService::class)->renderizar($plantilla, $matricula, $this->usuario);
 
         $this->assertStringContainsString('<table class="bloque-tabla">', $contenido);
         $this->assertStringContainsString('Pendiente', $contenido);
@@ -157,16 +148,10 @@ class DocBloqueTest extends TestCase
         $plantilla = $this->plantillaActiva('{{ bloque.estado_cartera }}');
         $matricula = $this->matriculaConCartera();
 
-        $documento = app(DocGeneracionService::class)->generar(
-            $this->tipo,
-            $plantilla,
-            $matricula,
-            Carbon::parse('2024-06-15'),
-            $this->usuario
-        );
+        $contenido = app(DocGeneracionService::class)->renderizar($plantilla, $matricula, $this->usuario);
 
-        $this->assertStringContainsString('Mora', $documento->contenido_renderizado);
-        $this->assertStringContainsString('Vencimiento', $documento->contenido_renderizado);
+        $this->assertStringContainsString('Mora', $contenido);
+        $this->assertStringContainsString('Vencimiento', $contenido);
     }
 
     /** @test */
@@ -175,15 +160,9 @@ class DocBloqueTest extends TestCase
         $plantilla = $this->plantillaActiva('{{ bloque.recibos_pago }}');
         $matricula = Matricula::factory()->create(['fecha_matricula' => '2024-06-15']);
 
-        $documento = app(DocGeneracionService::class)->generar(
-            $this->tipo,
-            $plantilla,
-            $matricula,
-            Carbon::parse('2024-06-15'),
-            $this->usuario
-        );
+        $contenido = app(DocGeneracionService::class)->renderizar($plantilla, $matricula, $this->usuario);
 
-        $this->assertStringContainsString('Sin registros.', $documento->contenido_renderizado);
+        $this->assertStringContainsString('Sin registros.', $contenido);
     }
 
     /** @test */

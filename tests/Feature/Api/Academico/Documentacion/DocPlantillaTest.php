@@ -42,7 +42,7 @@ class DocPlantillaTest extends TestCase
         $this->usuario = User::factory()->create();
         $this->usuario->givePermissionTo(array_keys($permisos));
 
-        $this->tipo = DocTipoDocumento::factory()->atadoAMatricula()->create();
+        $this->tipo = DocTipoDocumento::factory()->conformaMatricula()->create();
         $this->tipo->variables()->create(['variable_key' => 'estudiante.name']);
         $this->tipo->variables()->create(['variable_key' => 'monto_letras']);
     }

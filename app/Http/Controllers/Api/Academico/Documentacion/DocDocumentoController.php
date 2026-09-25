@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Api\Academico\Documentacion;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Api\Academico\Documentacion\AnularDocDocumentoRequest;
 use App\Http\Requests\Api\Academico\Documentacion\GenerarDocDocumentoRequest;
 use App\Http\Resources\Api\Academico\Documentacion\DocDocumentoResource;
 use App\Models\Academico\Documentacion\DocDocumento;
@@ -15,46 +14,116 @@ use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response as HttpResponse;
 
 /**
- * Controlador para la generación y consulta de documentos.
+ * Controlador para imprimir documentos y consultar la bitácora de impresiones.
  *
- * Genera documentos a partir de la versión de plantilla vigente para la fecha
- * de referencia de cada tipo y conserva el contenido renderizado, de modo que
- * un documento emitido hoy siga mostrando lo mismo dentro de años.
+ * Los documentos se arman cada vez que se piden, con los datos del estudiante y
+ * la plantilla que corresponde: la vigente a la fecha de la matrícula cuando el
+ * tipo la conforma, o la vigente hoy en los demás casos. No se almacena ni el
+ * contenido ni el PDF; de cada impresión queda solo su rastro en la bitácora.
  *
  * @package App\Http\Controllers\Api\Academico\Documentacion
  */
 class DocDocumentoController extends Controller
 {
-    /** Columnas del listado; excluye el contenido renderizado y el detalle de variables. */
-    private const COLUMNAS_LISTADO = [
-        'id', 'tipo_documento_id', 'plantilla_id', 'entidad_type', 'entidad_id',
-        'numero_documento', 'origen', 'fecha_referencia',
-        'google_drive_url', 'nombre_original', 'mime_type', 'tamano_bytes',
-        'status', 'motivo_anulacion', 'generado_por', 'created_at', 'updated_at', 'deleted_at',
-    ];
-
     /**
      * Registra los middlewares de permisos del módulo.
      *
-     * @param DocGeneracionService $generacion Generación y anulación de documentos.
-     * @param DocPdfService        $pdf        Conversión del documento a PDF.
+     * @param DocGeneracionService $generacion Armado del contenido y bitácora.
+     * @param DocPdfService        $pdf        Conversión a PDF.
      */
     public function __construct(
         private DocGeneracionService $generacion,
         private DocPdfService $pdf
     ) {
-        $this->middleware('permission:aca_documentos')->only(['index', 'show', 'filters', 'pdf']);
-        $this->middleware('permission:aca_documentoGenerar')->only(['generar']);
+        $this->middleware('permission:aca_documentos')->only(['index', 'show', 'filters']);
+        $this->middleware('permission:aca_documentoGenerar')->only(['render', 'pdf']);
         $this->middleware('permission:aca_documentoAnular')
-            ->only(['anular', 'destroy', 'restore', 'forceDelete', 'trashed']);
+            ->only(['destroy', 'restore', 'forceDelete', 'trashed']);
     }
 
     /**
-     * Lista paginada de documentos con filtros opcionales.
+     * Arma el documento y devuelve su contenido en HTML.
      *
-     * Admite filtrar por tipo, estado, origen y por la entidad asociada
-     * (`entidad_type` + `entidad_id`), que es la forma de consultar todos los
-     * documentos de una matrícula o de un estudiante.
+     * Sirve para mostrarlo en pantalla antes de imprimirlo. Cada llamada registra
+     * la impresión en la bitácora.
+     *
+     * @param GenerarDocDocumentoRequest $request
+     * @return JsonResponse
+     */
+    public function render(GenerarDocDocumentoRequest $request): JsonResponse
+    {
+        $tipoDocumento = DocTipoDocumento::findOrFail($request->integer('tipo_documento_id'));
+        $entidad       = $this->generacion->resolverEntidad($tipoDocumento, $request->integer('entidad_id'));
+        $vigencia      = $this->generacion->resolverVigencia($tipoDocumento, $entidad);
+
+        if (!$vigencia['plantilla']) {
+            return response()->json([
+                'message' => 'No hay una versión de plantilla vigente para la fecha de este documento.',
+            ], 422);
+        }
+
+        $contenido = $this->generacion->renderizar($vigencia['plantilla'], $entidad, $request->user());
+
+        $emision = $this->generacion->registrarEmision(
+            $tipoDocumento,
+            $vigencia['plantilla'],
+            $entidad,
+            $vigencia['fecha_referencia'],
+            $request->user()
+        );
+
+        return response()->json([
+            'data' => [
+                'emision_id'       => $emision->id,
+                'tipo_documento'   => $tipoDocumento->nombre,
+                'plantilla_id'     => $vigencia['plantilla']->id,
+                'version'          => $vigencia['plantilla']->version,
+                'fecha_referencia' => $vigencia['fecha_referencia']?->toDateString(),
+                'contenido'        => $contenido,
+            ],
+        ]);
+    }
+
+    /**
+     * Arma el documento y lo descarga en PDF.
+     *
+     * El PDF se construye en el momento y no se almacena. Cada descarga registra
+     * la impresión en la bitácora.
+     *
+     * @param GenerarDocDocumentoRequest $request
+     * @return HttpResponse
+     */
+    public function pdf(GenerarDocDocumentoRequest $request): HttpResponse
+    {
+        $tipoDocumento = DocTipoDocumento::findOrFail($request->integer('tipo_documento_id'));
+        $entidad       = $this->generacion->resolverEntidad($tipoDocumento, $request->integer('entidad_id'));
+        $vigencia      = $this->generacion->resolverVigencia($tipoDocumento, $entidad);
+
+        if (!$vigencia['plantilla']) {
+            return response()->json([
+                'message' => 'No hay una versión de plantilla vigente para la fecha de este documento.',
+            ], 422);
+        }
+
+        $contenido = $this->generacion->renderizar($vigencia['plantilla'], $entidad, $request->user());
+
+        $this->generacion->registrarEmision(
+            $tipoDocumento,
+            $vigencia['plantilla'],
+            $entidad,
+            $vigencia['fecha_referencia'],
+            $request->user()
+        );
+
+        return $this->pdf->generarPDF($tipoDocumento, $contenido)
+            ->download($this->pdf->nombreArchivo($tipoDocumento, $entidad?->getKey()));
+    }
+
+    /**
+     * Lista paginada de la bitácora de impresiones y de los archivos subidos.
+     *
+     * Admite filtrar por tipo, origen y por el registro asociado (`entidad_type` +
+     * `entidad_id`), que es la forma de ver todo lo emitido para una matrícula.
      *
      * @param Request $request
      * @return JsonResponse
@@ -62,13 +131,12 @@ class DocDocumentoController extends Controller
     public function index(Request $request): JsonResponse
     {
         $filters = $request->only([
-            'search', 'status', 'tipo_documento_id', 'origen',
+            'search', 'tipo_documento_id', 'origen',
             'entidad_type', 'entidad_id', 'include_trashed', 'only_trashed',
         ]);
 
         $documentos = DocDocumento::withFilters($filters)
-            ->with('tipoDocumento')
-            ->select(self::COLUMNAS_LISTADO)
+            ->with(['tipoDocumento', 'generador'])
             ->withSorting($request->get('sort_by'), $request->get('sort_direction'))
             ->paginate($request->get('per_page', 15));
 
@@ -86,43 +154,7 @@ class DocDocumentoController extends Controller
     }
 
     /**
-     * Genera un documento a partir de su tipo y del registro asociado.
-     *
-     * La versión de plantilla se resuelve según la configuración del tipo: los
-     * tipos atados a fecha usan la vigente en la fecha de referencia de la
-     * entidad; los demás, la vigente hoy.
-     *
-     * @param GenerarDocDocumentoRequest $request
-     * @return JsonResponse
-     */
-    public function generar(GenerarDocDocumentoRequest $request): JsonResponse
-    {
-        $tipoDocumento = DocTipoDocumento::findOrFail($request->integer('tipo_documento_id'));
-        $entidad       = $this->generacion->resolverEntidad($tipoDocumento, $request->integer('entidad_id'));
-        $vigencia      = $this->generacion->resolverVigencia($tipoDocumento, $entidad);
-
-        if (!$vigencia['plantilla']) {
-            return response()->json([
-                'message' => 'No hay una versión de plantilla vigente para la fecha de este documento.',
-            ], 422);
-        }
-
-        $documento = $this->generacion->generar(
-            $tipoDocumento,
-            $vigencia['plantilla'],
-            $entidad,
-            $vigencia['fecha_referencia'],
-            $request->user()
-        );
-
-        return response()->json([
-            'message' => 'Documento generado exitosamente.',
-            'data'    => new DocDocumentoResource($documento->load(['tipoDocumento', 'plantilla'])),
-        ], 201);
-    }
-
-    /**
-     * Muestra un documento con su contenido renderizado.
+     * Muestra una entrada de la bitácora.
      *
      * @param DocDocumento $documento
      * @return JsonResponse
@@ -135,55 +167,7 @@ class DocDocumentoController extends Controller
     }
 
     /**
-     * Descarga el PDF de un documento conservando su diseño.
-     *
-     * El PDF se arma al momento de la solicitud y no se almacena: se construye
-     * con el contenido congelado del documento, así que siempre refleja la
-     * versión de plantilla y los datos con los que se expidió.
-     *
-     * @param DocDocumento $documento
-     * @return HttpResponse
-     */
-    public function pdf(DocDocumento $documento): HttpResponse
-    {
-        if ($documento->origen === DocDocumento::ORIGEN_SUBIDO) {
-            return response()->json([
-                'message' => 'Este documento es un archivo subido; descárguelo desde su enlace original.',
-            ], 422);
-        }
-
-        return $this->pdf->generarPDF($documento)
-            ->download($this->pdf->nombreArchivo($documento));
-    }
-
-    /**
-     * Anula un documento indicando el motivo.
-     *
-     * La anulación conserva el documento y su contenido: solo lo marca como no
-     * válido, porque el rastro de lo que se emitió no debe perderse.
-     *
-     * @param AnularDocDocumentoRequest $request
-     * @param DocDocumento              $documento
-     * @return JsonResponse
-     */
-    public function anular(AnularDocDocumentoRequest $request, DocDocumento $documento): JsonResponse
-    {
-        if ($documento->status === DocDocumento::STATUS_ANULADO) {
-            return response()->json([
-                'message' => 'El documento ya se encuentra anulado.',
-            ], 422);
-        }
-
-        $documento = $this->generacion->anular($documento, $request->input('motivo'));
-
-        return response()->json([
-            'message' => 'Documento anulado exitosamente.',
-            'data'    => new DocDocumentoResource($documento->load('tipoDocumento')),
-        ]);
-    }
-
-    /**
-     * Elimina (soft delete) un documento.
+     * Elimina (soft delete) una entrada de la bitácora o un archivo subido.
      *
      * @param DocDocumento $documento
      * @return JsonResponse
@@ -193,12 +177,12 @@ class DocDocumentoController extends Controller
         $documento->delete();
 
         return response()->json([
-            'message' => 'Documento eliminado exitosamente.',
+            'message' => 'Registro eliminado exitosamente.',
         ]);
     }
 
     /**
-     * Restaura un documento eliminado.
+     * Restaura una entrada eliminada.
      *
      * @param int $id
      * @return JsonResponse
@@ -209,13 +193,13 @@ class DocDocumentoController extends Controller
         $documento->restore();
 
         return response()->json([
-            'message' => 'Documento restaurado exitosamente.',
+            'message' => 'Registro restaurado exitosamente.',
             'data'    => new DocDocumentoResource($documento->load('tipoDocumento')),
         ]);
     }
 
     /**
-     * Elimina permanentemente un documento.
+     * Elimina permanentemente una entrada.
      *
      * @param int $id
      * @return JsonResponse
@@ -226,24 +210,23 @@ class DocDocumentoController extends Controller
         $documento->forceDelete();
 
         return response()->json([
-            'message' => 'Documento eliminado permanentemente.',
+            'message' => 'Registro eliminado permanentemente.',
         ]);
     }
 
     /**
-     * Lista los documentos eliminados (soft delete).
+     * Lista las entradas eliminadas (soft delete).
      *
      * @param Request $request
      * @return JsonResponse
      */
     public function trashed(Request $request): JsonResponse
     {
-        $filters                 = $request->only(['search', 'status', 'tipo_documento_id', 'origen']);
+        $filters                 = $request->only(['search', 'tipo_documento_id', 'origen']);
         $filters['only_trashed'] = true;
 
         $documentos = DocDocumento::withFilters($filters)
             ->with('tipoDocumento')
-            ->select(self::COLUMNAS_LISTADO)
             ->withSorting($request->get('sort_by'), $request->get('sort_direction'))
             ->paginate($request->get('per_page', 15));
 
@@ -261,7 +244,7 @@ class DocDocumentoController extends Controller
     }
 
     /**
-     * Opciones de estado y origen disponibles para los documentos.
+     * Opciones de origen disponibles para filtrar la bitácora.
      *
      * @return JsonResponse
      */
@@ -269,11 +252,7 @@ class DocDocumentoController extends Controller
     {
         return response()->json([
             'data' => [
-                'status_options' => DocDocumento::getActiveStatusOptions(),
-                'origen_options' => [
-                    DocDocumento::ORIGEN_GENERADO => 'Generado',
-                    DocDocumento::ORIGEN_SUBIDO   => 'Subido',
-                ],
+                'origen_options' => DocDocumento::getOrigenOptions(),
             ],
         ]);
     }

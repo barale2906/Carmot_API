@@ -13,11 +13,10 @@ use Illuminate\Database\Eloquent\Model;
  * Determina qué versión de plantilla aplica a un documento según la
  * configuración de su tipo.
  *
- * Los tipos atados a fecha (contrato, pagaré, hoja de matrícula) resuelven la
- * versión cuya vigencia contiene la fecha de referencia de la entidad —la fecha
- * de matrícula, por ejemplo—, de modo que un documento se sigue generando con
- * las condiciones que aplicaban entonces. Los tipos no atados a fecha (cartas,
- * certificaciones) usan siempre la versión vigente hoy.
+ * Los tipos que conforman la matrícula (contrato, pagaré, hoja de matrícula)
+ * resuelven la versión cuya vigencia contiene la fecha de esa matrícula, de modo
+ * que reimprimirlos devuelve las condiciones que aplicaban entonces. Los demás
+ * (sábanas de notas, constancias, cartas) usan la versión vigente hoy.
  *
  * @package App\Services\Academico\Documentacion
  */
@@ -32,7 +31,7 @@ class DocPlantillaVersionResolverService
      */
     public function resolver(DocTipoDocumento $tipoDocumento, ?Carbon $fechaReferencia = null): ?DocPlantilla
     {
-        $fecha = ($tipoDocumento->se_ata_fecha && $fechaReferencia)
+        $fecha = ($tipoDocumento->conforma_matricula && $fechaReferencia)
             ? $fechaReferencia
             : Carbon::today();
 
@@ -46,9 +45,9 @@ class DocPlantillaVersionResolverService
     /**
      * Obtiene la fecha de referencia de una entidad para un tipo de documento.
      *
-     * Devuelve null cuando el tipo no se ata a fecha. Si se ata pero no tiene
-     * configurado un campo de fecha —o la entidad no lo trae— se usa la fecha
-     * de generación del documento.
+     * Devuelve null cuando el tipo no conforma la matrícula. Si la conforma pero no
+     * tiene configurado un campo de fecha —o la entidad no lo trae— se usa la fecha
+     * en que se imprime el documento.
      *
      * @param DocTipoDocumento $tipoDocumento
      * @param Model|null       $entidad
@@ -56,7 +55,7 @@ class DocPlantillaVersionResolverService
      */
     public function fechaReferencia(DocTipoDocumento $tipoDocumento, ?Model $entidad): ?Carbon
     {
-        if (!$tipoDocumento->se_ata_fecha) {
+        if (!$tipoDocumento->conforma_matricula) {
             return null;
         }
 

@@ -49,15 +49,8 @@ class UpdateDocTipoDocumentoRequest extends FormRequest
             'nombre'                 => 'sometimes|string|max:255',
             'descripcion'            => 'nullable|string',
             'entidad_type'           => ['nullable', 'string', Rule::in(array_keys(config('documentacion.entidades', [])))],
-            'se_ata_fecha'           => 'sometimes|boolean',
+            'conforma_matricula'     => 'sometimes|boolean',
             'campo_fecha_referencia' => 'nullable|string|max:100',
-            'prefijo_numero'         => [
-                'sometimes',
-                'string',
-                'max:10',
-                'regex:/^[A-Za-z0-9\-]+$/',
-                Rule::unique('doc_tipos_documento', 'prefijo_numero')->ignore($tipoDocumento?->id),
-            ],
             'status'                 => self::getStatusValidationRule(),
         ];
     }
@@ -117,9 +110,7 @@ class UpdateDocTipoDocumentoRequest extends FormRequest
     {
         return array_merge([
             'codigo.unique'         => 'Ya existe un tipo de documento con este código.',
-            'prefijo_numero.unique' => 'Ya existe un tipo de documento con este prefijo de numeración.',
             'entidad_type.in'      => 'La entidad seleccionada no está disponible para documentos.',
-            'prefijo_numero.regex' => 'El prefijo de numeración solo admite letras, números y guiones.',
         ], self::getStatusValidationMessages());
     }
 
@@ -135,9 +126,8 @@ class UpdateDocTipoDocumentoRequest extends FormRequest
             'nombre'                 => 'nombre',
             'descripcion'            => 'descripción',
             'entidad_type'           => 'entidad asociada',
-            'se_ata_fecha'           => 'atado a fecha',
+            'conforma_matricula'     => 'conforma la matrícula',
             'campo_fecha_referencia' => 'campo de fecha de referencia',
-            'prefijo_numero'         => 'prefijo de numeración',
         ];
     }
 }

@@ -21,13 +21,7 @@
         footer .pagina:after { content: counter(page) " / " counter(pages); }
 
         .titulo { text-align: center; font-size: 15px; font-weight: bold;
-                  text-transform: uppercase; margin-bottom: 4px; }
-        .subtitulo { text-align: center; font-size: 10px; color: #666; margin-bottom: 18px; }
-
-        .anulado { border: 2px solid #b02a37; color: #b02a37; text-align: center;
-                   font-weight: bold; text-transform: uppercase; padding: 6px;
-                   margin-bottom: 16px; font-size: 13px; }
-        .anulado small { display: block; font-weight: normal; text-transform: none; font-size: 10px; }
+                  text-transform: uppercase; margin-bottom: 18px; }
 
         .contenido table { width: 100%; border-collapse: collapse; }
         .contenido table td, .contenido table th { border: 1px solid #ddd; padding: 5px 6px; }
@@ -56,25 +50,15 @@
 </header>
 
 <footer>
-    <span class="numero">{{ $documento->numero_documento }} · Generado el {{ $documento->created_at?->format('d/m/Y') }}</span>
+    <span class="numero">{{ $tipoDocumento->nombre }} · Impreso el {{ now()->format('d/m/Y') }}</span>
     <span class="pagina"></span>
 </footer>
 
-<div class="titulo">{{ $documento->tipoDocumento->nombre }}</div>
-<div class="subtitulo">{{ $documento->numero_documento }}</div>
+<div class="titulo">{{ $tipoDocumento->nombre }}</div>
 
-@if ($documento->status === \App\Models\Academico\Documentacion\DocDocumento::STATUS_ANULADO)
-    <div class="anulado">
-        Documento anulado
-        @if ($documento->motivo_anulacion)
-            <small>{{ $documento->motivo_anulacion }}</small>
-        @endif
-    </div>
-@endif
-
-{{-- El contenido llega con las variables ya resueltas y escapadas al generar el documento. --}}
+{{-- El contenido llega con las variables y los bloques ya resueltos y escapados. --}}
 <div class="contenido">
-    {!! $documento->contenido_renderizado !!}
+    {!! $contenido !!}
 </div>
 
 </body>

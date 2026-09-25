@@ -32,9 +32,8 @@ class DocTipoDocumentoResource extends JsonResource
             'entidad_nombre'         => $this->entidad_type
                 ? config("documentacion.entidades.{$this->entidad_type}.nombre")
                 : null,
-            'se_ata_fecha'           => $this->se_ata_fecha,
+            'conforma_matricula'     => $this->conforma_matricula,
             'campo_fecha_referencia' => $this->campo_fecha_referencia,
-            'prefijo_numero'         => $this->prefijo_numero,
             'status'                 => $this->status,
             'status_text'            => self::getActiveStatusText($this->status),
             'variables'              => $this->whenLoaded(

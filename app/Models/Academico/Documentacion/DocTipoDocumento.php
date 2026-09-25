@@ -14,22 +14,22 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 /**
  * Modelo DocTipoDocumento — tipo de documento que el instituto puede generar.
  *
- * Define la identidad de un documento (contrato, pagaré, certificado, carta),
- * a qué entidad del sistema se asocia y si su contenido queda atado a una
- * fecha de referencia. Cuando `se_ata_fecha` es true, el documento se genera
- * con la versión de plantilla vigente en la fecha de referencia de la entidad
- * (p. ej. la fecha de matrícula), de modo que un contrato firmado conserva las
- * condiciones que estaban vigentes cuando se firmó. Cuando es false, siempre
- * se usa la versión activa (cartas, certificaciones).
+ * Define la identidad de un documento (contrato, pagaré, certificado, carta) y
+ * a qué entidad del sistema se asocia.
+ *
+ * `conforma_matricula` marca los documentos legales o que forman parte de la
+ * matrícula: se imprimen con la versión de plantilla que estaba vigente en la
+ * fecha de esa matrícula, de modo que reimprimir un contrato devuelve siempre
+ * las condiciones bajo las que se firmó. Los demás (sábanas de notas,
+ * constancias, cartas) usan la versión vigente al momento de imprimirlos.
  *
  * @property int         $id
  * @property string      $codigo                 Código único del tipo.
  * @property string      $nombre                 Nombre del tipo de documento.
  * @property string|null $descripcion
  * @property string|null $entidad_type           Clase Eloquent de la entidad asociada.
- * @property bool        $se_ata_fecha           Si la versión se resuelve por fecha de referencia.
- * @property string|null $campo_fecha_referencia Atributo fecha de la entidad; null = fecha de generación.
- * @property string      $prefijo_numero         Prefijo del consecutivo de los documentos.
+ * @property bool        $conforma_matricula     Documento legal o que forma parte de la matrícula.
+ * @property string|null $campo_fecha_referencia Atributo fecha que ancla la versión aplicable.
  * @property int         $status                 Estado del tipo (1=activo, 0=inactivo).
  * @property \Carbon\Carbon|null $created_at
  * @property \Carbon\Carbon|null $updated_at
@@ -55,11 +55,11 @@ class DocTipoDocumento extends Model
     protected $guarded = ['id'];
 
     protected $casts = [
-        'se_ata_fecha' => 'boolean',
-        'status'       => 'integer',
-        'created_at'   => 'datetime',
-        'updated_at'   => 'datetime',
-        'deleted_at'   => 'datetime',
+        'conforma_matricula' => 'boolean',
+        'status'             => 'integer',
+        'created_at'         => 'datetime',
+        'updated_at'         => 'datetime',
+        'deleted_at'         => 'datetime',
     ];
 
     /**
