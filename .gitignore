@@ -19,3 +19,6 @@ yarn-error.log
 /.idea
 /.vscode
 docs/
+
+# Copias de base de datos demo (contienen datos reales; no versionar)
+/database/seeders/*.sql

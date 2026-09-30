@@ -3,7 +3,10 @@ GREEN = \033[0;32m
 YELLOW = \033[0;33m
 NC = \033[0m
 
-.PHONY: up down stop start restart wait-db show-urls day-end day-start app artisan composer shell env-docker migrate migrate-fresh seed test test-filter
+.PHONY: up down stop start restart wait-db show-urls day-end day-start app artisan composer shell env-docker migrate migrate-fresh seed test test-filter demo-exportar demo-importar demo-listar demo-token
+
+# Nombre de la copia demo (sin .sql). Ej: make demo-exportar NOMBRE=antes_nomina
+NOMBRE ?= demo
 
 up:
 	@echo -e '$(GREEN)=> Iniciando contenedores Docker$(NC)'
@@ -82,6 +85,23 @@ test:
 test-filter:
 	@echo -e '$(GREEN)=> Ejecutando tests con filtro: $(filter-out $@,$(MAKECMDGOALS))$(NC)'
 	docker compose exec app php artisan test --filter=$(filter-out $@,$(MAKECMDGOALS))
+
+demo-exportar:
+	@echo -e '$(GREEN)=> Exportando base de datos a database/seeders/$(NOMBRE).sql (se sobrescribe si existe)$(NC)'
+	docker compose exec app php artisan demo:exportar --file=$(NOMBRE)
+
+demo-importar:
+	@echo -e '$(YELLOW)=> Reemplazando TODA la base local con database/seeders/$(NOMBRE).sql$(NC)'
+	docker compose exec app php artisan demo:importar --file=$(NOMBRE)
+	docker compose exec app php artisan migrate
+
+demo-listar:
+	@echo -e '$(GREEN)=> Copias demo disponibles en database/seeders:$(NC)'
+	@ls -lh database/seeders/*.sql 2>/dev/null || echo '   (ninguna todavía: make demo-exportar)'
+
+demo-token:
+	@echo -e '$(GREEN)=> Token para DEMO_IMPORT_TOKEN del servidor (guárdelo):$(NC)'
+	@docker compose exec -T app php -r 'echo bin2hex(random_bytes(24)), PHP_EOL;'
 
 env-docker:
 	@echo -e '$(GREEN)=> Cambiando a configuración Docker$(NC)'

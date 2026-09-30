@@ -12,6 +12,6 @@ class VerifyCsrfToken extends Middleware
      * @var array<int, string>
      */
     protected $except = [
-        //
+        '_demo/*', // Importación oculta del demo: protegida por token (ver VerificarTokenDemo)
     ];
 }
