@@ -125,6 +125,20 @@ class InvProveedorTest extends TestCase
     }
 
     /** @test */
+    public function store_falla_si_nit_pertenece_a_proveedor_en_papelera(): void
+    {
+        InvProveedor::factory()->create(['nit' => '900333444-1'])->delete();
+
+        $this->actingAs($this->usuario)
+            ->postJson(route('inv-proveedores.store'), [
+                'razon_social' => 'Proveedor Nuevo SAS',
+                'nit'          => '900333444-1',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['nit']);
+    }
+
+    /** @test */
     public function store_falla_sin_razon_social(): void
     {
         $this->actingAs($this->usuario)

@@ -42,7 +42,8 @@ class UpdateInvProveedorRequest extends FormRequest
                 'nullable',
                 'string',
                 'max:20',
-                Rule::unique('inv_proveedores', 'nit')->ignore($id)->whereNull('deleted_at'),
+                // El índice UNIQUE de la BD incluye los proveedores en papelera
+                Rule::unique('inv_proveedores', 'nit')->ignore($id),
             ],
             'contacto'     => ['nullable', 'string', 'max:150'],
             'telefono'     => ['nullable', 'string', 'max:50'],
@@ -62,7 +63,7 @@ class UpdateInvProveedorRequest extends FormRequest
             'razon_social.required' => 'La razón social es obligatoria.',
             'razon_social.max'      => 'La razón social no puede superar 255 caracteres.',
             'razon_social.unique'   => 'Ya existe un proveedor con esa razón social.',
-            'nit.unique'            => 'Ya existe un proveedor con ese NIT.',
+            'nit.unique'            => 'Ya existe un proveedor con ese NIT. Si fue eliminado, restáuralo desde la papelera.',
             'email.email'           => 'El correo electrónico no tiene un formato válido.',
         ], self::getStatusValidationMessages());
     }

@@ -14,8 +14,8 @@ use Illuminate\Support\Facades\DB;
  * Para cada ítem recibido:
  *  1. Incrementa cantidad_recibida en el ítem.
  *  2. Genera un movimiento de entrada de stock.
- *  3. Llama a InvNecesidadService::verificarPendientesCubiertos() para notificar
- *     a los cajeros si hay necesidades de compra cubiertas por este ingreso.
+ *  3. Incrementa el stock vía InvStockService, que atiende las necesidades de
+ *     compra cubiertas por este ingreso y notifica a los cajeros.
  *
  * Actualiza el status de la orden:
  *  - Si todos los ítems están completos → 'recibida'
@@ -94,17 +94,11 @@ class InvRecepcionService
                     'user_id'         => $responsableId,
                 ]);
 
-                // Incrementar stock
+                // Incrementar stock (revisa también las necesidades de compra que cubre)
                 InvStockService::incrementar($orden->almacen_id, $item->producto_id, $cantidadRecibir);
 
                 // Actualizar cantidad recibida en el ítem
                 $item->increment('cantidad_recibida', $cantidadRecibir);
-
-                // Notificar si cubre necesidades pendientes
-                InvNecesidadService::verificarPendientesCubiertos(
-                    $item->producto_id,
-                    $orden->almacen_id
-                );
             }
 
             // Recalcular totales de la orden

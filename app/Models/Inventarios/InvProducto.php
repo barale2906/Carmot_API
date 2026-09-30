@@ -131,6 +131,21 @@ class InvProducto extends Model
     }
 
     /**
+     * IDs de los productos que reciben el precio cuando se le asigna a este producto.
+     *
+     * Un grupo no tiene precio propio: el precio lo reciben sus variantes activas.
+     * Un simple o un kit lo recibe directamente.
+     *
+     * @return \Illuminate\Support\Collection<int, int>
+     */
+    public function idsReceptoresDePrecio(): \Illuminate\Support\Collection
+    {
+        return $this->tipo === 'grupo'
+            ? $this->variantes()->where('status', 1)->pluck('id')
+            : collect([$this->id]);
+    }
+
+    /**
      * Campos permitidos para ordenamiento dinámico.
      *
      * @return array<string>

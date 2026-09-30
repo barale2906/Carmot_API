@@ -28,17 +28,28 @@ class InvDespachoService
      * pantalla de Entregas Pendientes trabaja con el id de ese registro. Sin esto el
      * ítem quedaría sin forma de entregarse y el pedido nunca llegaría a 'entregado'.
      *
+     * Recibe las variantes elegidas para los kits: así la necesidad de compra se
+     * evalúa sobre la variante concreta y no se abre una a nombre del grupo (que
+     * nunca tiene stock) cuando la variante sí está disponible.
+     *
      * @param InvPedido $pedido
      * @param int       $cajeroId
+     * @param array     $variantesKit  [{pedido_item_id, componentes: [{kit_componente_id, producto_entregado_id}]}]
      * @return void
      */
-    public static function prepararEntregas(InvPedido $pedido, int $cajeroId): void
+    public static function prepararEntregas(InvPedido $pedido, int $cajeroId, array $variantesKit = []): void
     {
         $pedido->loadMissing('items.producto');
 
+        $variantesIndexadas = collect($variantesKit)->keyBy('pedido_item_id');
+
         foreach ($pedido->items as $item) {
             if ($item->producto->tipo === 'kit') {
-                InvEntregaKitService::prepararPendiente($item, $cajeroId);
+                InvEntregaKitService::prepararPendiente(
+                    $item,
+                    $cajeroId,
+                    $variantesIndexadas->get($item->id)['componentes'] ?? []
+                );
             } else {
                 InvEntregaSimpleService::prepararPendiente($item);
             }

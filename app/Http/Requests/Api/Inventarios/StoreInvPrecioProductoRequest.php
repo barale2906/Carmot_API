@@ -2,11 +2,15 @@
 
 namespace App\Http\Requests\Api\Inventarios;
 
+use App\Models\Inventarios\InvProducto;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 /**
  * Validación para crear un precio de producto en una lista de precios de inventario.
+ *
+ * Acepta productos simple, kit y grupo. Un grupo se expande en el controlador a sus
+ * variantes activas, por lo que debe tener al menos una para poder recibir precio.
  */
 class StoreInvPrecioProductoRequest extends FormRequest
 {
@@ -30,14 +34,27 @@ class StoreInvPrecioProductoRequest extends FormRequest
     {
         return [
             'lista_precio_id' => ['required', 'integer', 'exists:lp_listas_precios,id'],
-            'producto_id'     => [
-                'required',
-                'integer',
-                Rule::exists('inv_productos', 'id')->where('tipo', '!=', 'grupo'),
-            ],
+            'producto_id'     => ['required', 'integer', 'exists:inv_productos,id'],
             'precio'          => ['required', 'numeric', 'min:0'],
             'observaciones'   => ['nullable', 'string', 'max:1000'],
         ];
+    }
+
+    /**
+     * Un grupo sin variantes activas no tiene a quién asignarle el precio.
+     *
+     * @param Validator $validator
+     * @return void
+     */
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $v) {
+            $producto = InvProducto::find($this->producto_id);
+
+            if ($producto?->tipo === 'grupo' && $producto->idsReceptoresDePrecio()->isEmpty()) {
+                $v->errors()->add('producto_id', 'El grupo no tiene variantes activas. Agrega variantes antes de asignarle precio.');
+            }
+        });
     }
 
     /**
@@ -49,7 +66,7 @@ class StoreInvPrecioProductoRequest extends FormRequest
             'lista_precio_id.required' => 'La lista de precios es obligatoria.',
             'lista_precio_id.exists'   => 'La lista de precios seleccionada no existe.',
             'producto_id.required'     => 'El producto es obligatorio.',
-            'producto_id.exists'       => 'El producto no existe o es de tipo grupo (sin precio).',
+            'producto_id.exists'       => 'El producto no existe.',
             'precio.required'          => 'El precio es obligatorio.',
             'precio.min'               => 'El precio no puede ser negativo.',
         ];

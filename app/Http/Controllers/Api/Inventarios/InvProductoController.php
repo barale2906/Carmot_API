@@ -11,6 +11,7 @@ use App\Models\Inventarios\InvCategoria;
 use App\Models\Inventarios\InvProducto;
 use App\Models\Inventarios\InvUnidadMedida;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -40,12 +41,15 @@ class InvProductoController extends Controller
     /**
      * Muestra una lista paginada de productos con filtros y ordenamiento.
      *
+     * Filtros soportados: search, status, tipo, categoria_id y producto_padre_id
+     * (este último lista únicamente las variantes de un grupo).
+     *
      * @param Request $request
      * @return JsonResponse
      */
     public function index(Request $request): JsonResponse
     {
-        $filters = $request->only(['search', 'status', 'tipo', 'categoria_id']);
+        $filters = $request->only(['search', 'status', 'tipo', 'categoria_id', 'producto_padre_id']);
 
         $productos = InvProducto::withFilters($filters)
             ->withSorting($request->get('sort_by'), $request->get('sort_direction'))
@@ -268,6 +272,9 @@ class InvProductoController extends Controller
     /**
      * Elimina permanentemente un producto.
      *
+     * Si otros registros aún lo referencian (precios, componentes de kit, pedidos,
+     * stock, movimientos...) la BD lo impide por FK y se responde 422 en vez de 500.
+     *
      * @param int $id
      * @return JsonResponse
      */
@@ -281,7 +288,18 @@ class InvProductoController extends Controller
             ], 422);
         }
 
-        $producto->forceDelete();
+        try {
+            $producto->forceDelete();
+        } catch (QueryException $e) {
+            // 1451: Cannot delete or update a parent row (restricción de llave foránea)
+            if (($e->errorInfo[1] ?? null) !== 1451) {
+                throw $e;
+            }
+
+            return response()->json([
+                'message' => 'No se puede eliminar permanentemente el producto porque tiene registros asociados (precios, kits, pedidos, stock o movimientos). Puedes restaurarlo.',
+            ], 422);
+        }
 
         return response()->json([
             'message' => 'Producto eliminado permanentemente.',
@@ -296,7 +314,7 @@ class InvProductoController extends Controller
      */
     public function trashed(Request $request): JsonResponse
     {
-        $filters = $request->only(['search', 'status', 'tipo', 'categoria_id']);
+        $filters = $request->only(['search', 'status', 'tipo', 'categoria_id', 'producto_padre_id']);
 
         $productos = InvProducto::onlyTrashed()
             ->withFilters($filters)
@@ -459,12 +477,15 @@ class InvProductoController extends Controller
                     continue;
                 }
 
-                $existe = InvProducto::whereNull('deleted_at')
+                // Incluye la papelera: el índice UNIQUE de codigo también la cubre
+                $existente = InvProducto::withTrashed()
                     ->whereRaw('LOWER(codigo) = ?', [strtolower($datos['codigo'])])
-                    ->exists();
+                    ->first();
 
-                if ($existe) {
-                    $resumen['errores'][] = "Fila {$fila}: el código '{$datos['codigo']}' ya existe.";
+                if ($existente) {
+                    $resumen['errores'][] = $existente->trashed()
+                        ? "Fila {$fila}: el código '{$datos['codigo']}' pertenece a un producto en la papelera; restáuralo."
+                        : "Fila {$fila}: el código '{$datos['codigo']}' ya existe.";
                     $resumen['omitidas']++;
                     continue;
                 }

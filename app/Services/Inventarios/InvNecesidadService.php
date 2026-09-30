@@ -2,13 +2,21 @@
 
 namespace App\Services\Inventarios;
 
+use App\Models\Inventarios\InvEntregaKitComponente;
+use App\Models\Inventarios\InvEntregaSimple;
 use App\Models\Inventarios\InvNecesidadCompra;
+use App\Models\Inventarios\InvPedido;
 use App\Models\Inventarios\InvStock;
 use App\Notifications\Inventarios\InvPendienteDisponibleNotification;
 use App\Models\User;
 
 /**
  * InvNecesidadService — genera y atiende necesidades de compra por falta de stock.
+ *
+ * Regla central: una línea de entrega (InvEntregaSimple o InvEntregaKitComponente)
+ * tiene como máximo UNA necesidad pendiente. Su producto y cantidad se ajustan a
+ * medida que se conoce la variante elegida o avanza la entrega, y se cierra cuando
+ * la línea ya no depende de comprar.
  */
 class InvNecesidadService
 {
@@ -36,7 +44,7 @@ class InvNecesidadService
         string $entregableType,
         int $entregableId
     ): ?InvNecesidadCompra {
-        $stock = \App\Models\Inventarios\InvStock::where('almacen_id', $almacenId)
+        $stock = InvStock::where('almacen_id', $almacenId)
             ->where('producto_id', $productoId)
             ->value('cantidad_disponible') ?? 0;
 
@@ -45,10 +53,7 @@ class InvNecesidadService
         if ($faltante <= 0) {
             // El stock ya cubre lo pendiente: si quedaba una necesidad abierta de un
             // momento anterior, deja de tener sentido y se cierra.
-            InvNecesidadCompra::where('entregable_type', $entregableType)
-                ->where('entregable_id', $entregableId)
-                ->where('status', InvNecesidadCompra::STATUS_PENDIENTE)
-                ->update(['status' => InvNecesidadCompra::STATUS_ATENDIDA]);
+            static::cerrarDeEntregable($entregableType, $entregableId);
 
             return null;
         }
@@ -64,8 +69,11 @@ class InvNecesidadService
     }
 
     /**
-     * Crea una necesidad de compra si no existe una activa igual.
-     * Evita duplicados por (producto_id, almacen_id, entregable_type, entregable_id).
+     * Crea la necesidad pendiente de una línea de entrega o actualiza la existente.
+     *
+     * La línea es la clave: si ya tenía una necesidad pendiente (por ejemplo a nombre
+     * del grupo, antes de que el cajero eligiera la variante) se reutiliza, ajustando
+     * producto y cantidad, en vez de crear un duplicado.
      *
      * @param int    $productoId
      * @param int    $cantidadNecesaria
@@ -85,33 +93,85 @@ class InvNecesidadService
     ): InvNecesidadCompra {
         $necesidad = InvNecesidadCompra::firstOrCreate(
             [
-                'producto_id'     => $productoId,
-                'almacen_id'      => $almacenId,
                 'entregable_type' => $entregableType,
                 'entregable_id'   => $entregableId,
                 'status'          => InvNecesidadCompra::STATUS_PENDIENTE,
             ],
             [
+                'producto_id'        => $productoId,
+                'almacen_id'         => $almacenId,
                 'cantidad_necesaria' => $cantidadNecesaria,
                 'estudiante_id'      => $estudianteId,
                 'notificado'         => false,
             ]
         );
 
-        // Tras una entrega parcial el faltante se reduce: la necesidad debe reflejar
-        // siempre lo que aún se debe entregar, sin tocar el flag de notificación.
-        if (! $necesidad->wasRecentlyCreated && $necesidad->cantidad_necesaria !== $cantidadNecesaria) {
-            $necesidad->update(['cantidad_necesaria' => $cantidadNecesaria]);
+        // La necesidad refleja siempre el producto concreto y lo que aún se debe
+        // entregar (la variante puede elegirse después y el faltante se reduce con
+        // cada entrega parcial), sin tocar el flag de notificación.
+        if (! $necesidad->wasRecentlyCreated) {
+            $necesidad->fill([
+                'producto_id'        => $productoId,
+                'cantidad_necesaria' => $cantidadNecesaria,
+            ]);
+
+            if ($necesidad->isDirty()) {
+                $necesidad->save();
+            }
         }
 
         return $necesidad;
     }
 
     /**
-     * Verifica necesidades pendientes cubiertas por un stock recién incrementado.
-     * Para cada necesidad cubierta: la marca como atendida y notifica a los cajeros.
+     * Marca como atendida la necesidad pendiente de una línea de entrega.
      *
-     * Debe llamarse después de cada `InvStockService::incrementar()` o importación de stock.
+     * Se usa cuando la línea ya no depende de comprar: fue entregada o el stock la cubre.
+     *
+     * @param string $entregableType  FQCN del modelo de entrega
+     * @param int    $entregableId
+     * @return void
+     */
+    public static function cerrarDeEntregable(string $entregableType, int $entregableId): void
+    {
+        InvNecesidadCompra::where('entregable_type', $entregableType)
+            ->where('entregable_id', $entregableId)
+            ->where('status', InvNecesidadCompra::STATUS_PENDIENTE)
+            ->update(['status' => InvNecesidadCompra::STATUS_ATENDIDA]);
+    }
+
+    /**
+     * Cancela las necesidades pendientes de todas las líneas de entrega de un pedido.
+     *
+     * Al anular el pedido ya no se le debe nada al estudiante: no hay que comprar.
+     *
+     * @param InvPedido $pedido
+     * @return void
+     */
+    public static function cancelarDePedido(InvPedido $pedido): void
+    {
+        $pedido->loadMissing(['items.entregaSimple', 'items.entregaKit.componentes']);
+
+        $simples     = $pedido->items->pluck('entregaSimple.id')->filter();
+        $componentes = $pedido->items->pluck('entregaKit')->filter()->flatMap->componentes->pluck('id');
+
+        InvNecesidadCompra::where('status', InvNecesidadCompra::STATUS_PENDIENTE)
+            ->where(fn ($q) => $q
+                ->where(fn ($s) => $s->where('entregable_type', InvEntregaSimple::class)->whereIn('entregable_id', $simples))
+                ->orWhere(fn ($k) => $k->where('entregable_type', InvEntregaKitComponente::class)->whereIn('entregable_id', $componentes))
+            )
+            ->update(['status' => InvNecesidadCompra::STATUS_CANCELADA]);
+    }
+
+    /**
+     * Atiende las necesidades pendientes que cubre un stock recién incrementado.
+     *
+     * El stock disponible se reparte entre las necesidades del producto en el almacén
+     * por orden de antigüedad (primero la más vieja). Cada necesidad cubierta se marca
+     * atendida y se notifica a los cajeros; el reparto se detiene en la primera que no
+     * alcanza a cubrirse, para no saltarse a quien lleva más tiempo esperando.
+     *
+     * Se invoca desde `InvStockService::incrementar()`, por donde pasa todo ingreso de stock.
      *
      * @param int $productoId
      * @param int $almacenId
@@ -119,30 +179,32 @@ class InvNecesidadService
      */
     public static function verificarPendientesCubiertos(int $productoId, int $almacenId): void
     {
-        $stock = InvStock::where('producto_id', $productoId)
+        $restante = InvStock::where('producto_id', $productoId)
             ->where('almacen_id', $almacenId)
-            ->first();
-
-        if (!$stock) {
-            return;
-        }
+            ->value('cantidad_disponible') ?? 0;
 
         $necesidades = InvNecesidadCompra::where('producto_id', $productoId)
             ->where('almacen_id', $almacenId)
             ->where('status', InvNecesidadCompra::STATUS_PENDIENTE)
             ->where('notificado', false)
             ->with('almacen.sede')
+            ->orderBy('created_at')
+            ->orderBy('id')
             ->get();
 
         foreach ($necesidades as $necesidad) {
-            if ($stock->cantidad_disponible >= $necesidad->cantidad_necesaria) {
-                $necesidad->update([
-                    'status'     => InvNecesidadCompra::STATUS_ATENDIDA,
-                    'notificado' => true,
-                ]);
-
-                static::notificarCajerosSede($necesidad);
+            if ($restante < $necesidad->cantidad_necesaria) {
+                break;
             }
+
+            $restante -= $necesidad->cantidad_necesaria;
+
+            $necesidad->update([
+                'status'     => InvNecesidadCompra::STATUS_ATENDIDA,
+                'notificado' => true,
+            ]);
+
+            static::notificarCajerosSede($necesidad);
         }
     }
 

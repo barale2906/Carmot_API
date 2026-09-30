@@ -11,7 +11,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 /**
  * Modelo InvPrecioProducto — precio de venta de un producto en una lista de precios de inventario.
  *
- * Solo aplica a productos de tipo simple o kit (grupos no tienen precio).
+ * Solo aplica a productos de tipo simple o kit. Los grupos no tienen precio propio:
+ * al asignarle precio a un grupo se registra en cada una de sus variantes activas.
  * Inmutable para pedidos ya creados; los cambios de precio afectan pedidos futuros.
  *
  * @property int        $id
@@ -56,6 +57,23 @@ class InvPrecioProducto extends Model
     public function producto(): BelongsTo
     {
         return $this->belongsTo(InvProducto::class, 'producto_id');
+    }
+
+    /**
+     * Crea o actualiza (restaurando si estaba eliminado) el precio de un producto en una lista.
+     *
+     * @param int         $listaPrecioId
+     * @param int         $productoId
+     * @param float|int|string $precio
+     * @param string|null $observaciones
+     * @return self
+     */
+    public static function asignar(int $listaPrecioId, int $productoId, $precio, ?string $observaciones = null): self
+    {
+        return static::withTrashed()->updateOrCreate(
+            ['lista_precio_id' => $listaPrecioId, 'producto_id' => $productoId],
+            ['precio' => $precio, 'observaciones' => $observaciones, 'deleted_at' => null]
+        );
     }
 
     /**

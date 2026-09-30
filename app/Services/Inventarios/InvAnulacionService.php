@@ -21,7 +21,8 @@ use Illuminate\Support\Facades\DB;
 class InvAnulacionService
 {
     /**
-     * Anula el pedido e invierte el stock de las entregas completadas.
+     * Anula el pedido, invierte el stock de las entregas completadas y cancela
+     * sus necesidades de compra pendientes.
      *
      * @param InvPedido $pedido
      * @param int       $cajeroId
@@ -35,6 +36,9 @@ class InvAnulacionService
 
         DB::transaction(function () use ($pedido, $cajeroId) {
             if ($pedido->status !== InvPedido::STATUS_ACTIVO) {
+                // Primero se cancelan: el stock reintegrado no debe atender las
+                // necesidades del mismo pedido que se está anulando.
+                InvNecesidadService::cancelarDePedido($pedido);
                 static::reintegrarStock($pedido, $cajeroId);
             }
 

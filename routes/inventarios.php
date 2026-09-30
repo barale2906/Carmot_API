@@ -178,6 +178,8 @@ Route::middleware('auth:sanctum')
                 ->name('precios.por-producto');
             Route::post('lista/{listaPrecio}/sincronizar', [InvPrecioProductoController::class, 'sincronizar'])
                 ->name('precios.sincronizar');
+            Route::get('lista/{listaPrecio}/kit/{kit}/desglose', [InvPrecioProductoController::class, 'desgloseKit'])
+                ->name('precios.desglose-kit');
         });
         Route::post('precios/{id}/restore', [InvPrecioProductoController::class, 'restore'])
             ->name('precios.restore');

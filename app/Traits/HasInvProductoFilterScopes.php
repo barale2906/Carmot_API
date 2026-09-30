@@ -6,7 +6,7 @@ namespace App\Traits;
  * Trait HasInvProductoFilterScopes
  *
  * Filtros específicos para InvProducto: extiende los filtros base del módulo
- * con búsqueda por código, tipo y categoría.
+ * con búsqueda por código, tipo, categoría y grupo padre (variantes).
  */
 trait HasInvProductoFilterScopes
 {
@@ -62,6 +62,18 @@ trait HasInvProductoFilterScopes
     }
 
     /**
+     * Filtro por grupo padre: devuelve solo las variantes del grupo indicado.
+     *
+     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @param int $productoPadreId
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    public function scopeByProductoPadre($query, int $productoPadreId)
+    {
+        return $query->where('producto_padre_id', $productoPadreId);
+    }
+
+    /**
      * Aplica todos los filtros disponibles para productos.
      *
      * @param \Illuminate\Database\Eloquent\Builder $query
@@ -86,6 +98,10 @@ trait HasInvProductoFilterScopes
             ->when(
                 isset($filters['categoria_id']) && $filters['categoria_id'] !== '' && $filters['categoria_id'] !== null,
                 fn ($q) => $q->byCategoria((int) $filters['categoria_id'])
+            )
+            ->when(
+                isset($filters['producto_padre_id']) && $filters['producto_padre_id'] !== '' && $filters['producto_padre_id'] !== null,
+                fn ($q) => $q->byProductoPadre((int) $filters['producto_padre_id'])
             );
     }
 }

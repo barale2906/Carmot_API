@@ -17,6 +17,10 @@ class InvStockService
      * Incrementa el stock de un producto en un almacén.
      * Crea el registro si no existe.
      *
+     * Es el único punto de entrada de stock (compras, entradas y ajustes manuales,
+     * devoluciones, traslados, anulaciones e importación CSV), por eso aquí se
+     * revisa si el ingreso cubre necesidades de compra pendientes.
+     *
      * @param int $almacenId
      * @param int $productoId
      * @param int $cantidad
@@ -34,6 +38,8 @@ class InvStockService
         $stock->cantidad_disponible += $cantidad;
         $stock->ultimo_movimiento_at = now();
         $stock->save();
+
+        InvNecesidadService::verificarPendientesCubiertos($productoId, $almacenId);
 
         return $stock->fresh();
     }

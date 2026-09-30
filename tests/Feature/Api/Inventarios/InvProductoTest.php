@@ -3,6 +3,7 @@
 namespace Tests\Feature\Api\Inventarios;
 
 use App\Models\Inventarios\InvCategoria;
+use App\Models\Inventarios\InvKitComponente;
 use App\Models\Inventarios\InvProducto;
 use App\Models\Inventarios\InvUnidadMedida;
 use App\Models\User;
@@ -79,6 +80,50 @@ class InvProductoTest extends TestCase
     }
 
     /** @test */
+    public function index_filtra_variantes_por_producto_padre(): void
+    {
+        $camisas = InvProducto::factory()->grupo()->create(['nombre' => 'Camisas']);
+        $botas   = InvProducto::factory()->grupo()->create(['nombre' => 'Botas']);
+
+        $simple = fn (?int $padreId) => InvProducto::factory()->create([
+            'producto_padre_id' => $padreId,
+            'categoria_id'      => $this->categoria->id,
+            'unidad_medida_id'  => $this->unidad->id,
+        ]);
+
+        $camisaM = $simple($camisas->id);
+        $camisaL = $simple($camisas->id);
+        $simple($botas->id);
+        $simple(null);
+
+        $response = $this->actingAs($this->usuario)
+            ->getJson(route('inv-productos.index', [
+                'tipo'              => 'simple',
+                'producto_padre_id' => $camisas->id,
+            ]))
+            ->assertOk()
+            ->assertJsonPath('meta.total', 2);
+
+        $ids = collect($response->json('data'))->pluck('id')->sort()->values()->all();
+        $this->assertEquals([$camisaM->id, $camisaL->id], $ids);
+    }
+
+    /** @test */
+    public function index_con_grupo_sin_variantes_retorna_lista_vacia(): void
+    {
+        $grupo = InvProducto::factory()->grupo()->create();
+        InvProducto::factory()->create([
+            'categoria_id'     => $this->categoria->id,
+            'unidad_medida_id' => $this->unidad->id,
+        ]);
+
+        $this->actingAs($this->usuario)
+            ->getJson(route('inv-productos.index', ['producto_padre_id' => $grupo->id]))
+            ->assertOk()
+            ->assertJsonPath('meta.total', 0);
+    }
+
+    /** @test */
     public function index_filtra_por_search_por_nombre_o_codigo(): void
     {
         InvProducto::factory()->create(['codigo' => 'CAM-001', 'nombre' => 'Camisa Azul']);
@@ -129,6 +174,43 @@ class InvProductoTest extends TestCase
             ->postJson(route('inv-productos.store'), [
                 'codigo' => 'CAM-001',
                 'nombre' => 'Otro Producto',
+                'tipo'   => 'simple',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['codigo']);
+    }
+
+    /** @test */
+    public function store_falla_si_codigo_pertenece_a_producto_en_papelera(): void
+    {
+        $eliminado = InvProducto::factory()->kit()->create(['codigo' => 'KIT_OVE']);
+        $eliminado->delete();
+
+        $this->actingAs($this->usuario)
+            ->postJson(route('inv-productos.store'), [
+                'codigo' => 'KIT_OVE',
+                'nombre' => 'Kit overol',
+                'tipo'   => 'kit',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['codigo'])
+            ->assertJsonPath('errors.codigo.0', 'Ya existe un producto con ese código. Si fue eliminado, restáuralo desde la papelera.');
+    }
+
+    /** @test */
+    public function update_falla_si_codigo_pertenece_a_producto_en_papelera(): void
+    {
+        $eliminado = InvProducto::factory()->create(['codigo' => 'CAM-OLD']);
+        $eliminado->delete();
+        $producto = InvProducto::factory()->create([
+            'categoria_id'     => $this->categoria->id,
+            'unidad_medida_id' => $this->unidad->id,
+        ]);
+
+        $this->actingAs($this->usuario)
+            ->putJson(route('inv-productos.update', $producto), [
+                'codigo' => 'CAM-OLD',
+                'nombre' => $producto->nombre,
                 'tipo'   => 'simple',
             ])
             ->assertUnprocessable()
@@ -245,6 +327,24 @@ class InvProductoTest extends TestCase
     }
 
     /** @test */
+    public function force_delete_retorna_422_si_el_producto_tiene_registros_asociados(): void
+    {
+        $grupo = InvProducto::factory()->grupo()->create();
+        $kit   = InvProducto::factory()->kit()->create([
+            'categoria_id'     => $this->categoria->id,
+            'unidad_medida_id' => $this->unidad->id,
+        ]);
+        InvKitComponente::create(['kit_id' => $kit->id, 'grupo_producto_id' => $grupo->id, 'cantidad' => 1, 'orden' => 1]);
+        $grupo->delete();
+
+        $this->actingAs($this->usuario)
+            ->deleteJson(route('inv-productos.force-delete', $grupo->id))
+            ->assertUnprocessable();
+
+        $this->assertSoftDeleted('inv_productos', ['id' => $grupo->id]);
+    }
+
+    /** @test */
     public function trashed_retorna_solo_eliminados(): void
     {
         $activo    = InvProducto::factory()->create();
@@ -326,6 +426,24 @@ class InvProductoTest extends TestCase
 
         $this->assertEquals(1, $response->json('data.insertadas'));
         $this->assertEquals(1, $response->json('data.omitidas'));
+    }
+
+    /** @test */
+    public function importar_omite_codigos_de_productos_en_papelera_sin_abortar_la_carga(): void
+    {
+        InvProducto::factory()->create(['codigo' => 'CAM-001'])->delete();
+
+        $csv = "codigo,nombre,tipo\nCAM-001,Camisa,simple\nPAN-001,Pantalon,simple";
+        $archivo = UploadedFile::fake()->createWithContent('catalogo.csv', $csv);
+
+        $response = $this->actingAs($this->usuario)
+            ->postJson(route('inv-productos.importar'), ['archivo' => $archivo])
+            ->assertOk()
+            ->assertJsonPath('data.insertadas', 1)
+            ->assertJsonPath('data.omitidas', 1);
+
+        $this->assertStringContainsString('papelera', $response->json('data.errores.0'));
+        $this->assertDatabaseHas('inv_productos', ['codigo' => 'PAN-001']);
     }
 
     /** @test */

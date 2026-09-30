@@ -98,6 +98,7 @@ class InvEntregaSimpleService
 
         if ($pendiente <= 0) {
             $entrega->update(['status' => InvEntregaSimple::STATUS_ENTREGADO]);
+            InvNecesidadService::cerrarDeEntregable(InvEntregaSimple::class, $entrega->id);
 
             return $entrega->fresh();
         }
@@ -163,6 +164,9 @@ class InvEntregaSimpleService
                 InvEntregaSimple::class,
                 $entrega->id
             );
+        } else {
+            // Ítem entregado: la necesidad creada al preparar la entrega ya no aplica.
+            InvNecesidadService::cerrarDeEntregable(InvEntregaSimple::class, $entrega->id);
         }
 
         return $entrega->fresh();

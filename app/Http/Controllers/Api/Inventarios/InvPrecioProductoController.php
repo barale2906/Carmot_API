@@ -10,6 +10,7 @@ use App\Http\Resources\Api\Inventarios\InvPrecioProductoResource;
 use App\Models\Financiero\Lp\LpListaPrecio;
 use App\Models\Inventarios\InvPrecioProducto;
 use App\Models\Inventarios\InvProducto;
+use App\Services\Inventarios\InvPrecioKitService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -28,7 +29,7 @@ class InvPrecioProductoController extends Controller
     public function __construct()
     {
         $this->middleware('auth:sanctum');
-        $this->middleware('permission:inv_precios')->only(['index', 'show', 'porProducto']);
+        $this->middleware('permission:inv_precios')->only(['index', 'show', 'porProducto', 'desgloseKit']);
         $this->middleware('permission:inv_preciosCrear')->only(['store']);
         $this->middleware('permission:inv_preciosEditar')->only(['update', 'sincronizar']);
         $this->middleware('permission:inv_preciosEliminar')->only(['destroy', 'restore', 'forceDelete', 'trashed']);
@@ -92,25 +93,34 @@ class InvPrecioProductoController extends Controller
     /**
      * Crea o actualiza el precio de un producto en una lista de precios.
      * Usa updateOrCreate para manejar correctamente duplicados y soft-deletes previos.
+     *
+     * Si el producto es de tipo grupo, el precio se asigna a cada una de sus variantes
+     * activas (sin tocar los demás precios de la lista) y `data` retorna la colección
+     * de precios creados/actualizados. Para simple y kit, `data` es el precio único.
      */
     public function store(StoreInvPrecioProductoRequest $request): JsonResponse
     {
-        $precio = InvPrecioProducto::withTrashed()->updateOrCreate(
-            [
-                'lista_precio_id' => $request->lista_precio_id,
-                'producto_id' => $request->producto_id,
-            ],
-            [
-                'precio' => $request->precio,
-                'observaciones' => $request->observaciones,
-                'deleted_at' => null,
-            ]
-        );
-        $precio->load(['listaPrecio', 'producto']);
+        $producto = InvProducto::findOrFail($request->producto_id);
+
+        $precios = DB::transaction(fn () => $producto->idsReceptoresDePrecio()->map(
+            fn (int $productoId) => InvPrecioProducto::asignar(
+                (int) $request->lista_precio_id,
+                $productoId,
+                $request->precio,
+                $request->observaciones
+            )->load(['listaPrecio', 'producto'])
+        ));
+
+        if ($producto->tipo === 'grupo') {
+            return response()->json([
+                'message' => "Precio asignado a {$precios->count()} variante(s) del grupo {$producto->nombre}.",
+                'data'    => InvPrecioProductoResource::collection($precios),
+            ], 201);
+        }
 
         return response()->json([
             'message' => 'Precio guardado exitosamente.',
-            'data' => new InvPrecioProductoResource($precio),
+            'data' => new InvPrecioProductoResource($precios->first()),
         ], 201);
     }
 
@@ -217,6 +227,28 @@ class InvPrecioProductoController extends Controller
     }
 
     /**
+     * Desglose de precios de los componentes de un kit en una lista de inventario.
+     *
+     * Referencia para fijar el precio del kit: suma precio unitario × cantidad de
+     * cada componente. Los grupos se valoran con el rango de precios de sus variantes
+     * activas (total_min / total_max); `completo` indica si faltan precios.
+     */
+    public function desgloseKit(LpListaPrecio $listaPrecio, InvProducto $kit): JsonResponse
+    {
+        abort_if($listaPrecio->origen !== 0, 404);
+
+        if ($kit->tipo !== 'kit') {
+            return response()->json([
+                'message' => 'El producto seleccionado no es un kit.',
+            ], 422);
+        }
+
+        return response()->json([
+            'data' => InvPrecioKitService::desglose($listaPrecio->id, $kit),
+        ]);
+    }
+
+    /**
      * Sincroniza masivamente los precios de una lista de inventario.
      *
      * Hace upsert de los ítems enviados y soft-delete de los precios de la lista
@@ -236,51 +268,30 @@ class InvPrecioProductoController extends Controller
             ], 422);
         }
 
-        DB::beginTransaction();
+        DB::transaction(function () use ($request, $listaPrecio) {
+            // Expandir grupos a sus variantes activas; simple/kit pasan directo
+            $itemsExpandidos = collect();
 
-        // Expandir grupos a sus variantes; simple/kit pasan directo
-        $idsAConservar = collect();
-        $itemsExpandidos = collect();
+            foreach ($request->input('items') as $item) {
+                $producto = InvProducto::find($item['producto_id']);
 
-        foreach ($request->input('items') as $item) {
-            $producto = InvProducto::find($item['producto_id']);
-
-            if ($producto->tipo === 'grupo') {
-                foreach ($producto->variantes()->where('status', 1)->get() as $variante) {
-                    $itemsExpandidos->put($variante->id, [
-                        'precio' => $item['precio'],
+                foreach ($producto->idsReceptoresDePrecio() as $productoId) {
+                    $itemsExpandidos->put($productoId, [
+                        'precio'        => $item['precio'],
                         'observaciones' => $item['observaciones'] ?? null,
                     ]);
-                    $idsAConservar->push($variante->id);
                 }
-            } else {
-                $itemsExpandidos->put($item['producto_id'], [
-                    'precio' => $item['precio'],
-                    'observaciones' => $item['observaciones'] ?? null,
-                ]);
-                $idsAConservar->push($item['producto_id']);
             }
-        }
 
-        // Soft-delete de precios no incluidos en el payload expandido
-        InvPrecioProducto::where('lista_precio_id', $listaPrecio->id)
-            ->whereNull('deleted_at')
-            ->whereNotIn('producto_id', $idsAConservar)
-            ->each(fn ($p) => $p->delete());
+            // Soft-delete de precios no incluidos en el payload expandido
+            InvPrecioProducto::where('lista_precio_id', $listaPrecio->id)
+                ->whereNotIn('producto_id', $itemsExpandidos->keys())
+                ->each(fn ($p) => $p->delete());
 
-        // Upsert de cada ítem expandido
-        foreach ($itemsExpandidos as $productoId => $datos) {
-            InvPrecioProducto::withTrashed()->updateOrCreate(
-                ['lista_precio_id' => $listaPrecio->id, 'producto_id' => $productoId],
-                [
-                    'precio' => $datos['precio'],
-                    'observaciones' => $datos['observaciones'],
-                    'deleted_at' => null,
-                ]
-            );
-        }
-
-        DB::commit();
+            foreach ($itemsExpandidos as $productoId => $datos) {
+                InvPrecioProducto::asignar($listaPrecio->id, $productoId, $datos['precio'], $datos['observaciones']);
+            }
+        });
 
         $precios = InvPrecioProducto::where('lista_precio_id', $listaPrecio->id)
             ->with('producto')

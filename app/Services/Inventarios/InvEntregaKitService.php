@@ -389,6 +389,7 @@ class InvEntregaKitService
 
         if ($pendiente <= 0) {
             $linea->update(['status' => InvEntregaKitComponente::STATUS_ENTREGADO]);
+            InvNecesidadService::cerrarDeEntregable(InvEntregaKitComponente::class, $linea->id);
 
             return;
         }
@@ -450,6 +451,9 @@ class InvEntregaKitService
                 InvEntregaKitComponente::class,
                 $linea->id
             );
+        } else {
+            // Línea entregada: la necesidad creada al preparar la entrega ya no aplica.
+            InvNecesidadService::cerrarDeEntregable(InvEntregaKitComponente::class, $linea->id);
         }
     }
 }

@@ -8,6 +8,7 @@ use App\Http\Resources\Api\Inventarios\InvStockResource;
 use App\Models\Inventarios\InvAlmacen;
 use App\Models\Inventarios\InvProducto;
 use App\Models\Inventarios\InvStock;
+use App\Services\Inventarios\InvStockService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -279,14 +280,8 @@ class InvStockController extends Controller
                     continue;
                 }
 
-                $stock = InvStock::firstOrCreate(
-                    ['almacen_id' => $almacenId, 'producto_id' => $productoId],
-                    ['cantidad_total' => 0, 'cantidad_reservada' => 0, 'cantidad_disponible' => 0]
-                );
-                $stock->cantidad_total += $cantidadInt;
-                $stock->cantidad_disponible += $cantidadInt;
-                $stock->ultimo_movimiento_at = now();
-                $stock->save();
+                // Pasa por el servicio para atender las necesidades de compra que cubra
+                InvStockService::incrementar($almacenId, $productoId, $cantidadInt);
 
                 $resumen['procesadas']++;
             }

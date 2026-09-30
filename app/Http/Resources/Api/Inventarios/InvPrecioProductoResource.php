@@ -31,6 +31,7 @@ class InvPrecioProductoResource extends JsonResource
                 'id' => $this->producto_id,
                 'nombre' => $this->whenLoaded('producto', fn () => $this->producto->nombre),
                 'codigo' => $this->whenLoaded('producto', fn () => $this->producto->codigo),
+                'tipo' => $this->whenLoaded('producto', fn () => $this->producto->tipo),
             ],
             'precio' => $this->precio,
             'observaciones' => $this->observaciones,

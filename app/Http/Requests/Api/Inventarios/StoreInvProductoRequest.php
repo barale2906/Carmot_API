@@ -29,12 +29,14 @@ class StoreInvProductoRequest extends FormRequest
      */
     public function rules(): array
     {
+        // El índice UNIQUE de la BD incluye los registros en papelera (soft delete),
+        // por eso la validación no los excluye: evita un error 1062 al insertar.
         return [
             'codigo'            => [
                 'required',
                 'string',
                 'max:100',
-                Rule::unique('inv_productos', 'codigo')->whereNull('deleted_at'),
+                Rule::unique('inv_productos', 'codigo'),
             ],
             'nombre'            => ['required', 'string', 'max:255'],
             'descripcion'       => ['nullable', 'string', 'max:2000'],
@@ -58,7 +60,7 @@ class StoreInvProductoRequest extends FormRequest
     {
         return array_merge([
             'codigo.required'            => 'El código del producto es obligatorio.',
-            'codigo.unique'              => 'Ya existe un producto con ese código.',
+            'codigo.unique'              => 'Ya existe un producto con ese código. Si fue eliminado, restáuralo desde la papelera.',
             'nombre.required'            => 'El nombre del producto es obligatorio.',
             'tipo.required'              => 'El tipo de producto es obligatorio.',
             'tipo.in'                    => 'El tipo debe ser: simple, kit o grupo.',

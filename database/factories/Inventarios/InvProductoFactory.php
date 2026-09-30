@@ -38,6 +38,11 @@ class InvProductoFactory extends Factory
         return $this->state(['status' => 0]);
     }
 
+    public function simple(): static
+    {
+        return $this->state(['tipo' => 'simple']);
+    }
+
     public function kit(): static
     {
         return $this->state(['tipo' => 'kit']);

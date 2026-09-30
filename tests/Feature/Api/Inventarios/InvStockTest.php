@@ -3,6 +3,8 @@
 namespace Tests\Feature\Api\Inventarios;
 
 use App\Models\Inventarios\InvAlmacen;
+use App\Models\Inventarios\InvEntregaSimple;
+use App\Models\Inventarios\InvNecesidadCompra;
 use App\Models\Inventarios\InvProducto;
 use App\Models\Inventarios\InvStock;
 use App\Models\User;
@@ -34,6 +36,8 @@ class InvStockTest extends TestCase
 
         Permission::create(['name' => 'inv_stock',          'descripcion' => 'ver stock']);
         Permission::create(['name' => 'inv_stockImportar',  'descripcion' => 'importar stock']);
+        // Destinatarios del aviso al cajero cuando un ingreso cubre una necesidad de compra
+        Permission::create(['name' => 'inv_ventasCrear',    'descripcion' => 'crear ventas']);
 
         $this->usuario = User::factory()->create();
         $this->almacen = InvAlmacen::factory()->activo()->create();
@@ -213,6 +217,37 @@ class InvStockTest extends TestCase
             'cantidad_total' => 10,
             'cantidad_disponible' => 10,
         ]);
+    }
+
+    /** @test */
+    public function importar_atiende_las_necesidades_de_compra_que_cubre(): void
+    {
+        $this->usuario->givePermissionTo('inv_stockImportar');
+
+        $necesidad = InvNecesidadCompra::create([
+            'producto_id'        => $this->producto->id,
+            'almacen_id'         => $this->almacen->id,
+            'estudiante_id'      => User::factory()->create()->id,
+            'cantidad_necesaria' => 4,
+            'entregable_type'    => InvEntregaSimple::class,
+            'entregable_id'      => 1,
+            'status'             => InvNecesidadCompra::STATUS_PENDIENTE,
+            'notificado'         => false,
+        ]);
+
+        $archivo = $this->crearArchivoXlsx([
+            ['codigo_producto', 'cantidad'],
+            [$this->producto->codigo, 10],
+        ]);
+
+        $this->actingAs($this->usuario)
+            ->postJson(route('inv-stock.importar'), [
+                'archivo' => $archivo,
+                'almacen_id' => $this->almacen->id,
+            ])
+            ->assertOk();
+
+        $this->assertEquals(InvNecesidadCompra::STATUS_ATENDIDA, $necesidad->fresh()->status);
     }
 
     /** @test */

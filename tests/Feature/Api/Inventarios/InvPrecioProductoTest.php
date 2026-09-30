@@ -3,6 +3,7 @@
 namespace Tests\Feature\Api\Inventarios;
 
 use App\Models\Financiero\Lp\LpListaPrecio;
+use App\Models\Inventarios\InvKitComponente;
 use App\Models\Inventarios\InvPrecioProducto;
 use App\Models\Inventarios\InvProducto;
 use App\Models\User;
@@ -216,6 +217,88 @@ class InvPrecioProductoTest extends TestCase
     }
 
     /** @test */
+    public function store_con_grupo_asigna_precio_a_sus_variantes_activas(): void
+    {
+        $grupo     = InvProducto::factory()->grupo()->create(['nombre' => 'Camisas']);
+        $variante1 = InvProducto::factory()->create(['producto_padre_id' => $grupo->id, 'status' => 1]);
+        $variante2 = InvProducto::factory()->create(['producto_padre_id' => $grupo->id, 'status' => 1]);
+        $inactiva  = InvProducto::factory()->create(['producto_padre_id' => $grupo->id, 'status' => 0]);
+
+        $this->actingAs($this->usuario)
+            ->postJson(route('inv-precios.store'), [
+                'lista_precio_id' => $this->lista->id,
+                'producto_id'     => $grupo->id,
+                'precio'          => 45000,
+            ])
+            ->assertCreated()
+            ->assertJsonCount(2, 'data')
+            ->assertJsonFragment(['message' => 'Precio asignado a 2 variante(s) del grupo Camisas.']);
+
+        $this->assertDatabaseHas('inv_precios_producto', ['lista_precio_id' => $this->lista->id, 'producto_id' => $variante1->id, 'precio' => 45000]);
+        $this->assertDatabaseHas('inv_precios_producto', ['lista_precio_id' => $this->lista->id, 'producto_id' => $variante2->id, 'precio' => 45000]);
+        $this->assertDatabaseMissing('inv_precios_producto', ['producto_id' => $inactiva->id]);
+        $this->assertDatabaseMissing('inv_precios_producto', ['producto_id' => $grupo->id]);
+    }
+
+    /** @test */
+    public function store_con_grupo_conserva_los_demas_precios_de_la_lista(): void
+    {
+        $otroPrecio = InvPrecioProducto::factory()->create([
+            'lista_precio_id' => $this->lista->id,
+            'producto_id'     => $this->producto->id,
+            'precio'          => 78000,
+        ]);
+        $grupo = InvProducto::factory()->grupo()->create();
+        InvProducto::factory()->create(['producto_padre_id' => $grupo->id, 'status' => 1]);
+
+        $this->actingAs($this->usuario)
+            ->postJson(route('inv-precios.store'), [
+                'lista_precio_id' => $this->lista->id,
+                'producto_id'     => $grupo->id,
+                'precio'          => 45000,
+            ])
+            ->assertCreated();
+
+        $this->assertNotSoftDeleted('inv_precios_producto', ['id' => $otroPrecio->id, 'precio' => 78000]);
+    }
+
+    /** @test */
+    public function store_con_grupo_funciona_en_lista_activa(): void
+    {
+        $this->lista->update(['status' => LpListaPrecio::STATUS_ACTIVA]);
+        $grupo    = InvProducto::factory()->grupo()->create();
+        $variante = InvProducto::factory()->create(['producto_padre_id' => $grupo->id, 'status' => 1]);
+
+        $this->actingAs($this->usuario)
+            ->postJson(route('inv-precios.store'), [
+                'lista_precio_id' => $this->lista->id,
+                'producto_id'     => $grupo->id,
+                'precio'          => 45000,
+            ])
+            ->assertCreated();
+
+        $this->assertDatabaseHas('inv_precios_producto', ['producto_id' => $variante->id, 'precio' => 45000]);
+    }
+
+    /** @test */
+    public function store_con_grupo_sin_variantes_activas_falla(): void
+    {
+        $grupo = InvProducto::factory()->grupo()->create();
+        InvProducto::factory()->create(['producto_padre_id' => $grupo->id, 'status' => 0]);
+
+        $this->actingAs($this->usuario)
+            ->postJson(route('inv-precios.store'), [
+                'lista_precio_id' => $this->lista->id,
+                'producto_id'     => $grupo->id,
+                'precio'          => 45000,
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['producto_id']);
+
+        $this->assertDatabaseCount('inv_precios_producto', 0);
+    }
+
+    /** @test */
     public function store_actualiza_precio_si_ya_existe_en_misma_lista(): void
     {
         InvPrecioProducto::create([
@@ -243,6 +326,18 @@ class InvPrecioProductoTest extends TestCase
     }
 
     // ─── show ─────────────────────────────────────────────────────────────────
+
+    /** @test */
+    public function show_incluye_tipo_del_producto_para_identificar_kits(): void
+    {
+        $kit    = InvProducto::factory()->kit()->create();
+        $precio = InvPrecioProducto::asignar($this->lista->id, $kit->id, 90000);
+
+        $this->actingAs($this->usuario)
+            ->getJson(route('inv-precios.show', $precio))
+            ->assertOk()
+            ->assertJsonPath('data.producto.tipo', 'kit');
+    }
 
     /** @test */
     public function show_retorna_precio_con_relaciones(): void
@@ -430,6 +525,99 @@ class InvPrecioProductoTest extends TestCase
         $this->assertDatabaseMissing('inv_precios_producto', ['lista_precio_id' => $this->lista->id, 'producto_id' => $grupo->id]);
         $this->assertDatabaseHas('inv_precios_producto', ['lista_precio_id' => $this->lista->id, 'producto_id' => $variante1->id, 'precio' => 35000]);
         $this->assertDatabaseHas('inv_precios_producto', ['lista_precio_id' => $this->lista->id, 'producto_id' => $variante2->id, 'precio' => 35000]);
+    }
+
+    // ─── desgloseKit ──────────────────────────────────────────────────────────
+
+    /**
+     * Kit con 2 camisas (grupo con variantes a 40.000 y 50.000) y 1 cinturón (simple a 10.000).
+     *
+     * @return InvProducto
+     */
+    private function crearKitConPrecios(): InvProducto
+    {
+        $camisas  = InvProducto::factory()->grupo()->create(['nombre' => 'Camisas']);
+        $camisaM  = InvProducto::factory()->create(['producto_padre_id' => $camisas->id, 'status' => 1]);
+        $camisaL  = InvProducto::factory()->create(['producto_padre_id' => $camisas->id, 'status' => 1]);
+        $cinturon = InvProducto::factory()->create(['nombre' => 'Cinturón']);
+        $kit      = InvProducto::factory()->kit()->create();
+
+        InvKitComponente::create(['kit_id' => $kit->id, 'grupo_producto_id' => $camisas->id, 'cantidad' => 2, 'orden' => 1]);
+        InvKitComponente::create(['kit_id' => $kit->id, 'grupo_producto_id' => $cinturon->id, 'cantidad' => 1, 'orden' => 2]);
+
+        InvPrecioProducto::asignar($this->lista->id, $camisaM->id, 40000);
+        InvPrecioProducto::asignar($this->lista->id, $camisaL->id, 50000);
+        InvPrecioProducto::asignar($this->lista->id, $cinturon->id, 10000);
+
+        return $kit;
+    }
+
+    /** @test */
+    public function desglose_kit_suma_precio_unitario_por_cantidad_de_cada_componente(): void
+    {
+        $kit = $this->crearKitConPrecios();
+        InvPrecioProducto::asignar($this->lista->id, $kit->id, 95000);
+
+        $this->actingAs($this->usuario)
+            ->getJson(route('inv-precios.desglose-kit', [$this->lista, $kit]))
+            ->assertOk()
+            ->assertJsonPath('data.precio_actual', 95000)
+            ->assertJsonPath('data.componentes.0.nombre', 'Camisas')
+            ->assertJsonPath('data.componentes.0.precio_unitario_min', 40000)
+            ->assertJsonPath('data.componentes.0.precio_unitario_max', 50000)
+            ->assertJsonPath('data.componentes.0.subtotal_min', 80000)
+            ->assertJsonPath('data.componentes.0.subtotal_max', 100000)
+            ->assertJsonCount(2, 'data.componentes.0.variantes')
+            ->assertJsonPath('data.componentes.1.subtotal_min', 10000)
+            ->assertJsonCount(0, 'data.componentes.1.variantes')
+            ->assertJsonPath('data.total_min', 90000)
+            ->assertJsonPath('data.total_max', 110000)
+            ->assertJsonPath('data.completo', true);
+    }
+
+    /** @test */
+    public function desglose_kit_marca_incompleto_si_falta_precio_de_una_variante(): void
+    {
+        $kit    = $this->crearKitConPrecios();
+        $grupo  = InvProducto::where('nombre', 'Camisas')->first();
+        InvProducto::factory()->create(['producto_padre_id' => $grupo->id, 'status' => 1]);
+
+        $this->actingAs($this->usuario)
+            ->getJson(route('inv-precios.desglose-kit', [$this->lista, $kit]))
+            ->assertOk()
+            ->assertJsonPath('data.componentes.0.completo', false)
+            ->assertJsonPath('data.completo', false)
+            ->assertJsonPath('data.total_min', 90000)
+            ->assertJsonPath('data.precio_actual', null);
+    }
+
+    /** @test */
+    public function desglose_kit_rechaza_producto_que_no_es_kit(): void
+    {
+        $this->actingAs($this->usuario)
+            ->getJson(route('inv-precios.desglose-kit', [$this->lista, $this->producto]))
+            ->assertUnprocessable();
+    }
+
+    /** @test */
+    public function desglose_kit_retorna_404_si_la_lista_no_es_de_inventario(): void
+    {
+        $listaAcademica = LpListaPrecio::factory()->create(['origen' => 1]);
+        $kit            = InvProducto::factory()->kit()->create();
+
+        $this->actingAs($this->usuario)
+            ->getJson(route('inv-precios.desglose-kit', [$listaAcademica, $kit]))
+            ->assertNotFound();
+    }
+
+    /** @test */
+    public function desglose_kit_deniega_sin_permiso(): void
+    {
+        $kit = InvProducto::factory()->kit()->create();
+
+        $this->actingAs(User::factory()->create())
+            ->getJson(route('inv-precios.desglose-kit', [$this->lista, $kit]))
+            ->assertForbidden();
     }
 
     // ─── porProducto ──────────────────────────────────────────────────────────

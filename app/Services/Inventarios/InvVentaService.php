@@ -122,13 +122,15 @@ class InvVentaService
             if ($pedido->status === InvPedido::STATUS_PAGADO) {
                 // Todo ítem de un pedido pagado necesita su registro de entrega,
                 // se despache ahora o quede para que el estudiante lo retire después.
-                InvDespachoService::prepararEntregas($pedido, $datos['cajero_id']);
+                $variantesKit = static::resolverVariantes($datos['variantes_kit'] ?? [], $idsPorIndice);
+
+                InvDespachoService::prepararEntregas($pedido, $datos['cajero_id'], $variantesKit);
 
                 if ($datos['entrega_inmediata'] ?? true) {
                     InvDespachoService::despacharPedido(
                         $pedido,
                         $datos['cajero_id'],
-                        static::resolverVariantes($datos['variantes_kit'] ?? [], $idsPorIndice),
+                        $variantesKit,
                         static::resolverItemsAEntregar($datos['items'], $idsPorIndice)
                     );
                 }
@@ -250,7 +252,7 @@ class InvVentaService
             $reciboResult = static::crearRecibo($pedido, $montoAbono, $datos);
 
             if ($nuevoStatus === InvPedido::STATUS_PAGADO) {
-                InvDespachoService::prepararEntregas($pedido, $datos['cajero_id']);
+                InvDespachoService::prepararEntregas($pedido, $datos['cajero_id'], $datos['variantes_kit'] ?? []);
 
                 if ($datos['entrega_inmediata'] ?? true) {
                     InvDespachoService::despacharPedido(
