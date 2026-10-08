@@ -116,6 +116,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('{id}/restore', [CicloController::class, 'restore'])->name('ciclos.restore');
         Route::delete('{id}/force-delete', [CicloController::class, 'forceDelete'])->name('ciclos.force-delete');
 
+        Route::get('{ciclo}/clonar/sugerencia', [CicloController::class, 'sugerenciaClonar'])->name('ciclos.clonar.sugerencia');
+        Route::post('{ciclo}/clonar', [CicloController::class, 'clonar'])->name('ciclos.clonar');
         Route::post('{ciclo}/asignar-grupos', [CicloController::class, 'asignarGrupos'])->name('ciclos.asignar-grupos');
         Route::post('{ciclo}/desasignar-grupo', [CicloController::class, 'desasignarGrupo'])->name('ciclos.desasignar-grupo');
         Route::post('{ciclo}/calcular-fecha-fin', [CicloController::class, 'calcularFechaFin'])->name('ciclos.calcular-fecha-fin');
@@ -124,6 +126,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('{ciclo}/reordenar-grupos', [CicloController::class, 'reordenarGrupos'])->name('ciclos.reordenar-grupos');
         Route::get('{ciclo}/cronograma', [CicloController::class, 'cronograma'])->name('ciclos.cronograma');
         Route::get('{ciclo}/planeacion', [CicloController::class, 'planeacion'])->name('ciclos.planeacion');
+        Route::get('{ciclo}/planeacion/excel', [CicloController::class, 'planeacionExcel'])->name('ciclos.planeacion.excel');
         Route::get('{ciclo}/siguiente-orden', [CicloController::class, 'siguienteOrden'])->name('ciclos.siguiente-orden');
 
         // Aplazamientos del ciclo

@@ -34,6 +34,10 @@ use Illuminate\Support\Facades\DB;
  * Solo las filas originales (ciclo_origen_id NULL) sirven de referencia, así
  * un recálculo del origen se propaga a las copias y nunca al revés. Un grupo
  * compartido es un tramo fijo: no avanza el cursor ni se ajusta con F.
+ * Un ciclo solo comparte la ejecución de un ciclo que inicia antes o el mismo
+ * día y que aún no ha terminado al iniciar este; así varias ejecuciones
+ * independientes del mismo grupo (p. ej. un ciclo y su clon) no se adoptan
+ * entre sí al recalcular.
  */
 class CalendarioGrupoService
 {
@@ -222,7 +226,7 @@ class CalendarioGrupoService
 
         foreach ($grupos as $grupo) {
             $existentes = $this->fechasDeOrigen($grupo->pivot->ciclo_origen_id, $grupo->id)
-                ?? $this->fechasActivasGrupo($grupo->id, $ciclo->id);
+                ?? $this->ejecucionCompartible($ciclo, $grupo->id);
 
             if ($existentes) {
                 $compartidos[$grupo->id] = [
@@ -519,6 +523,38 @@ class CalendarioGrupoService
     // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------
+
+    /**
+     * Ejecución del grupo en otro ciclo que este ciclo debe compartir: fila
+     * original, activa o futura, que no termina antes del inicio del ciclo y
+     * pertenece a un ciclo que inicia antes o el mismo día.
+     *
+     * @param Ciclo $ciclo
+     * @param int   $grupoId
+     * @return array{ciclo_id:int,fecha_inicio:string,fecha_fin:string,horas_planeadas:float|null}|null
+     */
+    private function ejecucionCompartible(Ciclo $ciclo, int $grupoId): ?array
+    {
+        $inicio = Carbon::parse($ciclo->fecha_inicio)->toDateString();
+        $desde  = max(now()->toDateString(), $inicio);
+
+        return $this->filaAFechas(DB::table('ciclo_grupo')
+            ->join('ciclos', 'ciclos.id', '=', 'ciclo_grupo.ciclo_id')
+            ->where('ciclo_grupo.grupo_id', $grupoId)
+            ->where('ciclo_grupo.ciclo_id', '!=', $ciclo->id)
+            ->whereNull('ciclo_grupo.ciclo_origen_id')
+            ->whereNotNull('ciclo_grupo.fecha_inicio_grupo')
+            ->where(function ($q) use ($desde) {
+                $q->whereNull('ciclo_grupo.fecha_fin_grupo')
+                  ->orWhere('ciclo_grupo.fecha_fin_grupo', '>=', $desde);
+            })
+            ->where('ciclos.fecha_inicio', '<=', $inicio)
+            ->orderBy('ciclo_grupo.fecha_inicio_grupo')
+            ->first([
+                'ciclo_grupo.ciclo_id', 'ciclo_grupo.fecha_inicio_grupo',
+                'ciclo_grupo.fecha_fin_grupo', 'ciclo_grupo.horas_planeadas',
+            ]));
+    }
 
     /**
      * Fechas del grupo en el ciclo origen del que este ciclo las copió.

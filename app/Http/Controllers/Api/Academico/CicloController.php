@@ -3,15 +3,19 @@
 namespace App\Http\Controllers\Api\Academico;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\Academico\ClonarCicloRequest;
 use App\Http\Requests\Api\Academico\StoreCicloRequest;
 use App\Http\Requests\Api\Academico\UpdateCicloRequest;
 use App\Http\Resources\Api\Academico\CicloResource;
 use App\Models\Academico\Ciclo;
 use App\Services\Academico\CalendarioGrupoService;
+use App\Services\Academico\ClonarCicloService;
+use App\Services\Academico\PlaneacionCicloExcelService;
 use App\Services\Academico\PlaneacionCicloService;
 use App\Traits\HasActiveStatus;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 class CicloController extends Controller
 {
@@ -23,9 +27,11 @@ class CicloController extends Controller
     public function __construct(
         private readonly CalendarioGrupoService $calendario,
         private readonly PlaneacionCicloService $planeacionCiclo,
+        private readonly ClonarCicloService $clonarCiclo,
+        private readonly PlaneacionCicloExcelService $planeacionExcel,
     ) {
-        $this->middleware('permission:aca_ciclos')->only(['index', 'show', 'filters', 'statistics', 'previsualizarCalendario', 'planeacion']);
-        $this->middleware('permission:aca_cicloCrear')->only(['store']);
+        $this->middleware('permission:aca_ciclos')->only(['index', 'show', 'filters', 'statistics', 'previsualizarCalendario', 'planeacion', 'planeacionExcel']);
+        $this->middleware('permission:aca_cicloCrear')->only(['store', 'clonar', 'sugerenciaClonar']);
         $this->middleware('permission:aca_cicloEditar')->only([
             'update', 'asignarGrupos', 'desasignarGrupo',
             'calcularFechaFin', 'actualizarOrdenGrupo', 'reordenarGrupos',
@@ -116,6 +122,46 @@ class CicloController extends Controller
         return response()->json([
             'message' => 'Ciclo creado exitosamente.',
             'data'    => new CicloResource($ciclo),
+        ], 201);
+    }
+
+    /**
+     * Fecha de inicio sugerida para clonar el ciclo: la primera sesión laborable
+     * después de su finalización, conservando los días de clase. Incluye la
+     * fecha mínima permitida (no se acepta una fecha anterior al clonar).
+     */
+    public function sugerenciaClonar(Ciclo $ciclo): JsonResponse
+    {
+        $sugerencia = $this->clonarCiclo->sugerirFechaInicio($ciclo);
+
+        if (! $sugerencia) {
+            return response()->json([
+                'message' => 'El ciclo a clonar no tiene fechas calculadas; calcule su fecha de fin antes de clonarlo.',
+            ], 422);
+        }
+
+        return response()->json(['data' => $sugerencia]);
+    }
+
+    /**
+     * Clona un ciclo con sus grupos y orden; solo requiere la nueva fecha de inicio.
+     * Las fechas por grupo, la fecha de fin y el ajuste se calculan automáticamente.
+     * La fecha de inicio debe ser posterior a la finalización del origen y un día
+     * de clase laborable (ver sugerenciaClonar). Responde 422 si el clon se solapa con otro ciclo
+     * programado en alguno de sus grupos.
+     */
+    public function clonar(ClonarCicloRequest $request, Ciclo $ciclo): JsonResponse
+    {
+        $clon = $this->clonarCiclo->clonar(
+            $ciclo,
+            $request->fecha_inicio,
+            $request->nombre,
+            $request->fecha_fin
+        );
+
+        return response()->json([
+            'message' => 'Ciclo clonado exitosamente.',
+            'data'    => new CicloResource($clon),
         ], 201);
     }
 
@@ -625,6 +671,22 @@ class CicloController extends Controller
         return response()->json([
             'data' => $this->planeacionCiclo->planeacion($ciclo),
         ]);
+    }
+
+    /**
+     * Descarga en Excel la planeación del ciclo (hoja tabular y hoja Gantt).
+     *
+     * @param Ciclo $ciclo
+     * @return \Symfony\Component\HttpFoundation\StreamedResponse
+     */
+    public function planeacionExcel(Ciclo $ciclo)
+    {
+        $spreadsheet = $this->planeacionExcel->generar($ciclo);
+        $nombre      = 'planeacion-ciclo-'.$ciclo->id.'.xlsx';
+
+        return response()->streamDownload(function () use ($spreadsheet) {
+            (new Xlsx($spreadsheet))->save('php://output');
+        }, $nombre, ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']);
     }
 
     /**
