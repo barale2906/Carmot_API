@@ -25,6 +25,14 @@ class CicloResource extends JsonResource
             'fecha_inicio' => $this->fecha_inicio?->format('Y-m-d'),
             'fecha_fin' => $this->fecha_fin?->format('Y-m-d'),
             'fecha_fin_automatica' => $this->fecha_fin_automatica,
+            'fecha_fin_teorica' => $this->fecha_fin_teorica?->format('Y-m-d'),
+            // Ajuste de contenido: modo fijo = fecha fin definida por el usuario
+            'ajuste' => [
+                'modo' => $this->fecha_fin_automatica ? 'automatico' : 'fijo',
+                'factor' => $this->factor_ajuste,
+                'porcentaje_horas' => $this->factor_ajuste !== null ? round($this->factor_ajuste * 100, 2) : null,
+                'advertencia' => $this->advertencia_ajuste,
+            ],
             'duracion_dias' => $this->duracion_dias,
             'duracion_estimada' => $this->duracion_estimada,
             'inscritos' => $this->inscritos,
@@ -120,6 +128,8 @@ class CicloResource extends JsonResource
                 'orden' => $grupo->pivot->orden ?? null,
                 'fecha_inicio_grupo' => $grupo->pivot->fecha_inicio_grupo ?? null,
                 'fecha_fin_grupo' => $grupo->pivot->fecha_fin_grupo ?? null,
+                'ciclo_origen_id' => $grupo->pivot->ciclo_origen_id ?? null,
+                'horas_planeadas' => isset($grupo->pivot->horas_planeadas) ? (float) $grupo->pivot->horas_planeadas : null,
                 'modulo' => $grupo->relationLoaded('modulo') ? [
                     'id' => $grupo->modulo->id,
                     'nombre' => $grupo->modulo->nombre,

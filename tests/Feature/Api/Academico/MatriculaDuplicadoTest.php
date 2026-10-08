@@ -42,6 +42,26 @@ class MatriculaDuplicadoTest extends TestCase
         ], $overrides);
     }
 
+    private function crearMatricula(User $estudiante, Curso $curso, int $status, ?Ciclo $ciclo = null): Matricula
+    {
+        return Matricula::factory()->create([
+            'estudiante_id' => $estudiante->id,
+            'curso_id'      => $curso->id,
+            'ciclo_id'      => ($ciclo ?? Ciclo::factory()->create())->id,
+            'status'        => $status,
+        ]);
+    }
+
+    private function matricular(User $estudiante, Curso $curso, ?Ciclo $ciclo = null)
+    {
+        return $this->actingAs($this->usuario)
+            ->postJson(route('matriculas.store'), $this->datosBase([
+                'estudiante_id' => $estudiante->id,
+                'curso_id'      => $curso->id,
+                'ciclo_id'      => ($ciclo ?? Ciclo::factory()->create())->id,
+            ]));
+    }
+
     /** @test */
     public function no_permite_matricular_dos_veces_al_mismo_estudiante_en_el_mismo_curso_y_ciclo(): void
     {
@@ -49,23 +69,25 @@ class MatriculaDuplicadoTest extends TestCase
         $curso      = Curso::factory()->create();
         $ciclo      = Ciclo::factory()->create();
 
-        Matricula::factory()->create([
-            'estudiante_id' => $estudiante->id,
-            'curso_id'      => $curso->id,
-            'ciclo_id'      => $ciclo->id,
-            'status'        => 1,
-        ]);
+        $this->crearMatricula($estudiante, $curso, 1, $ciclo);
 
-        $response = $this->actingAs($this->usuario)
-            ->postJson(route('matriculas.store'), $this->datosBase([
-                'estudiante_id' => $estudiante->id,
-                'curso_id'      => $curso->id,
-                'ciclo_id'      => $ciclo->id,
-            ]));
-
-        $response->assertStatus(422)
+        $this->matricular($estudiante, $curso, $ciclo)
+            ->assertStatus(422)
             ->assertJsonValidationErrors('estudiante_id')
-            ->assertJsonFragment(['estudiante_id' => ['El estudiante ya se encuentra matriculado en este curso y ciclo.']]);
+            ->assertJsonFragment(['estudiante_id' => ['El estudiante ya tiene una matrícula vigente en este curso.']]);
+    }
+
+    /** @test */
+    public function no_permite_matricular_en_el_mismo_curso_en_otro_ciclo_si_hay_matricula_vigente(): void
+    {
+        $estudiante = User::factory()->create();
+        $curso      = Curso::factory()->create();
+
+        $this->crearMatricula($estudiante, $curso, 1);
+
+        $this->matricular($estudiante, $curso)
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('estudiante_id');
     }
 
     /** @test */
@@ -75,98 +97,87 @@ class MatriculaDuplicadoTest extends TestCase
         $curso      = Curso::factory()->create();
         $ciclo      = Ciclo::factory()->create();
 
-        Matricula::factory()->create([
-            'estudiante_id' => $estudiante->id,
-            'curso_id'      => $curso->id,
-            'ciclo_id'      => $ciclo->id,
-            'status'        => 2, // Anulada
-        ]);
+        $this->crearMatricula($estudiante, $curso, 2, $ciclo);
 
-        $response = $this->actingAs($this->usuario)
-            ->postJson(route('matriculas.store'), $this->datosBase([
-                'estudiante_id' => $estudiante->id,
-                'curso_id'      => $curso->id,
-                'ciclo_id'      => $ciclo->id,
-            ]));
-
-        $response->assertCreated();
+        $this->matricular($estudiante, $curso, $ciclo)->assertCreated();
     }
 
     /** @test */
-    public function permite_matricular_al_mismo_estudiante_en_un_ciclo_diferente(): void
+    public function permite_matricular_si_la_matricula_previa_esta_inactiva_por_finalizacion_o_cancelacion(): void
     {
         $estudiante = User::factory()->create();
         $curso      = Curso::factory()->create();
-        $cicloPrevio = Ciclo::factory()->create();
-        $cicloNuevo  = Ciclo::factory()->create();
 
-        Matricula::factory()->create([
-            'estudiante_id' => $estudiante->id,
-            'curso_id'      => $curso->id,
-            'ciclo_id'      => $cicloPrevio->id,
-            'status'        => 1,
-        ]);
+        $this->crearMatricula($estudiante, $curso, 0);
 
-        $response = $this->actingAs($this->usuario)
-            ->postJson(route('matriculas.store'), $this->datosBase([
-                'estudiante_id' => $estudiante->id,
-                'curso_id'      => $curso->id,
-                'ciclo_id'      => $cicloNuevo->id,
-            ]));
+        $this->matricular($estudiante, $curso)->assertCreated();
+    }
 
-        $response->assertCreated();
+    /** @test */
+    public function permite_matricular_al_mismo_estudiante_en_otro_curso_aunque_tenga_matricula_vigente(): void
+    {
+        $estudiante = User::factory()->create();
+
+        $this->crearMatricula($estudiante, Curso::factory()->create(), 1);
+
+        $this->matricular($estudiante, Curso::factory()->create())->assertCreated();
     }
 
     /** @test */
     public function permite_actualizar_la_propia_matricula_sin_disparar_el_error_de_duplicado(): void
     {
-        $estudiante = User::factory()->create();
-        $curso      = Curso::factory()->create();
-        $ciclo      = Ciclo::factory()->create();
+        $matricula = $this->crearMatricula(User::factory()->create(), Curso::factory()->create(), 1);
 
-        $matricula = Matricula::factory()->create([
-            'estudiante_id' => $estudiante->id,
-            'curso_id'      => $curso->id,
-            'ciclo_id'      => $ciclo->id,
-            'status'        => 1,
-        ]);
-
-        $response = $this->actingAs($this->usuario)
+        $this->actingAs($this->usuario)
             ->putJson(route('matriculas.update', $matricula->id), [
                 'observaciones' => 'Actualización sin cambios de curso/ciclo/estudiante.',
-            ]);
-
-        $response->assertOk();
+            ])
+            ->assertOk();
     }
 
     /** @test */
-    public function no_permite_actualizar_una_matricula_para_que_quede_duplicada_con_otra(): void
+    public function no_permite_actualizar_una_matricula_para_que_quede_duplicada_con_otra_vigente(): void
     {
         $estudiante = User::factory()->create();
         $curso      = Curso::factory()->create();
-        $ciclo      = Ciclo::factory()->create();
 
-        Matricula::factory()->create([
-            'estudiante_id' => $estudiante->id,
-            'curso_id'      => $curso->id,
-            'ciclo_id'      => $ciclo->id,
-            'status'        => 1,
-        ]);
+        $this->crearMatricula($estudiante, $curso, 1);
+        $otraMatricula = $this->crearMatricula($estudiante, Curso::factory()->create(), 1);
 
-        $otraMatricula = Matricula::factory()->create([
-            'estudiante_id' => $estudiante->id,
-            'curso_id'      => Curso::factory()->create()->id,
-            'ciclo_id'      => Ciclo::factory()->create()->id,
-            'status'        => 1,
-        ]);
-
-        $response = $this->actingAs($this->usuario)
+        $this->actingAs($this->usuario)
             ->putJson(route('matriculas.update', $otraMatricula->id), [
                 'curso_id' => $curso->id,
-                'ciclo_id' => $ciclo->id,
-            ]);
-
-        $response->assertStatus(422)
+            ])
+            ->assertStatus(422)
             ->assertJsonValidationErrors('estudiante_id');
+    }
+
+    /** @test */
+    public function no_permite_reactivar_una_matricula_si_existe_otra_vigente_en_el_mismo_curso(): void
+    {
+        $estudiante = User::factory()->create();
+        $curso      = Curso::factory()->create();
+
+        $this->crearMatricula($estudiante, $curso, 1);
+        $inactiva = $this->crearMatricula($estudiante, $curso, 0);
+
+        $this->actingAs($this->usuario)
+            ->putJson(route('matriculas.update', $inactiva->id), ['status' => 1])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('estudiante_id');
+    }
+
+    /** @test */
+    public function permite_editar_una_matricula_no_vigente_aunque_exista_otra_vigente_en_el_mismo_curso(): void
+    {
+        $estudiante = User::factory()->create();
+        $curso      = Curso::factory()->create();
+
+        $this->crearMatricula($estudiante, $curso, 1);
+        $anulada = $this->crearMatricula($estudiante, $curso, 2);
+
+        $this->actingAs($this->usuario)
+            ->putJson(route('matriculas.update', $anulada->id), ['observaciones' => 'Nota histórica.'])
+            ->assertOk();
     }
 }

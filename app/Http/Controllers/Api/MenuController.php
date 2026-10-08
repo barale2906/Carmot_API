@@ -47,7 +47,7 @@ class MenuController extends Controller
         ];
 
         // Configuración - módulo con varios submenús
-        if ($this->hasAnyPermission($user, ['co_users', 'co_roles_permisos', 'co_poblaciones', 'co_sedes'])) {
+        if ($this->hasAnyPermission($user, ['co_users', 'co_roles_permisos', 'co_poblaciones', 'co_sedes', 'co_diasNoLaborables'])) {
             $configChildren = [];
 
             // Usuarios
@@ -91,6 +91,17 @@ class MenuController extends Controller
                     'icon' => 'location_city',
                     'route' => '/configuracion/sedes',
                     'permission' => 'co_sedes',
+                ];
+            }
+
+            // Calendario laboral (días no laborables: festivos, vacaciones, cierres)
+            if ($user->can('co_diasNoLaborables')) {
+                $configChildren[] = [
+                    'id' => 'configuracion-calendario-laboral',
+                    'title' => 'Días no laborables',
+                    'icon' => 'event_busy',
+                    'route' => '/configuracion/dias-no-laborables',
+                    'permission' => 'co_diasNoLaborables',
                 ];
             }
 

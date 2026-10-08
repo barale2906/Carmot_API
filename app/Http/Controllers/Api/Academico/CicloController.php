@@ -8,6 +8,7 @@ use App\Http\Requests\Api\Academico\UpdateCicloRequest;
 use App\Http\Resources\Api\Academico\CicloResource;
 use App\Models\Academico\Ciclo;
 use App\Services\Academico\CalendarioGrupoService;
+use App\Services\Academico\PlaneacionCicloService;
 use App\Traits\HasActiveStatus;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -19,9 +20,11 @@ class CicloController extends Controller
     /**
      * Constructor del controlador.
      */
-    public function __construct(private readonly CalendarioGrupoService $calendario)
-    {
-        $this->middleware('permission:aca_ciclos')->only(['index', 'show', 'filters', 'statistics', 'previsualizarCalendario']);
+    public function __construct(
+        private readonly CalendarioGrupoService $calendario,
+        private readonly PlaneacionCicloService $planeacionCiclo,
+    ) {
+        $this->middleware('permission:aca_ciclos')->only(['index', 'show', 'filters', 'statistics', 'previsualizarCalendario', 'planeacion']);
         $this->middleware('permission:aca_cicloCrear')->only(['store']);
         $this->middleware('permission:aca_cicloEditar')->only([
             'update', 'asignarGrupos', 'desasignarGrupo',
@@ -105,9 +108,7 @@ class CicloController extends Controller
                 $ciclo->asignarGruposConOrden($gruposConOrden);
             }
 
-            if ($ciclo->fecha_fin_automatica) {
-                $this->aplicarFechasYGuardar($ciclo);
-            }
+            $this->calendario->recalcularCiclo($ciclo);
         }
 
         $ciclo->load(['sede', 'curso', 'grupos']);
@@ -148,7 +149,8 @@ class CicloController extends Controller
     }
 
     /**
-     * Actualiza el ciclo especificado.
+     * Actualiza el ciclo especificado. Recalcula las fechas de los grupos si
+     * cambian los grupos, las fechas o el modo de fecha fin.
      *
      * @param UpdateCicloRequest $request
      * @param Ciclo              $ciclo
@@ -168,10 +170,10 @@ class CicloController extends Controller
             } else {
                 $ciclo->grupos()->detach();
             }
+        }
 
-            if ($ciclo->fecha_fin_automatica) {
-                $this->aplicarFechasYGuardar($ciclo);
-            }
+        if ($request->has('grupos') || $ciclo->wasChanged(['fecha_inicio', 'fecha_fin', 'fecha_fin_automatica'])) {
+            $this->calendario->recalcularCiclo($ciclo);
         }
 
         $ciclo->load(['sede', 'curso', 'grupos']);
@@ -336,7 +338,8 @@ class CicloController extends Controller
      * Previsualiza el calendario de módulos de un curso antes de crear un ciclo.
      * Muestra qué grupos tienen ejecución activa (con_fechas=true) y cuáles están
      * entre ejecuciones (con_fechas=false) para que el frontend los presente
-     * al usuario con la posibilidad de reordenar.
+     * al usuario con la posibilidad de reordenar. Con fecha_fin simula el modo
+     * de fecha fin fija (factor de ajuste, horas planeadas y advertencia).
      *
      * @param Request $request
      * @return JsonResponse
@@ -346,11 +349,13 @@ class CicloController extends Controller
         $request->validate([
             'curso_id'    => 'required|integer|exists:cursos,id',
             'fecha_inicio' => 'required|date',
+            'fecha_fin'    => 'nullable|date|after:fecha_inicio',
         ]);
 
         $resultado = $this->calendario->previsualizarCurso(
             (int) $request->curso_id,
-            $request->fecha_inicio
+            $request->fecha_inicio,
+            $request->fecha_fin
         );
 
         return response()->json(['data' => $resultado]);
@@ -385,9 +390,7 @@ class CicloController extends Controller
             $ciclo->asignarGruposConOrden($gruposConOrden);
         }
 
-        if ($ciclo->fecha_fin_automatica) {
-            $this->aplicarFechasYGuardar($ciclo);
-        }
+        $this->calendario->recalcularCiclo($ciclo);
 
         $ciclo->load(['sede', 'curso', 'grupos']);
 
@@ -412,9 +415,7 @@ class CicloController extends Controller
 
         $ciclo->grupos()->detach($request->grupo_id);
 
-        if ($ciclo->fecha_fin_automatica) {
-            $this->aplicarFechasYGuardar($ciclo);
-        }
+        $this->calendario->recalcularCiclo($ciclo);
 
         $ciclo->load(['sede', 'curso', 'grupos']);
 
@@ -425,24 +426,21 @@ class CicloController extends Controller
     }
 
     /**
-     * Calcula y actualiza la fecha de fin del ciclo según el calendario cíclico.
+     * Recalcula las fechas del ciclo según el calendario cíclico y el calendario
+     * laboral (horarios del grupo y días no laborables de la sede).
+     * Fecha fin automática: actualiza fecha_fin con la última sesión.
+     * Fecha fin fija: conserva fecha_fin y ajusta las horas de los módulos.
      *
      * @param Ciclo $ciclo
      * @return JsonResponse
      */
     public function calcularFechaFin(Ciclo $ciclo): JsonResponse
     {
-        $fechaFin = $this->calendario->calcularYAsignarFechas($ciclo);
-
-        if (! $fechaFin) {
+        if (! $this->calendario->recalcularCiclo($ciclo)) {
             return response()->json([
                 'message' => 'No se pudo calcular la fecha de fin. Verifique que el ciclo tenga fecha de inicio y grupos con horarios configurados.',
             ], 422);
         }
-
-        $ciclo->fecha_fin     = $fechaFin;
-        $ciclo->duracion_dias = $ciclo->fecha_inicio->diffInDays($fechaFin);
-        $ciclo->saveQuietly();
 
         $ciclo->load(['sede', 'curso', 'grupos']);
 
@@ -535,9 +533,7 @@ class CicloController extends Controller
             ], 422);
         }
 
-        if ($ciclo->fecha_fin_automatica) {
-            $this->aplicarFechasYGuardar($ciclo);
-        }
+        $this->calendario->recalcularCiclo($ciclo);
 
         $ciclo->load(['sede', 'curso', 'grupos']);
 
@@ -573,9 +569,7 @@ class CicloController extends Controller
 
         $ciclo->reordenarGrupos($request->nuevo_orden);
 
-        if ($ciclo->fecha_fin_automatica) {
-            $this->aplicarFechasYGuardar($ciclo);
-        }
+        $this->calendario->recalcularCiclo($ciclo);
 
         $ciclo->load(['sede', 'curso', 'grupos']);
 
@@ -619,6 +613,21 @@ class CicloController extends Controller
     }
 
     /**
+     * Planeación detallada del ciclo por grupo → tópico → tema: horas originales,
+     * horas ajustadas al factor del grupo (modo fecha fin fija) y fechas
+     * estimadas de cada tema sobre las sesiones reales. No modifica el currículo.
+     *
+     * @param Ciclo $ciclo
+     * @return JsonResponse
+     */
+    public function planeacion(Ciclo $ciclo): JsonResponse
+    {
+        return response()->json([
+            'data' => $this->planeacionCiclo->planeacion($ciclo),
+        ]);
+    }
+
+    /**
      * Devuelve el siguiente orden disponible para asignar un nuevo grupo al ciclo.
      *
      * @param Ciclo $ciclo
@@ -629,24 +638,5 @@ class CicloController extends Controller
         return response()->json([
             'data' => ['siguiente_orden' => $ciclo->getSiguienteOrden()],
         ]);
-    }
-
-    // -------------------------------------------------------------------------
-    // Helpers privados
-    // -------------------------------------------------------------------------
-
-    /**
-     * Delega al CalendarioGrupoService el cálculo de fechas del pivot y
-     * persiste fecha_fin + duracion_dias en el ciclo sin disparar eventos.
-     */
-    private function aplicarFechasYGuardar(Ciclo $ciclo): void
-    {
-        $fechaFin = $this->calendario->calcularYAsignarFechas($ciclo);
-
-        if ($fechaFin) {
-            $ciclo->fecha_fin     = $fechaFin;
-            $ciclo->duracion_dias = $ciclo->fecha_inicio->diffInDays($fechaFin);
-            $ciclo->saveQuietly();
-        }
     }
 }

@@ -169,31 +169,30 @@ class StoreMatriculaRequest extends FormRequest
     /**
      * Configura validaciones adicionales que requieren consultar la base de datos.
      *
-     * Impide matricular dos veces al mismo estudiante en el mismo curso y ciclo,
-     * salvo que la matrícula previa esté anulada (status = 2), caso en el cual
-     * se considera que no existe un cupo vigente y se permite una nueva.
+     * Impide matricular al estudiante en un curso en el que ya tiene una matrícula
+     * vigente (status = 1), sin importar el ciclo. Solo se permite una nueva
+     * matrícula en el mismo curso cuando la anterior ya no está vigente
+     * (inactiva por finalización/cancelación, o anulada).
      */
     public function withValidator($validator): void
     {
         $validator->after(function ($validator) {
             $estudianteId = $this->input('estudiante_id');
             $cursoId      = $this->input('curso_id');
-            $cicloId      = $this->input('ciclo_id');
 
-            if (! $estudianteId || ! $cursoId || ! $cicloId) {
+            if (! $estudianteId || ! $cursoId) {
                 return;
             }
 
-            $yaMatriculado = Matricula::where('estudiante_id', $estudianteId)
-                ->where('curso_id', $cursoId)
-                ->where('ciclo_id', $cicloId)
-                ->where('status', '!=', 2)
+            $tieneVigente = Matricula::byEstudiante($estudianteId)
+                ->byCurso($cursoId)
+                ->vigentes()
                 ->exists();
 
-            if ($yaMatriculado) {
+            if ($tieneVigente) {
                 $validator->errors()->add(
                     'estudiante_id',
-                    'El estudiante ya se encuentra matriculado en este curso y ciclo.'
+                    'El estudiante ya tiene una matrícula vigente en este curso.'
                 );
             }
         });

@@ -4,7 +4,9 @@ namespace App\Services\Academico;
 
 use App\Models\Academico\Ciclo;
 use App\Models\Academico\Curso;
+use App\Models\Academico\Grupo;
 use Carbon\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -12,22 +14,46 @@ use Illuminate\Support\Facades\DB;
  *
  * Gestiona el calendario cíclico de grupos/módulos:
  *  - fechasActivasGrupo: consulta si un grupo tiene ejecución activa o futura en algún ciclo.
- *  - calcularYAsignarFechas: asigna fechas al pivot ciclo_grupo de un ciclo nuevo,
- *    usando el calendario existente para grupos en ejecución y calculando desde
- *    la duración del módulo para grupos entre ejecuciones.
+ *  - calcularYAsignarFechas: asigna fechas y horas planeadas al pivot ciclo_grupo,
+ *    usando el calendario existente para grupos en ejecución y calculando las
+ *    sesiones reales (horarios + días no laborables) para grupos entre ejecuciones.
+ *  - recalcularCiclo: calcularYAsignarFechas + persistencia en el ciclo.
  *  - previsualizarCurso: devuelve el panorama de módulos/grupos antes de crear un ciclo.
+ *
+ * Modos de fecha fin:
+ *  - Automática (fecha_fin_automatica = true): cada módulo recibe el 100 % de
+ *    sus horas y la fecha fin es la última sesión.
+ *  - Fija (fecha_fin_automatica = false y fecha_fin definida): se busca el mayor
+ *    factor F (0 < F <= 1) con el que la secuencia de módulos, cada uno con
+ *    duración × F horas, termina en o antes de la fecha fijada. Si con el 100 %
+ *    ya cabe, F = 1 y el ciclo termina antes (holgura). F por debajo del umbral
+ *    (config academico.factor_ajuste_minimo) solo genera una advertencia.
+ *
+ * Fechas compartidas: cuando un ciclo toma las fechas de un grupo que ya se
+ * ejecuta en otro ciclo, guarda ese ciclo en ciclo_grupo.ciclo_origen_id.
+ * Solo las filas originales (ciclo_origen_id NULL) sirven de referencia, así
+ * un recálculo del origen se propaga a las copias y nunca al revés. Un grupo
+ * compartido es un tramo fijo: no avanza el cursor ni se ajusta con F.
  */
 class CalendarioGrupoService
 {
+    /** Iteraciones de la bisección del factor (precisión ≈ 0,0001). */
+    private const ITERACIONES_FACTOR = 14;
+
+    public function __construct(private readonly CalendarioLaboralService $calendarioLaboral)
+    {
+    }
+
     /**
      * Retorna las fechas activas o futuras más próximas de un grupo en cualquier ciclo.
      * "Activa o futura" = fecha_fin_grupo >= hoy y fecha_inicio_grupo no nulo.
+     * Solo considera filas calculadas por su propio ciclo (no copias).
      * Opcionalmente excluye el ciclo que se está construyendo para evitar
      * que el registro recién creado se use como referencia de sí mismo.
      *
      * @param int      $grupoId
      * @param int|null $excluirCicloId
-     * @return array{ciclo_id:int,fecha_inicio:string,fecha_fin:string}|null
+     * @return array{ciclo_id:int,fecha_inicio:string,fecha_fin:string,horas_planeadas:float|null}|null
      */
     public function fechasActivasGrupo(int $grupoId, ?int $excluirCicloId = null): ?array
     {
@@ -35,41 +61,29 @@ class CalendarioGrupoService
 
         $query = DB::table('ciclo_grupo')
             ->where('grupo_id', $grupoId)
+            ->whereNull('ciclo_origen_id')
             ->whereNotNull('fecha_inicio_grupo')
             ->where(function ($q) use ($hoy) {
                 $q->whereNull('fecha_fin_grupo')
                   ->orWhere('fecha_fin_grupo', '>=', $hoy);
             })
             ->orderBy('fecha_inicio_grupo')
-            ->select(['ciclo_id', 'fecha_inicio_grupo', 'fecha_fin_grupo']);
+            ->select(['ciclo_id', 'fecha_inicio_grupo', 'fecha_fin_grupo', 'horas_planeadas']);
 
         if ($excluirCicloId !== null) {
             $query->where('ciclo_id', '!=', $excluirCicloId);
         }
 
-        $fila = $query->first();
-
-        if (! $fila) {
-            return null;
-        }
-
-        return [
-            'ciclo_id'     => $fila->ciclo_id,
-            'fecha_inicio' => $fila->fecha_inicio_grupo,
-            'fecha_fin'    => $fila->fecha_fin_grupo,
-        ];
+        return $this->filaAFechas($query->first());
     }
 
     /**
-     * Calcula y asigna las fechas del pivot ciclo_grupo para todos los grupos
-     * del ciclo, respetando el calendario cíclico:
+     * Calcula y asigna las fechas y horas planeadas del pivot ciclo_grupo para
+     * todos los grupos del ciclo (ver modos en la descripción de la clase).
+     * Deja en el modelo, sin guardar, fecha_fin_teorica, factor_ajuste y
+     * advertencia_ajuste.
      *
-     *  - Grupo con fechas activas en otro ciclo → usa esas fechas directamente.
-     *  - Grupo entre ejecuciones (sin fechas activas) → calcula desde la duración
-     *    del módulo, tomando como inicio la fecha_fin del grupo anterior en la
-     *    secuencia del mismo ciclo.
-     *
-     * Devuelve la fecha_fin del último grupo (= fecha_fin sugerida del ciclo).
+     * Devuelve la fecha_fin más tardía de los grupos (= fecha fin real del ciclo).
      *
      * @param Ciclo $ciclo
      * @return Carbon|null
@@ -81,125 +95,291 @@ class CalendarioGrupoService
         }
 
         $ciclo->refresh();
-        $gruposOrdenados = $ciclo->grupos()->orderBy('ciclo_grupo.orden')->get();
+        $grupos = $ciclo->grupos()->with(['modulo', 'horarios'])->orderBy('ciclo_grupo.orden')->get();
 
-        if ($gruposOrdenados->isEmpty()) {
+        if ($grupos->isEmpty()) {
             return null;
         }
 
-        $fechaActual  = Carbon::parse($ciclo->fecha_inicio);
-        $ultimaFechaFin = null;
+        $plan = $this->planificar($ciclo, $grupos);
 
-        foreach ($gruposOrdenados as $grupo) {
-            $fechasExistentes = $this->fechasActivasGrupo($grupo->id, $ciclo->id);
-
-            if ($fechasExistentes) {
-                // El grupo tiene un slot en otro ciclo → compartir ese slot
-                $fechaInicioGrupo = Carbon::parse($fechasExistentes['fecha_inicio']);
-                $fechaFinGrupo    = Carbon::parse($fechasExistentes['fecha_fin']);
-            } else {
-                // Grupo entre ejecuciones → calcular desde módulo
-                $duracion    = $grupo->modulo->duracion ?? 0;
-                $horasSemana = $grupo->getTotalHorasSemanaAttribute();
-
-                if ($horasSemana <= 0 || $duracion <= 0) {
-                    continue;
-                }
-
-                $semanas          = (int) ceil($duracion / $horasSemana);
-                $fechaInicioGrupo = $fechaActual->copy();
-                $fechaFinGrupo    = $fechaActual->copy()->addWeeks($semanas);
-
-                // Avanzar el cursor solo para grupos sin slot previo
-                $fechaActual = $fechaFinGrupo->copy();
-            }
-
-            $ciclo->grupos()->updateExistingPivot($grupo->id, [
-                'fecha_inicio_grupo' => $fechaInicioGrupo->format('Y-m-d'),
-                'fecha_fin_grupo'    => $fechaFinGrupo->format('Y-m-d'),
+        foreach ($plan['grupos'] as $grupoId => $fechas) {
+            $ciclo->grupos()->updateExistingPivot($grupoId, [
+                'fecha_inicio_grupo' => $fechas['fecha_inicio']->format('Y-m-d'),
+                'fecha_fin_grupo'    => $fechas['fecha_fin']->format('Y-m-d'),
+                'ciclo_origen_id'    => $fechas['ciclo_origen_id'],
+                'horas_planeadas'    => $fechas['horas_planeadas'],
             ]);
-
-            // Guardar la fecha_fin más tardía como candidata a fecha_fin del ciclo
-            if ($ultimaFechaFin === null || $fechaFinGrupo->gt($ultimaFechaFin)) {
-                $ultimaFechaFin = $fechaFinGrupo;
-            }
         }
 
-        return $ultimaFechaFin;
+        $ciclo->fecha_fin_teorica  = $plan['fecha_fin_teorica'];
+        $ciclo->factor_ajuste      = $plan['factor_ajuste'];
+        $ciclo->advertencia_ajuste = $plan['advertencia'];
+
+        return $plan['fecha_fin'];
+    }
+
+    /**
+     * Recalcula el pivot del ciclo y persiste, sin disparar eventos, el
+     * resultado del ajuste y, si la fecha fin es automática, fecha_fin y
+     * duracion_dias. En modo fijo la fecha_fin del usuario se conserva.
+     *
+     * @param Ciclo $ciclo
+     * @return Carbon|null fecha fin real calculada (última sesión del ciclo)
+     */
+    public function recalcularCiclo(Ciclo $ciclo): ?Carbon
+    {
+        $fechaFin = $this->calcularYAsignarFechas($ciclo);
+
+        if ($fechaFin && $ciclo->fecha_fin_automatica) {
+            $ciclo->fecha_fin     = $fechaFin;
+            $ciclo->duracion_dias = (int) $ciclo->fecha_inicio->diffInDays($fechaFin);
+        }
+
+        if ($ciclo->isDirty()) {
+            $ciclo->saveQuietly();
+        }
+
+        return $fechaFin;
     }
 
     /**
      * Previsualiza el calendario de módulos de un curso antes de crear un ciclo.
      * Para cada módulo (en su orden canónico) muestra sus grupos con:
      *  - con_fechas=true  → el grupo ya tiene ejecución activa o futura en otro ciclo.
-     *  - con_fechas=false → el grupo está entre ejecuciones; las fechas son estimadas
-     *    a partir de la secuencia de la previsualización.
+     *  - con_fechas=false → el grupo está entre ejecuciones; las fechas se estiman
+     *    con las sesiones reales del grupo, omitiendo días no laborables
+     *    (listados en dias_omitidos).
      *
-     * @param int    $cursoId
-     * @param string $fechaInicio  Fecha de inicio propuesta para el nuevo ciclo (Y-m-d).
+     * Con $fechaFin se simula el modo de fecha fin fija: se informa el factor de
+     * ajuste, las horas planeadas por grupo, la fecha fin teórica (100 %) y la
+     * intensidad semanal sugerida para dictar el curso completo.
+     *
+     * @param int         $cursoId
+     * @param string      $fechaInicio Fecha de inicio propuesta (Y-m-d).
+     * @param string|null $fechaFin    Fecha fin fija propuesta (Y-m-d) o null.
      * @return array
      */
-    public function previsualizarCurso(int $cursoId, string $fechaInicio): array
+    public function previsualizarCurso(int $cursoId, string $fechaInicio, ?string $fechaFin = null): array
     {
         $curso = Curso::with([
             'modulosOrdenados.grupos.horarios',
             'modulosOrdenados.grupos.modulo',
         ])->findOrFail($cursoId);
 
-        $fechaActual = Carbon::parse($fechaInicio);
-        $modulos     = [];
+        $cursor0     = Carbon::parse($fechaInicio);
+        $noLab       = $this->noLaborablesMemo($cursor0);
+        $existentes  = $curso->modulosOrdenados->flatMap->grupos
+            ->mapWithKeys(fn ($grupo) => [$grupo->id => $this->fechasActivasGrupo($grupo->id)])
+            ->all();
+        $simular     = fn (float $factor) => $this->simularPreview($curso, $cursor0, $factor, $noLab, $existentes);
+        $teorico  = $simular(1.0);
+        $factor   = null;
+        $preview  = $teorico;
+        $advertencia = null;
+
+        if ($fechaFin) {
+            $limite = Carbon::parse($fechaFin);
+            [$factor, $preview] = $this->buscarFactor($simular, $teorico, $limite);
+            $advertencia = $this->advertencia($factor, $limite, $teorico['fin'], $teorico['secuencia'], []);
+            $preview ??= $teorico;
+        }
+
+        return [
+            'curso_id'               => $curso->id,
+            'curso_nombre'           => $curso->nombre,
+            'fecha_inicio'           => $fechaInicio,
+            'fecha_fin'              => $fechaFin,
+            'fecha_fin_teorica'      => $teorico['fin']?->format('Y-m-d'),
+            'factor_ajuste'          => $factor,
+            'porcentaje_horas'       => $factor !== null ? round($factor * 100, 2) : null,
+            'horas_semana_sugeridas' => $factor !== null && $factor < 1
+                ? $this->horasSemanaSugeridas($teorico['secuencia'], $factor)
+                : null,
+            'advertencia'            => $advertencia,
+            'modulos'                => $preview['resultado'],
+        ];
+    }
+
+    // -------------------------------------------------------------------------
+    // Planificación
+    // -------------------------------------------------------------------------
+
+    /**
+     * Arma el plan de fechas del ciclo: tramos compartidos (fijos) y grupos
+     * libres en secuencia, ajustados por el factor en modo fecha fin fija.
+     *
+     * @param Ciclo                  $ciclo
+     * @param Collection<int, Grupo> $grupos Ordenados, con modulo y horarios
+     * @return array{grupos: array<int, array>, fecha_fin: Carbon|null, fecha_fin_teorica: Carbon|null, factor_ajuste: float|null, advertencia: string|null}
+     */
+    private function planificar(Ciclo $ciclo, Collection $grupos): array
+    {
+        $cursor0     = Carbon::parse($ciclo->fecha_inicio);
+        $noLab       = $this->noLaborablesMemo($cursor0);
+        $compartidos = [];
+        $libres      = [];
+
+        foreach ($grupos as $grupo) {
+            $existentes = $this->fechasDeOrigen($grupo->pivot->ciclo_origen_id, $grupo->id)
+                ?? $this->fechasActivasGrupo($grupo->id, $ciclo->id);
+
+            if ($existentes) {
+                $compartidos[$grupo->id] = [
+                    'grupo'           => $grupo,
+                    'fecha_inicio'    => Carbon::parse($existentes['fecha_inicio']),
+                    'fecha_fin'       => Carbon::parse($existentes['fecha_fin']),
+                    'ciclo_origen_id' => $existentes['ciclo_id'],
+                    'horas_planeadas' => $existentes['horas_planeadas'] ?? (float) ($grupo->modulo->duracion ?? 0),
+                ];
+            } else {
+                $libres[] = $grupo;
+            }
+        }
+
+        $simular   = fn (float $factor) => $this->simularLibres($libres, $cursor0, $factor, $noLab);
+        $teorico   = $simular(1.0);
+        $factor    = null;
+        $resultado = $teorico;
+        $advertencia = null;
+
+        $finCompartidos = collect($compartidos)->max(fn ($c) => $c['fecha_fin']);
+        $finTeorica     = $this->maxFecha($teorico['fin'], $finCompartidos);
+
+        if (! $ciclo->fecha_fin_automatica && $ciclo->fecha_fin) {
+            $limite = Carbon::parse($ciclo->fecha_fin);
+            [$factor, $ajustado] = $this->buscarFactor($simular, $teorico, $limite);
+            $resultado   = $ajustado ?? $teorico;
+            $advertencia = $this->advertencia($factor, $limite, $teorico['fin'], $teorico['secuencia'], $compartidos);
+        }
+
+        $plan = [];
+        foreach ($resultado['resultado'] as $grupoId => $rango) {
+            $plan[$grupoId] = [
+                'fecha_inicio'    => $rango['fecha_inicio'],
+                'fecha_fin'       => $rango['fecha_fin'],
+                'ciclo_origen_id' => null,
+                'horas_planeadas' => $rango['horas_planeadas'],
+            ];
+        }
+        foreach ($compartidos as $grupoId => $compartido) {
+            $plan[$grupoId] = collect($compartido)->except('grupo')->all();
+        }
+
+        return [
+            'grupos'            => $plan,
+            'fecha_fin'         => $this->maxFecha($resultado['fin'], $finCompartidos),
+            'fecha_fin_teorica' => $finTeorica,
+            'factor_ajuste'     => $factor,
+            'advertencia'       => $advertencia,
+        ];
+    }
+
+    /**
+     * Simula la secuencia de grupos libres con un factor: cada grupo cubre
+     * duración × factor horas desde el cursor; el siguiente arranca el día
+     * después de la última sesión. Los grupos sin horarios o sin duración se omiten.
+     *
+     * @param array<int, Grupo> $libres
+     * @return array{resultado: array<int, array>, fin: Carbon|null, secuencia: array<int, Grupo>}
+     */
+    private function simularLibres(array $libres, Carbon $cursor0, float $factor, \Closure $noLab): array
+    {
+        $cursor    = $cursor0->copy();
+        $resultado = [];
+        $secuencia = [];
+        $fin       = null;
+
+        foreach ($libres as $grupo) {
+            $horas = (float) ($grupo->modulo->duracion ?? 0) * $factor;
+            $rango = $horas > 0
+                ? $this->calendarioLaboral->calcularRangoGrupo($grupo, $cursor, $horas, $noLab($grupo->sede_id))
+                : null;
+
+            if (! $rango) {
+                continue;
+            }
+
+            $resultado[$grupo->id] = $rango + ['horas_planeadas' => round($horas, 2)];
+            $secuencia[]           = $grupo;
+            $cursor                = $rango['fecha_fin']->copy()->addDay();
+            $fin                   = $rango['fecha_fin'];
+        }
+
+        return ['resultado' => $resultado, 'fin' => $fin, 'secuencia' => $secuencia];
+    }
+
+    /**
+     * Simula la previsualización de un curso con un factor. En cada módulo,
+     * el primer grupo entre ejecuciones determina cuándo avanza el cursor;
+     * esos grupos forman la secuencia usada para el ajuste.
+     *
+     * @param array<int, array|null> $existentesPorGrupo Fechas activas de cada grupo (precalculadas)
+     * @return array{resultado: array<int, array>, fin: Carbon|null, secuencia: array<int, Grupo>}
+     */
+    private function simularPreview(Curso $curso, Carbon $cursor0, float $factor, \Closure $noLab, array $existentesPorGrupo): array
+    {
+        $cursor    = $cursor0->copy();
+        $modulos   = [];
+        $secuencia = [];
+        $fin       = null;
 
         foreach ($curso->modulosOrdenados as $modulo) {
             $gruposModulo   = [];
-            $primerSinFecha = null; // fecha_fin calculada del primer grupo sin slot
+            $primerSinFecha = null;
+            $duracion       = (float) ($modulo->duracion ?? 0);
 
             foreach ($modulo->grupos as $grupo) {
-                $horasSemana      = $grupo->getTotalHorasSemanaAttribute();
-                $duracion         = $modulo->duracion ?? 0;
-                $semanas          = ($horasSemana > 0 && $duracion > 0)
-                    ? (int) ceil($duracion / $horasSemana)
-                    : 0;
+                $horasSemana = (int) $grupo->horarios->sum('duracion_horas');
+                $semanas     = ($horasSemana > 0 && $duracion > 0) ? (int) ceil($duracion / $horasSemana) : 0;
+                $existentes  = $existentesPorGrupo[$grupo->id] ?? null;
 
-                $fechasExistentes = $this->fechasActivasGrupo($grupo->id);
-
-                if ($fechasExistentes) {
+                if ($existentes) {
                     $gruposModulo[] = [
                         'grupo_id'            => $grupo->id,
                         'grupo_nombre'        => $grupo->nombre,
                         'con_fechas'          => true,
-                        'fecha_inicio'        => $fechasExistentes['fecha_inicio'],
-                        'fecha_fin'           => $fechasExistentes['fecha_fin'],
-                        'ciclo_referencia_id' => $fechasExistentes['ciclo_id'],
+                        'fecha_inicio'        => $existentes['fecha_inicio'],
+                        'fecha_fin'           => $existentes['fecha_fin'],
+                        'ciclo_referencia_id' => $existentes['ciclo_id'],
                         'horas_semana'        => $horasSemana,
                         'semanas_estimadas'   => $semanas,
+                        'sesiones'            => null,
+                        'horas_planeadas'     => $existentes['horas_planeadas'] ?? $duracion,
+                        'dias_omitidos'       => [],
                     ];
-                } else {
-                    $fechaInicioCalc = $fechaActual->copy();
-                    $fechaFinCalc    = $semanas > 0
-                        ? $fechaActual->copy()->addWeeks($semanas)
-                        : null;
+                    continue;
+                }
 
-                    $gruposModulo[] = [
-                        'grupo_id'            => $grupo->id,
-                        'grupo_nombre'        => $grupo->nombre,
-                        'con_fechas'          => false,
-                        'fecha_inicio'        => $fechaInicioCalc->format('Y-m-d'),
-                        'fecha_fin'           => $fechaFinCalc?->format('Y-m-d'),
-                        'ciclo_referencia_id' => null,
-                        'horas_semana'        => $horasSemana,
-                        'semanas_estimadas'   => $semanas,
-                    ];
+                $horas = $duracion * $factor;
+                $rango = $horas > 0
+                    ? $this->calendarioLaboral->calcularRangoGrupo($grupo, $cursor, $horas, $noLab($grupo->sede_id))
+                    : null;
 
-                    // El primer grupo sin slot determina cuándo avanza el cursor
-                    if ($primerSinFecha === null && $fechaFinCalc) {
-                        $primerSinFecha = $fechaFinCalc;
-                    }
+                $gruposModulo[] = [
+                    'grupo_id'            => $grupo->id,
+                    'grupo_nombre'        => $grupo->nombre,
+                    'con_fechas'          => false,
+                    'fecha_inicio'        => ($rango['fecha_inicio'] ?? $cursor)->format('Y-m-d'),
+                    'fecha_fin'           => $rango ? $rango['fecha_fin']->format('Y-m-d') : null,
+                    'ciclo_referencia_id' => null,
+                    'horas_semana'        => $horasSemana,
+                    'semanas_estimadas'   => $semanas,
+                    'sesiones'            => $rango['sesiones'] ?? null,
+                    'horas_planeadas'     => $rango ? round($horas, 2) : null,
+                    'dias_omitidos'       => $rango['dias_omitidos'] ?? [],
+                ];
+
+                // El primer grupo sin slot determina cuándo avanza el cursor
+                if ($primerSinFecha === null && $rango) {
+                    $primerSinFecha = $rango['fecha_fin'];
+                    $secuencia[]    = $grupo;
                 }
             }
 
-            // Solo avanzar cursor cuando hay grupos entre ejecuciones en este módulo
             if ($primerSinFecha) {
-                $fechaActual = $primerSinFecha->copy();
+                $cursor = $primerSinFecha->copy()->addDay();
+                $fin    = $primerSinFecha;
             }
 
             $modulos[] = [
@@ -211,11 +391,202 @@ class CalendarioGrupoService
             ];
         }
 
-        return [
-            'curso_id'     => $curso->id,
-            'curso_nombre' => $curso->nombre,
-            'fecha_inicio' => $fechaInicio,
-            'modulos'      => $modulos,
-        ];
+        return ['resultado' => $modulos, 'fin' => $fin, 'secuencia' => $secuencia];
+    }
+
+    /**
+     * Busca por bisección el mayor factor (0 < F <= 1, 4 decimales) con el que
+     * la simulación termina en o antes de $limite. Las horas se simulan sin
+     * redondear para que el factor reportado sea coherente con las fechas.
+     *
+     * @param \Closure $simular  fn (float $factor): array{resultado, fin, secuencia}
+     * @param array    $teorico  Simulación con factor 1
+     * @param Carbon   $limite
+     * @return array{0: float|null, 1: array|null} [factor, simulación ajustada]; [null, null] si no cabe
+     */
+    private function buscarFactor(\Closure $simular, array $teorico, Carbon $limite): array
+    {
+        if ($teorico['fin'] === null || $teorico['fin']->lte($limite)) {
+            return [1.0, $teorico];
+        }
+
+        $bajo  = 0.0;
+        $alto  = 1.0;
+        $mejor = null;
+
+        for ($i = 0; $i < self::ITERACIONES_FACTOR; $i++) {
+            $medio = ($bajo + $alto) / 2;
+            $fin   = $simular($medio)['fin'];
+
+            if ($fin !== null && $fin->lte($limite)) {
+                $mejor = $medio;
+                $bajo  = $medio;
+            } else {
+                $alto = $medio;
+            }
+        }
+
+        if ($mejor === null) {
+            return [null, null];
+        }
+
+        // Preferir un factor "limpio" (2 decimales) si también cabe: evita que un
+        // 80 % exacto quede como 79,99 % y dispare la advertencia del umbral.
+        $redondeado = round($mejor, 2);
+        if ($redondeado > $mejor) {
+            $simulacion = $simular($redondeado);
+            if ($simulacion['fin'] !== null && $simulacion['fin']->lte($limite)) {
+                return [$redondeado, $simulacion];
+            }
+        }
+
+        $factor = floor($mejor * 10000) / 10000;
+
+        return $factor > 0 ? [$factor, $simular($factor)] : [null, null];
+    }
+
+    /**
+     * Construye la advertencia del ajuste en modo fecha fin fija, o null si no hay nada que advertir.
+     *
+     * @param float|null        $factor
+     * @param Carbon            $limite     Fecha fin fijada
+     * @param Carbon|null       $finTeorica Fin de la secuencia con el 100 % de las horas
+     * @param array<int, Grupo> $secuencia  Grupos que se ajustan
+     * @param array             $compartidos Tramos fijos de grupos compartidos
+     * @return string|null
+     */
+    private function advertencia(?float $factor, Carbon $limite, ?Carbon $finTeorica, array $secuencia, array $compartidos): ?string
+    {
+        $mensajes = [];
+        $fechaLimite = $limite->format('d/m/Y');
+
+        if ($factor === null) {
+            $mensajes[] = "La fecha fin fijada ({$fechaLimite}) no alcanza para dictar al menos una sesión por módulo. "
+                . 'Los grupos se programaron con el 100 % de las horas y terminan el ' . $finTeorica?->format('d/m/Y') . '.';
+        } elseif ($factor < config('academico.factor_ajuste_minimo')) {
+            $total     = collect($secuencia)->sum(fn ($g) => (float) ($g->modulo->duracion ?? 0));
+            $planeadas = round($total * $factor, 1);
+            $mensajes[] = sprintf(
+                'Con la fecha fin fijada (%s) se dictará el %s %% de las horas (%s de %s h), por debajo del mínimo de %s %%. '
+                . 'Para dictar el 100 %% se necesitan aprox. %s h/semana o terminar el %s.',
+                $fechaLimite,
+                $this->numero($factor * 100),
+                $this->numero($planeadas),
+                $this->numero($total),
+                $this->numero(config('academico.factor_ajuste_minimo') * 100),
+                $this->numero($this->horasSemanaSugeridas($secuencia, $factor)),
+                $finTeorica?->format('d/m/Y')
+            );
+        }
+
+        foreach ($compartidos as $compartido) {
+            if ($compartido['fecha_fin']->gt($limite)) {
+                $mensajes[] = "El grupo '{$compartido['grupo']->nombre}' comparte fechas con el ciclo #{$compartido['ciclo_origen_id']} "
+                    . 'y termina el ' . $compartido['fecha_fin']->format('d/m/Y') . ', después de la fecha fin fijada.';
+            }
+        }
+
+        return $mensajes ? implode(' ', $mensajes) : null;
+    }
+
+    /**
+     * Intensidad semanal uniforme que permitiría dictar el 100 % de las horas
+     * en el tiempo que ocupa la secuencia ajustada:
+     * h* = Σ duración / (F × Σ (duración_i / horas_semana_i)).
+     *
+     * @param array<int, Grupo> $secuencia
+     * @param float             $factor
+     * @return float|null
+     */
+    private function horasSemanaSugeridas(array $secuencia, float $factor): ?float
+    {
+        $total   = 0.0;
+        $semanas = 0.0;
+
+        foreach ($secuencia as $grupo) {
+            $duracion    = (float) ($grupo->modulo->duracion ?? 0);
+            $horasSemana = (float) $grupo->horarios->sum('duracion_horas');
+
+            if ($horasSemana > 0) {
+                $total   += $duracion;
+                $semanas += $duracion / $horasSemana;
+            }
+        }
+
+        return ($semanas > 0 && $factor > 0) ? round($total / ($factor * $semanas), 1) : null;
+    }
+
+    // -------------------------------------------------------------------------
+    // Helpers
+    // -------------------------------------------------------------------------
+
+    /**
+     * Fechas del grupo en el ciclo origen del que este ciclo las copió.
+     * Null si no hay origen o si el origen ya no tiene el grupo con fechas.
+     *
+     * @param int|null $cicloOrigenId
+     * @param int      $grupoId
+     * @return array{ciclo_id:int,fecha_inicio:string,fecha_fin:string,horas_planeadas:float|null}|null
+     */
+    private function fechasDeOrigen(?int $cicloOrigenId, int $grupoId): ?array
+    {
+        if ($cicloOrigenId === null) {
+            return null;
+        }
+
+        return $this->filaAFechas(DB::table('ciclo_grupo')
+            ->where('ciclo_id', $cicloOrigenId)
+            ->where('grupo_id', $grupoId)
+            ->whereNotNull('fecha_inicio_grupo')
+            ->whereNotNull('fecha_fin_grupo')
+            ->first(['ciclo_id', 'fecha_inicio_grupo', 'fecha_fin_grupo', 'horas_planeadas']));
+    }
+
+    /**
+     * Convierte una fila de ciclo_grupo al formato de fechas compartidas.
+     */
+    private function filaAFechas(?object $fila): ?array
+    {
+        return $fila ? [
+            'ciclo_id'        => $fila->ciclo_id,
+            'fecha_inicio'    => $fila->fecha_inicio_grupo,
+            'fecha_fin'       => $fila->fecha_fin_grupo,
+            'horas_planeadas' => $fila->horas_planeadas !== null ? (float) $fila->horas_planeadas : null,
+        ] : null;
+    }
+
+    /**
+     * Devuelve un cargador de días no laborables por sede que consulta una
+     * sola vez por sede durante un cálculo (la bisección simula muchas veces).
+     *
+     * @return \Closure(int|null): array<string, string>
+     */
+    private function noLaborablesMemo(Carbon $desde): \Closure
+    {
+        $memo = [];
+
+        return function (?int $sedeId) use (&$memo, $desde): array {
+            return $memo[$sedeId ?? 0] ??= $this->calendarioLaboral->cargarNoLaborables($desde, $sedeId);
+        };
+    }
+
+    /**
+     * La mayor de dos fechas opcionales.
+     */
+    private function maxFecha(?Carbon $a, ?Carbon $b): ?Carbon
+    {
+        if ($a === null || $b === null) {
+            return $a ?? $b;
+        }
+
+        return $a->gt($b) ? $a : $b;
+    }
+
+    /**
+     * Formato numérico colombiano con un decimal máximo (ej. 6,4).
+     */
+    private function numero(float $valor): string
+    {
+        return rtrim(rtrim(number_format($valor, 1, ',', '.'), '0'), ',');
     }
 }

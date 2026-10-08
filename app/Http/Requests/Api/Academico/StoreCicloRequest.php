@@ -5,6 +5,7 @@ namespace App\Http\Requests\Api\Academico;
 use App\Traits\HasActiveStatus;
 use App\Traits\HasActiveStatusValidation;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreCicloRequest extends FormRequest
 {
@@ -37,6 +38,8 @@ class StoreCicloRequest extends FormRequest
 
     /**
      * Obtiene las reglas de validación que se aplican a la solicitud.
+     * Con fecha_fin_automatica = false (fecha fin fija) la fecha_fin es obligatoria:
+     * el contenido de los módulos se ajusta para terminar en esa fecha.
      *
      * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
      */
@@ -48,7 +51,10 @@ class StoreCicloRequest extends FormRequest
             'nombre' => 'required|string|max:255|unique:ciclos,nombre',
             'descripcion' => 'nullable|string|max:1000',
             'fecha_inicio' => 'required|date|after_or_equal:today',
-            'fecha_fin' => 'nullable|date|after:fecha_inicio',
+            'fecha_fin' => [
+                'nullable', 'date', 'after:fecha_inicio',
+                Rule::requiredIf(fn () => $this->has('fecha_fin_automatica') && ! $this->boolean('fecha_fin_automatica')),
+            ],
             'fecha_fin_automatica' => 'nullable|boolean',
             'inscritos' => 'nullable|integer|min:0',
             'grupos' => 'nullable|array',
@@ -82,6 +88,7 @@ class StoreCicloRequest extends FormRequest
             'fecha_inicio.after_or_equal' => 'La fecha de inicio debe ser igual o posterior a hoy.',
             'fecha_fin.date' => 'La fecha de fin debe ser una fecha válida.',
             'fecha_fin.after' => 'La fecha de fin debe ser posterior a la fecha de inicio.',
+            'fecha_fin.required' => 'La fecha de fin es obligatoria cuando la fecha fin es fija (no automática).',
             'fecha_fin_automatica.boolean' => 'El cálculo automático de fecha de fin debe ser verdadero o falso.',
             'inscritos.integer' => 'El número de inscritos debe ser un número entero.',
             'inscritos.min' => 'El número de inscritos no puede ser negativo.',

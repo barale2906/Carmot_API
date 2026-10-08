@@ -38,6 +38,20 @@ class Horario extends Model
 {
     use HasFactory, SoftDeletes, HasActiveStatus, HasHorarioFilterScopes, HasSortingScopes, HasRelationScopes;
 
+    /**
+     * Mapeo de Carbon::dayOfWeek (0 = domingo) al valor del enum `dia`.
+     * Fuente única para todo cálculo que recorra el calendario día por día.
+     */
+    public const DIAS_SEMANA = [
+        0 => 'domingo',
+        1 => 'lunes',
+        2 => 'martes',
+        3 => 'miércoles',
+        4 => 'jueves',
+        5 => 'viernes',
+        6 => 'sábado',
+    ];
+
     protected $guarded = ['id', 'created_at', 'updated_at', 'deleted_at'];
 
     /**

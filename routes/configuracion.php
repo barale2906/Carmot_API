@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\Configuracion\AreaController;
 use App\Http\Controllers\Api\Configuracion\BancoController;
+use App\Http\Controllers\Api\Configuracion\DiaNoLaborableController;
 use App\Http\Controllers\Api\Configuracion\EpsController;
 use App\Http\Controllers\Api\Configuracion\HorarioController;
 use App\Http\Controllers\Api\Configuracion\PermissionController;
@@ -121,6 +122,32 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('eps/force/{ep}', [EpsController::class, 'forceDelete'])
         ->name('eps.force-delete');
     Route::apiResource('eps', EpsController::class)->parameters(['eps' => 'ep']);
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Calendario de días no laborables (rutas específicas antes del apiResource
+    // para evitar conflictos con {diaNoLaborable}). Cada cambio recalcula los
+    // ciclos afectados.
+    // ──────────────────────────────────────────────────────────────────────────
+    Route::prefix('dias-no-laborables')->group(function () {
+        Route::get('calendario', [DiaNoLaborableController::class, 'calendario'])
+            ->name('dias-no-laborables.calendario');
+        Route::get('trashed', [DiaNoLaborableController::class, 'trashed'])
+            ->name('dias-no-laborables.trashed');
+        Route::get('filters/options', [DiaNoLaborableController::class, 'filters'])
+            ->name('dias-no-laborables.filters');
+        Route::get('statistics', [DiaNoLaborableController::class, 'statistics'])
+            ->name('dias-no-laborables.statistics');
+        Route::post('rango', [DiaNoLaborableController::class, 'rango'])
+            ->name('dias-no-laborables.rango');
+        Route::post('generar-festivos', [DiaNoLaborableController::class, 'generarFestivos'])
+            ->name('dias-no-laborables.generar-festivos');
+        Route::post('restore/{id}', [DiaNoLaborableController::class, 'restore'])
+            ->name('dias-no-laborables.restore');
+        Route::delete('force/{id}', [DiaNoLaborableController::class, 'forceDelete'])
+            ->name('dias-no-laborables.force-delete');
+    });
+    Route::apiResource('dias-no-laborables', DiaNoLaborableController::class)
+        ->parameters(['dias-no-laborables' => 'diaNoLaborable']);
 
     // ──────────────────────────────────────────────────────────────────────────
     // Rutas de roles

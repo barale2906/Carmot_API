@@ -3,12 +3,10 @@
 namespace App\Services\Academico;
 
 use App\Models\Academico\Aplazamiento;
-use App\Models\Academico\AsistenciaClaseProgramada;
 use App\Models\Academico\Ciclo;
 use App\Models\Financiero\Cartera\Cartera;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
 
 /**
  * AplazamientoCicloService
@@ -19,16 +17,26 @@ use Illuminate\Support\Facades\DB;
  *  - ampliar: extiende a fecha posterior, genera aplazamiento hijo
  *  - interrumpir: cierra anticipadamente ajustando fechas hacia atrás
  *  - revertir: deshace el aplazamiento completamente
+ *
+ * Cada movimiento recalcula las fechas de los grupos con el calendario
+ * laboral (horarios + días no laborables) y realinea las clases pendientes
+ * sobre las sesiones reales del grupo, en vez de sumar días corridos.
  */
 class AplazamientoCicloService
 {
+    public function __construct(
+        private readonly CalendarioGrupoService $calendarioGrupo,
+        private readonly RecalculoCalendarioService $recalculo,
+    ) {
+    }
+
     // -------------------------------------------------------------------------
     // aplicar
     // -------------------------------------------------------------------------
 
     /**
      * Aplaza el ciclo a la fecha probable de reinicio.
-     * Mueve: fecha_inicio del ciclo, fechas de grupos (pivot), clases programadas
+     * Mueve: fecha_inicio del ciclo, fechas de grupos (pivot), clases programadas (realineadas)
      * y opcionalmente la cartera. Registra el aplazamiento.
      *
      * @param Ciclo $ciclo
@@ -51,8 +59,8 @@ class AplazamientoCicloService
         // 2. Recalcular fechas de grupos en el pivot
         $this->recalcularFechas($ciclo);
 
-        // 3. Mover clases programadas (solo las pendientes de dictar)
-        $clasesMovidas = $this->moverClases($ciclo->id, $dias);
+        // 3. Realinear clases programadas (solo las pendientes de dictar)
+        $clasesMovidas = $this->recalculo->realinearClases($ciclo, $dias);
 
         // 4. Mover cartera si se solicita
         $carterasMov = 0;
@@ -130,7 +138,7 @@ class AplazamientoCicloService
         $this->recalcularFechas($ciclo);
 
         // Clases programadas
-        $clasesMovidas = $this->moverClases($ciclo->id, $diasAdicionales);
+        $clasesMovidas = $this->recalculo->realinearClases($ciclo, $diasAdicionales);
 
         // Cartera
         $carterasMov = 0;
@@ -193,8 +201,8 @@ class AplazamientoCicloService
         $ciclo->saveQuietly();
         $this->recalcularFechas($ciclo);
 
-        // Clases programadas: mover hacia atrás
-        $clasesMovidas = $this->moverClases($ciclo->id, -$diasAjuste);
+        // Clases programadas: realinear hacia atrás
+        $clasesMovidas = $this->recalculo->realinearClases($ciclo, -$diasAjuste);
 
         // Cartera: mover hacia atrás si aplica
         $carterasMov = 0;
@@ -240,7 +248,7 @@ class AplazamientoCicloService
         $this->recalcularFechas($ciclo);
 
         // Clases programadas
-        $this->moverClases($ciclo->id, -$dias);
+        $this->recalculo->realinearClases($ciclo, -$dias);
 
         // Cartera
         if ($aplazamiento->mover_cartera) {
@@ -263,41 +271,13 @@ class AplazamientoCicloService
     // -------------------------------------------------------------------------
 
     /**
-     * Recalcula fechas del ciclo automáticamente (pivot de grupos y fecha_fin).
+     * Recalcula fechas del ciclo (pivot de grupos y, si es automática, fecha_fin)
+     * con el calendario laboral.
      */
     private function recalcularFechas(Ciclo $ciclo): void
     {
         $ciclo->refresh();
-        $fechaFin = $ciclo->calcularFechaFin();
-
-        if ($ciclo->fecha_fin_automatica && $fechaFin) {
-            $ciclo->fecha_fin    = $fechaFin;
-            $ciclo->duracion_dias = (int) $ciclo->fecha_inicio->diffInDays($fechaFin);
-            $ciclo->saveQuietly();
-        }
-    }
-
-    /**
-     * Mueve las clases programadas (solo estado 'programada') del ciclo.
-     * Usa días positivos para adelantar, negativos para retroceder.
-     *
-     * @return int filas afectadas
-     */
-    private function moverClases(int $cicloId, int $dias): int
-    {
-        if ($dias === 0) {
-            return 0;
-        }
-
-        $funcion = $dias > 0 ? 'DATE_ADD' : 'DATE_SUB';
-        $absDias = abs($dias);
-
-        return AsistenciaClaseProgramada::where('ciclo_id', $cicloId)
-            ->where('estado', 'programada')
-            ->whereNull('deleted_at')
-            ->update([
-                'fecha_clase' => DB::raw("{$funcion}(fecha_clase, INTERVAL {$absDias} DAY)"),
-            ]);
+        $this->calendarioGrupo->recalcularCiclo($ciclo);
     }
 
     /**

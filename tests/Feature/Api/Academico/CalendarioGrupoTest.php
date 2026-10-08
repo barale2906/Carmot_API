@@ -81,7 +81,7 @@ class CalendarioGrupoTest extends TestCase
     /** @test */
     public function previsualizar_retorna_estructura_correcta_para_grupos_sin_fechas(): void
     {
-        $fechaInicio = '2026-08-04'; // lunes
+        $fechaInicio = '2026-08-03'; // lunes (grupoA dicta los lunes)
 
         $response = $this->actingAs($this->usuario)
             ->getJson(route('ciclos.previsualizar', [
@@ -110,20 +110,23 @@ class CalendarioGrupoTest extends TestCase
     public function previsualizar_muestra_con_fechas_true_cuando_grupo_tiene_ejecucion_activa(): void
     {
         // Ciclo de referencia que le asigna fechas activas al grupoA
-        $cicloRef = $this->crearCicloConFechasGrupo($this->grupoA, '2026-08-01', '2026-09-30');
+        // Fechas relativas a hoy: el slot debe seguir activo (fecha_fin >= hoy)
+        $refInicio = Carbon::now()->subDays(30)->toDateString();
+        $refFin    = Carbon::now()->addDays(30)->toDateString();
+        $cicloRef  = $this->crearCicloConFechasGrupo($this->grupoA, $refInicio, $refFin);
 
         $response = $this->actingAs($this->usuario)
             ->getJson(route('ciclos.previsualizar', [
                 'curso_id'    => $this->curso->id,
-                'fecha_inicio' => '2026-08-10',
+                'fecha_inicio' => Carbon::now()->addDays(10)->toDateString(),
             ]));
 
         $response->assertOk();
 
         $grupoAData = $response->json('data.modulos.0.grupos.0');
         $this->assertTrue($grupoAData['con_fechas']);
-        $this->assertEquals('2026-08-01', $grupoAData['fecha_inicio']);
-        $this->assertEquals('2026-09-30', $grupoAData['fecha_fin']);
+        $this->assertEquals($refInicio, $grupoAData['fecha_inicio']);
+        $this->assertEquals($refFin, $grupoAData['fecha_fin']);
         $this->assertEquals($cicloRef->id, $grupoAData['ciclo_referencia_id']);
     }
 
@@ -210,8 +213,8 @@ class CalendarioGrupoTest extends TestCase
         $this->assertEquals($fechaInicio, $pivot->fecha_inicio_grupo);
         $this->assertNotNull($pivot->fecha_fin_grupo);
 
-        // 10 h / 2 h_semana = 5 semanas → fecha_fin = fechaInicio + 5 semanas
-        $fechaFinEsperada = Carbon::parse($fechaInicio)->addWeeks(5)->format('Y-m-d');
+        // 10 h / 2 h por sesión = 5 lunes → fecha_fin = día de la 5.ª sesión (inicio + 4 semanas)
+        $fechaFinEsperada = Carbon::parse($fechaInicio)->addWeeks(4)->format('Y-m-d');
         $this->assertEquals($fechaFinEsperada, $pivot->fecha_fin_grupo);
 
         // El ciclo también debe tener fecha_fin actualizada
@@ -252,9 +255,17 @@ class CalendarioGrupoTest extends TestCase
         $this->assertEquals($refInicio, $pivotA->fecha_inicio_grupo);
         $this->assertEquals($refFin, $pivotA->fecha_fin_grupo);
 
-        // grupoB → calculado desde fecha_inicio del ciclo
-        $this->assertEquals($fechaInicio, $pivotB->fecha_inicio_grupo);
+        // grupoB → primera sesión real (martes) desde fecha_inicio del ciclo
+        $primerMartes = Carbon::parse($fechaInicio);
+        if (! $primerMartes->isTuesday()) {
+            $primerMartes = $primerMartes->next(Carbon::TUESDAY);
+        }
+        $this->assertEquals($primerMartes->toDateString(), $pivotB->fecha_inicio_grupo);
         $this->assertNotNull($pivotB->fecha_fin_grupo);
+
+        // grupoA quedó marcado como copia del ciclo de referencia; grupoB es cálculo propio
+        $this->assertNotNull($pivotA->ciclo_origen_id);
+        $this->assertNull($pivotB->ciclo_origen_id);
     }
 
     // =========================================================================

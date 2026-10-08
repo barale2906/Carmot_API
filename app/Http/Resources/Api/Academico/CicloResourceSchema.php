@@ -23,7 +23,17 @@ class CicloResourceSchema
                 'descripcion' => ['type' => 'string', 'nullable' => true],
                 'fecha_inicio' => ['type' => 'string', 'format' => 'date', 'nullable' => true],
                 'fecha_fin' => ['type' => 'string', 'format' => 'date', 'nullable' => true],
-                'fecha_fin_automatica' => ['type' => 'boolean'],
+                'fecha_fin_automatica' => ['type' => 'boolean', 'description' => 'true: fecha fin calculada; false: fecha fin fija y contenido ajustado'],
+                'fecha_fin_teorica' => ['type' => 'string', 'format' => 'date', 'nullable' => true, 'description' => 'Fecha fin dictando el 100 % de las horas'],
+                'ajuste' => [
+                    'type' => 'object',
+                    'properties' => [
+                        'modo' => ['type' => 'string', 'enum' => ['automatico', 'fijo']],
+                        'factor' => ['type' => 'number', 'nullable' => true, 'description' => 'Proporción de horas dictadas (1 = completo; null = no aplica o la fecha no alcanza)'],
+                        'porcentaje_horas' => ['type' => 'number', 'nullable' => true],
+                        'advertencia' => ['type' => 'string', 'nullable' => true],
+                    ],
+                ],
                 'duracion_dias' => ['type' => 'integer', 'nullable' => true],
                 'duracion_estimada' => ['type' => 'integer', 'nullable' => true],
                 'total_horas' => ['type' => 'integer', 'nullable' => true],
@@ -77,6 +87,8 @@ class CicloResourceSchema
                             'orden' => ['type' => 'integer', 'nullable' => true],
                             'fecha_inicio_grupo' => ['type' => 'string', 'format' => 'date', 'nullable' => true],
                             'fecha_fin_grupo' => ['type' => 'string', 'format' => 'date', 'nullable' => true],
+                            'ciclo_origen_id' => ['type' => 'integer', 'nullable' => true, 'description' => 'Ciclo del que se copiaron las fechas del grupo (NULL = cálculo propio)'],
+                            'horas_planeadas' => ['type' => 'number', 'nullable' => true, 'description' => 'Horas de contenido asignadas al grupo en este ciclo'],
                             'modulo' => [
                                 'type' => 'object',
                                 'nullable' => true,

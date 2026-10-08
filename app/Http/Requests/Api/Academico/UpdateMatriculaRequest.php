@@ -153,10 +153,10 @@ class UpdateMatriculaRequest extends FormRequest
     /**
      * Configura validaciones adicionales que requieren consultar la base de datos.
      *
-     * Impide que, tras la actualización, el estudiante quede matriculado dos veces
-     * en el mismo curso y ciclo (considerando tanto los valores enviados como los
-     * que ya tiene la matrícula para los campos no incluidos en el payload).
-     * Se excluye la propia matrícula y las matrículas anuladas (status = 2).
+     * Si tras la actualización la matrícula queda vigente (status = 1), impide que
+     * el estudiante tenga otra matrícula vigente en el mismo curso, sin importar
+     * el ciclo. Considera tanto los valores enviados como los que ya tiene la
+     * matrícula para los campos no incluidos en el payload, y excluye la propia.
      */
     public function withValidator($validator): void
     {
@@ -165,19 +165,22 @@ class UpdateMatriculaRequest extends FormRequest
 
             $estudianteId = $this->input('estudiante_id', $matricula->estudiante_id);
             $cursoId      = $this->input('curso_id', $matricula->curso_id);
-            $cicloId      = $this->input('ciclo_id', $matricula->ciclo_id);
+            $status       = (int) $this->input('status', $matricula->status);
 
-            $yaMatriculado = Matricula::where('estudiante_id', $estudianteId)
-                ->where('curso_id', $cursoId)
-                ->where('ciclo_id', $cicloId)
-                ->where('status', '!=', 2)
+            if ($status !== 1) {
+                return;
+            }
+
+            $tieneOtraVigente = Matricula::byEstudiante($estudianteId)
+                ->byCurso($cursoId)
+                ->vigentes()
                 ->where('id', '!=', $matricula->id)
                 ->exists();
 
-            if ($yaMatriculado) {
+            if ($tieneOtraVigente) {
                 $validator->errors()->add(
                     'estudiante_id',
-                    'El estudiante ya se encuentra matriculado en este curso y ciclo.'
+                    'El estudiante ya tiene una matrícula vigente en este curso.'
                 );
             }
         });

@@ -337,6 +337,15 @@ class Matricula extends Model
     }
 
     /**
+     * Matrículas vigentes (status = 1). Las inactivas (finalizadas/canceladas)
+     * y las anuladas no cuentan como vigentes.
+     */
+    public function scopeVigentes($query)
+    {
+        return $query->where('status', 1);
+    }
+
+    /**
      * Scope compuesto de filtros (sobrescribe el del trait).
      */
     public function scopeWithFilters($query, array $filters)

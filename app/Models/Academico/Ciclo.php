@@ -3,6 +3,8 @@
 namespace App\Models\Academico;
 
 use App\Models\Configuracion\Sede;
+use App\Services\Academico\CalendarioGrupoService;
+use App\Services\Academico\CalendarioLaboralService;
 use App\Traits\HasActiveStatus;
 use App\Traits\HasCicloFilterScopes;
 use App\Traits\HasFilterScopes;
@@ -28,6 +30,12 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property int $sede_id ID de la sede a la que pertenece
  * @property int $curso_id ID del curso al que pertenece
  * @property int|null $inscritos Cantidad de estudiantes inscritos al ciclo
+ * @property \Carbon\Carbon|null $fecha_inicio Fecha de inicio del ciclo
+ * @property \Carbon\Carbon|null $fecha_fin Fecha fin: calculada (automática) o fijada por el usuario (modo fijo)
+ * @property \Carbon\Carbon|null $fecha_fin_teorica Fecha en que terminaría dictando el 100 % de las horas
+ * @property bool $fecha_fin_automatica true: la fecha fin se calcula; false: fecha fin fija y el contenido se ajusta
+ * @property float|null $factor_ajuste Proporción de horas dictadas en modo fijo (1 = completo; null = no aplica o no cabe)
+ * @property string|null $advertencia_ajuste Advertencia del último cálculo (factor bajo el umbral, fecha insuficiente...)
  * @property int $status Estado del ciclo (1: Activo, 0: Inactivo)
  * @property \Carbon\Carbon $created_at Fecha de creación
  * @property \Carbon\Carbon $updated_at Fecha de última actualización
@@ -56,8 +64,10 @@ class Ciclo extends Model
         'status' => 'integer',
         'fecha_inicio' => 'date',
         'fecha_fin' => 'date',
+        'fecha_fin_teorica' => 'date',
         'duracion_dias' => 'integer',
         'fecha_fin_automatica' => 'boolean',
+        'factor_ajuste' => 'float',
         'inscritos' => 'integer',
     ];
 
@@ -92,7 +102,7 @@ class Ciclo extends Model
     public function grupos(): BelongsToMany
     {
         return $this->belongsToMany(Grupo::class, 'ciclo_grupo')
-            ->withPivot(['orden', 'fecha_inicio_grupo', 'fecha_fin_grupo'])
+            ->withPivot(['orden', 'fecha_inicio_grupo', 'fecha_fin_grupo', 'ciclo_origen_id', 'horas_planeadas'])
             ->withTimestamps()
             ->orderBy('ciclo_grupo.orden');
     }
@@ -193,65 +203,22 @@ class Ciclo extends Model
     }
 
     /**
-     * Calcula la fecha de finalización del ciclo basada en los grupos y sus horarios.
-     * Considera el orden secuencial de los grupos.
-     *
-     * @return \Carbon\Carbon|null
-     */
-    public function calcularFechaFin(): ?\Carbon\Carbon
-    {
-        if (!$this->fecha_inicio) {
-            return null;
-        }
-
-        $fechaInicio = \Carbon\Carbon::parse($this->fecha_inicio);
-        $fechaActual = $fechaInicio->copy();
-
-        // Obtener grupos ordenados por el campo 'orden' en la tabla pivot
-        $gruposOrdenados = $this->grupos()->orderBy('ciclo_grupo.orden')->get();
-
-        if ($gruposOrdenados->isEmpty()) {
-            return null;
-        }
-
-        // Calcular fecha de fin considerando el orden secuencial
-        foreach ($gruposOrdenados as $grupo) {
-            $duracionModulo = $grupo->modulo->duracion ?? 0;
-            $horasPorSemana = $grupo->getTotalHorasSemanaAttribute();
-
-            if ($horasPorSemana > 0) {
-                // Calcular semanas necesarias para este grupo
-                $semanasNecesarias = ceil($duracionModulo / $horasPorSemana);
-
-                // Actualizar fecha de inicio del grupo
-                $this->grupos()->updateExistingPivot($grupo->id, [
-                    'fecha_inicio_grupo' => $fechaActual->format('Y-m-d')
-                ]);
-
-                // Avanzar la fecha actual por las semanas necesarias
-                $fechaActual->addWeeks($semanasNecesarias);
-
-                // Actualizar fecha de fin del grupo
-                $this->grupos()->updateExistingPivot($grupo->id, [
-                    'fecha_fin_grupo' => $fechaActual->format('Y-m-d')
-                ]);
-            }
-        }
-
-        return $fechaActual;
-    }
-
-    /**
-     * Actualiza automáticamente la fecha de fin si está habilitado el cálculo automático.
+     * Recalcula las fechas de los grupos (pivot) y la fecha fin cuando el
+     * cálculo automático está habilitado. Delega en CalendarioGrupoService,
+     * que considera horarios, sede y días no laborables.
+     * No persiste el ciclo: quien lo llama decide cuándo guardar.
      */
     public function actualizarFechaFin(): void
     {
-        if ($this->fecha_fin_automatica && $this->fecha_inicio) {
-            $fechaFinCalculada = $this->calcularFechaFin();
-            if ($fechaFinCalculada) {
-                $this->fecha_fin = $fechaFinCalculada;
-                $this->duracion_dias = $this->fecha_inicio->diffInDays($fechaFinCalculada);
-            }
+        if (! $this->fecha_fin_automatica || ! $this->fecha_inicio) {
+            return;
+        }
+
+        $fechaFinCalculada = app(CalendarioGrupoService::class)->calcularYAsignarFechas($this);
+
+        if ($fechaFinCalculada) {
+            $this->fecha_fin     = $fechaFinCalculada;
+            $this->duracion_dias = $this->fecha_inicio->diffInDays($fechaFinCalculada);
         }
     }
 
@@ -395,15 +362,38 @@ class Ciclo extends Model
 
     /**
      * Obtiene información detallada del cronograma del ciclo.
+     * Incluye las sesiones laborables reales de cada grupo dentro de su rango
+     * y los días no laborables que se omitieron.
      *
      * @return array
      */
     public function getCronogramaAttribute(): array
     {
-        $gruposOrdenados = $this->grupos()->orderBy('ciclo_grupo.orden')->get();
-        $cronograma = [];
+        $gruposOrdenados   = $this->grupos()->with(['modulo', 'horarios'])->orderBy('ciclo_grupo.orden')->get();
+        $calendarioLaboral = app(CalendarioLaboralService::class);
+        $cronograma        = [];
 
         foreach ($gruposOrdenados as $grupo) {
+            $sesiones = 0;
+            $diasOmitidos = [];
+
+            if ($grupo->pivot->fecha_inicio_grupo && $grupo->pivot->fecha_fin_grupo) {
+                $sesionesGrupo = $calendarioLaboral->recorrerSesiones(
+                    $grupo,
+                    \Carbon\Carbon::parse($grupo->pivot->fecha_inicio_grupo),
+                    \Carbon\Carbon::parse($grupo->pivot->fecha_fin_grupo)
+                );
+
+                foreach ($sesionesGrupo as $sesion) {
+                    if ($sesion['no_laborable'] === null) {
+                        $sesiones++;
+                    } else {
+                        $fecha = $sesion['fecha']->toDateString();
+                        $diasOmitidos[$fecha] = ['fecha' => $fecha, 'nombre' => $sesion['no_laborable']];
+                    }
+                }
+            }
+
             $cronograma[] = [
                 'grupo_id' => $grupo->id,
                 'grupo_nombre' => $grupo->nombre,
@@ -415,10 +405,13 @@ class Ciclo extends Model
                 ],
                 'fecha_inicio_grupo' => $grupo->pivot->fecha_inicio_grupo,
                 'fecha_fin_grupo' => $grupo->pivot->fecha_fin_grupo,
+                'ciclo_origen_id' => $grupo->pivot->ciclo_origen_id,
                 'horas_por_semana' => $grupo->getTotalHorasSemanaAttribute(),
                 'semanas_estimadas' => $grupo->getTotalHorasSemanaAttribute() > 0
                     ? ceil($grupo->modulo->duracion / $grupo->getTotalHorasSemanaAttribute())
-                    : 0
+                    : 0,
+                'sesiones' => $sesiones,
+                'dias_omitidos' => array_values($diasOmitidos),
             ];
         }
 

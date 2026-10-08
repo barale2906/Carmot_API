@@ -92,7 +92,8 @@ class AsistenciaClaseProgramadaController extends Controller
     /**
      * Genera las clases programadas automáticamente para un grupo y ciclo,
      * basándose en los horarios del grupo y las fechas de inicio/fin del grupo
-     * en el pivot ciclo_grupo. Omite clases ya existentes para ese slot.
+     * en el pivot ciclo_grupo. Omite clases ya existentes para ese slot y las
+     * sesiones que caen en días no laborables (reportadas en clases_omitidas).
      *
      * @param Request $request
      * @return JsonResponse
@@ -114,6 +115,7 @@ class AsistenciaClaseProgramadaController extends Controller
         return response()->json([
             'message'          => $resultado['message'],
             'clases_generadas' => $resultado['clases_generadas'],
+            'clases_omitidas'  => $resultado['clases_omitidas'] ?? 0,
         ], $status);
     }
 

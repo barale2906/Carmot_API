@@ -123,6 +123,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('{ciclo}/actualizar-orden-grupo', [CicloController::class, 'actualizarOrdenGrupo'])->name('ciclos.actualizar-orden-grupo');
         Route::post('{ciclo}/reordenar-grupos', [CicloController::class, 'reordenarGrupos'])->name('ciclos.reordenar-grupos');
         Route::get('{ciclo}/cronograma', [CicloController::class, 'cronograma'])->name('ciclos.cronograma');
+        Route::get('{ciclo}/planeacion', [CicloController::class, 'planeacion'])->name('ciclos.planeacion');
         Route::get('{ciclo}/siguiente-orden', [CicloController::class, 'siguienteOrden'])->name('ciclos.siguiente-orden');
 
         // Aplazamientos del ciclo
