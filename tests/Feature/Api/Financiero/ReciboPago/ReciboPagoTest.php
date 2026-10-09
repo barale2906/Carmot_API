@@ -1098,4 +1098,229 @@ class ReciboPagoTest extends TestCase
         $this->assertEquals(0,     $cartera->descuento, 'El descuento debe revertirse a 0');
         $this->assertEquals(Cartera::getStatusKey('Abonada'), $cartera->status, 'Debe volver a estado Abonada');
     }
+
+    // ─── Recibo de costo cero (valor 0 o descuento del 100 %) ─────────────────
+
+    /** Crea una cuota pendiente de la matrícula de prueba. */
+    private function crearCuota(int $numeroCuota, float $valor, int $diasVencimiento = 5): Cartera
+    {
+        return Cartera::factory()->create([
+            'matricula_id'      => $this->matricula->id,
+            'sede_id'           => $this->sede->id,
+            'estudiante_id'     => $this->matricula->estudiante_id,
+            'numero_cuota'      => $numeroCuota,
+            'valor'             => $valor,
+            'saldo'             => $valor,
+            'abono'             => 0,
+            'descuento'         => 0,
+            'fecha_vencimiento' => now()->addDays($diasVencimiento)->toDateString(),
+            'status'            => Cartera::getStatusKey('Activa'),
+        ]);
+    }
+
+    /** Payload de un recibo de costo cero: monto 0 y sin medios de pago. */
+    private function payloadCostoCero(array $overrides = []): array
+    {
+        return array_merge([
+            'sede_id'           => $this->sede->id,
+            'cajero_id'         => $this->usuario->id,
+            'matricula_id'      => $this->matricula->id,
+            'origen'            => ReciboPago::ORIGEN_ACADEMICO,
+            'fecha_recibo'      => now()->toDateString(),
+            'fecha_transaccion' => now()->toDateString(),
+            'monto_a_pagar'     => 0,
+            'aplicar_descuento' => true,
+        ], $overrides);
+    }
+
+    private function crearDescuentoMatricula100(): void
+    {
+        Descuento::factory()->vigente()->promocionMatricula()->create([
+            'tipo'       => Descuento::TIPO_PORCENTUAL,
+            'valor'      => 100,
+            'aplicacion' => Descuento::APLICACION_MATRICULA,
+        ]);
+        ConceptoPago::factory()->tipoCartera()->create(['nombre' => ConceptoPago::DESCUENTO, 'valor' => 0]);
+    }
+
+    /** @test */
+    public function store_costo_cero_descarga_matricula_con_descuento_del_100(): void
+    {
+        $this->crearDescuentoMatricula100();
+        $matricula = $this->crearCuota(0, 150000);
+        $cuota1    = $this->crearCuota(1, 100000, 30);
+
+        $response = $this->actingAs($this->usuario)
+            ->postJson(route('recibos-pago.store'), $this->payloadCostoCero())
+            ->assertCreated();
+
+        $this->assertEquals(0, $response->json('data.valor_total'));
+        $this->assertEquals(150000, $response->json('data.descuento_total'));
+
+        $matricula->refresh();
+        $this->assertEquals(Cartera::getStatusKey('Cerrada'), $matricula->status);
+        $this->assertEquals(0, $matricula->saldo);
+        $this->assertEquals(150000, $matricula->descuento);
+        $this->assertEquals(0, $matricula->abono);
+
+        // La cuota mensual con costo no se toca
+        $cuota1->refresh();
+        $this->assertEquals(Cartera::getStatusKey('Activa'), $cuota1->status);
+        $this->assertEquals(100000, $cuota1->saldo);
+
+        $recibo = ReciboPago::findOrFail($response->json('data.id'));
+        $this->assertCount(0, $recibo->mediosPago);
+        // Línea de matrícula (valor 0) + línea de descuento
+        $this->assertCount(2, $recibo->conceptosPago);
+    }
+
+    /** @test */
+    public function store_costo_cero_descarga_cuota_con_valor_cero(): void
+    {
+        $cuotaCero = $this->crearCuota(2, 0);
+
+        $this->actingAs($this->usuario)
+            ->postJson(route('recibos-pago.store'), $this->payloadCostoCero())
+            ->assertCreated()
+            ->assertJsonPath('data.descuento_total', 0);
+
+        $cuotaCero->refresh();
+        $this->assertEquals(Cartera::getStatusKey('Cerrada'), $cuotaCero->status);
+    }
+
+    /** @test */
+    public function store_costo_cero_descarga_cuota_con_pronto_pago_del_100(): void
+    {
+        Descuento::factory()->vigente()->pagoAnticipado()->create([
+            'tipo'              => Descuento::TIPO_PORCENTUAL,
+            'valor'             => 100,
+            'aplicacion'        => Descuento::APLICACION_CUOTA,
+            'dias_anticipacion' => 0,
+        ]);
+        ConceptoPago::factory()->tipoCartera()->create(['nombre' => ConceptoPago::DESCUENTO, 'valor' => 0]);
+        $cuota = $this->crearCuota(1, 100000, 10);
+
+        $this->actingAs($this->usuario)
+            ->postJson(route('recibos-pago.store'), $this->payloadCostoCero())
+            ->assertCreated()
+            ->assertJsonPath('data.descuento_total', 100000);
+
+        $cuota->refresh();
+        $this->assertEquals(Cartera::getStatusKey('Cerrada'), $cuota->status);
+        $this->assertEquals(100000, $cuota->descuento);
+    }
+
+    /** @test */
+    public function store_costo_cero_rechaza_cuando_no_hay_cuotas_de_costo_cero(): void
+    {
+        $this->crearCuota(1, 100000);
+
+        $this->actingAs($this->usuario)
+            ->postJson(route('recibos-pago.store'), $this->payloadCostoCero())
+            ->assertUnprocessable()
+            ->assertJsonFragment([
+                'message' => 'La matrícula no tiene cuotas con costo cero (valor 0 o descuento del 100 %) para descargar. Ingrese un valor a pagar.',
+            ]);
+
+        $this->assertDatabaseCount('recibos_pago', 0);
+    }
+
+    /** @test */
+    public function store_costo_cero_rechaza_medios_de_pago_y_sobrecargos(): void
+    {
+        $this->crearCuota(2, 0);
+
+        $this->actingAs($this->usuario)
+            ->postJson(route('recibos-pago.store'), $this->payloadCostoCero([
+                'medios_pago' => [['medio_pago' => 'efectivo', 'valor' => 0]],
+                'sobrecargos' => [['descuento_id' => 1, 'medio_pago_index' => 0]],
+            ]))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['medios_pago', 'sobrecargos']);
+    }
+
+    /** @test */
+    public function store_rechaza_monto_negativo(): void
+    {
+        $this->actingAs($this->usuario)
+            ->postJson(route('recibos-pago.store'), $this->payloadCostoCero(['monto_a_pagar' => -1]))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['monto_a_pagar']);
+    }
+
+    /** @test */
+    public function store_costo_cero_rechaza_sin_permiso(): void
+    {
+        $this->crearCuota(2, 0);
+        $sinPermiso = User::factory()->create();
+
+        $this->actingAs($sinPermiso)
+            ->postJson(route('recibos-pago.store'), $this->payloadCostoCero())
+            ->assertForbidden();
+    }
+
+    /** @test */
+    public function store_con_pago_tambien_descarga_cuotas_de_costo_cero_posteriores(): void
+    {
+        $cuota1    = $this->crearCuota(1, 100000, 5);
+        $cuota2    = $this->crearCuota(2, 100000, 35);
+        $cuotaCero = $this->crearCuota(3, 0, 65);
+
+        // Paga solo la cuota 1; la cuota 3 (valor 0) se descarga aunque la 2 siga pendiente
+        $this->actingAs($this->usuario)
+            ->postJson(route('recibos-pago.store'), $this->payloadCartera(100000))
+            ->assertCreated();
+
+        $this->assertEquals(Cartera::getStatusKey('Cerrada'), $cuota1->refresh()->status);
+        $this->assertEquals(Cartera::getStatusKey('Activa'),  $cuota2->refresh()->status);
+        $this->assertEquals(Cartera::getStatusKey('Cerrada'), $cuotaCero->refresh()->status);
+    }
+
+    /** @test */
+    public function anular_recibo_costo_cero_restaura_las_cuotas_descargadas(): void
+    {
+        $this->crearDescuentoMatricula100();
+        $matricula = $this->crearCuota(0, 150000);
+        $cuotaCero = $this->crearCuota(2, 0);
+
+        $reciboId = $this->actingAs($this->usuario)
+            ->postJson(route('recibos-pago.store'), $this->payloadCostoCero())
+            ->assertCreated()
+            ->json('data.id');
+
+        $this->actingAs($this->usuario)
+            ->postJson(route('recibos-pago.anular', $reciboId), [
+                'motivo_anulacion' => 'Descuento otorgado por error.',
+            ])
+            ->assertOk();
+
+        $matricula->refresh();
+        $this->assertEquals(Cartera::getStatusKey('Activa'), $matricula->status);
+        $this->assertEquals(150000, $matricula->saldo);
+        $this->assertEquals(0, $matricula->descuento);
+
+        $this->assertEquals(Cartera::getStatusKey('Activa'), $cuotaCero->refresh()->status);
+    }
+
+    /** @test */
+    public function precalcular_descuento_con_monto_cero_lista_cuotas_de_costo_cero(): void
+    {
+        $this->crearDescuentoMatricula100();
+        $matricula = $this->crearCuota(0, 150000);
+        $this->crearCuota(1, 100000, 30);
+        $cuotaCero = $this->crearCuota(2, 0, 60);
+
+        $this->actingAs($this->usuario)
+            ->postJson(route('recibos-pago.precalcular-descuento'), [
+                'matricula_id'  => $this->matricula->id,
+                'monto_a_pagar' => 0,
+            ])
+            ->assertOk()
+            ->assertJsonCount(2, 'data.cuotas_costo_cero')
+            ->assertJsonPath('data.cuotas_costo_cero.0.cartera_id', $matricula->id)
+            ->assertJsonPath('data.cuotas_costo_cero.0.descuento', 150000)
+            ->assertJsonPath('data.cuotas_costo_cero.1.cartera_id', $cuotaCero->id)
+            ->assertJsonPath('data.cuotas_costo_cero.1.descuento', 0)
+            ->assertJsonPath('data.descuento_matricula.aplica', true);
+    }
 }

@@ -178,6 +178,10 @@ class ReciboPagoController extends Controller
      *  2. El saldo restante se distribuye entre las cuotas de cartera pendientes de la
      *     matrícula, de la más antigua a la más reciente.
      *
+     * Las cuotas de costo efectivo cero (valor 0 o descuento del 100 %) se descargan
+     * siempre. Con monto_a_pagar = 0 y sin medios de pago se genera un recibo de costo
+     * cero que solo cierra esas cuotas; si no hay ninguna, responde 422.
+     *
      * @param StoreReciboPagoRequest $request Datos validados del recibo de pago
      * @return JsonResponse Respuesta JSON con el recibo de pago creado
      */
@@ -215,30 +219,42 @@ class ReciboPagoController extends Controller
 
             // ── 2. Determinar si es un pago por transferencia ─────────────────
             // Debe evaluarse ANTES de correr la distribución para no tocar cartera
-            $esTransferencia = collect($data['medios_pago'])->contains('medio_pago', 'transferencia');
+            // Un recibo de costo cero (monto 0) no trae medios de pago
+            $mediosPago      = $data['medios_pago'] ?? [];
+            $esTransferencia = collect($mediosPago)->contains('medio_pago', 'transferencia');
 
             // Resolver nombre del banco desde banco_id para poblar el campo texto legado
             $bancoNombre = null;
             if ($esTransferencia) {
-                $bancoId = collect($data['medios_pago'])->firstWhere('medio_pago', 'transferencia')['banco_id'] ?? null;
+                $bancoId = collect($mediosPago)->firstWhere('medio_pago', 'transferencia')['banco_id'] ?? null;
                 if ($bancoId) {
                     $bancoNombre = \App\Models\Configuracion\Banco::find($bancoId)?->nombre;
                 }
             }
 
             // ── 3. Distribución automática entre cuotas de cartera ────────────
-            // Para transferencias se omite: la distribución ocurre al aprobar el recibo
+            // Para transferencias se omite: la distribución ocurre al aprobar el recibo.
+            // Se ejecuta aun con monto de cartera 0 para descargar las cuotas de costo cero
+            // (valor 0 o descuento del 100 %).
             $planCartera    = [];
             $descuentoTotal = 0.0;
 
-            if (! $esTransferencia && $montoCartera > 0.01) {
+            if (! $esTransferencia) {
                 $planCartera    = $this->distribucionService->distribuir(
                     $matricula,
-                    $montoCartera,
+                    max(0.0, $montoCartera),
                     (bool) ($data['aplicar_descuento'] ?? false),
                     $fecha
                 );
                 $descuentoTotal = collect($planCartera)->sum('descuento');
+            }
+
+            // Recibo de costo cero sin nada que descargar: no se genera un recibo vacío
+            if ($montoAPagar <= 0.01 && empty($planCartera) && empty($lineasAdicionales)) {
+                DB::rollBack();
+                return response()->json([
+                    'message' => 'La matrícula no tiene cuotas con costo cero (valor 0 o descuento del 100 %) para descargar. Ingrese un valor a pagar.',
+                ], 422);
             }
 
             // ── 4. Crear el encabezado del ReciboPago ─────────────────────────
@@ -352,7 +368,7 @@ class ReciboPagoController extends Controller
 
             // ── 7. Medios de pago ─────────────────────────────────────────────
             $mediosPagoCreados = [];
-            foreach ($data['medios_pago'] as $medio) {
+            foreach ($mediosPago as $medio) {
                 $mediosPagoCreados[] = ReciboPagoMedioPago::create([
                     'recibo_pago_id'     => $recibo->id,
                     'medio_pago'         => $medio['medio_pago'],
@@ -629,17 +645,19 @@ class ReciboPagoController extends Controller
      * No persiste nada. Devuelve:
      *   - Descuento por pronto pago (pago_anticipado): aplica/valor/motivo.
      *   - Descuento de matrícula (promocion_matricula): aplica siempre que exista descuento activo y haya cuota 0 pendiente.
+     *   - cuotas_costo_cero: cuotas pendientes cuyo costo efectivo es 0 (valor 0 o descuento del 100 %),
+     *     que se descargan en cualquier recibo — incluso con monto_a_pagar = 0 (recibo de costo cero).
      * El frontend debe usar estos valores para mostrar el costo efectivo y calcular el monto neto a pagar.
      *
-     * @param Request $request matricula_id, monto_a_pagar, fecha_transaccion (opcional)
-     * @return JsonResponse Descuento pronto pago + descuento_matricula
+     * @param Request $request matricula_id, monto_a_pagar (puede ser 0), fecha_transaccion (opcional)
+     * @return JsonResponse Descuento pronto pago + descuento_matricula + cuotas_costo_cero
      */
     public function precalcularDescuento(Request $request): JsonResponse
     {
         try {
             $request->validate([
                 'matricula_id'      => 'required|integer|exists:matriculas,id',
-                'monto_a_pagar'     => 'required|numeric|min:0.01',
+                'monto_a_pagar'     => 'required|numeric|min:0',
                 'fecha_transaccion' => 'nullable|date',
             ]);
 
@@ -651,6 +669,18 @@ class ReciboPagoController extends Controller
 
             $resultado         = $this->carteraDescuentoService->calcular($matricula, $monto, $fecha);
             $resultadoMatricula = $this->carteraDescuentoService->calcularDescuentoMatricula($matricula, $fecha);
+
+            // Con monto 0 el plan de distribución contiene solo las cuotas de costo cero
+            $cuotasCostoCero = collect($this->distribucionService->distribuir($matricula, 0.0, true, $fecha))
+                ->map(fn (array $linea) => [
+                    'cartera_id'   => $linea['cartera']->id,
+                    'numero_cuota' => $linea['cartera']->numero_cuota,
+                    'valor'        => (float) $linea['cartera']->valor,
+                    'saldo'        => (float) $linea['cartera']->saldo,
+                    'descuento'    => (float) $linea['descuento'],
+                    'motivo'       => $linea['descuento_obj']?->nombre,
+                ])
+                ->values();
 
             return response()->json([
                 'data' => [
@@ -674,6 +704,7 @@ class ReciboPagoController extends Controller
                             'valor'  => (float) $resultadoMatricula['descuento']->valor,
                         ] : null,
                     ],
+                    'cuotas_costo_cero' => $cuotasCostoCero,
                 ],
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
@@ -1204,11 +1235,13 @@ class ReciboPagoController extends Controller
 
             $idDescuento = ConceptoPago::porNombre(ConceptoPago::DESCUENTO)?->id;
 
-            // 1. Revertir abonos (todas las líneas excepto la de descuento pronto pago)
+            // 1. Revertir abonos (todas las líneas excepto la de descuento pronto pago).
+            //    Las líneas con valor 0 (cuotas de costo cero) también se revierten para
+            //    que la cuota vuelva a quedar pendiente.
             $lineasCartera->filter(fn($c) => $c->id !== $idDescuento)
                 ->each(function ($concepto) {
                     $cartera = Cartera::find($concepto->pivot->id_relacional);
-                    if ($cartera && (float) $concepto->pivot->valor > 0) {
+                    if ($cartera) {
                         $cartera->revertirPago((float) $concepto->pivot->valor);
                     }
                 });

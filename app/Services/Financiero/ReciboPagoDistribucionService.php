@@ -30,8 +30,13 @@ class ReciboPagoDistribucionService
      * - Promoción matrícula (promocion_matricula): aplica automáticamente a la cuota
      *   de matrícula (numero_cuota = 0) si existe un descuento activo de ese tipo.
      *
+     * Cuotas de costo cero: una cuota cuyo costo efectivo es 0 (valor 0, o descuento que
+     * cubre el 100 % del saldo) se incluye siempre en el plan con valor = 0 para que quede
+     * Cerrada, sin importar el orden ni si el monto ya se agotó. Por eso $monto puede ser 0:
+     * en ese caso el plan contiene únicamente las cuotas de costo cero.
+     *
      * @param  Matricula   $matricula
-     * @param  float       $monto            total a distribuir
+     * @param  float       $monto            total a distribuir (0 = solo descargar cuotas de costo cero)
      * @param  bool        $aplicarDescuento si true, intenta aplicar descuento de pronto pago a cuotas mensuales
      * @param  Carbon|null $fechaReferencia  fecha del pago (default: hoy)
      * @return array<int, array{cartera: Cartera, valor: float, descuento: float, descuento_obj: \App\Models\Financiero\Descuento\Descuento|null}>
@@ -54,6 +59,9 @@ class ReciboPagoDistribucionService
             ->get();
 
         if ($carteras->isEmpty()) {
+            if ($monto <= 0.01) {
+                return [];
+            }
             throw new \InvalidArgumentException('La matrícula no tiene cuotas pendientes de pago.');
         }
 
@@ -82,12 +90,9 @@ class ReciboPagoDistribucionService
         $plan     = [];
         $restante = $monto;
 
+        // No se corta al agotar el monto: las cuotas posteriores de costo cero también se descargan.
         foreach ($carteras as $cartera) {
-            if ($restante <= 0) {
-                break;
-            }
-
-            $saldo          = (float) $cartera->saldo;
+            $saldo         = (float) $cartera->saldo;
             $descuentoLinea = 0.0;
 
             if ($cartera->numero_cuota === 0) {
@@ -127,9 +132,10 @@ class ReciboPagoDistribucionService
             // El usuario paga el costo efectivo: saldo menos el descuento aplicado
             $efectivaSaldo = $saldo - $descuentoLinea;
             $aCubrir       = min($restante, max(0.0, $efectivaSaldo));
+            $esCostoCero   = $efectivaSaldo <= 0.01;
 
-            // Saltar solo si no hay pago ni descuento que aplicar
-            if ($aCubrir <= 0 && $descuentoLinea <= 0) {
+            // Saltar si no hay pago que aplicar, salvo que la cuota se descargue por costo cero
+            if ($aCubrir <= 0 && ! $esCostoCero) {
                 continue;
             }
 

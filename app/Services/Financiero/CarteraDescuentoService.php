@@ -98,11 +98,9 @@ class CarteraDescuentoService
         $valorTotal = 0.0;
         $restante   = $montoAPagar;
 
+        // Sin corte al agotar el monto: una cuota con descuento del 100 % (costo efectivo 0)
+        // se descarga igual que en ReciboPagoDistribucionService::distribuir().
         foreach ($carteras as $cartera) {
-            if ($restante <= 0) {
-                break;
-            }
-
             $saldo     = (float) $cartera->saldo;
             $esProxima = $cartera->fecha_vencimiento >= $fecha->toDateString();
 

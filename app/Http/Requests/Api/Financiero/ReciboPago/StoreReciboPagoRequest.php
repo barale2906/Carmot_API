@@ -20,6 +20,9 @@ use Illuminate\Validation\Rule;
  *     restante entre las cuotas pendientes de más antigua a más reciente.
  *  5. Se registran los medios de pago.
  *
+ * Recibo de costo cero: con monto_a_pagar = 0 y sin medios de pago se genera un recibo
+ * que solo descarga las cuotas cuyo costo efectivo es 0 (valor 0 o descuento del 100 %).
+ *
  * @package App\Http\Requests\Api\Financiero\ReciboPago
  */
 class StoreReciboPagoRequest extends FormRequest
@@ -49,8 +52,10 @@ class StoreReciboPagoRequest extends FormRequest
             'fecha_transaccion'                         => 'required|date',
             'banco'                                     => 'nullable|string|max:100',
 
-            // Monto total que el estudiante paga en este recibo
-            'monto_a_pagar'                             => 'required|numeric|min:0.01',
+            // Monto total que el estudiante paga en este recibo.
+            // 0 es válido: genera un recibo que solo descarga cuotas de costo efectivo cero
+            // (valor 0 o descuento del 100 %), sin medios de pago.
+            'monto_a_pagar'                             => 'required|numeric|min:0',
 
             // Lista de precios vigente (referencia para auditoría y descuentos)
             'lista_precio_id'                           => 'nullable|exists:lp_listas_precios,id',
@@ -66,7 +71,10 @@ class StoreReciboPagoRequest extends FormRequest
 
             // Medios de pago — la suma debe igualar monto_a_pagar (bruto, incluye sobrecargos).
             // Si el medio es 'transferencia' solo puede haber un elemento en este array.
-            'medios_pago'                               => 'required|array|min:1',
+            // En un recibo de costo cero (monto_a_pagar = 0) no se registran medios de pago.
+            'medios_pago'                               => $this->esReciboCostoCero()
+                ? ['prohibited']
+                : ['required', 'array', 'min:1'],
             'medios_pago.*.medio_pago'                  => ['required', 'string', Rule::in([
                 'efectivo', 'transferencia', 'tarjeta_debito',
                 'tarjeta_credito', 'cheque', 'consignacion',
@@ -84,7 +92,7 @@ class StoreReciboPagoRequest extends FormRequest
 
             // Sobrecargos seleccionados por el cajero (pre-calculados vía /precalcular-sobrecargos)
             // Cada ítem vincula un sobrecargo a un índice de medio de pago
-            'sobrecargos'                               => 'nullable|array',
+            'sobrecargos'                               => $this->esReciboCostoCero() ? 'prohibited' : 'nullable|array',
             'sobrecargos.*.descuento_id'                => 'required|exists:descuentos,id',
             'sobrecargos.*.medio_pago_index'            => 'required|integer|min:0', // índice en medios_pago[]
         ];
@@ -148,6 +156,16 @@ class StoreReciboPagoRequest extends FormRequest
     }
 
     /**
+     * Indica si el recibo es de costo cero: no hay dinero de por medio y solo
+     * descarga cuotas cuyo costo efectivo es 0 (valor 0 o descuento del 100 %).
+     */
+    public function esReciboCostoCero(): bool
+    {
+        return is_numeric($this->input('monto_a_pagar'))
+            && (float) $this->input('monto_a_pagar') <= 0;
+    }
+
+    /**
      * Mensajes de validación en español.
      *
      * @return array<string, string>
@@ -169,8 +187,9 @@ class StoreReciboPagoRequest extends FormRequest
             'fecha_transaccion.date'                             => 'La fecha de transacción debe ser una fecha válida.',
             'monto_a_pagar.required'                             => 'El monto a pagar es obligatorio.',
             'monto_a_pagar.numeric'                              => 'El monto a pagar debe ser un número.',
-            'monto_a_pagar.min'                                  => 'El monto a pagar debe ser mayor a cero.',
+            'monto_a_pagar.min'                                  => 'El monto a pagar no puede ser negativo.',
             'medios_pago.required'                               => 'Debe incluir al menos un medio de pago.',
+            'medios_pago.prohibited'                             => 'Un recibo sin valor a pagar no admite medios de pago.',
             'medios_pago.min'                                    => 'Debe incluir al menos un medio de pago.',
             'medios_pago.*.medio_pago.required'                  => 'El tipo de medio de pago es obligatorio.',
             'medios_pago.*.medio_pago.in'                        => 'El medio de pago no es válido.',
@@ -183,7 +202,8 @@ class StoreReciboPagoRequest extends FormRequest
             'comprobante.file'                                   => 'El comprobante debe ser un archivo.',
             'comprobante.mimes'                                  => 'El comprobante debe ser jpg, jpeg, png, pdf o webp.',
             'comprobante.max'                                    => 'El comprobante no puede superar los 5 MB.',
-            'sobrecargos.*.descuento_id.required'                => 'El ID del sobrecargo es obligatorio.',
+            'sobrecargos.prohibited'                             => 'Un recibo sin valor a pagar no admite sobrecargos.',
+            'sobrecargos.*.descuento_id.required'              => 'El ID del sobrecargo es obligatorio.',
             'sobrecargos.*.descuento_id.exists'                  => 'El sobrecargo seleccionado no existe.',
             'sobrecargos.*.medio_pago_index.required'            => 'El índice de medio de pago del sobrecargo es obligatorio.',
             'conceptos_adicionales.*.concepto_pago_id.required'  => 'El concepto adicional es obligatorio.',
