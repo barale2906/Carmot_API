@@ -78,6 +78,104 @@ class LpPrecioProductoTest extends TestCase
     }
 
     /** @test */
+    public function permite_cargar_el_valor_de_cada_cuota_de_forma_individual(): void
+    {
+        $response = $this->actingAs($this->usuario)->postJson(route('precios-producto.store'), [
+            'lista_precio_id' => $this->listaPrecio()->id,
+            'producto_id' => $this->productoFinanciable()->id,
+            'precio_contado' => 600,
+            'matricula' => 0,
+            'precio_total' => 600,
+            'numero_cuotas' => 3,
+            'cuotas_detalle' => [150, 100, 350],
+        ]);
+
+        $response->assertCreated()->assertJsonPath('data.cuotas_detalle', [150, 100, 350]);
+        $this->assertSame(100, (int) $response->json('data.cuotas_detalle.1'));
+    }
+
+    /** @test */
+    public function rechaza_cuotas_individuales_que_no_suman_el_precio_total(): void
+    {
+        $this->actingAs($this->usuario)->postJson(route('precios-producto.store'), [
+            'lista_precio_id' => $this->listaPrecio()->id,
+            'producto_id' => $this->productoFinanciable()->id,
+            'precio_contado' => 600,
+            'matricula' => 0,
+            'precio_total' => 600,
+            'numero_cuotas' => 3,
+            'cuotas_detalle' => [150, 100, 300],
+        ])->assertUnprocessable()->assertJsonValidationErrors('cuotas_detalle');
+    }
+
+    /** @test */
+    public function rechaza_cuotas_individuales_con_cantidad_distinta_al_numero_de_cuotas(): void
+    {
+        $this->actingAs($this->usuario)->postJson(route('precios-producto.store'), [
+            'lista_precio_id' => $this->listaPrecio()->id,
+            'producto_id' => $this->productoFinanciable()->id,
+            'precio_contado' => 600,
+            'matricula' => 0,
+            'precio_total' => 600,
+            'numero_cuotas' => 3,
+            'cuotas_detalle' => [300, 300],
+        ])->assertUnprocessable()->assertJsonValidationErrors('cuotas_detalle');
+    }
+
+    /** @test */
+    public function rechaza_cuotas_individuales_en_producto_no_financiable(): void
+    {
+        $this->actingAs($this->usuario)->postJson(route('precios-producto.store'), [
+            'lista_precio_id' => $this->listaPrecio()->id,
+            'producto_id' => $this->productoNoFinanciable()->id,
+            'precio_contado' => 600,
+            'matricula' => 0,
+            'cuotas_detalle' => [300, 300],
+        ])->assertUnprocessable();
+    }
+
+    /** @test */
+    public function al_actualizar_puede_volver_al_calculo_automatico_enviando_null(): void
+    {
+        $lista = $this->listaPrecio();
+        $id = $this->actingAs($this->usuario)->postJson(route('precios-producto.store'), [
+            'lista_precio_id' => $lista->id,
+            'producto_id' => $this->productoFinanciable()->id,
+            'precio_contado' => 600,
+            'matricula' => 0,
+            'precio_total' => 600,
+            'numero_cuotas' => 3,
+            'cuotas_detalle' => [150, 100, 350],
+        ])->assertCreated()->json('data.id');
+
+        // Cambiar el número de cuotas sin reenviar el detalle invalida el detalle previo
+        $this->actingAs($this->usuario)->putJson(route('precios-producto.update', $id), ['numero_cuotas' => 4])
+            ->assertUnprocessable()->assertJsonValidationErrors('cuotas_detalle');
+
+        $this->actingAs($this->usuario)->putJson(route('precios-producto.update', $id), [
+            'numero_cuotas' => 4,
+            'cuotas_detalle' => null,
+        ])->assertOk()
+            ->assertJsonPath('data.cuotas_detalle', null)
+            ->assertJsonPath('data.valor_cuota', 200);
+    }
+
+    /** @test */
+    public function el_metodo_automatico_sigue_funcionando_sin_cuotas_detalle(): void
+    {
+        $this->actingAs($this->usuario)->postJson(route('precios-producto.store'), [
+            'lista_precio_id' => $this->listaPrecio()->id,
+            'producto_id' => $this->productoFinanciable()->id,
+            'precio_contado' => 600,
+            'matricula' => 0,
+            'precio_total' => 600,
+            'numero_cuotas' => 3,
+        ])->assertCreated()
+            ->assertJsonPath('data.cuotas_detalle', null)
+            ->assertJsonPath('data.valor_cuota', 200);
+    }
+
+    /** @test */
     public function al_actualizar_recalcula_valor_cuota_sin_duplicar_el_descuento_de_matricula(): void
     {
         $precioProducto = LpPrecioProducto::factory()->create([

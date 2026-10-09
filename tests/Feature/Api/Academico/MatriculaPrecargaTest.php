@@ -88,7 +88,7 @@ class MatriculaPrecargaTest extends TestCase
                 'nivel_educacion', 'nivel_educacion_texto',
                 'ocupacion', 'empresa', 'estrato',
                 'regimen_salud', 'regimen_salud_texto',
-                'enfermedad_prioritaria', 'discapacidad',
+                'enfermedad_prioritaria', 'enfermedad_detalle', 'discapacidad', 'tipo_discapacidad', 'tipo_discapacidad_texto',
                 'conocimiento_curso', 'como_entero_curso',
                 'talla_overol', 'talla_botas',
                 'nombre_contacto', 'telefono_contacto', 'correo_contacto',

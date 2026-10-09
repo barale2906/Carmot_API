@@ -22,7 +22,8 @@ use Illuminate\Support\Facades\DB;
  *     → Cuota 1 (primera mensualidad):
  *        - Ciclo no ha iniciado: fecha = base (ciclo.fecha_inicio)
  *        - Ciclo ya inició o sin ciclo: fecha = fecha_matricula
- *     → Cuotas 2..N:          valor = lp.valor_cuota,  fecha = base + (n-1) meses
+ *     → Cuotas 2..N:          valor = lp.valorDeCuota(n) (cuotas_detalle si existe, si no valor_cuota),
+ *                             fecha = base + (n-1) meses
  */
 class CarteraGeneradorService
 {
@@ -66,12 +67,12 @@ class CarteraGeneradorService
                 $cicloYaInicio = $fechaInicioCiclo === null || $fechaInicioCiclo->lte($fechaMatricula);
                 $fechaCuota1   = $cicloYaInicio ? $fechaMatricula : $base;
 
-                $this->crearCuota($matricula, $sedeId, 1, (float) $lp->valor_cuota, $fechaCuota1);
+                $this->crearCuota($matricula, $sedeId, 1, $lp->valorDeCuota(1), $fechaCuota1);
 
                 // Cuotas 2..N: una por mes siguiendo el calendario del ciclo
                 for ($n = 2; $n <= $numeroCuotas; $n++) {
                     $fecha = (clone $base)->addMonths($n - 1);
-                    $this->crearCuota($matricula, $sedeId, $n, (float) $lp->valor_cuota, $fecha);
+                    $this->crearCuota($matricula, $sedeId, $n, $lp->valorDeCuota($n), $fecha);
                 }
             }
         });

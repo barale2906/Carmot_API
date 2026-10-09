@@ -53,6 +53,28 @@ class LpPrecioProductoService
     }
 
     /**
+     * Valida que los valores individuales de cuotas cuadren con la financiación:
+     * una entrada por cuota y suma igual al saldo a financiar (tolerancia de un centavo).
+     *
+     * @param  array<int, mixed>  $cuotas  Valores de cada cuota, en orden
+     * @param  int|null  $numeroCuotas  Número de cuotas del plan
+     * @param  float|null  $precioTotal  Saldo a financiar
+     * @return string|null Mensaje de error, o null si cuadra
+     */
+    public function validarCuotasDetalle(array $cuotas, ?int $numeroCuotas, ?float $precioTotal): ?string
+    {
+        if (count($cuotas) !== (int) $numeroCuotas) {
+            return 'La cantidad de valores de cuotas debe ser igual al número de cuotas.';
+        }
+
+        if ($precioTotal === null || abs(round(array_sum($cuotas), 2) - round($precioTotal, 2)) > 0.01) {
+            return 'La suma de las cuotas debe ser igual al precio total (saldo a financiar).';
+        }
+
+        return null;
+    }
+
+    /**
      * Obtiene todos los precios de un producto para una población y fecha específica.
      *
      * Un producto puede tener múltiples registros de precio dentro de la misma lista

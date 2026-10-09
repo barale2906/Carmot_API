@@ -27,7 +27,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property float|null $precio_total Saldo a financiar, ya neto de matrícula (precio_contado = matricula + precio_total)
  * @property float $matricula Valor de la matrícula (obligatorio para cursos y módulos, puede ser 0)
  * @property int|null $numero_cuotas Número de cuotas
- * @property float|null $valor_cuota Valor calculado de cada cuota (redondeado al 100)
+ * @property float|null $valor_cuota Valor calculado de cada cuota (redondeado al 100); con cuotas_detalle es el promedio de referencia
+ * @property array<int, float>|null $cuotas_detalle Valores individuales de cada cuota (opcional); su suma es igual a precio_total
  * @property string|null $observaciones Observaciones adicionales
  * @property \Carbon\Carbon $created_at Fecha de creación
  * @property \Carbon\Carbon $updated_at Fecha de última actualización
@@ -64,6 +65,7 @@ class LpPrecioProducto extends Model
         'matricula' => 'decimal:2',
         'numero_cuotas' => 'integer',
         'valor_cuota' => 'decimal:2',
+        'cuotas_detalle' => 'array',
     ];
 
     /**
@@ -107,6 +109,18 @@ class LpPrecioProducto extends Model
     }
 
     /**
+     * Valor de una cuota específica (numeración 1..N, la cuota 0 es la matrícula).
+     * Usa el valor individual de cuotas_detalle si fue cargado; de lo contrario,
+     * el valor calculado uniforme (valor_cuota).
+     *
+     * @param  int  $numeroCuota  Número de cuota entre 1 y numero_cuotas
+     */
+    public function valorDeCuota(int $numeroCuota): float
+    {
+        return (float) ($this->cuotas_detalle[$numeroCuota - 1] ?? $this->valor_cuota);
+    }
+
+    /**
      * Boot del modelo - calcula automáticamente el valor de la cuota al guardar.
      * Solo se ejecuta al crear o actualizar, no al consultar.
      * Este evento asegura que el valor_cuota siempre esté calculado correctamente
@@ -127,6 +141,7 @@ class LpPrecioProducto extends Model
                 $precioProducto->valor_cuota = $precioProducto->calcularValorCuota();
             } else {
                 $precioProducto->valor_cuota = null;
+                $precioProducto->cuotas_detalle = null;
             }
         });
     }

@@ -38,6 +38,8 @@ use Illuminate\Support\Facades\Storage;
  * @property-read string|null $regimen_salud
  * @property-read bool|null   $enfermedad_prioritaria
  * @property-read bool|null   $discapacidad
+ * @property-read string|null $enfermedad_detalle
+ * @property-read string|null $tipo_discapacidad
  * @property-read bool|null   $conocimiento_curso
  * @property-read string|null $como_entero_curso
  * @property-read string|null $talla_overol
@@ -97,7 +99,10 @@ class MatriculaPrecargaResource extends JsonResource
             'regimen_salud'          => $this->regimen_salud,
             'regimen_salud_texto'    => $this->regimen_salud_texto,
             'enfermedad_prioritaria' => $this->enfermedad_prioritaria,
+            'enfermedad_detalle'     => $this->enfermedad_detalle,
             'discapacidad'           => $this->discapacidad,
+            'tipo_discapacidad'      => $this->tipo_discapacidad,
+            'tipo_discapacidad_texto' => $this->tipo_discapacidad_texto,
 
             // ── Proceso de inscripción ───────────────────────────────────────
             'conocimiento_curso' => $this->conocimiento_curso,

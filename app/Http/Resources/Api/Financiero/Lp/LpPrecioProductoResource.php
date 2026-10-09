@@ -32,6 +32,9 @@ class LpPrecioProductoResource extends JsonResource
             'matricula' => $this->matricula ? (float) $this->matricula : 0.00,
             'numero_cuotas' => $this->numero_cuotas,
             'valor_cuota' => $this->valor_cuota ? (float) $this->valor_cuota : null,
+            'cuotas_detalle' => $this->cuotas_detalle
+                ? array_map('floatval', $this->cuotas_detalle)
+                : null,
             'observaciones' => $this->observaciones,
             'created_at' => $this->created_at?->format('Y-m-d H:i:s'),
             'updated_at' => $this->updated_at?->format('Y-m-d H:i:s'),

@@ -84,7 +84,10 @@ class MatriculaResource extends JsonResource
             // Datos de salud y condición
             // ----------------------------------------------------------------
             'enfermedad_prioritaria' => $this->enfermedad_prioritaria,
+            'enfermedad_detalle'     => $this->enfermedad_detalle,
             'discapacidad'           => $this->discapacidad,
+            'tipo_discapacidad'      => $this->tipo_discapacidad,
+            'tipo_discapacidad_texto' => $this->tipo_discapacidad_texto,
 
             // ----------------------------------------------------------------
             // Proceso de venta / inscripción

@@ -430,6 +430,7 @@ class LpListaPrecioController extends Controller
                         'precio_total'    => $precio->precio_total,
                         'matricula'       => $precio->matricula,
                         'numero_cuotas'   => $precio->numero_cuotas,
+                        'cuotas_detalle'  => $precio->cuotas_detalle,
                         'observaciones'   => $precio->observaciones,
                         // valor_cuota se recalcula automáticamente en el evento boot del modelo
                     ]);

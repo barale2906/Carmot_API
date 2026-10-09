@@ -157,6 +157,21 @@ class CarteraGeneradorServiceTest extends TestCase
         $this->assertEquals('2026-07-01', $carteras[3]->fecha_vencimiento->toDateString());
     }
 
+    /** @test */
+    public function cuotas_con_valores_individuales_usan_cuotas_detalle(): void
+    {
+        $lp    = $this->crearLpCuotas(3);
+        $lp->update(['cuotas_detalle' => [500000, 300000, 400000]]);
+        $ciclo = Ciclo::factory()->create(['fecha_inicio' => '2026-05-01']);
+
+        $carteras = $this->matricularConCiclo($lp->fresh(), $ciclo, '2026-06-30');
+
+        $this->assertEquals(400000, $carteras[0]->valor);
+        $this->assertEquals(500000, $carteras[1]->valor);
+        $this->assertEquals(300000, $carteras[2]->valor);
+        $this->assertEquals(400000, $carteras[3]->valor);
+    }
+
     // ─── Ciclo sin fecha_inicio (fallback) ───────────────────────────────────
 
     /** @test */

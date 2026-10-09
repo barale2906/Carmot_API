@@ -65,6 +65,8 @@ class StoreLpPrecioProductoRequest extends FormRequest
                 },
             ],
             'valor_cuota' => 'nullable|numeric|min:0',
+            'cuotas_detalle' => 'nullable|array',
+            'cuotas_detalle.*' => 'required|numeric|min:0',
             'observaciones' => 'nullable|string',
             'referencia_tipo' => ['nullable', 'string', Rule::in(LpProductoReferencia::tiposValidos())],
             'referencia_id'   => 'nullable|required_with:referencia_tipo|integer',
@@ -98,6 +100,17 @@ class StoreLpPrecioProductoRequest extends FormRequest
                         }
                     }
 
+                    if ($this->filled('cuotas_detalle') && is_array($this->cuotas_detalle)) {
+                        $error = app(LpPrecioProductoService::class)->validarCuotasDetalle(
+                            $this->cuotas_detalle,
+                            $this->filled('numero_cuotas') ? (int) $this->numero_cuotas : null,
+                            $this->filled('precio_total') ? (float) $this->precio_total : null
+                        );
+                        if ($error) {
+                            $validator->errors()->add('cuotas_detalle', $error);
+                        }
+                    }
+
                     if ($this->filled('precio_contado') && $this->filled('precio_total') && $this->filled('matricula')) {
                         $service = app(LpPrecioProductoService::class);
                         if (! $service->precioContadoCuadraConFinanciacion(
@@ -110,7 +123,7 @@ class StoreLpPrecioProductoRequest extends FormRequest
                     }
                 } else {
                     // Para productos no financiables, limpiar campos de financiación
-                    if ($this->filled('precio_total') || $this->filled('numero_cuotas')) {
+                    if ($this->filled('precio_total') || $this->filled('numero_cuotas') || $this->filled('cuotas_detalle')) {
                         $validator->errors()->add('precio_total', 'Los campos de financiación no aplican para productos no financiables.');
                     }
                 }
@@ -161,6 +174,10 @@ class StoreLpPrecioProductoRequest extends FormRequest
             'numero_cuotas.min' => 'El número de cuotas debe ser mayor a 0.',
             'valor_cuota.numeric' => 'El valor de la cuota debe ser un número.',
             'valor_cuota.min' => 'El valor de la cuota debe ser mayor o igual a 0.',
+            'cuotas_detalle.array' => 'Los valores de las cuotas deben enviarse como una lista.',
+            'cuotas_detalle.*.required' => 'Cada cuota debe tener un valor.',
+            'cuotas_detalle.*.numeric' => 'El valor de cada cuota debe ser un número.',
+            'cuotas_detalle.*.min' => 'El valor de cada cuota debe ser mayor o igual a 0.',
             'observaciones.string'           => 'Las observaciones deben ser una cadena de texto.',
             'referencia_tipo.in'             => 'El tipo de referencia debe ser "curso" o "modulo".',
             'referencia_id.integer'          => 'El ID de la referencia debe ser un número entero.',

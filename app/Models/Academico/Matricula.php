@@ -56,6 +56,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property string|null $regimen_salud CO | SU | ES | EX
  * @property bool|null $enfermedad_prioritaria
  * @property bool|null $discapacidad
+ * @property string|null $tipo_discapacidad Clave de TIPOS_DISCAPACIDAD (solo si discapacidad = true)
+ * @property string|null $enfermedad_detalle Enfermedad de atención prioritaria (solo si enfermedad_prioritaria = true)
  * @property bool|null $conocimiento_curso
  * @property string|null $como_entero_curso
  * @property string|null $talla_overol
@@ -139,6 +141,15 @@ class Matricula extends Model
         'SU' => 'Subsidiado',
         'ES' => 'Especial',
         'EX' => 'Excepción',
+    ];
+
+    public const TIPOS_DISCAPACIDAD = [
+        'sordera_profunda'         => 'Sordera profunda',
+        'hipoacusia_baja_audicion' => 'Hipoacusia a baja audición',
+        'baja_vision_diagnostica'  => 'Baja visión diagnóstica',
+        'ceguera'                  => 'Ceguera',
+        'lesion_neuromuscular'     => 'Lesión Neuromuscular',
+        'deficiencia_cognitiva'    => 'Deficiencia cognitiva (retardo en el desarrollo)',
     ];
 
     /**
@@ -283,6 +294,11 @@ class Matricula extends Model
     public function getRegimenSaludTextoAttribute(): ?string
     {
         return self::REGIMENES_SALUD[$this->regimen_salud] ?? null;
+    }
+
+    public function getTipoDiscapacidadTextoAttribute(): ?string
+    {
+        return self::TIPOS_DISCAPACIDAD[$this->tipo_discapacidad] ?? null;
     }
 
     public function getRhTextoAttribute(): ?string
@@ -504,6 +520,16 @@ class Matricula extends Model
     protected static function boot()
     {
         parent::boot();
+
+        // El detalle solo aplica mientras la condición correspondiente esté marcada.
+        static::saving(function ($matricula) {
+            if (! $matricula->discapacidad) {
+                $matricula->tipo_discapacidad = null;
+            }
+            if (! $matricula->enfermedad_prioritaria) {
+                $matricula->enfermedad_detalle = null;
+            }
+        });
 
         static::created(function ($matricula) {
             if ($matricula->status === 1) {

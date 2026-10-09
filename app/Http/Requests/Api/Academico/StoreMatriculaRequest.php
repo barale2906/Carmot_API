@@ -84,6 +84,8 @@ class StoreMatriculaRequest extends FormRequest
             // ----------------------------------------------------------------
             'enfermedad_prioritaria' => 'nullable|boolean',
             'discapacidad'           => 'nullable|boolean',
+            'enfermedad_detalle'     => ['required_if:enfermedad_prioritaria,1,true', 'nullable', 'string', 'max:255'],
+            'tipo_discapacidad'      => ['required_if:discapacidad,1,true', 'nullable', 'string', Rule::in(array_keys(Matricula::TIPOS_DISCAPACIDAD))],
 
             // ----------------------------------------------------------------
             // Proceso de venta / inscripción
@@ -156,6 +158,10 @@ class StoreMatriculaRequest extends FormRequest
             'estrato.min'                 => 'El estrato debe ser entre 1 y 6.',
             'estrato.max'                 => 'El estrato debe ser entre 1 y 6.',
             'regimen_salud.in'            => 'El régimen de salud no es válido. Valores permitidos: ' . implode(', ', array_keys(Matricula::REGIMENES_SALUD)) . '.',
+            'enfermedad_detalle.required_if' => 'Indica cuál es la enfermedad de atención prioritaria.',
+            'enfermedad_detalle.max'         => 'La enfermedad no puede tener más de 255 caracteres.',
+            'tipo_discapacidad.required_if'  => 'Selecciona el tipo de discapacidad.',
+            'tipo_discapacidad.in'           => 'El tipo de discapacidad no es válido. Valores permitidos: ' . implode(', ', array_keys(Matricula::TIPOS_DISCAPACIDAD)) . '.',
             'eps_id.exists'               => 'La EPS seleccionada no existe.',
             'correo_contacto.email'       => 'El correo del contacto debe ser una dirección de correo válida.',
 
@@ -219,6 +225,8 @@ class StoreMatriculaRequest extends FormRequest
             'regimen_salud'           => 'régimen de salud',
             'eps_id'                  => 'EPS',
             'enfermedad_prioritaria'  => 'enfermedad de atención prioritaria',
+            'enfermedad_detalle'      => 'enfermedad',
+            'tipo_discapacidad'       => 'tipo de discapacidad',
             'conocimiento_curso'      => 'conocimiento del curso',
             'como_entero_curso'       => 'cómo se enteró del curso',
             'valor_cuota'             => 'valor de cuota',

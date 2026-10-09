@@ -78,6 +78,8 @@ class UpdateLpPrecioProductoRequest extends FormRequest
                 },
             ],
             'valor_cuota' => 'sometimes|nullable|numeric|min:0',
+            'cuotas_detalle' => 'sometimes|nullable|array',
+            'cuotas_detalle.*' => 'required|numeric|min:0',
             'observaciones' => 'nullable|string',
             'referencia_tipo' => ['sometimes', 'nullable', 'string', Rule::in(LpProductoReferencia::tiposValidos())],
             'referencia_id'   => 'sometimes|nullable|required_with:referencia_tipo|integer',
@@ -124,6 +126,25 @@ class UpdateLpPrecioProductoRequest extends FormRequest
                             (float) $precioTotal
                         )) {
                             $validator->errors()->add('precio_contado', $service->mensajePrecioContadoFinanciacion());
+                        }
+                    }
+
+                    // Estado combinado: si el registro ya tiene cuotas individuales, siguen
+                    // vigentes salvo que se envíen nuevas (o null para volver al cálculo automático).
+                    $cuotasFinal = $this->has('cuotas_detalle')
+                        ? $this->input('cuotas_detalle')
+                        : ($precioProducto ? $precioProducto->cuotas_detalle : null);
+                    if (is_array($cuotasFinal) && $cuotasFinal !== []) {
+                        $numeroCuotas = $this->has('numero_cuotas')
+                            ? $this->input('numero_cuotas')
+                            : ($precioProducto ? $precioProducto->numero_cuotas : null);
+                        $error = app(LpPrecioProductoService::class)->validarCuotasDetalle(
+                            $cuotasFinal,
+                            $numeroCuotas !== null ? (int) $numeroCuotas : null,
+                            $precioTotal !== null ? (float) $precioTotal : null
+                        );
+                        if ($error) {
+                            $validator->errors()->add('cuotas_detalle', $error.' Envíe cuotas_detalle actualizado o null para el cálculo automático.');
                         }
                     }
 
@@ -203,6 +224,10 @@ class UpdateLpPrecioProductoRequest extends FormRequest
             'matricula.min' => 'La matrícula debe ser mayor o igual a 0.',
             'numero_cuotas.integer' => 'El número de cuotas debe ser un número entero.',
             'numero_cuotas.min' => 'El número de cuotas debe ser mayor a 0.',
+            'cuotas_detalle.array' => 'Los valores de las cuotas deben enviarse como una lista.',
+            'cuotas_detalle.*.required' => 'Cada cuota debe tener un valor.',
+            'cuotas_detalle.*.numeric' => 'El valor de cada cuota debe ser un número.',
+            'cuotas_detalle.*.min' => 'El valor de cada cuota debe ser mayor o igual a 0.',
             'valor_cuota.numeric' => 'El valor de la cuota debe ser un número.',
             'valor_cuota.min' => 'El valor de la cuota debe ser mayor o igual a 0.',
             'observaciones.string'        => 'Las observaciones deben ser una cadena de texto.',
