@@ -22,6 +22,7 @@ use App\Services\Financiero\CarteraDescuentoService;
 use App\Services\Financiero\ReciboPagoPDFService;
 use App\Services\Financiero\ReciboPagoDistribucionService;
 use App\Services\Financiero\ReciboPagoNumeracionService;
+use App\Services\Inventarios\InvVentaService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -61,7 +62,9 @@ class ReciboPagoController extends Controller
 
     /**
      * Muestra una lista de recibos de pago.
-     * Permite filtrar, ordenar y cargar relaciones.
+     * Permite filtrar (origen, estado, fechas, `search` por número de recibo o por
+     * nombre/documento del estudiante), ordenar y cargar relaciones (`with`, incluye
+     * `pedidoLinks` para los recibos de inventario).
      *
      * @param Request $request Solicitud HTTP con parámetros de filtrado y paginación
      * @return JsonResponse Respuesta JSON con la lista paginada de recibos de pago
@@ -117,7 +120,13 @@ class ReciboPagoController extends Controller
                 $search = $request->string('search');
                 $query->where(function ($q) use ($search) {
                     $q->where('numero_recibo', 'like', "%{$search}%")
-                      ->orWhere('prefijo', 'like', "%{$search}%");
+                      ->orWhere('prefijo', 'like', "%{$search}%")
+                      ->orWhereHas('estudiante', fn ($eq) => $eq
+                          ->where('primer_nombre', 'like', "%{$search}%")
+                          ->orWhere('segundo_nombre', 'like', "%{$search}%")
+                          ->orWhere('primer_apellido', 'like', "%{$search}%")
+                          ->orWhere('segundo_apellido', 'like', "%{$search}%")
+                          ->orWhere('documento', 'like', "%{$search}%"));
                 });
             }
 
@@ -774,7 +783,7 @@ class ReciboPagoController extends Controller
      * Lista los recibos con pago por transferencia pendientes de aprobación.
      * Incluye todos los datos necesarios para que el validador revise el comprobante.
      *
-     * @param Request $request
+     * @param Request $request sede_id?, origen? (0 = inventarios, 1 = académico)
      * @return JsonResponse
      */
     public function pendientesTransferencia(Request $request): JsonResponse
@@ -784,6 +793,10 @@ class ReciboPagoController extends Controller
 
         if ($request->filled('sede_id')) {
             $query->bySede($request->integer('sede_id'));
+        }
+
+        if ($request->filled('origen')) {
+            $query->byOrigen($request->integer('origen'));
         }
 
         $recibos = $query->orderBy('created_at', 'asc')
@@ -843,6 +856,7 @@ class ReciboPagoController extends Controller
      * El validador aprueba un recibo de transferencia.
      * Asigna el número de recibo, ejecuta la distribución de cartera con la fecha
      * de generación para los descuentos, cierra el recibo y envía el correo al estudiante.
+     * Rechaza los recibos de inventario (origen=0): se aprueban en InvVentaController.
      *
      * @param Request    $request
      * @param ReciboPago $reciboPago
@@ -850,6 +864,13 @@ class ReciboPagoController extends Controller
      */
     public function aprobarTransferencia(Request $request, ReciboPago $reciboPago): JsonResponse
     {
+        // Los recibos de inventario se aprueban en su módulo: allí se aplican al pedido.
+        if ($reciboPago->origen === ReciboPago::ORIGEN_INVENTARIOS) {
+            return response()->json([
+                'message' => 'Este recibo es de inventarios; apruébalo desde Inventario → Transferencias.',
+            ], 422);
+        }
+
         if (! $reciboPago->estaPendienteAprobacion()) {
             return response()->json([
                 'message' => 'Solo se pueden aprobar recibos pendientes de aprobación.',
@@ -1201,6 +1222,8 @@ class ReciboPagoController extends Controller
      * Requiere un motivo de anulación para trazabilidad y auditoría.
      * Si el recibo tenía líneas de cartera (id_relacional), revierte el saldo y estado
      * de cada cartera afectada para dejarla como si el pago nunca se hubiera realizado.
+     * Si es de inventario, descuenta su abono del pedido; responde 422 si el pedido ya
+     * no está activo (en ese caso se anula el pedido completo desde Inventario).
      *
      * @param Request    $request Debe contener motivo_anulacion (requerido, max 500)
      * @param ReciboPago $reciboPago Recibo de pago a anular
@@ -1256,6 +1279,11 @@ class ReciboPagoController extends Controller
                     }
                 });
 
+            // Un recibo de inventario descuenta su abono del pedido (solo si sigue activo)
+            if ($reciboPago->origen === ReciboPago::ORIGEN_INVENTARIOS) {
+                InvVentaService::revertirAbono($reciboPago);
+            }
+
             $reciboPago->anular($request->string('motivo_anulacion'));
 
             Log::info('Recibo de pago anulado', [
@@ -1271,6 +1299,10 @@ class ReciboPagoController extends Controller
                 'message' => 'Recibo de pago anulado exitosamente.',
                 'data'    => new ReciboPagoResource($reciboPago->fresh()),
             ]);
+        } catch (\RuntimeException $e) {
+            DB::rollBack();
+
+            return response()->json(['message' => $e->getMessage()], 422);
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Error al anular recibo de pago: ' . $e->getMessage());

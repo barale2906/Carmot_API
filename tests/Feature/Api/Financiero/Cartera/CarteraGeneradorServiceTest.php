@@ -20,10 +20,14 @@ class CarteraGeneradorServiceTest extends TestCase
 
     /**
      * Crea un LpPrecioProducto con valores fijos y plan a cuotas.
+     *
+     * El producto debe ser financiable: si la factory elige uno que no lo es, el hook
+     * `saving` de LpPrecioProducto anula valor_cuota y cuotas_detalle y las cuotas
+     * se generan en 0 (el test fallaba de forma intermitente por eso).
      */
     private function crearLpCuotas(int $numeroCuotas = 3): LpPrecioProducto
     {
-        return LpPrecioProducto::factory()->conValores(
+        return LpPrecioProducto::factory()->financiable()->conValores(
             precioContado: 1600000,
             precioTotal: 1200000,
             matricula: 400000,

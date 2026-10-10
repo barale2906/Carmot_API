@@ -2,6 +2,9 @@
 
 namespace App\Http\Requests\Api\Inventarios;
 
+use App\Models\Configuracion\Sede;
+use App\Models\Financiero\Lp\LpListaPrecio;
+use App\Models\Inventarios\InvPrecioProducto;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Validator;
 
@@ -69,8 +72,9 @@ class StoreInvVentaRequest extends FormRequest
     }
 
     /**
-     * Validación cruzada: la suma de medios_pago debe igualar monto_abono y cada
-     * bloque de variantes_kit debe apuntar a un ítem existente del request.
+     * Validación cruzada: la sede debe tener lista de precios de inventario activa y
+     * vigente con precio para cada producto, la suma de medios_pago debe igualar
+     * monto_abono y cada bloque de variantes_kit debe apuntar a un ítem del request.
      *
      * @param Validator $validator
      * @return void
@@ -78,6 +82,8 @@ class StoreInvVentaRequest extends FormRequest
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $v) {
+            $this->validarPreciosVigentes($v);
+
             $sumaMP = collect($this->medios_pago ?? [])
                 ->sum(fn ($mp) => (float) ($mp['valor'] ?? 0));
 
@@ -109,6 +115,46 @@ class StoreInvVentaRequest extends FormRequest
                 }
             }
         });
+    }
+
+    /**
+     * Sin lista activa y vigente para la población de la sede no se puede vender,
+     * y cada producto debe tener precio en alguna de esas listas.
+     *
+     * @param Validator $v
+     * @return void
+     */
+    private function validarPreciosVigentes(Validator $v): void
+    {
+        if ($v->errors()->hasAny(['sede_id', 'items'])) {
+            return;
+        }
+
+        $poblacionId = Sede::find($this->sede_id)?->poblacion_id;
+
+        if (! $poblacionId || ! LpListaPrecio::ventaInventario($poblacionId)->exists()) {
+            $v->errors()->add('sede_id', 'La sede no tiene una lista de precios de inventario activa y vigente.');
+
+            return;
+        }
+
+        $conPrecio = InvPrecioProducto::vigentesParaPoblacion($poblacionId)
+            ->whereIn('producto_id', collect($this->items)->pluck('producto_id')->filter())
+            ->pluck('producto_id')
+            ->all();
+
+        foreach ($this->items as $indice => $item) {
+            if ($v->errors()->has("items.{$indice}.producto_id")) {
+                continue;
+            }
+
+            if (! in_array((int) $item['producto_id'], $conPrecio, true)) {
+                $v->errors()->add(
+                    "items.{$indice}.producto_id",
+                    'El producto no tiene precio en la lista de precios vigente de la sede.'
+                );
+            }
+        }
     }
 
     /**

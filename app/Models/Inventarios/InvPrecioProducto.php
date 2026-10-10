@@ -87,14 +87,23 @@ class InvPrecioProducto extends Model
     public static function precioVigente(int $productoId, int $poblacionId): ?self
     {
         return static::where('producto_id', $productoId)
-            ->whereNull('deleted_at')
-            ->whereHas('listaPrecio', function ($q) use ($poblacionId) {
-                $q->where('origen', 0)
-                  ->where('status', LpListaPrecio::STATUS_ACTIVA)
-                  ->where('fecha_inicio', '<=', today())
-                  ->where('fecha_fin', '>=', today())
-                  ->whereHas('poblaciones', fn ($pq) => $pq->where('poblacion_id', $poblacionId));
-            })
+            ->vigentesParaPoblacion($poblacionId)
             ->first();
+    }
+
+    /**
+     * Scope para los precios de listas de inventario activas y vigentes en una población.
+     *
+     * Ordena por id para que, si dos listas vigentes cubren el mismo producto, el
+     * precio resuelto sea siempre el mismo (el de la asignación más antigua).
+     *
+     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @param int $poblacionId
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    public function scopeVigentesParaPoblacion($query, int $poblacionId)
+    {
+        return $query->whereHas('listaPrecio', fn ($q) => $q->ventaInventario($poblacionId))
+            ->orderBy('id');
     }
 }

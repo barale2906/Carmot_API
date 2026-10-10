@@ -71,6 +71,12 @@ class ReciboPagoResource extends JsonResource
             'cajero' => $this->whenLoaded('cajero', fn () => new UserResource($this->cajero)),
             'matricula' => $this->whenLoaded('matricula', fn () => new MatriculaResource($this->matricula)),
 
+            // Pedidos de inventario que cubre el recibo (origen=0)
+            'pedidos_inventario' => $this->whenLoaded('pedidoLinks', fn () => $this->pedidoLinks->map(fn ($link) => [
+                'pedido_id'     => $link->pedido_id,
+                'monto_abonado' => $link->monto_abonado,
+            ])),
+
             // Conceptos de pago con detalles del pivot
             'conceptos_pago' => $this->whenLoaded('conceptosPago', function () {
                 return $this->conceptosPago->map(function ($concepto) {

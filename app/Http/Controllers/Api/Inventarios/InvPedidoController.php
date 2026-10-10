@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Inventarios;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\Inventarios\AnularInvPedidoRequest;
 use App\Http\Resources\Api\Inventarios\InvPedidoResource;
 use App\Models\Inventarios\InvPedido;
 use App\Services\Inventarios\InvAnulacionService;
@@ -44,6 +45,7 @@ class InvPedidoController extends Controller
 
         $pedidos = InvPedido::withFilters($filters)
             ->with(['estudiante', 'sede', 'almacen', 'cajero'])
+            ->conAbonoPendienteAprobacion()
             ->latest()
             ->paginate($request->get('per_page', 15));
 
@@ -76,8 +78,9 @@ class InvPedidoController extends Controller
             'items.producto',
             'items.entregaSimple',
             'items.entregaKit.componentes.productoEntregado',
-            'reciboLinks.reciboPago',
-        ]);
+            'reciboLinks.reciboPago.mediosPago',
+            'canceladoPor',
+        ])->cargarAbonoPendienteAprobacion();
 
         return response()->json([
             'data' => new InvPedidoResource($pedido),
@@ -100,6 +103,7 @@ class InvPedidoController extends Controller
                 fn ($q) => $q->where('status', $request->status)
             )
             ->with(['almacen', 'items.producto'])
+            ->conAbonoPendienteAprobacion()
             ->latest()
             ->get();
 
@@ -110,13 +114,14 @@ class InvPedidoController extends Controller
     }
 
     /**
-     * Cancela un pedido activo.
-     * Solo se puede cancelar si el status es 'activo' (saldo pendiente).
+     * Cancela un pedido activo (aún sin pagar del todo, sin entregas).
+     * Anula sus recibos de abono y registra el motivo.
      *
-     * @param InvPedido $pedido
+     * @param AnularInvPedidoRequest $request
+     * @param InvPedido              $pedido
      * @return JsonResponse
      */
-    public function cancelar(InvPedido $pedido): JsonResponse
+    public function cancelar(AnularInvPedidoRequest $request, InvPedido $pedido): JsonResponse
     {
         if ($pedido->status !== InvPedido::STATUS_ACTIVO) {
             return response()->json([
@@ -124,36 +129,51 @@ class InvPedidoController extends Controller
             ], 422);
         }
 
-        $pedido->update(['status' => InvPedido::STATUS_CANCELADO]);
-
-        return response()->json([
-            'message' => 'Pedido cancelado exitosamente.',
-            'data'    => new InvPedidoResource($pedido),
-        ]);
+        return $this->ejecutarAnulacion($request, $pedido, 'Pedido cancelado');
     }
 
     /**
-     * Anula un pedido en cualquier estado y reintegra el stock de los ítems entregados.
+     * Anula un pedido en cualquier estado.
      *
-     * Para pedidos 'activo' solo cambia el status. Para pedidos 'pagado', 'entregando'
-     * o 'entregado' crea documentos de devolución e invierte los movimientos de stock.
+     * Reintegra al almacén todo lo entregado (completo o parcial), cancela las
+     * necesidades de compra, anula los recibos del pedido y registra el motivo.
+     * Se rechaza si algún recibo ya está cerrado en caja.
      *
-     * @param InvPedido $pedido
-     * @param Request   $request
+     * @param AnularInvPedidoRequest $request
+     * @param InvPedido              $pedido
      * @return JsonResponse
      */
-    public function anular(InvPedido $pedido, Request $request): JsonResponse
+    public function anular(AnularInvPedidoRequest $request, InvPedido $pedido): JsonResponse
+    {
+        return $this->ejecutarAnulacion($request, $pedido, 'Pedido anulado');
+    }
+
+    /**
+     * Ejecuta la anulación común a cancelar y anular y arma la respuesta.
+     *
+     * @param AnularInvPedidoRequest $request
+     * @param InvPedido              $pedido
+     * @param string                 $accion  Prefijo del mensaje de éxito
+     * @return JsonResponse
+     */
+    private function ejecutarAnulacion(AnularInvPedidoRequest $request, InvPedido $pedido, string $accion): JsonResponse
     {
         try {
-            InvAnulacionService::anularPedido($pedido, $request->user()->id);
-
-            return response()->json([
-                'message' => 'Pedido anulado exitosamente.',
-                'data'    => new InvPedidoResource($pedido->fresh()),
-            ]);
+            $recibosAnulados = InvAnulacionService::anularPedido(
+                $pedido,
+                $request->user()->id,
+                $request->string('motivo')
+            );
         } catch (\RuntimeException $e) {
             return response()->json(['message' => $e->getMessage()], 422);
         }
+
+        return response()->json([
+            'message' => $recibosAnulados > 0
+                ? "{$accion}. Se anularon {$recibosAnulados} recibo(s): devuelve el dinero al estudiante."
+                : "{$accion}.",
+            'data'    => new InvPedidoResource($pedido->fresh('canceladoPor')),
+        ]);
     }
 
     /**

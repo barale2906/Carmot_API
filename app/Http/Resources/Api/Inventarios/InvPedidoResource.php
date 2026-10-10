@@ -39,15 +39,35 @@ class InvPedidoResource extends JsonResource
             'valor_total'     => $this->valor_total,
             'abono_acumulado' => $this->abono_acumulado,
             'saldo'           => $this->saldo,
+            // Transferencias registradas que aún no cuentan en abono_acumulado/saldo
+            'abono_pendiente_aprobacion' => $this->when(
+                array_key_exists('abono_pendiente_aprobacion', $this->getAttributes()),
+                fn () => (float) $this->abono_pendiente_aprobacion
+            ),
             'status'          => $this->status,
             'observaciones'   => $this->observaciones,
+            'motivo_cancelacion' => $this->motivo_cancelacion,
+            'fecha_cancelacion'  => $this->fecha_cancelacion,
+            'cancelado_por'      => $this->whenLoaded('canceladoPor', fn () => $this->canceladoPor ? [
+                'id'     => $this->canceladoPor->id,
+                'nombre' => $this->canceladoPor->name,
+            ] : null),
             'items'           => InvPedidoItemResource::collection($this->whenLoaded('items')),
             'recibo_links'    => $this->whenLoaded('reciboLinks', function () {
                 return $this->reciboLinks->map(fn ($link) => [
                     'recibo_pago_id'  => $link->recibo_pago_id,
                     'numero_recibo'   => $link->reciboPago?->numero_recibo,
                     'status'          => $link->reciboPago?->status,
+                    'fecha_recibo'    => $link->reciboPago?->fecha_recibo,
+                    'valor_total'     => $link->reciboPago?->valor_total,
                     'monto_abonado'   => $link->monto_abonado,
+                    'medios_pago'     => $link->reciboPago?->relationLoaded('mediosPago')
+                        ? $link->reciboPago->mediosPago->map(fn ($mp) => [
+                            'medio_pago' => $mp->medio_pago,
+                            'valor'      => $mp->valor,
+                            'referencia' => $mp->referencia,
+                        ])
+                        : null,
                     'created_at'      => $link->created_at,
                 ]);
             }),

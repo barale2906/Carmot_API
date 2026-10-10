@@ -191,6 +191,7 @@ Route::middleware('auth:sanctum')
         // ──────────────────────────────────────────────────────────────────────
         // Ventas (crear pedido + abonar + gestión de transferencias)
         // ──────────────────────────────────────────────────────────────────────
+        Route::get('ventas/precios-vigentes', [InvVentaController::class, 'preciosVigentes'])->name('ventas.precios-vigentes');
         Route::post('ventas/verificar-disponibilidad', [InvVentaController::class, 'verificarDisponibilidad'])->name('ventas.verificar-disponibilidad');
         Route::post('ventas', [InvVentaController::class, 'store'])->name('ventas.store');
         Route::post('ventas/{pedido}/abonar', [InvVentaController::class, 'abonar'])->name('ventas.abonar');

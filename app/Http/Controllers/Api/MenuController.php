@@ -383,7 +383,7 @@ class MenuController extends Controller
             }
         }
 
-        // Inventario - módulo con 4 grupos: catálogos, stock/movimientos, ventas/entregas, OC
+        // Inventario - módulo con 5 grupos: catálogos, stock/movimientos, ventas/entregas, facturación, OC
         $allInvPerms = [
             'inv_categorias', 'inv_unidades', 'inv_productos', 'inv_almacenes', 'inv_proveedores',
             'inv_stock', 'inv_movimientos', 'inv_precios',
@@ -538,6 +538,42 @@ class MenuController extends Controller
                     'icon' => 'shopping_cart',
                     'route' => '#inv-ventas',
                     'children' => $ventasChildren,
+                    'disabled' => false,
+                ];
+            }
+
+            // ── Grupo: Facturación ────────────────────────────────────────────
+            // Los permisos son los de los endpoints financieros que consumen estas pantallas.
+            $facturacionChildren = [];
+            if ($user->can('fin_recibos_pago')) {
+                $facturacionChildren[] = [
+                    'id' => 'inv-recibos-pago',
+                    'title' => 'Recibos de pago',
+                    'icon' => 'receipt',
+                    'route' => '/inventario/recibos-pago',
+                    'permission' => 'fin_recibos_pago',
+                    'children' => [],
+                    'disabled' => false,
+                ];
+            }
+            if ($user->can('fin_reciboPagoAprobar')) {
+                $facturacionChildren[] = [
+                    'id' => 'inv-transferencias',
+                    'title' => 'Transferencias',
+                    'icon' => 'account_balance',
+                    'route' => '/inventario/transferencias',
+                    'permission' => 'fin_reciboPagoAprobar',
+                    'children' => [],
+                    'disabled' => false,
+                ];
+            }
+            if (!empty($facturacionChildren)) {
+                $inventarioChildren[] = [
+                    'id' => 'inv-grupo-facturacion',
+                    'title' => 'Facturación',
+                    'icon' => 'payments',
+                    'route' => '#inv-facturacion',
+                    'children' => $facturacionChildren,
                     'disabled' => false,
                 ];
             }

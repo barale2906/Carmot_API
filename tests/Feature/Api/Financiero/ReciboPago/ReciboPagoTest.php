@@ -8,6 +8,9 @@ use App\Models\Financiero\Cartera\Cartera;
 use App\Models\Financiero\ConceptoPago\ConceptoPago;
 use App\Models\Financiero\Descuento\Descuento;
 use App\Models\Financiero\ReciboPago\ReciboPago;
+use App\Models\Inventarios\InvAlmacen;
+use App\Models\Inventarios\InvPedido;
+use App\Models\Inventarios\ReciboPagoInvPedido;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Permission\Models\Permission;
@@ -122,6 +125,73 @@ class ReciboPagoTest extends TestCase
             ->getJson(route('recibos-pago.index'))
             ->assertOk()
             ->assertJsonStructure(['data', 'meta']);
+    }
+
+    /**
+     * Crea un recibo de inventario (origen=0) vinculado a un pedido.
+     *
+     * @param User $estudiante
+     * @return array{0: ReciboPago, 1: InvPedido}
+     */
+    private function crearReciboInventario(User $estudiante): array
+    {
+        $pedido = InvPedido::create([
+            'estudiante_id'   => $estudiante->id,
+            'sede_id'         => $this->sede->id,
+            'almacen_id'      => InvAlmacen::factory()->create(['sede_id' => $this->sede->id])->id,
+            'cajero_id'       => $this->usuario->id,
+            'valor_total'     => 80000,
+            'abono_acumulado' => 80000,
+            'saldo'           => 0,
+            'status'          => InvPedido::STATUS_PAGADO,
+        ]);
+
+        $recibo = ReciboPago::factory()->creado()->create([
+            'origen'        => ReciboPago::ORIGEN_INVENTARIOS,
+            'sede_id'       => $this->sede->id,
+            'estudiante_id' => $estudiante->id,
+            'matricula_id'  => null,
+            'valor_total'   => 80000,
+        ]);
+
+        ReciboPagoInvPedido::create(['recibo_pago_id' => $recibo->id, 'pedido_id' => $pedido->id, 'monto_abonado' => 80000]);
+
+        return [$recibo, $pedido];
+    }
+
+    /** @test */
+    public function index_filtra_por_origen_y_expone_el_pedido_de_inventario(): void
+    {
+        $this->crearRecibo(['origen' => ReciboPago::ORIGEN_ACADEMICO]);
+        [$recibo, $pedido] = $this->crearReciboInventario(User::factory()->create());
+
+        $this->actingAs($this->usuario)
+            ->getJson(route('recibos-pago.index', ['origen' => ReciboPago::ORIGEN_INVENTARIOS, 'with' => 'estudiante,pedidoLinks']))
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $recibo->id)
+            ->assertJsonPath('data.0.pedidos_inventario.0.pedido_id', $pedido->id);
+
+        $this->actingAs($this->usuario)
+            ->getJson(route('recibos-pago.index', ['origen' => ReciboPago::ORIGEN_ACADEMICO]))
+            ->assertOk()
+            ->assertJsonMissing(['id' => $recibo->id]);
+    }
+
+    /** @test */
+    public function index_busca_por_nombre_o_documento_del_estudiante(): void
+    {
+        $estudiante = User::factory()->create(['primer_nombre' => 'Zoraida', 'primer_apellido' => 'Quintero', 'documento' => '99887766']);
+        [$recibo] = $this->crearReciboInventario($estudiante);
+        $this->crearReciboInventario(User::factory()->create(['primer_nombre' => 'Otro', 'primer_apellido' => 'Estudiante']));
+
+        foreach (['Zoraida', '998877'] as $termino) {
+            $this->actingAs($this->usuario)
+                ->getJson(route('recibos-pago.index', ['search' => $termino]))
+                ->assertOk()
+                ->assertJsonCount(1, 'data')
+                ->assertJsonPath('data.0.id', $recibo->id);
+        }
     }
 
     /** @test */

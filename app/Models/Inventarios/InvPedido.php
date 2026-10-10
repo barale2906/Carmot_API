@@ -26,6 +26,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property float  $abono_acumulado
  * @property float  $saldo
  * @property string $status
+ * @property string|null $motivo_cancelacion
+ * @property int|null    $cancelado_por_id
+ * @property \Illuminate\Support\Carbon|null $fecha_cancelacion
  */
 class InvPedido extends Model
 {
@@ -49,6 +52,8 @@ class InvPedido extends Model
         'valor_total'     => 'decimal:2',
         'abono_acumulado' => 'decimal:2',
         'saldo'           => 'decimal:2',
+        'cancelado_por_id'  => 'integer',
+        'fecha_cancelacion' => 'datetime',
         'created_at'      => 'datetime',
         'updated_at'      => 'datetime',
     ];
@@ -104,6 +109,16 @@ class InvPedido extends Model
     }
 
     /**
+     * Usuario que canceló o anuló el pedido.
+     *
+     * @return BelongsTo
+     */
+    public function canceladoPor(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'cancelado_por_id');
+    }
+
+    /**
      * Vínculos con los recibos de pago que cubren este pedido.
      *
      * @return HasMany
@@ -111,6 +126,46 @@ class InvPedido extends Model
     public function reciboLinks(): HasMany
     {
         return $this->hasMany(ReciboPagoInvPedido::class, 'pedido_id');
+    }
+
+    /**
+     * Total abonado por transferencias que aún esperan aprobación.
+     *
+     * Ese monto no está incluido en `abono_acumulado` ni descontado del `saldo`:
+     * solo se suma al pedido cuando el validador aprueba la transferencia.
+     *
+     * @return float
+     */
+    public function montoPendienteAprobacion(): float
+    {
+        return (float) $this->reciboLinks()->pendientesAprobacion()->sum('monto_abonado');
+    }
+
+    /**
+     * Carga `abono_pendiente_aprobacion` como atributo para exponerlo en el Resource.
+     *
+     * @return self
+     */
+    public function cargarAbonoPendienteAprobacion(): self
+    {
+        return $this->loadSum(
+            ['reciboLinks as abono_pendiente_aprobacion' => fn ($q) => $q->pendientesAprobacion()],
+            'monto_abonado'
+        );
+    }
+
+    /**
+     * Scope: agrega `abono_pendiente_aprobacion` (suma de transferencias por aprobar).
+     *
+     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    public function scopeConAbonoPendienteAprobacion($query)
+    {
+        return $query->withSum(
+            ['reciboLinks as abono_pendiente_aprobacion' => fn ($q) => $q->pendientesAprobacion()],
+            'monto_abonado'
+        );
     }
 
     /**
@@ -122,6 +177,17 @@ class InvPedido extends Model
     public function scopeActivos($query)
     {
         return $query->where('status', self::STATUS_ACTIVO);
+    }
+
+    /**
+     * Indica si el pedido admite despachos: solo pagado o entregando.
+     * Un pedido activo aún no está pagado y uno cancelado (anulado) ya no se entrega.
+     *
+     * @return bool
+     */
+    public function admiteEntrega(): bool
+    {
+        return in_array($this->status, [self::STATUS_PAGADO, self::STATUS_ENTREGANDO], true);
     }
 
     /**

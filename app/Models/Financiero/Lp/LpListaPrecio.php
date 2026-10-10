@@ -168,6 +168,26 @@ class LpListaPrecio extends Model
     }
 
     /**
+     * Scope para las listas de inventario (origen=0) con las que hoy se puede vender.
+     *
+     * Usa `today()` y no `now()`: las fechas de la lista son de tipo date, y comparar
+     * `fecha_fin` contra la hora actual excluiría la lista durante su último día.
+     *
+     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @param int|null $poblacionId Población de la sede; null = cualquier población
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    public function scopeVentaInventario($query, ?int $poblacionId = null)
+    {
+        return $query->where('origen', 0)
+            ->vigentes(today())
+            ->when($poblacionId, fn ($q) => $q->whereHas(
+                'poblaciones',
+                fn ($pq) => $pq->where('poblacion_id', $poblacionId)
+            ));
+    }
+
+    /**
      * Scope para filtrar listas aprobadas que deben activarse automáticamente.
      * Retorna listas que están en estado "Aprobada" y cuya fecha de inicio ya llegó o pasó.
      *

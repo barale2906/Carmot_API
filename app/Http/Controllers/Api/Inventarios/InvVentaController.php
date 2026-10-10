@@ -4,13 +4,19 @@ namespace App\Http\Controllers\Api\Inventarios;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\Inventarios\AbonarInvPedidoRequest;
+use App\Http\Requests\Api\Inventarios\PreciosVigentesInvVentaRequest;
 use App\Http\Requests\Api\Inventarios\StoreInvVentaRequest;
 use App\Http\Requests\Api\Inventarios\VerificarDisponibilidadRequest;
+use App\Http\Resources\Api\Inventarios\InvListaPrecioResource;
 use App\Http\Resources\Api\Inventarios\InvPedidoResource;
+use App\Http\Resources\Api\Inventarios\InvPrecioProductoResource;
 use App\Http\Resources\Api\Financiero\ReciboPago\ReciboPagoResource;
+use App\Models\Configuracion\Sede;
 use App\Models\Financiero\Descuento\Descuento;
+use App\Models\Financiero\Lp\LpListaPrecio;
 use App\Models\Financiero\ReciboPago\ReciboPago;
 use App\Models\Inventarios\InvPedido;
+use App\Models\Inventarios\InvPrecioProducto;
 use App\Notifications\Financiero\TransferenciaAprobadaNotification;
 use App\Notifications\Financiero\TransferenciaPendienteNotification;
 use App\Notifications\Financiero\TransferenciaRechazadaNotification;
@@ -46,7 +52,7 @@ class InvVentaController extends Controller
         private readonly ReciboPagoNumeracionService $numeracionService,
     ) {
         $this->middleware('auth:sanctum');
-        $this->middleware('permission:inv_ventasCrear')->only(['store', 'aprobarTransferencia', 'rechazarTransferencia', 'reenviarTransferencia', 'precalcularSobrecargos', 'verificarDisponibilidad']);
+        $this->middleware('permission:inv_ventasCrear')->only(['store', 'aprobarTransferencia', 'rechazarTransferencia', 'reenviarTransferencia', 'precalcularSobrecargos', 'verificarDisponibilidad', 'preciosVigentes']);
         $this->middleware('permission:inv_ventasAbonar')->only(['abonar']);
     }
 
@@ -56,7 +62,8 @@ class InvVentaController extends Controller
      * Resuelve el precio de cada producto desde la lista vigente para la sede.
      * Si el abono cubre el total, dispara el despacho automáticamente.
      * Aplica sobrecargos por medio de pago si se informan.
-     * Si el medio de pago es transferencia, el recibo queda en PENDIENTE_APROBACION.
+     * Si el medio de pago es transferencia, el recibo queda en PENDIENTE_APROBACION y el
+     * pedido queda 'activo' sin abono ni entregas hasta que se apruebe.
      *
      * @param StoreInvVentaRequest $request
      * @return JsonResponse
@@ -119,7 +126,7 @@ class InvVentaController extends Controller
             }
 
             $mensaje = $esTransferencia
-                ? 'Pedido creado. Recibo por transferencia pendiente de aprobación.'
+                ? 'Pedido creado. Recibo por transferencia pendiente de aprobación; la entrega queda pendiente hasta aprobarlo.'
                 : 'Pedido creado exitosamente.';
 
             return response()->json([
@@ -141,6 +148,8 @@ class InvVentaController extends Controller
      * Registra un abono a un pedido activo.
      *
      * Si el abono cubre el saldo restante, dispara el despacho automáticamente.
+     * Un abono por transferencia solo crea el recibo pendiente: el pedido se
+     * actualiza al aprobarlo. El monto permitido descuenta las transferencias por aprobar.
      * Aplica sobrecargos por medio de pago si se informan.
      *
      * @param AbonarInvPedidoRequest $request
@@ -206,7 +215,7 @@ class InvVentaController extends Controller
             }
 
             $mensaje = $esTransferencia
-                ? 'Abono registrado. Recibo por transferencia pendiente de aprobación.'
+                ? 'Abono registrado. Recibo por transferencia pendiente de aprobación; se aplicará al pedido al aprobarlo.'
                 : 'Abono registrado exitosamente.';
 
             return response()->json([
@@ -243,6 +252,38 @@ class InvVentaController extends Controller
         );
 
         return response()->json(['data' => $resultado]);
+    }
+
+    /**
+     * Indica si se puede vender y con qué precios.
+     *
+     * Sin `sede_id` responde si existe alguna lista de inventario activa y vigente
+     * (habilita la opción de venta). Con `sede_id` restringe a las listas de la
+     * población de la sede y devuelve el precio vigente de cada producto — el mismo
+     * que usará `store`, de modo que el cajero nunca ve un precio de una lista inactiva.
+     *
+     * @param PreciosVigentesInvVentaRequest $request
+     * @return JsonResponse
+     */
+    public function preciosVigentes(PreciosVigentesInvVentaRequest $request): JsonResponse
+    {
+        $poblacionId = $request->filled('sede_id')
+            ? Sede::findOrFail($request->integer('sede_id'))->poblacion_id
+            : null;
+
+        $listas = LpListaPrecio::ventaInventario($poblacionId)->orderBy('nombre')->get();
+
+        $precios = $poblacionId
+            ? InvPrecioProducto::vigentesParaPoblacion($poblacionId)->get()->unique('producto_id')->values()
+            : collect();
+
+        return response()->json([
+            'data' => [
+                'disponible' => $listas->isNotEmpty(),
+                'listas'     => InvListaPrecioResource::collection($listas),
+                'precios'    => InvPrecioProductoResource::collection($precios),
+            ],
+        ]);
     }
 
     /**
@@ -314,6 +355,11 @@ class InvVentaController extends Controller
      * Asigna el número de recibo con prefijo de inventario y cierra el recibo.
      * No ejecuta distribución de cartera (no aplica para inventarios).
      *
+     * Recién aquí el abono cuenta en el pedido. Si lo salda, el pedido pasa a
+     * 'pagado' con todas sus entregas PENDIENTES (sin mover stock aunque haya
+     * existencias): el estudiante retira los productos después, desde Entregas.
+     * Responde 422 si el pedido ya no está activo o el abono supera su saldo.
+     *
      * @param ReciboPago $reciboPago
      * @return JsonResponse
      */
@@ -339,6 +385,8 @@ class InvVentaController extends Controller
 
             $reciboPago->aprobar(auth()->id(), $numeroRecibo, $consecutivo, $prefijo);
 
+            InvVentaService::confirmarTransferencia($reciboPago, auth()->id());
+
             DB::commit();
 
             $reciboPago->load(['sede', 'cajero', 'estudiante', 'mediosPago.banco']);
@@ -353,9 +401,13 @@ class InvVentaController extends Controller
             ]);
 
             return response()->json([
-                'message' => "Recibo {$reciboPago->numero_recibo} aprobado exitosamente.",
+                'message' => "Recibo {$reciboPago->numero_recibo} aprobado. Si el pedido quedó pagado, sus productos quedan pendientes en Entregas.",
                 'data'    => new ReciboPagoResource($reciboPago),
             ]);
+        } catch (\RuntimeException $e) {
+            DB::rollBack();
+
+            return response()->json(['message' => $e->getMessage()], 422);
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Error al aprobar recibo de transferencia (inventario): ' . $e->getMessage());

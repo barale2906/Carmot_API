@@ -366,7 +366,7 @@ class InvNecesidadCompraTest extends TestCase
 
         // Al anular se reintegra 1 unidad, que alcanzaría para "atender" la necesidad.
         $this->actingAs($this->cajero)
-            ->postJson(route('inv-pedidos.anular', $pedido))
+            ->postJson(route('inv-pedidos.anular', $pedido), ['motivo' => 'Solicitud del estudiante'])
             ->assertOk();
 
         $this->assertEquals(InvNecesidadCompra::STATUS_CANCELADA, $necesidad->fresh()->status);
@@ -424,7 +424,7 @@ class InvNecesidadCompraTest extends TestCase
         $this->assertCount(1, $this->necesidadesPendientes());
 
         $this->actingAs($this->cajero)
-            ->postJson(route('inv-pedidos.anular', $pedido))
+            ->postJson(route('inv-pedidos.anular', $pedido), ['motivo' => 'Solicitud del estudiante'])
             ->assertOk();
 
         $this->assertCount(0, $this->necesidadesPendientes());

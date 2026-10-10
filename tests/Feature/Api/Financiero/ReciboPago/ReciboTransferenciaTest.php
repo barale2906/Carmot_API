@@ -79,7 +79,9 @@ class ReciboTransferenciaTest extends TestCase
 
     private function crearReciboPendiente(array $overrides = []): ReciboPago
     {
+        // Origen fijo: la factory lo sortea y el endpoint académico rechaza los de inventario
         $recibo = ReciboPago::factory()->pendienteAprobacion()->create(array_merge([
+            'origen'       => ReciboPago::ORIGEN_ACADEMICO,
             'sede_id'      => $this->sede->id,
             'cajero_id'    => $this->cajero->id,
             'matricula_id' => $this->matricula->id,

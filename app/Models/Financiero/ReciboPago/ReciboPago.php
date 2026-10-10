@@ -730,6 +730,7 @@ class ReciboPago extends Model
             'mediosPago',
             'mediosPago.banco',
             'sede.poblacion',
+            'pedidoLinks',
         ];
     }
 

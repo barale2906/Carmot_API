@@ -31,6 +31,21 @@ class ReciboPagoInvPedido extends Model
     ];
 
     /**
+     * Scope: vínculos cuyo recibo (transferencia) espera aprobación. Ese dinero aún
+     * no cuenta como pagado en el pedido.
+     *
+     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    public function scopePendientesAprobacion($query)
+    {
+        return $query->whereHas(
+            'reciboPago',
+            fn ($q) => $q->where('status', ReciboPago::STATUS_PENDIENTE_APROBACION)
+        );
+    }
+
+    /**
      * Recibo de pago.
      *
      * @return BelongsTo

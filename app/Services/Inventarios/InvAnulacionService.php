@@ -2,53 +2,87 @@
 
 namespace App\Services\Inventarios;
 
+use App\Models\Financiero\ReciboPago\ReciboPago;
 use App\Models\Inventarios\InvDocumentoMovimiento;
 use App\Models\Inventarios\InvEntregaKitComponente;
 use App\Models\Inventarios\InvEntregaSimple;
 use App\Models\Inventarios\InvMovimiento;
 use App\Models\Inventarios\InvPedido;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 /**
- * InvAnulacionService — anula un pedido de inventario y reintegra el stock.
+ * InvAnulacionService — cancela/anula un pedido de inventario.
  *
- * Para pedidos 'activo': solo cambia el status a 'cancelado' (no se movió stock).
- * Para pedidos 'pagado'|'entregando'|'entregado': crea un documento de devolución
- * por las entregas ya completadas e invierte los movimientos de stock.
- *
- * Debe llamarse dentro de DB::transaction() o el método lo crea internamente.
+ * Inventario: en pedidos 'activo' no se movió stock; en 'pagado'|'entregando'|'entregado'
+ * se crea un documento de devolución por todo lo entregado (completo o parcial).
+ * Dinero: todos los recibos vigentes del pedido se anulan (devolución al estudiante),
+ * incluidas las transferencias por aprobar.
  */
 class InvAnulacionService
 {
     /**
-     * Anula el pedido, invierte el stock de las entregas completadas y cancela
-     * sus necesidades de compra pendientes.
+     * Cancela/anula el pedido: reintegra al almacén lo entregado, cancela sus
+     * necesidades de compra, anula sus recibos (el dinero se devuelve al estudiante)
+     * y registra motivo, usuario y fecha.
+     *
+     * Los recibos ya cerrados en caja no se pueden anular (misma regla que el módulo
+     * académico); si el pedido tiene alguno, la operación se rechaza completa.
      *
      * @param InvPedido $pedido
-     * @param int       $cajeroId
-     * @throws \RuntimeException Si el pedido ya está cancelado.
+     * @param int       $usuarioId
+     * @param string    $motivo
+     * @return int Cantidad de recibos anulados
+     * @throws \RuntimeException Si el pedido ya está cancelado o tiene recibos cerrados.
      */
-    public static function anularPedido(InvPedido $pedido, int $cajeroId): void
+    public static function anularPedido(InvPedido $pedido, int $usuarioId, string $motivo): int
     {
         if ($pedido->status === InvPedido::STATUS_CANCELADO) {
             throw new \RuntimeException('El pedido ya está cancelado.');
         }
 
-        DB::transaction(function () use ($pedido, $cajeroId) {
+        $recibos = $pedido->reciboLinks()->with('reciboPago')->get()
+            ->pluck('reciboPago')
+            ->filter(fn (?ReciboPago $recibo) => $recibo && ! $recibo->estaAnulado());
+
+        $cerrados = $recibos->filter(fn (ReciboPago $recibo) => $recibo->estaCerrado());
+
+        if ($cerrados->isNotEmpty()) {
+            throw new \RuntimeException(
+                'No se puede anular el pedido: los recibos ' . $cerrados->pluck('numero_recibo')->join(', ')
+                . ' ya están cerrados en caja.'
+            );
+        }
+
+        return DB::transaction(function () use ($pedido, $usuarioId, $motivo, $recibos) {
             if ($pedido->status !== InvPedido::STATUS_ACTIVO) {
                 // Primero se cancelan: el stock reintegrado no debe atender las
                 // necesidades del mismo pedido que se está anulando.
                 InvNecesidadService::cancelarDePedido($pedido);
-                static::reintegrarStock($pedido, $cajeroId);
+                static::reintegrarStock($pedido, $usuarioId);
             }
 
-            $pedido->update(['status' => InvPedido::STATUS_CANCELADO]);
+            $recibos->each(fn (ReciboPago $recibo) => $recibo->anular(
+                Str::limit("Anulación del pedido de inventario #{$pedido->id}: {$motivo}", 500, '')
+            ));
+
+            $pedido->update([
+                'status'             => InvPedido::STATUS_CANCELADO,
+                'motivo_cancelacion' => $motivo,
+                'cancelado_por_id'   => $usuarioId,
+                'fecha_cancelacion'  => now(),
+            ]);
+
+            return $recibos->count();
         });
     }
 
     /**
-     * Recorre las entregas completadas del pedido y crea documentos de devolución
-     * para reintegrar el stock en el almacén de origen.
+     * Recorre las entregas del pedido y reintegra al almacén de origen todo lo que
+     * salió (cantidad_entregada), con un documento de devolución.
+     *
+     * Se usa la cantidad y no el status: una entrega 'parcial' ya descargó stock y,
+     * si solo se miraba 'entregado', esas unidades se perdían al anular.
      *
      * @param InvPedido $pedido
      * @param int       $cajeroId
@@ -63,8 +97,8 @@ class InvAnulacionService
         $documento = null;
 
         foreach ($pedido->items as $item) {
-            // Ítems simples ya entregados
-            if ($item->entregaSimple?->status === InvEntregaSimple::STATUS_ENTREGADO) {
+            // Lo ya entregado de cada ítem simple, también si la entrega quedó parcial
+            if ($item->entregaSimple?->cantidad_entregada > 0) {
                 $documento ??= static::crearDocumentoDevolucion($pedido, $cajeroId);
 
                 InvMovimiento::create([
@@ -85,13 +119,10 @@ class InvAnulacionService
                 );
             }
 
-            // Componentes de kit ya entregados
+            // Componentes de kit ya entregados, completos o parciales
             if ($item->entregaKit) {
                 foreach ($item->entregaKit->componentes as $comp) {
-                    if ($comp->status === InvEntregaKitComponente::STATUS_ENTREGADO
-                        && $comp->producto_entregado_id
-                        && $comp->cantidad_entregada > 0
-                    ) {
+                    if ($comp->producto_entregado_id && $comp->cantidad_entregada > 0) {
                         $documento ??= static::crearDocumentoDevolucion($pedido, $cajeroId);
 
                         InvMovimiento::create([

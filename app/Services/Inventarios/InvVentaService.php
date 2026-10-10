@@ -19,6 +19,10 @@ use Illuminate\Support\Facades\DB;
  * - El precio se obtiene de la lista de precios de inventario vigente para la sede.
  * - El valor_total del pedido es inmutable una vez creado.
  * - Cuando el saldo llega a 0, se dispara InvDespachoService::despacharPedido().
+ * - Un abono por transferencia no cuenta en el pedido hasta que se aprueba: mientras
+ *   tanto no mueve abono_acumulado/saldo ni genera entregas ni movimientos de stock.
+ *   Al aprobarse (confirmarTransferencia) las entregas quedan pendientes, nunca se
+ *   despachan en ese momento: el estudiante las retira después.
  */
 class InvVentaService
 {
@@ -38,7 +42,7 @@ class InvVentaService
      *   variantes_kit?: [{item_index?: int, pedido_item_id?: int, componentes: [{kit_componente_id, producto_entregado_id}]}]
      * }
      * @return array{pedido: InvPedido, recibo: ReciboPago}
-     * @throws \RuntimeException Si no se encuentra precio vigente para algún producto.
+     * @throws \RuntimeException Si no hay precio vigente para algún producto o el abono supera el total.
      */
     public static function crearPedido(array $datos): array
     {
@@ -92,6 +96,19 @@ class InvVentaService
             $montoAbono = (float) $datos['monto_abono'];
             $saldo      = round($valorTotal - $montoAbono, 2);
 
+            // Los sobrecargos van al recibo, no al pedido: el abono nunca supera el valor de los productos.
+            if ($saldo < 0) {
+                throw new \RuntimeException(
+                    "El abono ({$montoAbono}) supera el valor total del pedido ({$valorTotal})."
+                );
+            }
+
+            // Una transferencia por aprobar todavía no es pago: el pedido nace sin abono.
+            if (static::esTransferencia($datos['medios_pago'])) {
+                $montoAbono = 0.0;
+                $saldo      = round($valorTotal, 2);
+            }
+
             // Crear el pedido
             $pedido = InvPedido::create([
                 'estudiante_id'   => $datos['estudiante_id'],
@@ -114,8 +131,8 @@ class InvVentaService
                 $idsPorIndice[$indice] = $pedidoItem->id;
             }
 
-            // Crear el recibo de pago
-            $reciboResult = static::crearRecibo($pedido, $montoAbono, array_merge($datos, [
+            // Crear el recibo de pago por el monto recibido, aunque aún no cuente en el pedido
+            $reciboResult = static::crearRecibo($pedido, (float) $datos['monto_abono'], array_merge($datos, [
                 'descuento_total' => round($descuentoTotalItems, 2),
             ]));
 
@@ -139,7 +156,7 @@ class InvVentaService
             }
 
             return [
-                'pedido'            => $pedido->load(['items.producto', 'almacen', 'sede']),
+                'pedido'            => $pedido->load(['items.producto', 'almacen', 'sede'])->cargarAbonoPendienteAprobacion(),
                 'recibo'            => $reciboResult['recibo'],
                 'mediosPagoCreados' => $reciboResult['mediosPagoCreados'],
                 'esTransferencia'   => $reciboResult['esTransferencia'],
@@ -222,7 +239,7 @@ class InvVentaService
      *   variantes_kit?: array
      * }
      * @return array{pedido: InvPedido, recibo: ReciboPago}
-     * @throws \RuntimeException Si el abono supera el saldo.
+     * @throws \RuntimeException Si el abono supera el saldo descontando las transferencias por aprobar.
      */
     public static function abonarPedido(InvPedido $pedido, array $datos): array
     {
@@ -232,11 +249,26 @@ class InvVentaService
             }
 
             $montoAbono = (float) $datos['monto_abono'];
+            $pendiente  = $pedido->montoPendienteAprobacion();
+            $disponible = round((float) $pedido->saldo - $pendiente, 2);
 
-            if ($montoAbono > (float) $pedido->saldo) {
-                throw new \RuntimeException(
-                    "El abono ({$montoAbono}) supera el saldo pendiente ({$pedido->saldo})."
+            if ($montoAbono > $disponible) {
+                throw new \RuntimeException($pendiente > 0
+                    ? "El abono ({$montoAbono}) supera el saldo pendiente ({$disponible}), descontando {$pendiente} en transferencias por aprobar."
+                    : "El abono ({$montoAbono}) supera el saldo pendiente ({$pedido->saldo})."
                 );
+            }
+
+            // La transferencia solo se registra; el pedido se actualiza al aprobarla.
+            if (static::esTransferencia($datos['medios_pago'])) {
+                $reciboResult = static::crearRecibo($pedido, $montoAbono, $datos);
+
+                return [
+                    'pedido'            => $pedido->load(['items.producto', 'almacen', 'sede'])->cargarAbonoPendienteAprobacion(),
+                    'recibo'            => $reciboResult['recibo'],
+                    'mediosPagoCreados' => $reciboResult['mediosPagoCreados'],
+                    'esTransferencia'   => true,
+                ];
             }
 
             $nuevaAcumulado = round((float) $pedido->abono_acumulado + $montoAbono, 2);
@@ -267,12 +299,113 @@ class InvVentaService
             }
 
             return [
-                'pedido'            => $pedido->load(['items.producto', 'almacen', 'sede']),
+                'pedido'            => $pedido->load(['items.producto', 'almacen', 'sede'])->cargarAbonoPendienteAprobacion(),
                 'recibo'            => $reciboResult['recibo'],
                 'mediosPagoCreados' => $reciboResult['mediosPagoCreados'],
                 'esTransferencia'   => $reciboResult['esTransferencia'],
             ];
         });
+    }
+
+    /**
+     * Aplica a sus pedidos el abono de un recibo de transferencia recién aprobado.
+     *
+     * Suma el monto al abono_acumulado y, si el pedido queda saldado, lo pasa a
+     * 'pagado' y crea los registros de entrega como PENDIENTES aunque haya stock:
+     * la aprobación ocurre sin el estudiante presente, así que el despacho (y el
+     * movimiento de inventario) se hace cuando él regrese, desde Entregas.
+     *
+     * Debe ejecutarse dentro de la misma transacción que aprueba el recibo.
+     *
+     * @param ReciboPago $recibo
+     * @param int        $usuarioId  Validador que aprueba
+     * @return void
+     * @throws \RuntimeException Si el pedido ya no está activo o el abono supera su saldo.
+     */
+    public static function confirmarTransferencia(ReciboPago $recibo, int $usuarioId): void
+    {
+        $recibo->loadMissing('pedidoLinks.pedido');
+
+        foreach ($recibo->pedidoLinks as $link) {
+            $pedido = $link->pedido;
+            $monto  = (float) $link->monto_abonado;
+
+            if ($pedido->status !== InvPedido::STATUS_ACTIVO) {
+                throw new \RuntimeException(
+                    "El pedido #{$pedido->id} está {$pedido->status}; no se puede aplicar la transferencia."
+                );
+            }
+
+            if ($monto > (float) $pedido->saldo + 0.01) {
+                throw new \RuntimeException(
+                    "La transferencia ({$monto}) supera el saldo actual del pedido #{$pedido->id} ({$pedido->saldo})."
+                );
+            }
+
+            $nuevoAcumulado = round((float) $pedido->abono_acumulado + $monto, 2);
+            $nuevoSaldo     = round((float) $pedido->valor_total - $nuevoAcumulado, 2);
+
+            $pedido->update([
+                'abono_acumulado' => $nuevoAcumulado,
+                'saldo'           => $nuevoSaldo,
+                'status'          => $nuevoSaldo <= 0 ? InvPedido::STATUS_PAGADO : InvPedido::STATUS_ACTIVO,
+            ]);
+
+            if ($pedido->status === InvPedido::STATUS_PAGADO) {
+                InvDespachoService::prepararEntregas($pedido, $usuarioId);
+            }
+        }
+    }
+
+    /**
+     * Revierte en sus pedidos el abono de un recibo de inventario que se va a anular.
+     *
+     * Solo descuenta lo que el recibo efectivamente sumó: un recibo por aprobar o
+     * rechazado nunca contó en el pedido. Si el pedido ya está pagado o entregado,
+     * el recibo no se anula suelto: hay que anular el pedido, que además reintegra
+     * el inventario y anula todos sus recibos.
+     *
+     * Debe ejecutarse dentro de la misma transacción que anula el recibo.
+     *
+     * @param ReciboPago $recibo
+     * @return void
+     * @throws \RuntimeException Si algún pedido vinculado no está activo.
+     */
+    public static function revertirAbono(ReciboPago $recibo): void
+    {
+        if ($recibo->status !== ReciboPago::STATUS_CREADO) {
+            return;
+        }
+
+        $recibo->loadMissing('pedidoLinks.pedido');
+
+        foreach ($recibo->pedidoLinks as $link) {
+            $pedido = $link->pedido;
+
+            if ($pedido->status !== InvPedido::STATUS_ACTIVO) {
+                throw new \RuntimeException(
+                    "El pedido #{$pedido->id} está {$pedido->status}: anula el pedido desde Inventario → Ventas."
+                );
+            }
+
+            $nuevoAcumulado = round((float) $pedido->abono_acumulado - (float) $link->monto_abonado, 2);
+
+            $pedido->update([
+                'abono_acumulado' => $nuevoAcumulado,
+                'saldo'           => round((float) $pedido->valor_total - $nuevoAcumulado, 2),
+            ]);
+        }
+    }
+
+    /**
+     * Indica si los medios de pago incluyen transferencia (el recibo queda por aprobar).
+     *
+     * @param array $mediosPago
+     * @return bool
+     */
+    public static function esTransferencia(array $mediosPago): bool
+    {
+        return collect($mediosPago)->contains('medio_pago', 'transferencia');
     }
 
     /**
@@ -288,7 +421,7 @@ class InvVentaService
     {
         $descuentoTotal = (float) ($datos['descuento_total'] ?? 0);
 
-        $esTransferencia = collect($datos['medios_pago'])->contains('medio_pago', 'transferencia');
+        $esTransferencia = static::esTransferencia($datos['medios_pago']);
 
         // Resolver nombre del banco para el campo de texto legado
         $bancoNombre = null;

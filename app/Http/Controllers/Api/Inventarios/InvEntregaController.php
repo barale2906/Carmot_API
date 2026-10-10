@@ -109,6 +109,10 @@ class InvEntregaController extends Controller
             return response()->json(['message' => 'La entrega ya fue completada.'], 422);
         }
 
+        if ($rechazo = $this->rechazarSiNoAdmiteEntrega($entrega->pedidoItem->pedido)) {
+            return $rechazo;
+        }
+
         $resultado = DB::transaction(function () use ($entrega, $request) {
             $item     = $entrega->pedidoItem()->with('pedido')->firstOrFail();
             $cajeroId = $request->user()->id;
@@ -165,6 +169,10 @@ class InvEntregaController extends Controller
             return response()->json(['message' => 'La entrega del kit ya fue completada.'], 422);
         }
 
+        if ($rechazo = $this->rechazarSiNoAdmiteEntrega($entregaKit->pedidoItem->pedido)) {
+            return $rechazo;
+        }
+
         $resultado = DB::transaction(function () use ($entregaKit, $request) {
             $cajeroId = $request->user()->id;
 
@@ -212,6 +220,10 @@ class InvEntregaController extends Controller
             return response()->json(['message' => 'La entrega del kit ya fue completada.'], 422);
         }
 
+        if ($rechazo = $this->rechazarSiNoAdmiteEntrega($entregaKit->pedidoItem->pedido)) {
+            return $rechazo;
+        }
+
         $resultado = DB::transaction(function () use ($entregaKit, $request) {
             $item     = $entregaKit->pedidoItem()->with('pedido')->firstOrFail();
             $cajeroId = $request->user()->id;
@@ -231,6 +243,26 @@ class InvEntregaController extends Controller
                 : 'Entrega parcial registrada — algunos componentes siguen pendientes.',
             'data'    => new InvEntregaKitResource($resultado),
         ]);
+    }
+
+    /**
+     * Respuesta 422 si el pedido no admite despachos (no pagado o anulado), o null.
+     *
+     * Sin esta verificación, las entregas pendientes de un pedido anulado seguían
+     * siendo despachables por id y el recálculo de status lo devolvía a 'entregado'.
+     *
+     * @param InvPedido $pedido
+     * @return JsonResponse|null
+     */
+    private function rechazarSiNoAdmiteEntrega(InvPedido $pedido): ?JsonResponse
+    {
+        if ($pedido->admiteEntrega()) {
+            return null;
+        }
+
+        return response()->json([
+            'message' => "El pedido #{$pedido->id} está {$pedido->status}: no admite entregas.",
+        ], 422);
     }
 
     /**
