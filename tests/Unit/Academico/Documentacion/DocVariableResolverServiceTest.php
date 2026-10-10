@@ -3,8 +3,10 @@
 namespace Tests\Unit\Academico\Documentacion;
 
 use App\Models\Academico\Matricula;
+use App\Models\Financiero\Cartera\Cartera;
 use App\Services\Academico\Documentacion\DocVariableResolverService;
 use App\Services\Academico\Documentacion\NumeroALetrasService;
+use Illuminate\Database\Eloquent\Collection;
 use Tests\TestCase;
 
 /**
@@ -125,5 +127,97 @@ class DocVariableResolverServiceTest extends TestCase
         );
 
         $this->assertEqualsCanonicalizing(['estudiante.name', 'curso.nombre'], $claves);
+    }
+
+    /**
+     * Matrícula en memoria con el cuadro de cartera indicado.
+     *
+     * @param array<int, array{0: int, 1: string, 2?: string}> $cuotas [numero_cuota, fecha_vencimiento, estado]
+     * @return Matricula
+     */
+    private function matriculaConCartera(array $cuotas): Matricula
+    {
+        $matricula = new Matricula();
+        $matricula->setRelation('carteras', new Collection(array_map(
+            fn (array $cuota) => new Cartera([
+                'numero_cuota'      => $cuota[0],
+                'fecha_vencimiento' => $cuota[1],
+                'status'            => Cartera::getStatusKey($cuota[2] ?? 'Activa'),
+            ]),
+            $cuotas
+        )));
+
+        return $matricula;
+    }
+
+    /** @test */
+    public function el_dia_de_pago_es_el_dia_en_que_vencen_las_mensualidades(): void
+    {
+        // Matriculado el 2 de octubre en un ciclo que inicia el 10.
+        $matricula = $this->matriculaConCartera([
+            [0, '2026-10-02'],
+            [1, '2026-10-10'],
+            [2, '2026-11-10'],
+            [3, '2026-12-10'],
+        ]);
+
+        $valores = $this->resolver->resolver(['dia_pago', 'dia_pago_letras'], $matricula);
+
+        $this->assertSame('10', $valores['dia_pago']);
+        $this->assertSame('DIEZ', $valores['dia_pago_letras']);
+    }
+
+    /** @test */
+    public function el_dia_de_pago_ignora_la_cuota_uno_cuando_vence_el_dia_de_la_matricula(): void
+    {
+        // El ciclo ya había iniciado: la cuota 1 vence el día de la matrícula.
+        $matricula = $this->matriculaConCartera([
+            [0, '2026-10-21'],
+            [1, '2026-10-21'],
+            [2, '2026-11-05'],
+            [3, '2026-12-05'],
+        ]);
+
+        $this->assertSame(5, $matricula->dia_pago);
+    }
+
+    /** @test */
+    public function el_dia_de_pago_conserva_los_dias_finales_de_mes_en_meses_cortos(): void
+    {
+        // Ciclo que inicia el 31 de enero: febrero se corre al 3 de marzo.
+        $matricula = $this->matriculaConCartera([
+            [1, '2027-01-31'],
+            [2, '2027-03-03'],
+            [3, '2027-03-31'],
+        ]);
+
+        $this->assertSame(31, $matricula->dia_pago);
+    }
+
+    /** @test */
+    public function el_dia_de_pago_sigue_el_plan_vigente_tras_un_acuerdo_de_pago(): void
+    {
+        $matricula = $this->matriculaConCartera([
+            [2, '2026-02-10', 'Cerrada'],
+            [3, '2026-03-10', 'Cerrada'],
+            [4, '2026-04-10', 'En Acuerdo'],
+            [5, '2026-05-10', 'En Acuerdo'],
+            [1, '2026-05-20'],
+            [2, '2026-06-20'],
+        ]);
+
+        $this->assertSame(20, $matricula->dia_pago);
+    }
+
+    /** @test */
+    public function el_dia_de_pago_queda_vacio_en_matriculas_de_contado(): void
+    {
+        $matricula = $this->matriculaConCartera([[0, '2026-10-02']]);
+
+        $this->assertNull($matricula->dia_pago);
+        $this->assertSame(
+            ['dia_pago' => '', 'dia_pago_letras' => ''],
+            $this->resolver->resolver(['dia_pago', 'dia_pago_letras'], $matricula)
+        );
     }
 }

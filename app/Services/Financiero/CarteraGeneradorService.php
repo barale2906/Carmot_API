@@ -24,6 +24,10 @@ use Illuminate\Support\Facades\DB;
  *        - Ciclo ya inició o sin ciclo: fecha = fecha_matricula
  *     → Cuotas 2..N:          valor = lp.valorDeCuota(n) (cuotas_detalle si existe, si no valor_cuota),
  *                             fecha = base + (n-1) meses
+ *
+ * Los meses se suman sin desbordar: un calendario que inicia el 31 vence el
+ * último día de los meses cortos (28/29 de febrero, 30 de abril) en vez de
+ * correrse a los primeros días del mes siguiente.
  */
 class CarteraGeneradorService
 {
@@ -71,7 +75,7 @@ class CarteraGeneradorService
 
                 // Cuotas 2..N: una por mes siguiendo el calendario del ciclo
                 for ($n = 2; $n <= $numeroCuotas; $n++) {
-                    $fecha = (clone $base)->addMonths($n - 1);
+                    $fecha = (clone $base)->addMonthsNoOverflow($n - 1);
                     $this->crearCuota($matricula, $sedeId, $n, $lp->valorDeCuota($n), $fecha);
                 }
             }

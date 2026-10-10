@@ -207,15 +207,16 @@ class DocVariableResolverService
         }
 
         return match ($tipo) {
-            'integer'      => (string) (int) $valor,
-            'decimal'      => $this->numero((float) $valor),
-            'money'        => '$ ' . $this->numero((float) $valor),
-            'money_letras' => $this->numeroALetras->convertir((float) $valor),
-            'date'         => Carbon::parse($valor)->format('d/m/Y'),
-            'date_larga'   => $this->fechaLarga(Carbon::parse($valor)),
-            'datetime'     => Carbon::parse($valor)->format('d/m/Y H:i'),
-            'boolean'      => $valor ? 'Sí' : 'No',
-            default        => (string) $valor,
+            'integer'        => (string) (int) $valor,
+            'integer_letras' => $this->numeroALetras->enteroALetras((int) $valor),
+            'decimal'        => $this->numero((float) $valor),
+            'money'          => '$ ' . $this->numero((float) $valor),
+            'money_letras'   => $this->numeroALetras->convertir((float) $valor),
+            'date'           => Carbon::parse($valor)->format('d/m/Y'),
+            'date_larga'     => $this->fechaLarga(Carbon::parse($valor)),
+            'datetime'       => Carbon::parse($valor)->format('d/m/Y H:i'),
+            'boolean'        => $valor ? 'Sí' : 'No',
+            default          => (string) $valor,
         };
     }
 

@@ -16,6 +16,8 @@ use Illuminate\Support\Facades\DB;
  *  1. Marca las carteras Activas/Abonadas de la matrícula como "En Acuerdo".
  *  2. Genera nuevas carteras con las condiciones reestructuradas
  *     (fecha de inicio = hoy, valor inicial = monto_inicial, cuotas con nuevo valor).
+ *     Las cuotas vencen mes a mes sin desbordar: un acuerdo firmado el 31 vence
+ *     el último día de los meses cortos, no a inicios del mes siguiente.
  *  3. Retorna las nuevas carteras creadas.
  */
 class AcuerdoPagoService
@@ -67,7 +69,7 @@ class AcuerdoPagoService
 
             // Paso 3: Generar cuotas reestructuradas
             for ($n = 1; $n <= $numeroCuotas; $n++) {
-                $fecha = (clone $fechaBase)->addMonths($n);
+                $fecha = (clone $fechaBase)->addMonthsNoOverflow($n);
                 $nuevasCarteras->push(Cartera::create([
                     'matricula_id'     => $matricula->id,
                     'sede_id'          => $sedeId,

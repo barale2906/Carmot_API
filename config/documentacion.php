@@ -67,8 +67,8 @@ return [
     | valor. `origen` permite que una variable calculada (p. ej. un valor en
     | letras) lea su dato de otra ruta.
     |
-    | Tipos soportados: string, integer, decimal, money, money_letras, date,
-    | date_larga, datetime, boolean.
+    | Tipos soportados: string, integer, integer_letras, decimal, money,
+    | money_letras, date, date_larga, datetime, boolean.
     |
     | Para agregar una variable nueva basta con registrarla aquí; queda
     | disponible para habilitarla en los tipos de documento que la necesiten.
@@ -99,6 +99,8 @@ return [
             'valor_cuota'                => ['label' => 'Valor de la cuota', 'type' => 'money'],
             'valor_cuota_letras'         => ['label' => 'Valor de la cuota en letras', 'type' => 'money_letras', 'origen' => 'valor_cuota'],
             'numero_cuotas'              => ['label' => 'Número de cuotas', 'type' => 'integer'],
+            'dia_pago'                   => ['label' => 'Día de pago de las cuotas (cada mes)', 'type' => 'integer'],
+            'dia_pago_letras'            => ['label' => 'Día de pago de las cuotas en letras', 'type' => 'integer_letras', 'origen' => 'dia_pago'],
             'observaciones'              => ['label' => 'Observaciones de la matrícula', 'type' => 'string'],
 
             'curso.nombre'               => ['label' => 'Nombre del curso', 'type' => 'string'],
@@ -117,6 +119,8 @@ return [
             'saldo'                          => ['label' => 'Saldo pendiente', 'type' => 'money'],
             'fecha_vencimiento'              => ['label' => 'Fecha de vencimiento', 'type' => 'date'],
             'fecha_vencimiento_larga'        => ['label' => 'Fecha de vencimiento (en texto)', 'type' => 'date_larga', 'origen' => 'fecha_vencimiento'],
+            'matricula.dia_pago'             => ['label' => 'Día de pago de las cuotas (cada mes)', 'type' => 'integer'],
+            'matricula.dia_pago_letras'      => ['label' => 'Día de pago de las cuotas en letras', 'type' => 'integer_letras', 'origen' => 'matricula.dia_pago'],
             'matricula.estudiante.name'      => ['label' => 'Nombre completo del estudiante', 'type' => 'string'],
             'matricula.estudiante.documento' => ['label' => 'Documento del estudiante', 'type' => 'string'],
             'matricula.curso.nombre'         => ['label' => 'Curso', 'type' => 'string'],

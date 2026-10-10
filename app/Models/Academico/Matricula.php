@@ -306,6 +306,45 @@ class Matricula extends Model
         return self::RHS[$this->rh] ?? null;
     }
 
+    /**
+     * Día del mes en que vencen las mensualidades, leído del cuadro de cartera.
+     *
+     * Si el ciclo inicia el 10 de octubre las cuotas vencen el 10 de cada mes y
+     * el valor es 10. Reglas para que el día refleje el plan vigente:
+     *  - Se ignoran las cuotas anuladas o reestructuradas (En Acuerdo) y la
+     *    cuota 0, que es el cargo de matrícula y vence el día en que se matricula.
+     *  - Si hay cuotas pendientes solo cuentan ellas: tras un acuerdo de pago o
+     *    un aplazamiento del ciclo el día vigente es el del plan nuevo.
+     *  - Se prefieren las cuotas 2 en adelante, porque la cuota 1 vence el día
+     *    de la matrícula cuando el ciclo ya había iniciado.
+     *  - Gana el día más repetido y, en empate, el mayor: así un día 29-31 no se
+     *    pierde en los meses cortos, donde la cuota vence antes (30 de abril) o,
+     *    en carteras generadas antes de sumar meses sin desbordar, a inicios
+     *    del mes siguiente.
+     *
+     * @return int|null null si la matrícula no tiene mensualidades (contado).
+     */
+    public function getDiaPagoAttribute(): ?int
+    {
+        $cuotas = $this->carteras
+            ->whereNotIn('status', [Cartera::getStatusKey('Anulada'), Cartera::getStatusKey('En Acuerdo')])
+            ->where('numero_cuota', '>=', 1);
+
+        $pendientes    = $cuotas->whereIn('status', [Cartera::getStatusKey('Activa'), Cartera::getStatusKey('Abonada')]);
+        $vigentes      = $pendientes->isNotEmpty() ? $pendientes : $cuotas;
+        $desdeSegunda  = $vigentes->where('numero_cuota', '>=', 2);
+        $mensualidades = $desdeSegunda->isNotEmpty() ? $desdeSegunda : $vigentes;
+
+        if ($mensualidades->isEmpty()) {
+            return null;
+        }
+
+        $frecuencias = $mensualidades->countBy(fn (Cartera $cuota) => $cuota->fecha_vencimiento->day);
+        $maxima      = $frecuencias->max();
+
+        return (int) $frecuencias->filter(fn (int $veces) => $veces === $maxima)->keys()->max();
+    }
+
     // -------------------------------------------------------------------------
     // Scopes
     // -------------------------------------------------------------------------

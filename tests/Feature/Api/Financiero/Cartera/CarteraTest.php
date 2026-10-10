@@ -8,6 +8,7 @@ use App\Models\Academico\Matricula;
 use App\Models\Configuracion\Sede;
 use App\Models\Financiero\Cartera\Cartera;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Permission\Models\Permission;
 use Tests\TestCase;
@@ -400,6 +401,31 @@ class CarteraTest extends TestCase
             ->count();
 
         $this->assertEquals(4, $nuevas);
+    }
+
+    /** @test */
+    public function acuerdo_de_pago_de_fin_de_mes_no_se_corre_al_mes_siguiente(): void
+    {
+        $this->travelTo(Carbon::parse('2027-01-31'));
+        $this->crearCartera(['status' => Cartera::getStatusKey('Activa')]);
+
+        $this->actingAs($this->usuario)
+            ->postJson(route('carteras.acuerdo-pago'), [
+                'matricula_id'  => $this->matricula->id,
+                'monto_inicial' => 0,
+                'numero_cuotas' => 3,
+                'valor_cuota'   => 100000,
+            ])
+            ->assertCreated();
+
+        $fechas = Cartera::where('matricula_id', $this->matricula->id)
+            ->where('status', Cartera::getStatusKey('Activa'))
+            ->orderBy('numero_cuota')
+            ->pluck('fecha_vencimiento')
+            ->map(fn ($fecha) => $fecha->toDateString())
+            ->all();
+
+        $this->assertEquals(['2027-02-28', '2027-03-31', '2027-04-30'], $fechas);
     }
 
     /** @test */

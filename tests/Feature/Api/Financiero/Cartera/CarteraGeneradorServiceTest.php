@@ -123,6 +123,20 @@ class CarteraGeneradorServiceTest extends TestCase
         $this->assertEquals('2026-11-01', $carteras[3]->fecha_vencimiento->toDateString());
     }
 
+    /** @test */
+    public function mensualidades_de_fin_de_mes_vencen_el_ultimo_dia_de_los_meses_cortos(): void
+    {
+        $lp    = $this->crearLpCuotas(4);
+        $ciclo = Ciclo::factory()->create(['fecha_inicio' => '2027-01-31']);
+
+        $carteras = $this->matricularConCiclo($lp, $ciclo, '2026-12-15');
+
+        $this->assertEquals(
+            ['2027-01-31', '2027-02-28', '2027-03-31', '2027-04-30'],
+            $carteras->slice(1)->map(fn ($c) => $c->fecha_vencimiento->toDateString())->values()->all()
+        );
+    }
+
     // ─── Ciclo ya inició ──────────────────────────────────────────────────────
 
     /** @test */

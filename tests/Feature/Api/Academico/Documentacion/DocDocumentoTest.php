@@ -6,6 +6,7 @@ use App\Models\Academico\Documentacion\DocDocumento;
 use App\Models\Academico\Documentacion\DocPlantilla;
 use App\Models\Academico\Documentacion\DocTipoDocumento;
 use App\Models\Academico\Matricula;
+use App\Models\Financiero\Cartera\Cartera;
 use App\Models\User;
 use App\Services\Academico\Documentacion\DocPlantillaPublicacionService;
 use Carbon\Carbon;
@@ -114,6 +115,35 @@ class DocDocumentoTest extends TestCase
         $this->assertStringContainsString($matricula->estudiante->name, $contenido);
         $this->assertStringContainsString('UN MILLON DOSCIENTOS CINCUENTA MIL PESOS M/CTE', $contenido);
         $this->assertStringNotContainsString('{{', $contenido);
+    }
+
+    /** @test */
+    public function arma_el_documento_con_el_dia_de_pago_del_cuadro_de_cartera(): void
+    {
+        foreach (['dia_pago', 'dia_pago_letras'] as $variable) {
+            $this->tipo->variables()->create(['variable_key' => $variable]);
+        }
+
+        $this->plantillaActiva(
+            '2020-01-01',
+            '<p>Pagará los días {{ dia_pago_letras }} ({{ dia_pago }}) de cada mes.</p>'
+        );
+
+        $matricula = Matricula::factory()->create(['fecha_matricula' => '2024-06-15']);
+        $matricula->carteras()->delete();
+
+        foreach ([[0, '2024-06-15'], [1, '2024-07-10'], [2, '2024-08-10']] as [$numero, $fecha]) {
+            Cartera::factory()->activa()->create([
+                'matricula_id'      => $matricula->id,
+                'estudiante_id'     => $matricula->estudiante_id,
+                'numero_cuota'      => $numero,
+                'fecha_vencimiento' => $fecha,
+            ]);
+        }
+
+        $this->render($matricula)
+            ->assertOk()
+            ->assertJsonPath('data.contenido', '<p>Pagará los días DIEZ (10) de cada mes.</p>');
     }
 
     /** @test */
