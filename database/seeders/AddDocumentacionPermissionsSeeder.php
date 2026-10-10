@@ -80,6 +80,10 @@ class AddDocumentacionPermissionsSeeder extends Seeder
             ['descripcion' => 'Generar documentos desde una plantilla'])
             ->syncRoles([$superusuario, $coordinador, $auxiliar]);
 
+        Permission::firstOrCreate(['name' => 'aca_documentoSubir'],
+            ['descripcion' => 'Cargar documentos firmados escaneados'])
+            ->syncRoles([$superusuario, $coordinador, $auxiliar]);
+
         Permission::firstOrCreate(['name' => 'aca_documentoAnular'],
             ['descripcion' => 'Anular y eliminar documentos'])
             ->syncRoles([$superusuario, $coordinador]);

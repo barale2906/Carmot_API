@@ -288,6 +288,10 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::get('filters', [DocDocumentoController::class, 'filters'])->name('documentos.filters');
             Route::get('render', [DocDocumentoController::class, 'render'])->name('documentos.render');
             Route::get('pdf', [DocDocumentoController::class, 'pdf'])->name('documentos.pdf');
+            Route::post('matricula/{matricula}', [DocDocumentoController::class, 'generarMatricula'])->name('documentos.matricula');
+            Route::get('matricula/{matricula}/pdf', [DocDocumentoController::class, 'pdfMatricula'])->name('documentos.matricula.pdf');
+            Route::post('matricula/{matricula}/escaneados', [DocDocumentoController::class, 'subirEscaneado'])->name('documentos.matricula.escaneados');
+            Route::get('{documento}/archivo', [DocDocumentoController::class, 'archivo'])->name('documentos.archivo');
             Route::post('{id}/restore', [DocDocumentoController::class, 'restore'])->name('documentos.restore');
             Route::delete('{id}/force-delete', [DocDocumentoController::class, 'forceDelete'])->name('documentos.force-delete');
         });

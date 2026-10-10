@@ -4,13 +4,17 @@ namespace App\Http\Controllers\Api\Academico\Documentacion;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\Academico\Documentacion\GenerarDocDocumentoRequest;
+use App\Http\Requests\Api\Academico\Documentacion\SubirEscaneadoMatriculaRequest;
 use App\Http\Resources\Api\Academico\Documentacion\DocDocumentoResource;
 use App\Models\Academico\Documentacion\DocDocumento;
 use App\Models\Academico\Documentacion\DocTipoDocumento;
+use App\Models\Academico\Matricula;
+use App\Services\Academico\Documentacion\DocEscaneadoService;
 use App\Services\Academico\Documentacion\DocGeneracionService;
 use App\Services\Academico\Documentacion\DocPdfService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\Response as HttpResponse;
 
 /**
@@ -21,6 +25,9 @@ use Symfony\Component\HttpFoundation\Response as HttpResponse;
  * tipo la conforma, o la vigente hoy en los demás casos. No se almacena ni el
  * contenido ni el PDF; de cada impresión queda solo su rastro en la bitácora.
  *
+ * También recibe los escaneados firmados de los documentos de una matrícula, que
+ * sí se guardan (en el disco privado) y se descargan con sesión.
+ *
  * @package App\Http\Controllers\Api\Academico\Documentacion
  */
 class DocDocumentoController extends Controller
@@ -30,13 +37,16 @@ class DocDocumentoController extends Controller
      *
      * @param DocGeneracionService $generacion Armado del contenido y bitácora.
      * @param DocPdfService        $pdf        Conversión a PDF.
+     * @param DocEscaneadoService  $escaneados Almacenamiento de los escaneados firmados.
      */
     public function __construct(
         private DocGeneracionService $generacion,
-        private DocPdfService $pdf
+        private DocPdfService $pdf,
+        private DocEscaneadoService $escaneados
     ) {
-        $this->middleware('permission:aca_documentos')->only(['index', 'show', 'filters']);
-        $this->middleware('permission:aca_documentoGenerar')->only(['render', 'pdf']);
+        $this->middleware('permission:aca_documentos')->only(['index', 'show', 'filters', 'archivo']);
+        $this->middleware('permission:aca_documentoGenerar')->only(['render', 'pdf', 'generarMatricula', 'pdfMatricula']);
+        $this->middleware('permission:aca_documentoSubir')->only(['subirEscaneado']);
         $this->middleware('permission:aca_documentoAnular')
             ->only(['destroy', 'restore', 'forceDelete', 'trashed']);
     }
@@ -120,6 +130,101 @@ class DocDocumentoController extends Controller
     }
 
     /**
+     * Genera los documentos vigentes que conforman una matrícula.
+     *
+     * Es el paso que sigue al registro de la matrícula y precede a los recibos de
+     * pago: arma, con la versión vigente a la fecha de la matrícula, cada tipo
+     * activo que la conforma y registra su impresión en la bitácora. Los tipos sin
+     * versión vigente se devuelven en `sin_plantilla` para advertirlos sin
+     * bloquear el flujo.
+     *
+     * @param Request   $request
+     * @param Matricula $matricula
+     * @return JsonResponse
+     */
+    public function generarMatricula(Request $request, Matricula $matricula): JsonResponse
+    {
+        $resultado = $this->generacion->generarDocumentosMatricula($matricula, $request->user());
+
+        return response()->json([
+            'data'    => $resultado,
+            'message' => count($resultado['documentos'])
+                ? 'Documentos de la matrícula generados exitosamente.'
+                : 'No hay documentos vigentes que conformen la matrícula.',
+        ]);
+    }
+
+    /**
+     * Descarga en un solo PDF la hoja de matrícula y los documentos que la conforman.
+     *
+     * Arma los documentos igual que `generarMatricula` —versión vigente a la fecha
+     * de la matrícula, impresión registrada en la bitácora— y los une detrás de la
+     * hoja de matrícula, cada uno en una página nueva. Los tipos sin versión
+     * vigente se omiten. El PDF no se almacena.
+     *
+     * @param Request   $request
+     * @param Matricula $matricula
+     * @return HttpResponse
+     */
+    public function pdfMatricula(Request $request, Matricula $matricula): HttpResponse
+    {
+        $resultado = $this->generacion->generarDocumentosMatricula($matricula, $request->user());
+
+        return $this->pdf->generarPdfMatricula($matricula, $resultado['documentos'])
+            ->download($this->pdf->nombreArchivoMatricula($matricula));
+    }
+
+    /**
+     * Carga el escaneado firmado de un documento de la matrícula.
+     *
+     * El documento se identifica por `tipo_documento_id` o, si no tiene tipo (la
+     * hoja de matrícula u otro soporte), por `descripcion`. Si ya había un
+     * escaneado del mismo documento, el anterior pasa a la papelera.
+     *
+     * @param SubirEscaneadoMatriculaRequest $request
+     * @param Matricula                      $matricula
+     * @return JsonResponse
+     */
+    public function subirEscaneado(SubirEscaneadoMatriculaRequest $request, Matricula $matricula): JsonResponse
+    {
+        $tipoDocumento = $request->filled('tipo_documento_id')
+            ? DocTipoDocumento::find($request->integer('tipo_documento_id'))
+            : null;
+
+        $documento = $this->escaneados->subir(
+            $matricula,
+            $request->file('archivo'),
+            $tipoDocumento,
+            $request->input('descripcion'),
+            $request->user()
+        );
+
+        return response()->json([
+            'message' => 'Documento escaneado cargado exitosamente.',
+            'data'    => new DocDocumentoResource($documento->load(['tipoDocumento', 'generador'])),
+        ], 201);
+    }
+
+    /**
+     * Descarga el archivo de un documento escaneado.
+     *
+     * @param DocDocumento $documento
+     * @return HttpResponse
+     */
+    public function archivo(DocDocumento $documento): HttpResponse
+    {
+        $disco = Storage::disk(DocDocumento::DISCO_ARCHIVOS);
+
+        if (!$documento->archivo_path || !$disco->exists($documento->archivo_path)) {
+            return response()->json([
+                'message' => 'El documento no tiene un archivo disponible.',
+            ], 404);
+        }
+
+        return $disco->download($documento->archivo_path, $documento->nombre_original);
+    }
+
+    /**
      * Lista paginada de la bitácora de impresiones y de los archivos subidos.
      *
      * Admite filtrar por tipo, origen y por el registro asociado (`entidad_type` +
@@ -199,7 +304,7 @@ class DocDocumentoController extends Controller
     }
 
     /**
-     * Elimina permanentemente una entrada.
+     * Elimina permanentemente una entrada y, si es un escaneado, su archivo.
      *
      * @param int $id
      * @return JsonResponse
@@ -207,6 +312,7 @@ class DocDocumentoController extends Controller
     public function forceDelete(int $id): JsonResponse
     {
         $documento = DocDocumento::onlyTrashed()->findOrFail($id);
+        $this->escaneados->eliminarArchivo($documento);
         $documento->forceDelete();
 
         return response()->json([

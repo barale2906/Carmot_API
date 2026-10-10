@@ -5,6 +5,7 @@ namespace App\Services\Academico\Documentacion;
 use App\Models\Academico\Documentacion\DocDocumento;
 use App\Models\Academico\Documentacion\DocPlantilla;
 use App\Models\Academico\Documentacion\DocTipoDocumento;
+use App\Models\Academico\Matricula;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
@@ -126,6 +127,73 @@ class DocGeneracionService
             'fecha_referencia'  => $fechaReferencia,
             'generado_por'      => $usuario?->id,
         ]);
+    }
+
+    /**
+     * Genera de una vez todos los documentos que conforman una matrícula.
+     *
+     * Se usa al terminar de registrar la matrícula, antes de pasar a los recibos de
+     * pago. Toma los tipos activos asociados a matrícula que la conforman, arma
+     * cada uno con la plantilla vigente a la fecha de la matrícula y deja su rastro
+     * en la bitácora. Los tipos sin una versión vigente para esa fecha no se
+     * generan: se devuelven aparte para que se puedan advertir.
+     *
+     * @param Matricula $matricula
+     * @param User|null $usuario
+     * @return array{
+     *     documentos: array<int, array<string, mixed>>,
+     *     sin_plantilla: array<int, array{tipo_documento_id: int, codigo: string, nombre: string}>
+     * }
+     */
+    public function generarDocumentosMatricula(Matricula $matricula, ?User $usuario): array
+    {
+        $tipos = DocTipoDocumento::active()
+            ->where('entidad_type', Matricula::class)
+            ->where('conforma_matricula', true)
+            ->orderBy('nombre')
+            ->get();
+
+        $documentos   = [];
+        $sinPlantilla = [];
+
+        foreach ($tipos as $tipoDocumento) {
+            $vigencia = $this->resolverVigencia($tipoDocumento, $matricula);
+
+            if (!$vigencia['plantilla']) {
+                $sinPlantilla[] = [
+                    'tipo_documento_id' => $tipoDocumento->id,
+                    'codigo'            => $tipoDocumento->codigo,
+                    'nombre'            => $tipoDocumento->nombre,
+                ];
+
+                continue;
+            }
+
+            $contenido = $this->renderizar($vigencia['plantilla'], $matricula, $usuario);
+            $emision   = $this->registrarEmision(
+                $tipoDocumento,
+                $vigencia['plantilla'],
+                $matricula,
+                $vigencia['fecha_referencia'],
+                $usuario
+            );
+
+            $documentos[] = [
+                'emision_id'        => $emision->id,
+                'tipo_documento_id' => $tipoDocumento->id,
+                'codigo'            => $tipoDocumento->codigo,
+                'tipo_documento'    => $tipoDocumento->nombre,
+                'plantilla_id'      => $vigencia['plantilla']->id,
+                'version'           => $vigencia['plantilla']->version,
+                'fecha_referencia'  => $vigencia['fecha_referencia']?->toDateString(),
+                'contenido'         => $contenido,
+            ];
+        }
+
+        return [
+            'documentos'    => $documentos,
+            'sin_plantilla' => $sinPlantilla,
+        ];
     }
 
     /**

@@ -323,4 +323,200 @@ class DocDocumentoTest extends TestCase
             ]))
             ->assertForbidden();
     }
+
+    /**
+     * Genera los documentos que conforman una matrícula.
+     *
+     * @param Matricula $matricula
+     * @param User|null $usuario
+     * @return \Illuminate\Testing\TestResponse
+     */
+    private function generarMatricula(Matricula $matricula, ?User $usuario = null)
+    {
+        return $this->actingAs($usuario ?? $this->usuario)
+            ->postJson(route('documentacion.documentos.matricula', $matricula));
+    }
+
+    /** @test */
+    public function genera_los_documentos_vigentes_que_conforman_la_matricula(): void
+    {
+        $this->plantillaActiva('2020-01-01', '<p>Contrato {{ numero_matricula }}: {{ estudiante.name }}</p>');
+
+        $pagare = DocTipoDocumento::factory()->conformaMatricula()->create(['nombre' => 'Pagaré']);
+        $pagare->variables()->create(['variable_key' => 'numero_matricula']);
+        $plantillaPagare = DocPlantilla::factory()->activa('2020-01-01')->create([
+            'tipo_documento_id' => $pagare->id,
+            'contenido_html'    => '<p>Pagaré {{ numero_matricula }}</p>',
+        ]);
+
+        $matricula = Matricula::factory()->create(['fecha_matricula' => '2024-06-15']);
+
+        $response = $this->generarMatricula($matricula);
+
+        // Se ordenan por nombre del tipo.
+        $response->assertOk()
+            ->assertJsonCount(2, 'data.documentos')
+            ->assertJsonCount(0, 'data.sin_plantilla')
+            ->assertJsonPath('data.documentos.0.tipo_documento', 'Contrato de matrícula')
+            ->assertJsonPath('data.documentos.0.fecha_referencia', '2024-06-15')
+            ->assertJsonPath('data.documentos.1.tipo_documento', 'Pagaré')
+            ->assertJsonPath('data.documentos.1.plantilla_id', $plantillaPagare->id);
+
+        $this->assertStringContainsString($matricula->estudiante->name, $response->json('data.documentos.0.contenido'));
+        $this->assertStringContainsString('Pagaré ' . $matricula->id, $response->json('data.documentos.1.contenido'));
+
+        $this->assertSame(2, DocDocumento::where('entidad_type', Matricula::class)
+            ->where('entidad_id', $matricula->id)
+            ->where('generado_por', $this->usuario->id)
+            ->count());
+    }
+
+    /** @test */
+    public function genera_cada_documento_con_la_version_vigente_a_la_fecha_de_la_matricula(): void
+    {
+        $anterior = $this->plantillaActiva('2020-01-01', '<p>Versión anterior</p>', 1);
+        app(DocPlantillaPublicacionService::class)
+            ->activar(DocPlantilla::factory()->aprobada()->create([
+                'tipo_documento_id' => $this->tipo->id,
+                'contenido_html'    => '<p>Versión nueva</p>',
+                'version'           => 2,
+            ]), Carbon::parse('2025-01-01'));
+
+        $matricula = Matricula::factory()->create(['fecha_matricula' => '2024-06-15']);
+
+        $this->generarMatricula($matricula)
+            ->assertOk()
+            ->assertJsonPath('data.documentos.0.plantilla_id', $anterior->id)
+            ->assertJsonPath('data.documentos.0.contenido', '<p>Versión anterior</p>');
+    }
+
+    /** @test */
+    public function omite_los_tipos_que_no_conforman_la_matricula_o_estan_inactivos(): void
+    {
+        $this->plantillaActiva('2020-01-01', '<p>Contrato</p>');
+
+        foreach ([
+            DocTipoDocumento::factory()->sinFecha()->create(),
+            DocTipoDocumento::factory()->conformaMatricula()->inactivo()->create(),
+            DocTipoDocumento::factory()->create(['conforma_matricula' => true]),
+        ] as $tipo) {
+            DocPlantilla::factory()->activa('2020-01-01')->create(['tipo_documento_id' => $tipo->id]);
+        }
+
+        $matricula = Matricula::factory()->create(['fecha_matricula' => '2024-06-15']);
+
+        $this->generarMatricula($matricula)
+            ->assertOk()
+            ->assertJsonCount(1, 'data.documentos')
+            ->assertJsonPath('data.documentos.0.tipo_documento_id', $this->tipo->id);
+
+        $this->assertDatabaseCount('doc_documentos', 1);
+    }
+
+    /** @test */
+    public function advierte_los_tipos_sin_plantilla_vigente_sin_generarlos(): void
+    {
+        // La única versión entra en vigencia después de la fecha de la matrícula.
+        $this->plantillaActiva('2025-01-01', '<p>Contrato</p>');
+        $matricula = Matricula::factory()->create(['fecha_matricula' => '2024-06-15']);
+
+        $this->generarMatricula($matricula)
+            ->assertOk()
+            ->assertJsonCount(0, 'data.documentos')
+            ->assertJsonPath('data.sin_plantilla.0.tipo_documento_id', $this->tipo->id)
+            ->assertJsonPath('data.sin_plantilla.0.nombre', 'Contrato de matrícula')
+            ->assertJsonPath('message', 'No hay documentos vigentes que conformen la matrícula.');
+
+        $this->assertDatabaseCount('doc_documentos', 0);
+    }
+
+    /** @test */
+    public function responde_404_al_generar_para_una_matricula_inexistente(): void
+    {
+        $this->actingAs($this->usuario)
+            ->postJson(route('documentacion.documentos.matricula', 999999))
+            ->assertNotFound();
+    }
+
+    /** @test */
+    public function deniega_generar_los_documentos_de_matricula_sin_permiso(): void
+    {
+        $this->plantillaActiva('2020-01-01', '<p>Contrato</p>');
+        $matricula = Matricula::factory()->create(['fecha_matricula' => '2024-06-15']);
+
+        $this->generarMatricula($matricula, User::factory()->create())->assertForbidden();
+
+        $this->assertDatabaseCount('doc_documentos', 0);
+    }
+
+    /** @test */
+    public function descarga_en_un_solo_pdf_la_hoja_y_los_documentos_de_la_matricula(): void
+    {
+        $this->plantillaActiva('2020-01-01', '<p>Contrato de {{ estudiante.name }}</p>');
+        DocTipoDocumento::factory()->conformaMatricula()->create(['nombre' => 'Pagaré']);
+
+        $matricula = Matricula::factory()->create(['fecha_matricula' => '2024-06-15']);
+
+        $response = $this->actingAs($this->usuario)
+            ->get(route('documentacion.documentos.matricula.pdf', $matricula));
+
+        $response->assertOk()
+            ->assertHeader('Content-Type', 'application/pdf')
+            ->assertDownload('DOCUMENTOS-MAT-2024-' . str_pad((string) $matricula->id, 3, '0', STR_PAD_LEFT) . '.pdf');
+
+        $this->assertStringStartsWith('%PDF', $response->getContent());
+
+        // Solo el contrato tiene versión vigente: el pagaré se omite y no deja rastro.
+        $this->assertDatabaseCount('doc_documentos', 1);
+        $this->assertDatabaseHas('doc_documentos', ['tipo_documento_id' => $this->tipo->id, 'entidad_id' => $matricula->id]);
+    }
+
+    /** @test */
+    public function el_pdf_de_la_matricula_lleva_la_hoja_y_cada_documento_en_pagina_nueva(): void
+    {
+        $matricula = Matricula::factory()->create([
+            'fecha_matricula' => '2024-06-15',
+            'monto'           => 1250000,
+            'talla_overol'    => 'M',
+        ]);
+        $matricula->load(['estudiante', 'curso', 'ciclo.sede', 'sede', 'eps', 'lugarOrigen', 'matriculadoPor']);
+
+        $html = view('pdf.documentos_matricula', [
+            'matricula'  => $matricula,
+            'codigo'     => 'MAT-2024-001',
+            'documentos' => [
+                ['tipo_documento' => 'Contrato de matrícula', 'contenido' => '<p>Texto del contrato</p>'],
+                ['tipo_documento' => 'Pagaré', 'contenido' => '<p>Texto del pagaré</p>'],
+            ],
+            'instituto'  => ['nombre' => 'CARMOT'],
+            'logoBase64' => null,
+            'fotoBase64' => null,
+        ])->render();
+
+        $this->assertStringContainsString('Hoja de matrícula', $html);
+        $this->assertStringContainsString(e($matricula->curso->nombre), $html);
+        $this->assertStringContainsString('$ 1.250.000', $html);
+        $this->assertStringContainsString('Firma del estudiante', $html);
+        $this->assertStringContainsString('Texto del contrato', $html);
+        $this->assertStringContainsString('Texto del pagaré', $html);
+        $this->assertSame(2, substr_count($html, '<div class="salto">'));
+    }
+
+    /** @test */
+    public function deniega_el_pdf_de_la_matricula_sin_permiso(): void
+    {
+        $matricula = Matricula::factory()->create(['fecha_matricula' => '2024-06-15']);
+
+        $this->actingAs(User::factory()->create())
+            ->getJson(route('documentacion.documentos.matricula.pdf', $matricula))
+            ->assertForbidden();
+    }
+
+    /** @test */
+    public function responde_404_al_pedir_el_pdf_de_una_matricula_inexistente(): void
+    {
+        $this->actingAs($this->usuario)
+            ->getJson(route('documentacion.documentos.matricula.pdf', 999999))
+            ->assertNotFound();
+    }
 }

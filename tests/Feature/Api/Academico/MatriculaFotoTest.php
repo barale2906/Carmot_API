@@ -66,6 +66,37 @@ class MatriculaFotoTest extends TestCase
         Storage::disk('public')->assertExists($matricula->foto);
     }
 
+    /**
+     * Reproduce el envío multipart del wizard: con foto los campos viajan como
+     * texto, así que las condiciones no marcadas llegan como '0' y sus detalles
+     * como cadena vacía, que debe tratarse como null y no como un valor inválido.
+     *
+     * @test
+     */
+    public function permite_crear_con_foto_sin_discapacidad_ni_enfermedad_en_multipart(): void
+    {
+        Storage::fake('public');
+
+        $foto = UploadedFile::fake()->image('estudiante.jpg', 200, 200)->size(500);
+
+        $response = $this->actingAs($this->usuario)
+            ->post(route('matriculas.store'), $this->datosBase([
+                'foto'                   => $foto,
+                'discapacidad'           => '0',
+                'tipo_discapacidad'      => '',
+                'enfermedad_prioritaria' => '0',
+                'enfermedad_detalle'     => '',
+            ]), ['Accept' => 'application/json']);
+
+        $response->assertCreated();
+
+        $matricula = Matricula::findOrFail($response->json('data.id'));
+
+        $this->assertNull($matricula->tipo_discapacidad);
+        $this->assertNull($matricula->enfermedad_detalle);
+        $this->assertNotNull($matricula->foto);
+    }
+
     /** @test */
     public function rechaza_un_archivo_que_no_sea_imagen_en_foto(): void
     {

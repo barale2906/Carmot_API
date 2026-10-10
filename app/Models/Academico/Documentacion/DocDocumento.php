@@ -23,27 +23,32 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * así que no lleva consecutivo propio: se inserta en la plantilla con la variable
  * `numero_matricula`.
  *
- * Con `origen = ORIGEN_SUBIDO` la fila representa en cambio un archivo externo del
- * estudiante (cédula, diploma) guardado en el repositorio.
+ * Con `origen = ORIGEN_SUBIDO` la fila representa en cambio un archivo subido: el
+ * escaneado firmado de un documento de la matrícula. Corresponde a un tipo de
+ * documento o, si no lo hay (la hoja de matrícula u otro soporte), a la
+ * `descripcion` con que se subió. El archivo vive en el disco privado
+ * (`archivo_path`, relativo a storage/app) y solo se descarga con sesión.
  *
  * @property int         $id
- * @property int         $tipo_documento_id
+ * @property int|null    $tipo_documento_id Null en archivos subidos sin tipo.
  * @property int|null    $plantilla_id   Versión de plantilla con la que se imprimió.
  * @property string|null $entidad_type
  * @property int|null    $entidad_id
  * @property int         $origen         0=Impresión generada, 1=Archivo subido.
+ * @property string|null $descripcion    Qué documento es un archivo subido sin tipo.
  * @property \Carbon\Carbon|null $fecha_referencia Fecha con la que se resolvió la versión.
  * @property string|null $google_drive_file_id
  * @property string|null $google_drive_url
  * @property string|null $nombre_original
  * @property string|null $mime_type
  * @property int|null    $tamano_bytes
+ * @property string|null $archivo_path   Ruta del archivo subido en el disco privado.
  * @property int|null    $generado_por
  * @property \Carbon\Carbon|null $created_at
  * @property \Carbon\Carbon|null $updated_at
  * @property \Carbon\Carbon|null $deleted_at
  *
- * @property-read DocTipoDocumento $tipoDocumento
+ * @property-read DocTipoDocumento|null $tipoDocumento
  * @property-read DocPlantilla|null $plantilla
  * @property-read Model|null $entidad
  * @property-read User|null $generador
@@ -58,6 +63,12 @@ class DocDocumento extends Model
 
     public const ORIGEN_GENERADO = 0;
     public const ORIGEN_SUBIDO   = 1;
+
+    /** Descripción con que se sube el escaneado de la hoja de matrícula, que no tiene tipo. */
+    public const DESCRIPCION_HOJA_MATRICULA = 'Hoja de matrícula';
+
+    /** Disco privado donde se guardan los archivos subidos. */
+    public const DISCO_ARCHIVOS = 'local';
 
     protected $table = 'doc_documentos';
 
@@ -141,6 +152,16 @@ class DocDocumento extends Model
     }
 
     /**
+     * Nombre legible del documento: el de su tipo o, si no tiene, su descripción.
+     *
+     * @return string|null
+     */
+    public function getNombreDocumentoAttribute(): ?string
+    {
+        return $this->tipoDocumento?->nombre ?? $this->descripcion;
+    }
+
+    /**
      * Scope de las impresiones de documentos generados.
      *
      * @param Builder $query
@@ -174,7 +195,9 @@ class DocDocumento extends Model
         return $query
             ->when(
                 isset($filters['search']) && $filters['search'],
-                fn (Builder $q) => $q->where('nombre_original', 'like', '%' . $filters['search'] . '%')
+                fn (Builder $q) => $q->where(fn (Builder $w) => $w
+                    ->where('nombre_original', 'like', '%' . $filters['search'] . '%')
+                    ->orWhere('descripcion', 'like', '%' . $filters['search'] . '%'))
             )
             ->when(
                 isset($filters['tipo_documento_id']) && $filters['tipo_documento_id'],

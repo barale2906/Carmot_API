@@ -28,6 +28,9 @@ class DocDocumentoResource extends JsonResource
             'id'                => $this->id,
             'tipo_documento_id' => $this->tipo_documento_id,
             'tipo_documento'    => new DocTipoDocumentoResource($this->whenLoaded('tipoDocumento')),
+            'descripcion'       => $this->descripcion,
+            // Sin el tipo cargado no se consulta: queda la descripción, que es lo que tienen los escaneados sin tipo.
+            'nombre_documento'  => $this->relationLoaded('tipoDocumento') ? $this->nombre_documento : $this->descripcion,
             'plantilla_id'      => $this->plantilla_id,
             'plantilla'         => new DocPlantillaResource($this->whenLoaded('plantilla')),
             'entidad_type'      => $this->entidad_type,
@@ -39,6 +42,7 @@ class DocDocumentoResource extends JsonResource
             'nombre_original'   => $this->nombre_original,
             'mime_type'         => $this->mime_type,
             'tamano_bytes'      => $this->tamano_bytes,
+            'tiene_archivo'     => $this->archivo_path !== null,
             'generado_por'      => $this->generado_por,
             'generador'         => $this->whenLoaded('generador', fn () => [
                 'id'     => $this->generador->id,
