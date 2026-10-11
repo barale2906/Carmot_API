@@ -12,6 +12,7 @@ use App\Models\Academico\Curso;
 use App\Models\Academico\Matricula;
 use App\Models\Configuracion\Poblacion;
 use App\Models\User;
+use App\Services\ArchivoService;
 use App\Traits\HasActiveStatus;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -329,11 +330,7 @@ class MatriculaController extends Controller
      */
     private function guardarFoto(UploadedFile $foto): string
     {
-        $ruta = 'matriculas/fotos/' . now()->format('YmdHi') . '_' . uniqid() . '.' . $foto->getClientOriginalExtension();
-
-        $foto->storeAs('', $ruta, 'public');
-
-        return $ruta;
+        return app(ArchivoService::class)->guardar($foto, 'public', ArchivoService::CARPETA_FOTOS_MATRICULA);
     }
 
     /**

@@ -2,6 +2,8 @@
 
 namespace App\Http\Requests\Api\Inventarios;
 
+use App\Models\Financiero\LibroDiario\LdTurnoCaja;
+use App\Services\ArchivoService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Validator;
 
@@ -34,7 +36,7 @@ class AbonarInvPedidoRequest extends FormRequest
             'medios_pago.*.banco_id'               => ['nullable', 'integer', 'exists:bancos,id'],
             'medios_pago.*.tipo_tarjeta'           => ['nullable', 'string', 'max:60'],
             'medios_pago.*.numero_transaccion'     => ['nullable', 'string', 'max:100'],
-            'comprobante'                          => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf,webp', 'max:5120'],
+            'comprobante'                          => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf,webp', 'max:' . ArchivoService::MAX_KB],
             'sobrecargos'                          => ['nullable', 'array'],
             'sobrecargos.*.descuento_id'           => ['required', 'integer', 'exists:descuentos,id'],
             'sobrecargos.*.medio_pago_index'       => ['required', 'integer', 'min:0'],
@@ -53,7 +55,8 @@ class AbonarInvPedidoRequest extends FormRequest
     }
 
     /**
-     * Suma de medios de pago debe igualar el monto abonado.
+     * El abono genera un recibo: exige el turno de caja abierto del cajero en la
+     * sede del pedido. Además, la suma de medios de pago debe igualar el monto abonado.
      *
      * @param Validator $validator
      * @return void
@@ -61,6 +64,12 @@ class AbonarInvPedidoRequest extends FormRequest
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $v) {
+            $pedido = $this->route('pedido');
+
+            if ($pedido && ! LdTurnoCaja::abiertoDe((int) $this->user()->id, (int) $pedido->sede_id)->exists()) {
+                $v->errors()->add('monto_abono', LdTurnoCaja::MENSAJE_SIN_TURNO);
+            }
+
             $sumaMP = collect($this->medios_pago ?? [])
                 ->sum(fn ($mp) => (float) ($mp['valor'] ?? 0));
 

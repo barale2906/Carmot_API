@@ -5,6 +5,7 @@ services:
       dockerfile: docker/php/Dockerfile
     volumes:
       - .:/var/www
+      - ./docker/php/uploads.ini:/usr/local/etc/php/conf.d/uploads.ini
     working_dir: /var/www
     networks:
       - carmot

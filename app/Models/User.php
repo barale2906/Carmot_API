@@ -119,6 +119,24 @@ class User extends Authenticatable
         return $this->sedes()->get();
     }
 
+    /**
+     * IDs de las sedes a las que el usuario tiene acceso efectivo.
+     *
+     * @return array<int>
+     */
+    public function idsSedesAccesibles(): array
+    {
+        return $this->sedesAccesibles()->pluck('id')->all();
+    }
+
+    /**
+     * Indica si el usuario tiene acceso a la sede indicada.
+     */
+    public function tieneAccesoSede(int $sedeId): bool
+    {
+        return in_array($sedeId, $this->idsSedesAccesibles(), true);
+    }
+
     public function cursos(): BelongsToMany
     {
         return $this->belongsToMany(Curso::class, 'curso_user')->withTimestamps();

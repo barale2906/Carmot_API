@@ -10,6 +10,7 @@ use App\Mail\ReciboPagoMail;
 use App\Models\Academico\Matricula;
 use App\Models\Financiero\Cartera\Cartera;
 use App\Models\Financiero\ConceptoPago\ConceptoPago;
+use App\Models\Financiero\LibroDiario\LdTurnoCaja;
 use App\Models\Financiero\ReciboPago\ReciboPago;
 use App\Models\Financiero\Descuento\Descuento;
 use App\Models\Financiero\ReciboPago\ReciboPagoMedioPago;
@@ -17,6 +18,7 @@ use App\Models\Financiero\ReciboPago\ReciboPagoSobrecargo;
 use App\Notifications\Financiero\TransferenciaAprobadaNotification;
 use App\Notifications\Financiero\TransferenciaPendienteNotification;
 use App\Notifications\Financiero\TransferenciaRechazadaNotification;
+use App\Services\ArchivoService;
 use App\Services\Financiero\AjusteService;
 use App\Services\Financiero\CarteraDescuentoService;
 use App\Services\Financiero\ReciboPagoPDFService;
@@ -273,6 +275,7 @@ class ReciboPagoController extends Controller
                 'sede_id'           => $data['sede_id'],
                 'estudiante_id'     => $matricula->estudiante_id,
                 'cajero_id'         => $data['cajero_id'],
+                'turno_caja_id'     => LdTurnoCaja::abiertoDe((int) $data['cajero_id'], (int) $data['sede_id'])->value('id'),
                 'fecha_recibo'      => $data['fecha_recibo'],
                 'fecha_transaccion' => $data['fecha_transaccion'],
                 'valor_total'       => $montoAPagar,
@@ -396,16 +399,10 @@ class ReciboPagoController extends Controller
             // El UPDATE de la ruta se aplica DESPUÉS del commit con DB::table() directo.
             $comprobanteInfo = null;
             if ($esTransferencia && $request->hasFile('comprobante')) {
-                $file      = $request->file('comprobante');
-                $extension = $file->getClientOriginalExtension() ?: $file->extension();
-                $nombre    = $recibo->id . '_' . now()->format('Ymd_Hi') . ($extension ? ".{$extension}" : '');
-                $destDir   = storage_path('app/public/recibos_transferencia');
-                if (! is_dir($destDir)) {
-                    mkdir($destDir, 0755, true);
-                }
                 try {
-                    $file->move($destDir, $nombre);
-                    $comprobanteInfo = ['id' => $mediosPagoCreados[0]->id, 'path' => 'recibos_transferencia/' . $nombre];
+                    $ruta = app(ArchivoService::class)
+                        ->guardar($request->file('comprobante'), 'public', ArchivoService::CARPETA_COMPROBANTES);
+                    $comprobanteInfo = ['id' => $mediosPagoCreados[0]->id, 'path' => $ruta];
                 } catch (\Exception $e) {
                     Log::warning('No se pudo guardar el comprobante de transferencia', [
                         'recibo_id' => $recibo->id,
@@ -1081,13 +1078,14 @@ class ReciboPagoController extends Controller
                 \Illuminate\Validation\Rule::unique('recibo_pago_medio_pago', 'numero_transaccion')
                     ->whereNot('recibo_pago_id', $reciboPago->id),
             ],
-            'comprobante'        => 'nullable|file|mimes:jpg,jpeg,png,pdf,webp|max:5120',
+            'comprobante'        => 'nullable|file|mimes:jpg,jpeg,png,pdf,webp|max:' . ArchivoService::MAX_KB,
         ], [
             'banco_id.exists'                => 'El banco seleccionado no existe.',
             'numero_transaccion.unique'      => 'El número de transacción ya fue registrado en otro recibo.',
             'numero_transaccion.max'         => 'El número de transacción no puede exceder los 100 caracteres.',
             'comprobante.mimes'              => 'El comprobante debe ser jpg, jpeg, png, pdf o webp.',
-            'comprobante.max'                => 'El comprobante no puede superar los 5 MB.',
+            'comprobante.max'                => 'El comprobante no puede superar los 10 MB.',
+            'comprobante.uploaded'           => 'No se recibió el archivo: puede superar el tamaño que permite el servidor.',
         ]);
 
         if (! $reciboPago->estaRechazado()) {
@@ -1122,16 +1120,9 @@ class ReciboPagoController extends Controller
             if ($medioPago->comprobante_path && $medioPago->comprobante_path !== '0') {
                 Storage::disk('public')->delete($medioPago->comprobante_path);
             }
-            $file      = $request->file('comprobante');
-            $extension = $file->getClientOriginalExtension() ?: $file->extension();
-            $nombre    = $reciboPago->id . '_' . now()->format('Ymd_Hi') . ($extension ? ".{$extension}" : '');
-            $destDir   = storage_path('app/public/recibos_transferencia');
-            if (! is_dir($destDir)) {
-                mkdir($destDir, 0755, true);
-            }
             try {
-                $file->move($destDir, $nombre);
-                $comprobanteReenvioPath = 'recibos_transferencia/' . $nombre;
+                $comprobanteReenvioPath = app(ArchivoService::class)
+                    ->guardar($request->file('comprobante'), 'public', ArchivoService::CARPETA_COMPROBANTES);
             } catch (\Exception $e) {
                 Log::warning('No se pudo guardar el comprobante en reenvío', [
                     'recibo_id' => $reciboPago->id,

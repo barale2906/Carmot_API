@@ -3,6 +3,14 @@
 use App\Http\Controllers\Api\Financiero\Cartera\CarteraController;
 use App\Http\Controllers\Api\Financiero\ConceptoPago\ConceptoPagoController;
 use App\Http\Controllers\Api\Financiero\Descuento\DescuentoController;
+use App\Http\Controllers\Api\Financiero\LibroDiario\LdAutorizacionTurnoController;
+use App\Http\Controllers\Api\Financiero\LibroDiario\LdConsignacionController;
+use App\Http\Controllers\Api\Financiero\LibroDiario\LdImpuestoController;
+use App\Http\Controllers\Api\Financiero\LibroDiario\LdMovimientoController;
+use App\Http\Controllers\Api\Financiero\LibroDiario\LdSoporteController;
+use App\Http\Controllers\Api\Financiero\LibroDiario\LdTipoMovimientoController;
+use App\Http\Controllers\Api\Financiero\LibroDiario\LdTurnoCajaController;
+use App\Http\Controllers\Api\Financiero\LibroDiario\LibroDiarioController;
 use App\Http\Controllers\Api\Financiero\Lp\LpListaPrecioController;
 use App\Http\Controllers\Api\Financiero\Lp\LpPrecioProductoController;
 use App\Http\Controllers\Api\Financiero\Lp\LpProductoController;
@@ -214,5 +222,66 @@ Route::middleware('auth:sanctum')->group(function () {
     // Rutas principales de recibos de pago (CRUD estándar)
     Route::apiResource('recibos-pago', ReciboPagoController::class)
         ->parameters(['recibos-pago' => 'reciboPago']);
+
+    // ─── Libro diario: turnos de caja, movimientos, consignaciones y soportes ─────
+    Route::prefix('libro-diario')->name('libro-diario.')->group(function () {
+        // Libro unificado por sede (recibos + movimientos + consignaciones)
+        Route::get('/', [LibroDiarioController::class, 'index'])->name('index');
+        Route::get('resumen', [LibroDiarioController::class, 'resumen'])->name('resumen');
+        Route::get('filters', [LibroDiarioController::class, 'filters'])->name('filters');
+
+        // Catálogo de tipos de movimiento (rutas estáticas antes del apiResource)
+        Route::prefix('tipos-movimiento')->name('tipos-movimiento.')->group(function () {
+            Route::get('activos', [LdTipoMovimientoController::class, 'activos'])->name('activos');
+            Route::get('filters', [LdTipoMovimientoController::class, 'filters'])->name('filters');
+            Route::get('trashed', [LdTipoMovimientoController::class, 'trashed'])->name('trashed');
+            Route::post('{id}/restore', [LdTipoMovimientoController::class, 'restore'])->name('restore');
+            Route::delete('{id}/force-delete', [LdTipoMovimientoController::class, 'forceDelete'])->name('force-delete');
+        });
+        Route::apiResource('tipos-movimiento', LdTipoMovimientoController::class)
+            ->parameters(['tipos-movimiento' => 'ldTipoMovimiento']);
+
+        // Catálogo de impuestos y retenciones
+        Route::prefix('impuestos')->name('impuestos.')->group(function () {
+            Route::get('activos', [LdImpuestoController::class, 'activos'])->name('activos');
+            Route::get('filters', [LdImpuestoController::class, 'filters'])->name('filters');
+            Route::get('trashed', [LdImpuestoController::class, 'trashed'])->name('trashed');
+            Route::post('{id}/restore', [LdImpuestoController::class, 'restore'])->name('restore');
+            Route::delete('{id}/force-delete', [LdImpuestoController::class, 'forceDelete'])->name('force-delete');
+        });
+        Route::apiResource('impuestos', LdImpuestoController::class)
+            ->parameters(['impuestos' => 'ldImpuesto']);
+
+        // Turnos de caja: el turno actual del cajero va antes de {ldTurnoCaja}
+        Route::get('turnos/actual', [LdTurnoCajaController::class, 'actual'])->name('turnos.actual');
+        Route::post('turnos/{ldTurnoCaja}/cerrar', [LdTurnoCajaController::class, 'cerrar'])->name('turnos.cerrar');
+        Route::post('turnos/{ldTurnoCaja}/aprobar', [LdTurnoCajaController::class, 'aprobar'])->name('turnos.aprobar');
+        Route::post('turnos/{ldTurnoCaja}/rechazar', [LdTurnoCajaController::class, 'rechazar'])->name('turnos.rechazar');
+        Route::post('turnos/{ldTurnoCaja}/reversar', [LdTurnoCajaController::class, 'reversar'])->name('turnos.reversar');
+        Route::get('turnos/{ldTurnoCaja}/pdf', [LdTurnoCajaController::class, 'pdf'])->name('turnos.pdf');
+        Route::apiResource('turnos', LdTurnoCajaController::class)
+            ->only(['index', 'store', 'show'])
+            ->parameters(['turnos' => 'ldTurnoCaja']);
+
+        // Autorizaciones para abrir un nuevo turno el mismo día del cierre
+        Route::apiResource('autorizaciones', LdAutorizacionTurnoController::class)->only(['index', 'store']);
+
+        // Movimientos manuales (egresos / otros ingresos): no se eliminan, se anulan
+        Route::post('movimientos/{ldMovimiento}/anular', [LdMovimientoController::class, 'anular'])->name('movimientos.anular');
+        Route::apiResource('movimientos', LdMovimientoController::class)
+            ->except(['destroy'])
+            ->parameters(['movimientos' => 'ldMovimiento']);
+
+        // Consignaciones de efectivo: no se eliminan, se anulan
+        Route::post('consignaciones/{ldConsignacion}/anular', [LdConsignacionController::class, 'anular'])->name('consignaciones.anular');
+        Route::apiResource('consignaciones', LdConsignacionController::class)
+            ->except(['destroy'])
+            ->parameters(['consignaciones' => 'ldConsignacion']);
+
+        // Archivos de soporte (facturas, recibos, comprobantes)
+        Route::post('soportes', [LdSoporteController::class, 'store'])->name('soportes.store');
+        Route::get('soportes/{ldSoporte}/archivo', [LdSoporteController::class, 'archivo'])->name('soportes.archivo');
+        Route::delete('soportes/{ldSoporte}', [LdSoporteController::class, 'destroy'])->name('soportes.destroy');
+    });
 });
 

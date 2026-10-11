@@ -6,10 +6,10 @@ use App\Models\Academico\Documentacion\DocDocumento;
 use App\Models\Academico\Documentacion\DocTipoDocumento;
 use App\Models\Academico\Matricula;
 use App\Models\User;
+use App\Services\ArchivoService;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
-use RuntimeException;
 
 /**
  * Servicio DocEscaneadoService
@@ -22,13 +22,18 @@ use RuntimeException;
  * de la bitácora (soft delete) con su archivo intacto, por si hay que
  * restaurarlo; el archivo solo se borra al eliminarlo definitivamente.
  *
- * Los archivos van al disco privado (storage/app), fuera del alcance público,
- * mientras no esté lista la integración con Google Drive.
+ * Los archivos van al disco privado, todos en la carpeta `documentos` con el
+ * nombre {idUsuario}_{fecha}_{hora} (ArchivoService), mientras no esté lista la
+ * integración con Google Drive.
  *
  * @package App\Services\Academico\Documentacion
  */
 class DocEscaneadoService
 {
+    public function __construct(private readonly ArchivoService $archivos)
+    {
+    }
+
     /**
      * Guarda el escaneado de un documento de la matrícula y reemplaza el anterior.
      *
@@ -46,9 +51,15 @@ class DocEscaneadoService
         ?string $descripcion,
         ?User $usuario
     ): DocDocumento {
-        $ruta = $this->guardarArchivo($matricula, $archivo);
+        // Los datos del archivo se leen antes de moverlo: después el temporal ya no existe
+        $metadatos = [
+            'nombre_original' => $archivo->getClientOriginalName(),
+            'mime_type'       => $archivo->getMimeType(),
+            'tamano_bytes'    => $archivo->getSize(),
+        ];
+        $ruta = $this->archivos->guardar($archivo, DocDocumento::DISCO_ARCHIVOS, ArchivoService::CARPETA_DOCUMENTOS, $usuario?->id);
 
-        return DB::transaction(function () use ($matricula, $archivo, $tipoDocumento, $descripcion, $usuario, $ruta) {
+        return DB::transaction(function () use ($matricula, $metadatos, $tipoDocumento, $descripcion, $usuario, $ruta) {
             DocDocumento::subidos()
                 ->where('entidad_type', Matricula::class)
                 ->where('entidad_id', $matricula->id)
@@ -66,9 +77,9 @@ class DocEscaneadoService
                 'entidad_id'        => $matricula->id,
                 'origen'            => DocDocumento::ORIGEN_SUBIDO,
                 'descripcion'       => $tipoDocumento ? null : $descripcion,
-                'nombre_original'   => $archivo->getClientOriginalName(),
-                'mime_type'         => $archivo->getMimeType(),
-                'tamano_bytes'      => $archivo->getSize(),
+                'nombre_original'   => $metadatos['nombre_original'],
+                'mime_type'         => $metadatos['mime_type'],
+                'tamano_bytes'      => $metadatos['tamano_bytes'],
                 'archivo_path'      => $ruta,
                 'generado_por'      => $usuario?->id,
             ]);
@@ -86,27 +97,5 @@ class DocEscaneadoService
         if ($documento->archivo_path) {
             Storage::disk(DocDocumento::DISCO_ARCHIVOS)->delete($documento->archivo_path);
         }
-    }
-
-    /**
-     * Guarda el archivo en la carpeta privada de la matrícula y devuelve su ruta.
-     *
-     * @param Matricula    $matricula
-     * @param UploadedFile $archivo
-     * @return string Ruta relativa al disco privado.
-     *
-     * @throws RuntimeException Si el archivo no se pudo escribir.
-     */
-    private function guardarArchivo(Matricula $matricula, UploadedFile $archivo): string
-    {
-        $nombre = now()->format('YmdHis') . '_' . uniqid() . '.' . strtolower($archivo->getClientOriginalExtension());
-
-        $ruta = $archivo->storeAs('documentos/matriculas/' . $matricula->id, $nombre, DocDocumento::DISCO_ARCHIVOS);
-
-        if (!$ruta) {
-            throw new RuntimeException('No se pudo guardar el archivo escaneado.');
-        }
-
-        return $ruta;
     }
 }

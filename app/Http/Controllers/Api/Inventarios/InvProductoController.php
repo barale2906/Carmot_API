@@ -10,6 +10,7 @@ use App\Http\Resources\Api\Inventarios\InvProductoResource;
 use App\Models\Inventarios\InvCategoria;
 use App\Models\Inventarios\InvProducto;
 use App\Models\Inventarios\InvUnidadMedida;
+use App\Services\ArchivoService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
@@ -157,11 +158,8 @@ class InvProductoController extends Controller
     {
         $imagenPath = null;
         if ($request->hasFile('imagen')) {
-            $imagenPath = $request->file('imagen')->move(
-                public_path('storage/inventarios/productos'),
-                uniqid() . '.' . $request->file('imagen')->getClientOriginalExtension()
-            );
-            $imagenPath = 'storage/inventarios/productos/' . basename((string) $imagenPath);
+            $imagenPath = 'storage/' . app(ArchivoService::class)
+                ->guardar($request->file('imagen'), 'public', ArchivoService::CARPETA_PRODUCTOS);
         }
 
         $producto = InvProducto::create([
@@ -215,11 +213,8 @@ class InvProductoController extends Controller
         ]);
 
         if ($request->hasFile('imagen')) {
-            $imagenPath = $request->file('imagen')->move(
-                public_path('storage/inventarios/productos'),
-                uniqid() . '.' . $request->file('imagen')->getClientOriginalExtension()
-            );
-            $datos['imagen'] = 'storage/inventarios/productos/' . basename((string) $imagenPath);
+            $datos['imagen'] = 'storage/' . app(ArchivoService::class)
+                ->guardar($request->file('imagen'), 'public', ArchivoService::CARPETA_PRODUCTOS);
         }
 
         $producto->update($datos);

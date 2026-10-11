@@ -7,6 +7,7 @@ use App\Models\Configuracion\Sede;
 use App\Models\Financiero\Cartera\Cartera;
 use App\Models\Financiero\ConceptoPago\ConceptoPago;
 use App\Models\Financiero\Descuento\Descuento;
+use App\Models\Financiero\LibroDiario\LdTurnoCaja;
 use App\Models\Financiero\ReciboPago\ReciboPago;
 use App\Models\Inventarios\InvAlmacen;
 use App\Models\Inventarios\InvPedido;
@@ -64,6 +65,9 @@ class ReciboPagoTest extends TestCase
         // Conceptos usados por los servicios de distribución de cartera
         $this->conceptoMatricula   = ConceptoPago::factory()->tipoCartera()->create(['nombre' => 'Matrícula',          'valor' => 0]);
         $this->conceptoMensualidad = ConceptoPago::factory()->tipoCartera()->create(['nombre' => 'Pago de mensualidad', 'valor' => 0]);
+
+        // Los recibos solo se generan dentro de un turno de caja abierto del cajero
+        LdTurnoCaja::factory()->create(['cajero_id' => $this->usuario->id, 'sede_id' => $this->sede->id]);
     }
 
     // ─── Helpers ──────────────────────────────────────────────────────────────
@@ -235,6 +239,26 @@ class ReciboPagoTest extends TestCase
     }
 
     // ─── store — modo unificado ───────────────────────────────────────────────
+
+    /** @test */
+    public function crear_recibo_exige_turno_de_caja_abierto_y_lo_asigna(): void
+    {
+        $concepto = ConceptoPago::factory()->create(['nombre' => 'Copia Certificado', 'tipo' => 1, 'valor' => 25000]);
+        $turno = LdTurnoCaja::where('cajero_id', $this->usuario->id)->first();
+
+        $id = $this->actingAs($this->usuario)
+            ->postJson(route('recibos-pago.store'), $this->payloadSoloAdicionales($concepto))
+            ->assertCreated()
+            ->json('data.id');
+        $this->assertSame($turno->id, ReciboPago::find($id)->turno_caja_id);
+
+        $turno->update(['status' => LdTurnoCaja::STATUS_CERRADO]);
+
+        $this->actingAs($this->usuario)
+            ->postJson(route('recibos-pago.store'), $this->payloadSoloAdicionales($concepto))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('cajero_id');
+    }
 
     /** @test */
     public function crea_recibo_con_solo_concepto_adicional(): void

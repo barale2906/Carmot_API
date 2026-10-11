@@ -103,7 +103,7 @@ class DocEscaneadoMatriculaTest extends TestCase
         $this->assertSame(Matricula::class, $documento->entidad_type);
         $this->assertSame($this->matricula->id, $documento->entidad_id);
         $this->assertSame($this->usuario->id, $documento->generado_por);
-        $this->assertStringStartsWith('documentos/matriculas/' . $this->matricula->id . '/', $documento->archivo_path);
+        $this->assertMatchesRegularExpression('#^documentos/' . $this->usuario->id . '_\d{8}_\d{6}\.pdf$#', $documento->archivo_path);
         Storage::disk(DocDocumento::DISCO_ARCHIVOS)->assertExists($documento->archivo_path);
     }
 

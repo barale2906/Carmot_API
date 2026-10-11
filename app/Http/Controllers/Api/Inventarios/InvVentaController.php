@@ -20,6 +20,7 @@ use App\Models\Inventarios\InvPrecioProducto;
 use App\Notifications\Financiero\TransferenciaAprobadaNotification;
 use App\Notifications\Financiero\TransferenciaPendienteNotification;
 use App\Notifications\Financiero\TransferenciaRechazadaNotification;
+use App\Services\ArchivoService;
 use App\Services\Financiero\AjusteService;
 use App\Services\Financiero\ReciboPagoNumeracionService;
 use App\Services\Inventarios\InvDisponibilidadService;
@@ -101,16 +102,10 @@ class InvVentaController extends Controller
             // Guardar comprobante de transferencia fuera de la transacción con move()
             $comprobanteInfo = null;
             if ($esTransferencia && $request->hasFile('comprobante')) {
-                $file      = $request->file('comprobante');
-                $extension = $file->getClientOriginalExtension() ?: $file->extension();
-                $nombre    = $recibo->id . '_' . now()->format('Ymd_Hi') . ($extension ? ".{$extension}" : '');
-                $destDir   = storage_path('app/public/recibos_transferencia');
-                if (! is_dir($destDir)) {
-                    mkdir($destDir, 0755, true);
-                }
                 try {
-                    $file->move($destDir, $nombre);
-                    $comprobanteInfo = ['id' => $mediosPagoCreados[0]->id, 'path' => 'recibos_transferencia/' . $nombre];
+                    $ruta = app(ArchivoService::class)
+                        ->guardar($request->file('comprobante'), 'public', ArchivoService::CARPETA_COMPROBANTES);
+                    $comprobanteInfo = ['id' => $mediosPagoCreados[0]->id, 'path' => $ruta];
                 } catch (\Exception $e) {
                     Log::warning('No se pudo guardar el comprobante de transferencia (inventario)', [
                         'recibo_id' => $recibo->id,
@@ -190,16 +185,10 @@ class InvVentaController extends Controller
             // Comprobante de transferencia
             $comprobanteInfo = null;
             if ($esTransferencia && $request->hasFile('comprobante')) {
-                $file      = $request->file('comprobante');
-                $extension = $file->getClientOriginalExtension() ?: $file->extension();
-                $nombre    = $recibo->id . '_' . now()->format('Ymd_Hi') . ($extension ? ".{$extension}" : '');
-                $destDir   = storage_path('app/public/recibos_transferencia');
-                if (! is_dir($destDir)) {
-                    mkdir($destDir, 0755, true);
-                }
                 try {
-                    $file->move($destDir, $nombre);
-                    $comprobanteInfo = ['id' => $mediosPagoCreados[0]->id, 'path' => 'recibos_transferencia/' . $nombre];
+                    $ruta = app(ArchivoService::class)
+                        ->guardar($request->file('comprobante'), 'public', ArchivoService::CARPETA_COMPROBANTES);
+                    $comprobanteInfo = ['id' => $mediosPagoCreados[0]->id, 'path' => $ruta];
                 } catch (\Exception $e) {
                     Log::warning('No se pudo guardar el comprobante de transferencia (inventario-abonar)', [
                         'recibo_id' => $recibo->id,
@@ -467,7 +456,7 @@ class InvVentaController extends Controller
         $request->validate([
             'banco_id'           => 'nullable|exists:bancos,id',
             'numero_transaccion' => 'nullable|string|max:100',
-            'comprobante'        => 'nullable|file|mimes:jpg,jpeg,png,pdf,webp|max:5120',
+            'comprobante'        => 'nullable|file|mimes:jpg,jpeg,png,pdf,webp|max:' . ArchivoService::MAX_KB,
         ]);
 
         if ($reciboPago->origen !== ReciboPago::ORIGEN_INVENTARIOS) {
@@ -501,16 +490,9 @@ class InvVentaController extends Controller
             if ($medioPago->comprobante_path && $medioPago->comprobante_path !== '0') {
                 Storage::disk('public')->delete($medioPago->comprobante_path);
             }
-            $file      = $request->file('comprobante');
-            $extension = $file->getClientOriginalExtension() ?: $file->extension();
-            $nombre    = $reciboPago->id . '_' . now()->format('Ymd_Hi') . ($extension ? ".{$extension}" : '');
-            $destDir   = storage_path('app/public/recibos_transferencia');
-            if (! is_dir($destDir)) {
-                mkdir($destDir, 0755, true);
-            }
             try {
-                $file->move($destDir, $nombre);
-                $comprobanteReenvioPath = 'recibos_transferencia/' . $nombre;
+                $comprobanteReenvioPath = app(ArchivoService::class)
+                    ->guardar($request->file('comprobante'), 'public', ArchivoService::CARPETA_COMPROBANTES);
             } catch (\Exception $e) {
                 Log::warning('No se pudo guardar el comprobante en reenvío (inventario)', [
                     'recibo_id' => $reciboPago->id,

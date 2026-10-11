@@ -4,6 +4,7 @@ namespace App\Services\Inventarios;
 
 use App\Models\Configuracion\Sede;
 use App\Models\Financiero\Descuento\Descuento;
+use App\Models\Financiero\LibroDiario\LdTurnoCaja;
 use App\Models\Financiero\ReciboPago\ReciboPago;
 use App\Models\Financiero\ReciboPago\ReciboPagoMedioPago;
 use App\Models\Inventarios\InvPedido;
@@ -437,6 +438,7 @@ class InvVentaService
             'sede_id'           => $pedido->sede_id,
             'estudiante_id'     => $pedido->estudiante_id,
             'cajero_id'         => $datos['cajero_id'],
+            'turno_caja_id'     => LdTurnoCaja::abiertoDe((int) $datos['cajero_id'], (int) $pedido->sede_id)->value('id'),
             'fecha_recibo'      => now()->toDateString(),
             'fecha_transaccion' => now(),
             'valor_total'       => $monto,

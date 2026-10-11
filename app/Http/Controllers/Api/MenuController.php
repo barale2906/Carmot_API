@@ -225,11 +225,12 @@ class MenuController extends Controller
             }
         }
 
-        // Financiero - módulo con 3 sub-dropdowns: Listas de precios, Recibos de pago, Cartera
+        // Financiero - módulo con 4 sub-dropdowns: Listas de precios, Recibos de pago, Libro diario, Cartera
         if ($this->hasAnyPermission($user, [
             'fin_lp_tipos_producto', 'fin_lp_productos', 'fin_lp_listas_precios',
             'fin_conceptos_pago', 'fin_descuentos', 'fin_recibos_pago',
             'fin_reciboPagoAprobar', 'fin_carteras',
+            'fin_ldTurnoCaja', 'fin_ldTurnos', 'fin_ldCierreAprobar', 'fin_libroDiario', 'fin_ldCatalogos',
         ])) {
             $financieroChildren = [];
 
@@ -341,6 +342,68 @@ class MenuController extends Controller
                     'icon' => 'receipt_long',
                     'route' => '#financiero-recibos',
                     'children' => $recibosChildren,
+                    'disabled' => false,
+                ];
+            }
+
+            // Sub-dropdown: Libro diario (turnos de caja, movimientos, consignaciones)
+            $libroChildren = [];
+
+            if ($user->can('fin_ldTurnoCaja')) {
+                $libroChildren[] = [
+                    'id' => 'financiero-caja',
+                    'title' => 'Mi caja',
+                    'icon' => 'payments',
+                    'route' => '/financiero/caja',
+                    'permission' => 'fin_ldTurnoCaja',
+                    'children' => [],
+                    'disabled' => false,
+                ];
+            }
+
+            if ($user->can('fin_libroDiario')) {
+                $libroChildren[] = [
+                    'id' => 'financiero-libro-diario',
+                    'title' => 'Libro diario',
+                    'icon' => 'book',
+                    'route' => '/financiero/libro-diario',
+                    'permission' => 'fin_libroDiario',
+                    'children' => [],
+                    'disabled' => false,
+                ];
+            }
+
+            if ($user->can('fin_ldTurnoCaja') || $user->can('fin_ldTurnos') || $user->can('fin_ldCierreAprobar')) {
+                $libroChildren[] = [
+                    'id' => 'financiero-turnos-caja',
+                    'title' => 'Turnos de caja',
+                    'icon' => 'event_note',
+                    'route' => '/financiero/turnos-caja',
+                    'permission' => 'fin_ldTurnoCaja|fin_ldTurnos|fin_ldCierreAprobar',
+                    'children' => [],
+                    'disabled' => false,
+                ];
+            }
+
+            if ($user->can('fin_ldCatalogos')) {
+                $libroChildren[] = [
+                    'id' => 'financiero-libro-diario-catalogos',
+                    'title' => 'Tipos e impuestos',
+                    'icon' => 'list_alt',
+                    'route' => '/financiero/libro-diario-catalogos',
+                    'permission' => 'fin_ldCatalogos',
+                    'children' => [],
+                    'disabled' => false,
+                ];
+            }
+
+            if (!empty($libroChildren)) {
+                $financieroChildren[] = [
+                    'id' => 'financiero-grupo-libro-diario',
+                    'title' => 'Libro diario',
+                    'icon' => 'menu_book',
+                    'route' => '#financiero-libro-diario',
+                    'children' => $libroChildren,
                     'disabled' => false,
                 ];
             }

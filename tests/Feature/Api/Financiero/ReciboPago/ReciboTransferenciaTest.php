@@ -7,6 +7,7 @@ use App\Models\Configuracion\Banco;
 use App\Models\Configuracion\Sede;
 use App\Models\Financiero\Cartera\Cartera;
 use App\Models\Financiero\ConceptoPago\ConceptoPago;
+use App\Models\Financiero\LibroDiario\LdTurnoCaja;
 use App\Models\Financiero\ReciboPago\ReciboPago;
 use App\Models\Financiero\ReciboPago\ReciboPagoMedioPago;
 use App\Models\User;
@@ -73,6 +74,9 @@ class ReciboTransferenciaTest extends TestCase
         $this->conceptoMatricula   = ConceptoPago::factory()->tipoCartera()->create(['nombre' => 'Matrícula',          'valor' => 0]);
         $this->conceptoMensualidad = ConceptoPago::factory()->tipoCartera()->create(['nombre' => 'Pago de mensualidad', 'valor' => 0]);
         $this->conceptoDescuento   = ConceptoPago::factory()->tipoCartera()->create(['nombre' => 'Descuento',          'valor' => 0]);
+
+        // Los recibos solo se generan dentro de un turno de caja abierto del cajero
+        LdTurnoCaja::factory()->create(['cajero_id' => $this->cajero->id, 'sede_id' => $this->sede->id]);
     }
 
     // ─── Helpers ──────────────────────────────────────────────────────────────

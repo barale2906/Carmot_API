@@ -3,8 +3,10 @@
 namespace App\Http\Requests\Api\Inventarios;
 
 use App\Models\Configuracion\Sede;
+use App\Models\Financiero\LibroDiario\LdTurnoCaja;
 use App\Models\Financiero\Lp\LpListaPrecio;
 use App\Models\Inventarios\InvPrecioProducto;
+use App\Services\ArchivoService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Validator;
 
@@ -49,7 +51,7 @@ class StoreInvVentaRequest extends FormRequest
             'medios_pago.*.banco_id'               => ['nullable', 'integer', 'exists:bancos,id'],
             'medios_pago.*.tipo_tarjeta'           => ['nullable', 'string', 'max:60'],
             'medios_pago.*.numero_transaccion'     => ['nullable', 'string', 'max:100'],
-            'comprobante'                          => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf,webp', 'max:5120'],
+            'comprobante'                          => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf,webp', 'max:' . ArchivoService::MAX_KB],
             'sobrecargos'                          => ['nullable', 'array'],
             'sobrecargos.*.descuento_id'           => ['required', 'integer', 'exists:descuentos,id'],
             'sobrecargos.*.medio_pago_index'       => ['required', 'integer', 'min:0'],
@@ -82,6 +84,14 @@ class StoreInvVentaRequest extends FormRequest
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $v) {
+            // La venta genera un recibo: exige el turno de caja abierto del cajero en la sede
+            if (! $v->errors()->has('sede_id')
+                && ! LdTurnoCaja::abiertoDe((int) $this->user()->id, (int) $this->sede_id)->exists()) {
+                $v->errors()->add('sede_id', LdTurnoCaja::MENSAJE_SIN_TURNO);
+
+                return;
+            }
+
             $this->validarPreciosVigentes($v);
 
             $sumaMP = collect($this->medios_pago ?? [])

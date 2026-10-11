@@ -2,7 +2,10 @@
 
 namespace App\Http\Requests\Api\Financiero\ReciboPago;
 
+use App\Models\Financiero\LibroDiario\LdTurnoCaja;
 use App\Models\Financiero\ReciboPago\ReciboPago;
+use App\Models\Financiero\ReciboPago\ReciboPagoMedioPago;
+use App\Services\ArchivoService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -75,10 +78,7 @@ class StoreReciboPagoRequest extends FormRequest
             'medios_pago'                               => $this->esReciboCostoCero()
                 ? ['prohibited']
                 : ['required', 'array', 'min:1'],
-            'medios_pago.*.medio_pago'                  => ['required', 'string', Rule::in([
-                'efectivo', 'transferencia', 'tarjeta_debito',
-                'tarjeta_credito', 'cheque', 'consignacion',
-            ])],
+            'medios_pago.*.medio_pago'                  => ['required', 'string', Rule::in(array_keys(ReciboPagoMedioPago::MEDIOS))],
             'medios_pago.*.tipo_tarjeta'                => 'nullable|string|max:60',
             'medios_pago.*.valor'                       => 'required|numeric|min:0',
             'medios_pago.*.referencia'                  => 'nullable|string|max:100',
@@ -88,7 +88,7 @@ class StoreReciboPagoRequest extends FormRequest
             'medios_pago.*.numero_transaccion'          => 'nullable|string|max:100|unique:recibo_pago_medio_pago,numero_transaccion',
 
             // Comprobante de transferencia (foto del soporte) — campo de archivo a nivel raíz
-            'comprobante'                               => 'nullable|file|mimes:jpg,jpeg,png,pdf,webp|max:5120',
+            'comprobante'                               => 'nullable|file|mimes:jpg,jpeg,png,pdf,webp|max:' . ArchivoService::MAX_KB,
 
             // Sobrecargos seleccionados por el cajero (pre-calculados vía /precalcular-sobrecargos)
             // Cada ítem vincula un sobrecargo a un índice de medio de pago
@@ -106,6 +106,12 @@ class StoreReciboPagoRequest extends FormRequest
     public function withValidator($validator): void
     {
         $validator->after(function ($validator) {
+            // El recibo solo se genera dentro de un turno de caja abierto del cajero en la sede
+            if (! $validator->errors()->hasAny(['cajero_id', 'sede_id'])
+                && ! LdTurnoCaja::abiertoDe((int) $this->cajero_id, (int) $this->sede_id)->exists()) {
+                $validator->errors()->add('cajero_id', LdTurnoCaja::MENSAJE_SIN_TURNO);
+            }
+
             $mediosPago = $this->input('medios_pago', []);
 
             // Transferencia exclusiva: no puede combinarse con otros medios de pago
@@ -201,7 +207,8 @@ class StoreReciboPagoRequest extends FormRequest
             'medios_pago.*.numero_transaccion.max'               => 'El número de transacción no puede exceder los 100 caracteres.',
             'comprobante.file'                                   => 'El comprobante debe ser un archivo.',
             'comprobante.mimes'                                  => 'El comprobante debe ser jpg, jpeg, png, pdf o webp.',
-            'comprobante.max'                                    => 'El comprobante no puede superar los 5 MB.',
+            'comprobante.max'                                    => 'El comprobante no puede superar los 10 MB.',
+            'comprobante.uploaded'                               => 'No se recibió el archivo: puede superar el tamaño que permite el servidor.',
             'sobrecargos.prohibited'                             => 'Un recibo sin valor a pagar no admite sobrecargos.',
             'sobrecargos.*.descuento_id.required'              => 'El ID del sobrecargo es obligatorio.',
             'sobrecargos.*.descuento_id.exists'                  => 'El sobrecargo seleccionado no existe.',

@@ -7,6 +7,7 @@ use App\Http\Requests\Api\Academico\StoreBibliotecaRequest;
 use App\Http\Requests\Api\Academico\UpdateBibliotecaRequest;
 use App\Http\Resources\Api\Academico\BibliotecaResource;
 use App\Models\Academico\Biblioteca;
+use App\Services\ArchivoService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -114,17 +115,17 @@ class BibliotecaController extends Controller
     {
         try {
             $archivo     = $request->file('archivo');
-            $rutaDestino = $this->generarRutaArchivo($request->nombre, $archivo->getClientOriginalExtension());
-
-            $archivo->storeAs('', $rutaDestino, 'public');
+            $tipoArchivo = $archivo->getClientOriginalExtension();
+            $tamanio     = $archivo->getSize();
+            $rutaDestino = app(ArchivoService::class)->guardar($archivo, 'public', ArchivoService::CARPETA_BIBLIOTECA);
 
             $documento = Biblioteca::create([
                 'nombre'              => $request->nombre,
                 'fecha_carga'         => $request->fecha_carga,
                 'fecha_obsolescencia' => $request->fecha_obsolescencia,
                 'ruta'                => $rutaDestino,
-                'tipo_archivo'        => $archivo->getClientOriginalExtension(),
-                'tamanio'             => $archivo->getSize(),
+                'tipo_archivo'        => $tipoArchivo,
+                'tamanio'             => $tamanio,
             ]);
 
             if ($request->filled('cursos')) {
@@ -186,15 +187,10 @@ class BibliotecaController extends Controller
             if ($request->hasFile('archivo')) {
                 $this->eliminarArchivo($biblioteca->ruta);
 
-                $archivo     = $request->file('archivo');
-                $nombreBase  = $datos['nombre'] ?? $biblioteca->nombre;
-                $rutaDestino = $this->generarRutaArchivo($nombreBase, $archivo->getClientOriginalExtension());
-
-                $archivo->storeAs('', $rutaDestino, 'public');
-
-                $datos['ruta']         = $rutaDestino;
+                $archivo               = $request->file('archivo');
                 $datos['tipo_archivo'] = $archivo->getClientOriginalExtension();
                 $datos['tamanio']      = $archivo->getSize();
+                $datos['ruta']         = app(ArchivoService::class)->guardar($archivo, 'public', ArchivoService::CARPETA_BIBLIOTECA);
             }
 
             $biblioteca->update($datos);
@@ -402,23 +398,6 @@ class BibliotecaController extends Controller
     // -------------------------------------------------------------------------
     // Helpers privados
     // -------------------------------------------------------------------------
-
-    /**
-     * Genera la ruta de destino del archivo con el formato:
-     *   biblioteca/YYYY/MM/YYYYMMDDHHmm_nombre_del_documento.ext
-     *
-     * El prefijo de fecha y hora garantiza unicidad sin colisiones.
-     * Los caracteres no alfanuméricos del nombre se reemplazan por guión bajo
-     * y el resultado se pasa a minúsculas para uniformidad.
-     */
-    private function generarRutaArchivo(string $nombre, string $extension): string
-    {
-        $prefijo          = now()->format('YmdHi');
-        $nombreSanitizado = strtolower(preg_replace('/[^a-zA-Z0-9]+/', '_', trim($nombre)));
-        $nombreSanitizado = trim($nombreSanitizado, '_');
-
-        return 'biblioteca/' . "{$prefijo}_{$nombreSanitizado}.{$extension}";
-    }
 
     /**
      * Elimina el archivo físico del disco público si existe.

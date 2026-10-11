@@ -5,6 +5,7 @@ namespace Tests\Feature\Api\Inventarios;
 use App\Models\Configuracion\Poblacion;
 use App\Models\Configuracion\Sede;
 use App\Models\Financiero\Descuento\Descuento;
+use App\Models\Financiero\LibroDiario\LdTurnoCaja;
 use App\Models\Financiero\Lp\LpListaPrecio;
 use App\Models\Financiero\ReciboPago\ReciboPago;
 use App\Models\Inventarios\InvAlmacen;
@@ -61,6 +62,9 @@ class InvVentaTest extends TestCase
 
         // Configurar precio vigente para el producto en la sede
         $this->configurarPrecioVigente($poblacion->id);
+
+        // Los recibos solo se generan dentro de un turno de caja abierto del cajero
+        LdTurnoCaja::factory()->create(['cajero_id' => $this->cajero->id, 'sede_id' => $this->sede->id]);
     }
 
     /**
@@ -217,6 +221,7 @@ class InvVentaTest extends TestCase
     public function store_falla_si_la_lista_no_cubre_la_poblacion_de_la_sede(): void
     {
         $otraSede = Sede::factory()->create(['poblacion_id' => Poblacion::factory()->create()->id]);
+        LdTurnoCaja::where('cajero_id', $this->cajero->id)->update(['sede_id' => $otraSede->id]);
 
         $this->actingAs($this->cajero)
             ->postJson(route('inv-ventas.store'), $this->payloadPedido(['sede_id' => $otraSede->id]))
@@ -287,6 +292,36 @@ class InvVentaTest extends TestCase
             ->assertJsonPath('data.status', 'entregado');
 
         $this->assertDatabaseHas('inv_stock', ['producto_id' => $this->producto->id, 'cantidad_total' => 9]);
+    }
+
+    /** @test */
+    public function venta_y_abono_exigen_turno_de_caja_abierto(): void
+    {
+        $pedidoId = $this->actingAs($this->cajero)
+            ->postJson(route('inv-ventas.store'), $this->payloadPedido([
+                'monto_abono' => 10000,
+                'medios_pago' => [['medio_pago' => 'efectivo', 'valor' => 10000]],
+            ]))
+            ->assertCreated()
+            ->json('data.id');
+
+        $turno = LdTurnoCaja::where('cajero_id', $this->cajero->id)->first();
+        $this->assertDatabaseHas('recibos_pago', ['turno_caja_id' => $turno->id, 'origen' => 0]);
+
+        $turno->update(['status' => LdTurnoCaja::STATUS_CERRADO]);
+
+        $this->actingAs($this->cajero)
+            ->postJson(route('inv-ventas.store'), $this->payloadPedido())
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('sede_id');
+
+        $this->actingAs($this->cajero)
+            ->postJson(route('inv-ventas.abonar', $pedidoId), [
+                'monto_abono' => 1000,
+                'medios_pago' => [['medio_pago' => 'efectivo', 'valor' => 1000]],
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('monto_abono');
     }
 
     // ─── precios vigentes ─────────────────────────────────────────────────────

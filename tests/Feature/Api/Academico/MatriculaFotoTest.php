@@ -7,6 +7,7 @@ use App\Models\Academico\Curso;
 use App\Models\Academico\Matricula;
 use App\Models\Configuracion\Sede;
 use App\Models\User;
+use App\Services\ArchivoService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -116,7 +117,7 @@ class MatriculaFotoTest extends TestCase
     {
         Storage::fake('public');
 
-        $foto = UploadedFile::fake()->image('estudiante.jpg')->size(5121);
+        $foto = UploadedFile::fake()->image('estudiante.jpg')->size(ArchivoService::MAX_KB + 1);
 
         $response = $this->actingAs($this->usuario)
             ->postJson(route('matriculas.store'), $this->datosBase(['foto' => $foto]));
@@ -148,6 +149,8 @@ class MatriculaFotoTest extends TestCase
         $matricula  = Matricula::findOrFail($creacion->json('data.id'));
         $rutaInicial = $matricula->foto;
 
+        // El nombre lleva usuario, fecha y hora: la foto nueva se sube un segundo después
+        $this->travel(1)->seconds();
         $fotoNueva = UploadedFile::fake()->image('nueva.jpg')->size(300);
 
         $response = $this->actingAs($this->usuario)

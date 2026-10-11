@@ -4,6 +4,7 @@ namespace App\Http\Requests\Api\Academico\Documentacion;
 
 use App\Models\Academico\Documentacion\DocTipoDocumento;
 use App\Models\Academico\Matricula;
+use App\Services\ArchivoService;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 
@@ -17,9 +18,6 @@ use Illuminate\Foundation\Http\FormRequest;
  */
 class SubirEscaneadoMatriculaRequest extends FormRequest
 {
-    /** Tamaño máximo del archivo, en kilobytes (10 MB). */
-    private const TAMANO_MAXIMO_KB = 10240;
-
     /**
      * Determina si el usuario está autorizado (los permisos se validan por middleware).
      *
@@ -38,7 +36,7 @@ class SubirEscaneadoMatriculaRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'archivo'           => ['required', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:' . self::TAMANO_MAXIMO_KB],
+            'archivo'           => ['required', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:' . ArchivoService::MAX_KB],
             'tipo_documento_id' => ['nullable', 'integer', 'exists:doc_tipos_documento,id'],
             'descripcion'       => ['required_without:tipo_documento_id', 'nullable', 'string', 'max:150'],
         ];
@@ -83,6 +81,7 @@ class SubirEscaneadoMatriculaRequest extends FormRequest
             'archivo.file'                     => 'El archivo no se cargó correctamente.',
             'archivo.mimes'                    => 'El archivo debe ser PDF, JPG o PNG.',
             'archivo.max'                      => 'El archivo no puede superar los 10 MB.',
+            'archivo.uploaded'                 => 'No se recibió el archivo: puede superar el tamaño que permite el servidor.',
             'tipo_documento_id.exists'         => 'El tipo de documento seleccionado no existe.',
             'descripcion.required_without'     => 'Indica qué documento es el archivo.',
             'descripcion.max'                  => 'La descripción no puede tener más de 150 caracteres.',

@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Api\Academico;
 
 use App\Models\Academico\Matricula;
+use App\Services\ArchivoService;
 use App\Traits\HasActiveStatus;
 use App\Traits\HasActiveStatusValidation;
 use Illuminate\Foundation\Http\FormRequest;
@@ -111,7 +112,7 @@ class StoreMatriculaRequest extends FormRequest
             // ----------------------------------------------------------------
             'aprueba_uso_imagen' => 'nullable|boolean',
             'multiculturalidad'  => 'nullable|string|max:100',
-            'foto'               => ['nullable', 'image', 'mimes:jpg,jpeg,png', 'max:5120'],
+            'foto'               => ['nullable', 'image', 'mimes:jpg,jpeg,png', 'max:' . ArchivoService::MAX_KB],
         ];
     }
 
@@ -168,7 +169,8 @@ class StoreMatriculaRequest extends FormRequest
             // Foto
             'foto.image' => 'El campo foto debe ser una imagen.',
             'foto.mimes' => 'La foto debe tener formato jpg, jpeg o png.',
-            'foto.max'   => 'La foto no puede superar los 5 MB.',
+            'foto.max'   => 'La foto no puede superar los 10 MB.',
+            'foto.uploaded' => 'No se recibió el archivo: puede superar el tamaño que permite el servidor.',
         ], self::getStatusValidationMessages());
     }
 

@@ -54,6 +54,7 @@ class DatabaseSeeder extends Seeder
             AddBibliotecaPermissionsSeeder::class,
             AddDocumentacionPermissionsSeeder::class,
             AddCalendarioLaboralPermissionsSeeder::class,
+            AddLibroDiarioPermissionsSeeder::class,
         ]);
         // \App\Models\User::factory(10)->create();
 

@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Api\Inventarios;
 
+use App\Services\ArchivoService;
 use App\Traits\HasActiveStatus;
 use App\Traits\HasActiveStatusValidation;
 use Illuminate\Foundation\Http\FormRequest;
@@ -44,7 +45,7 @@ class UpdateInvProductoRequest extends FormRequest
             'nombre'            => ['required', 'string', 'max:255'],
             'descripcion'       => ['nullable', 'string', 'max:2000'],
             'tipo'              => ['required', Rule::in(['simple', 'kit', 'grupo'])],
-            'imagen'            => ['nullable', 'image', 'max:2048'],
+            'imagen'            => ['nullable', 'image', 'max:' . ArchivoService::MAX_KB],
             'categoria_id'      => ['nullable', 'integer', 'exists:inv_categorias,id'],
             'unidad_medida_id'  => ['nullable', 'integer', 'exists:inv_unidades_medida,id'],
             'producto_padre_id' => [
@@ -71,7 +72,8 @@ class UpdateInvProductoRequest extends FormRequest
             'unidad_medida_id.exists'    => 'La unidad de medida seleccionada no existe.',
             'producto_padre_id.exists'   => 'El grupo padre seleccionado no existe o no es de tipo grupo.',
             'imagen.image'               => 'El archivo debe ser una imagen.',
-            'imagen.max'                 => 'La imagen no puede superar 2 MB.',
+            'imagen.max'                 => 'La imagen no puede superar 10 MB.',
+            'imagen.uploaded'            => 'No se recibió el archivo: puede superar el tamaño que permite el servidor.',
         ], self::getStatusValidationMessages());
     }
 

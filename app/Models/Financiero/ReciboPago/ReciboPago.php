@@ -48,6 +48,7 @@ use App\Services\Financiero\ReciboPagoNumeracionService;
  * @property string|null $motivo_anulacion Motivo obligatorio registrado al anular el recibo
  * @property int|null $cierre Número de cierre de caja
  * @property int $sede_id ID de la sede que genera el recibo
+ * @property int|null $turno_caja_id Turno de caja en que se generó el recibo
  * @property int|null $estudiante_id ID del estudiante (User)
  * @property int $cajero_id ID del cajero (User) que genera el recibo
  * @property int|null $matricula_id ID de la matrícula asociada
@@ -194,6 +195,16 @@ class ReciboPago extends Model
     public function sede(): BelongsTo
     {
         return $this->belongsTo(Sede::class);
+    }
+
+    /**
+     * Turno de caja en que se generó el recibo.
+     *
+     * @return BelongsTo
+     */
+    public function turnoCaja(): BelongsTo
+    {
+        return $this->belongsTo(\App\Models\Financiero\LibroDiario\LdTurnoCaja::class, 'turno_caja_id');
     }
 
     /**

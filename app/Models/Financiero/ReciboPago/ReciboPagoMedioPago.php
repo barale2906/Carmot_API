@@ -33,6 +33,19 @@ class ReciboPagoMedioPago extends Model
     use HasFactory;
 
     /**
+     * Medios de pago admitidos y su etiqueta para mostrar.
+     * Lo comparten los recibos de pago y los registros del libro diario.
+     */
+    public const MEDIOS = [
+        'efectivo'        => 'Efectivo',
+        'transferencia'   => 'Transferencia',
+        'tarjeta_debito'  => 'Tarjeta débito',
+        'tarjeta_credito' => 'Tarjeta crédito',
+        'cheque'          => 'Cheque',
+        'consignacion'    => 'Consignación',
+    ];
+
+    /**
      * Nombre de la tabla asociada al modelo.
      *
      * @var string

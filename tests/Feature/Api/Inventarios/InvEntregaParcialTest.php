@@ -4,6 +4,7 @@ namespace Tests\Feature\Api\Inventarios;
 
 use App\Models\Configuracion\Poblacion;
 use App\Models\Configuracion\Sede;
+use App\Models\Financiero\LibroDiario\LdTurnoCaja;
 use App\Models\Financiero\Lp\LpListaPrecio;
 use App\Models\Inventarios\InvAlmacen;
 use App\Models\Inventarios\InvEntregaKit;
@@ -67,6 +68,9 @@ class InvEntregaParcialTest extends TestCase
         ]);
 
         $this->lista->poblaciones()->attach($poblacion->id);
+
+        // Los recibos solo se generan dentro de un turno de caja abierto del cajero
+        LdTurnoCaja::factory()->create(['cajero_id' => $this->cajero->id, 'sede_id' => $this->sede->id]);
     }
 
     // ─── helpers ──────────────────────────────────────────────────────────────
