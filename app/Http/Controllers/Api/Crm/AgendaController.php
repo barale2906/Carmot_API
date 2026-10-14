@@ -34,7 +34,7 @@ class AgendaController extends Controller
     public function index(Request $request): JsonResponse
     {
         // Preparar filtros
-        $filters = $request->only(['search', 'referido_id', 'agendador_id', 'status', 'fecha_desde', 'fecha_hasta']);
+        $filters = $request->only(['search', 'referido_id', 'agendador_id', 'jornada', 'status', 'fecha_desde', 'fecha_hasta']);
 
         // Preparar relaciones
         $relations = $request->has('with')
@@ -45,7 +45,7 @@ class AgendaController extends Controller
         $includeCounts = $request->has('with') && (str_contains($request->with, 'seguimientos') || str_contains($request->with, 'agendamientos'));
 
         // Construir query usando scopes
-        $agendas = Agenda::withFilters($filters)
+        $agendas = Agenda::withAgendaFilters($filters)
             ->withRelationsAndCounts($relations, $includeCounts)
             ->withSorting($request->get('sort_by'), $request->get('sort_direction'))
             ->paginate($request->get('per_page', 15));
@@ -73,7 +73,7 @@ class AgendaController extends Controller
     {
         $agenda = Agenda::create([
             'referido_id' => $request->referido_id,
-            'agendador_id' => $request->agendador_id,
+            'agendador_id' => $request->agendador_id ?? auth()->id(), // Por defecto quien agenda
             'fecha' => $request->fecha,
             'hora' => $request->hora,
             'jornada' => $request->jornada,
@@ -193,7 +193,7 @@ class AgendaController extends Controller
     public function trashed(Request $request): JsonResponse
     {
         // Preparar filtros
-        $filters = $request->only(['search', 'referido_id', 'agendador_id', 'status', 'fecha_desde', 'fecha_hasta']);
+        $filters = $request->only(['search', 'referido_id', 'agendador_id', 'jornada', 'status', 'fecha_desde', 'fecha_hasta']);
 
         // Preparar relaciones
         $relations = $request->has('with')
@@ -205,7 +205,7 @@ class AgendaController extends Controller
 
         // Construir query usando scopes (solo eliminados)
         $agendas = Agenda::onlyTrashed()
-            ->withFilters($filters)
+            ->withAgendaFilters($filters)
             ->withRelationsAndCounts($relations, $includeCounts)
             ->withSorting($request->get('sort_by'), $request->get('sort_direction'))
             ->paginate($request->get('per_page', 15));
@@ -231,7 +231,11 @@ class AgendaController extends Controller
     public function filters(): JsonResponse
     {
         $referidos = Referido::select('id', 'nombre', 'celular')->get();
-        $agendadores = User::select('id', 'name', 'email')->get();
+        // `name` es un accessor (nombre compuesto), no una columna: se arma en PHP.
+        $agendadores = User::select('id', 'primer_nombre', 'segundo_nombre', 'primer_apellido', 'segundo_apellido', 'email')
+            ->orderBy('primer_nombre')
+            ->get()
+            ->map(fn (User $user) => ['id' => $user->id, 'name' => $user->name, 'email' => $user->email]);
 
         return response()->json([
             'data' => [

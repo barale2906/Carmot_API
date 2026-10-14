@@ -117,8 +117,19 @@ class MenuController extends Controller
         }
 
         // CRM - módulo con varios submenús
-        if ($this->hasAnyPermission($user, ['crm_seguimientos', 'crm_agendas'])) {
+        if ($this->hasAnyPermission($user, ['crm_referidos', 'crm_seguimientos', 'crm_agendas'])) {
             $crmChildren = [];
+
+            // Leads (referidos)
+            if ($user->can('crm_referidos')) {
+                $crmChildren[] = [
+                    'id' => 'crm-referidos',
+                    'title' => 'Leads',
+                    'icon' => 'people',
+                    'route' => '/crm/referidos',
+                    'permission' => 'crm_referidos',
+                ];
+            }
 
             // Seguimientos
             if ($user->can('crm_seguimientos')) {
@@ -153,10 +164,43 @@ class MenuController extends Controller
             }
         }
 
+        // Activos fijos - inventario de equipos, herramientas y mobiliario por sede y área
+        if ($this->hasAnyPermission($user, ['act_activos', 'act_categorias'])) {
+            $activosChildren = [];
+
+            if ($user->can('act_activos')) {
+                $activosChildren[] = [
+                    'id' => 'activos-inventario',
+                    'title' => 'Inventario de activos',
+                    'icon' => 'activos',
+                    'route' => '/activos',
+                    'permission' => 'act_activos',
+                ];
+            }
+
+            if ($user->can('act_categorias')) {
+                $activosChildren[] = [
+                    'id' => 'activos-categorias',
+                    'title' => 'Categorías',
+                    'icon' => 'list_alt',
+                    'route' => '/activos/categorias',
+                    'permission' => 'act_categorias',
+                ];
+            }
+
+            $menu[] = [
+                'id' => 'activos',
+                'title' => 'Activos',
+                'icon' => 'activos',
+                'route' => '/activos',
+                'children' => $activosChildren,
+            ];
+        }
+
         // Académico - módulo con submenús según la estructura requerida
         if ($this->hasAnyPermission($user, [
             'aca_programas', 'aca_programaciones', 'aca_matriculas', 'aca_cursos',
-            'aca_documentos', 'aca_docPlantillas', 'aca_docTipos',
+            'aca_documentos', 'aca_docPlantillas', 'aca_docTipos', 'aca_asistencias', 'aca_notas',
         ])) {
             $academicoChildren = [];
 
@@ -190,6 +234,28 @@ class MenuController extends Controller
                     'icon' => 'assignment_ind',
                     'route' => '/academico/matriculas',
                     'permission' => 'aca_matriculas',
+                ];
+            }
+
+            // Asistencia
+            if ($user->can('aca_asistencias')) {
+                $academicoChildren[] = [
+                    'id' => 'academico-asistencia',
+                    'title' => 'Asistencia',
+                    'icon' => 'check',
+                    'route' => '/academico/asistencia',
+                    'permission' => 'aca_asistencias',
+                ];
+            }
+
+            // Calificaciones (planilla de notas y esquemas)
+            if ($user->can('aca_notas')) {
+                $academicoChildren[] = [
+                    'id' => 'academico-calificaciones',
+                    'title' => 'Calificaciones',
+                    'icon' => 'school',
+                    'route' => '/academico/calificaciones',
+                    'permission' => 'aca_notas',
                 ];
             }
 

@@ -2,6 +2,8 @@
 
 namespace App\Http\Requests\Api\Academico;
 
+use App\Models\Academico\EsquemaCalificacion;
+use App\Models\Academico\Grupo;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreNotaMasivaRequest extends FormRequest
@@ -27,7 +29,7 @@ class StoreNotaMasivaRequest extends FormRequest
             'esquema_calificacion_id' => 'required|integer|exists:esquema_calificacions,id',
             'tipo_nota_esquema_id' => 'required|integer|exists:tipo_nota_esquemas,id',
             'notas' => 'required|array|min:1',
-            'notas.*.estudiante_id' => 'required|integer|exists:users,id',
+            'notas.*.estudiante_id' => 'required|integer|distinct|exists:users,id',
             'notas.*.nota' => 'required|numeric|min:0',
             'notas.*.observaciones' => 'nullable|string',
             'fecha_registro' => 'nullable|date',
@@ -54,6 +56,7 @@ class StoreNotaMasivaRequest extends FormRequest
             'notas.min' => 'Debe proporcionar al menos una nota.',
             'notas.*.estudiante_id.required' => 'El estudiante es obligatorio.',
             'notas.*.estudiante_id.exists' => 'El estudiante seleccionado no existe.',
+            'notas.*.estudiante_id.distinct' => 'Un estudiante aparece repetido en la lista.',
             'notas.*.nota.required' => 'La nota es obligatoria.',
             'notas.*.nota.numeric' => 'La nota debe ser un número.',
             'notas.*.nota.min' => 'La nota no puede ser menor a 0.',
@@ -88,5 +91,36 @@ class StoreNotaMasivaRequest extends FormRequest
         if (!$this->has('fecha_registro')) {
             $this->merge(['fecha_registro' => now()->toDateString()]);
         }
+    }
+
+    /**
+     * El tipo de nota debe pertenecer al esquema, y el esquema aplicar al grupo y a su módulo.
+     *
+     * @param \Illuminate\Validation\Validator $validator
+     * @return void
+     */
+    public function withValidator($validator): void
+    {
+        $validator->after(function ($validator) {
+            if ($validator->errors()->isNotEmpty()) {
+                return;
+            }
+
+            $grupo   = Grupo::find($this->grupo_id);
+            $esquema = EsquemaCalificacion::find($this->esquema_calificacion_id);
+
+            if ((int) $grupo->modulo_id !== (int) $this->modulo_id) {
+                $validator->errors()->add('modulo_id', 'El módulo no pertenece al grupo especificado.');
+            }
+
+            $aplicaAlGrupo = $esquema->grupo_id === null || (int) $esquema->grupo_id === (int) $this->grupo_id;
+            if ((int) $esquema->modulo_id !== (int) $this->modulo_id || ! $aplicaAlGrupo) {
+                $validator->errors()->add('esquema_calificacion_id', 'El esquema de calificación no aplica a este grupo y módulo.');
+            }
+
+            if (! $esquema->tiposNota()->whereKey($this->tipo_nota_esquema_id)->exists()) {
+                $validator->errors()->add('tipo_nota_esquema_id', 'El tipo de nota no pertenece al esquema de calificación.');
+            }
+        });
     }
 }

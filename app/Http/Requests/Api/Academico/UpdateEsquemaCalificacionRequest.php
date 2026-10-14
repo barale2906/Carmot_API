@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Api\Academico;
 
+use App\Models\Academico\EsquemaCalificacion;
 use App\Traits\HasActiveStatus;
 use App\Traits\HasActiveStatusValidation;
 use Illuminate\Foundation\Http\FormRequest;
@@ -87,6 +88,23 @@ class UpdateEsquemaCalificacionRequest extends FormRequest
                         'tipos_nota',
                         "La suma de los pesos debe ser exactamente 100%. Suma actual: {$sumaPesos}%"
                     );
+                }
+
+                // Quitar un tipo de nota que ya tiene calificaciones dejaría esas notas sin columna en la sábana.
+                $esquema = $this->route('esquema_calificacion');
+                if ($esquema instanceof EsquemaCalificacion) {
+                    $conservados = collect($this->tipos_nota)->pluck('id')->filter()->all();
+                    $conNotas = $esquema->tiposNota()
+                        ->whereNotIn('id', $conservados)
+                        ->whereHas('notasEstudiantes')
+                        ->pluck('nombre_tipo');
+
+                    if ($conNotas->isNotEmpty()) {
+                        $validator->errors()->add(
+                            'tipos_nota',
+                            'No se pueden quitar tipos de nota con calificaciones registradas: ' . $conNotas->implode(', ') . '.'
+                        );
+                    }
                 }
             }
         });

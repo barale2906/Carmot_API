@@ -40,8 +40,12 @@ class MatriculaResource extends JsonResource
             'monto'            => (float) $this->monto,
             'valor_cuota'      => $this->valor_cuota !== null ? (float) $this->valor_cuota : null,
             'observaciones'    => $this->observaciones,
+            'referido_id'      => $this->referido_id,
             'status'           => $this->status,
             'status_text'      => self::getActiveStatusText($this->status),
+            'estado_academico'       => $this->estado_academico,
+            'estado_academico_texto' => $this->estado_academico_texto,
+            'fecha_estado_academico' => $this->fecha_estado_academico?->format('Y-m-d'),
             'anulada'          => $this->anulada,
             'activa'           => $this->activa,
 
@@ -167,6 +171,12 @@ class MatriculaResource extends JsonResource
                 'pais'      => $this->lugarOrigen->pais,
                 'provincia' => $this->lugarOrigen->provincia,
                 'nombre'    => $this->lugarOrigen->nombre,
+            ] : null),
+
+            'referido' => $this->whenLoaded('referido', fn () => $this->referido ? [
+                'id'      => $this->referido->id,
+                'nombre'  => $this->referido->nombre,
+                'celular' => $this->referido->celular,
             ] : null),
 
             'eps' => $this->whenLoaded('eps', fn () => $this->eps ? [

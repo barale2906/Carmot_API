@@ -21,6 +21,10 @@ class ReferidoResource extends JsonResource
             'nombre' => $this->nombre,
             'celular' => $this->celular,
             'ciudad' => $this->ciudad,
+            'talla_overol' => $this->talla_overol,
+            'talla_botas' => $this->talla_botas,
+            'curso_id' => $this->curso_id,
+            'gestor_id' => $this->gestor_id,
             'status' => $this->status,
             'status_text' => self::getStatusText($this->status),
             'curso' => $this->whenLoaded('curso', function () {

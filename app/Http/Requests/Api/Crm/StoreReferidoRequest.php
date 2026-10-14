@@ -28,6 +28,8 @@ class StoreReferidoRequest extends FormRequest
             'gestor_id' => ['required', 'integer', 'exists:users,id'],
             'nombre' => ['nullable', 'string', 'max:255'],
             'celular' => ['required', 'string', 'unique:referidos,celular', 'max:20'],
+            'talla_overol' => ['nullable', 'string', 'max:10'],
+            'talla_botas' => ['nullable', 'string', 'max:10'],
             'ciudad' => ['required', 'string', 'max:100'],
             'status' => ['sometimes', 'integer', 'in:0,1,2,3,4'],
         ];
@@ -50,6 +52,8 @@ class StoreReferidoRequest extends FormRequest
             'celular.max' => 'El número de celular no puede exceder los 20 caracteres.',
             'ciudad.required' => 'La ciudad es obligatoria.',
             'ciudad.max' => 'El nombre de la ciudad no puede exceder los 100 caracteres.',
+            'talla_overol.max' => 'La talla de overol no puede exceder los 10 caracteres.',
+            'talla_botas.max' => 'La talla de botas no puede exceder los 10 caracteres.',
             'status.in' => 'El estado debe ser uno de: 0 (Creado), 1 (Interesado), 2 (Pendiente), 3 (Matriculado), 4 (Declinado).',
         ];
     }
@@ -66,6 +70,8 @@ class StoreReferidoRequest extends FormRequest
             'gestor_id' => 'gestor',
             'celular' => 'número de celular',
             'ciudad' => 'ciudad',
+            'talla_overol' => 'talla de overol',
+            'talla_botas' => 'talla de botas',
             'status' => 'estado',
         ];
     }

@@ -23,7 +23,7 @@ class AgendaResource extends JsonResource
             'hora' => $this->hora,
             'jornada' => $this->jornada,
             'status' => $this->status,
-            'status_text' => $this->getStatusText(),
+            'status_text' => $this->resource::getStatusText($this->status),
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
             'deleted_at' => $this->deleted_at,
@@ -36,7 +36,7 @@ class AgendaResource extends JsonResource
                     'celular' => $this->referido->celular,
                     'ciudad' => $this->referido->ciudad,
                     'status' => $this->referido->status,
-                    'status_text' => $this->referido->getStatusTextAttribute(),
+                    'status_text' => $this->referido->status_text,
                 ];
             }),
 

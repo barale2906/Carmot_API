@@ -13,6 +13,7 @@ use App\Models\Academico\AsistenciaClaseProgramada;
 use App\Models\Academico\Ciclo;
 use App\Models\Academico\Grupo;
 use App\Models\Academico\Matricula;
+use App\Services\Asistencia\RegistroAsistenciaService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -22,7 +23,7 @@ class AsistenciaController extends Controller
     /**
      * Constructor del controlador.
      */
-    public function __construct()
+    public function __construct(private readonly RegistroAsistenciaService $registroAsistencia)
     {
         $this->middleware('permission:aca_asistencias')->only(['index', 'show', 'listaAsistencia', 'reporteEstudiante', 'reporteGrupo']);
         $this->middleware('permission:aca_asistenciaCrear')->only(['store', 'storeMasivo']);
@@ -112,52 +113,28 @@ class AsistenciaController extends Controller
     }
 
     /**
-     * Almacena asistencias masivas.
+     * Registra o corrige la lista de asistencia de una clase.
+     *
+     * Volver a enviar la lista de la misma clase actualiza los registros en lugar de
+     * duplicarlos; la clase queda marcada como dictada.
      *
      * @param StoreAsistenciaMasivaRequest $request
      * @return JsonResponse
      */
     public function storeMasivo(StoreAsistenciaMasivaRequest $request): JsonResponse
     {
-        try {
-            DB::beginTransaction();
+        $clase = AsistenciaClaseProgramada::findOrFail($request->clase_programada_id);
 
-            $claseProgramada = AsistenciaClaseProgramada::with(['grupo', 'ciclo'])->findOrFail($request->clase_programada_id);
-            $grupo = $claseProgramada->grupo;
-            $ciclo = $claseProgramada->ciclo;
+        $resultado = $this->registroAsistencia->registrarClase($clase, $request->asistencias, auth()->id());
 
-            $asistencias = [];
-            foreach ($request->asistencias as $asistenciaData) {
-                $asistencia = Asistencia::create([
-                    'estudiante_id' => $asistenciaData['estudiante_id'],
-                    'clase_programada_id' => $request->clase_programada_id,
-                    'grupo_id' => $grupo->id,
-                    'ciclo_id' => $ciclo->id,
-                    'modulo_id' => $grupo->modulo_id,
-                    'curso_id' => $ciclo->curso_id,
-                    'estado' => $asistenciaData['estado'],
-                    'hora_registro' => now()->format('H:i:s'),
-                    'observaciones' => $asistenciaData['observaciones'] ?? null,
-                    'registrado_por_id' => auth()->id(),
-                    'fecha_registro' => now(),
-                ]);
-
-                $asistencias[] = $asistencia;
-            }
-
-            DB::commit();
-
-            return response()->json([
-                'message' => count($asistencias) . ' asistencias registradas exitosamente.',
-                'data' => AsistenciaResource::collection(collect($asistencias)->load(['estudiante', 'claseProgramada', 'grupo', 'ciclo'])),
-            ], 201);
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return response()->json([
-                'message' => 'Error al registrar las asistencias.',
-                'error' => $e->getMessage(),
-            ], 500);
-        }
+        return response()->json([
+            'message' => "Asistencia registrada: {$resultado['creadas']} nuevas, {$resultado['actualizadas']} actualizadas.",
+            'data'    => AsistenciaResource::collection($resultado['asistencias']->load('estudiante')),
+            'meta'    => [
+                'creadas'      => $resultado['creadas'],
+                'actualizadas' => $resultado['actualizadas'],
+            ],
+        ], 201);
     }
 
     /**
@@ -282,9 +259,10 @@ class AsistenciaController extends Controller
 
             $ciclosIds = $ciclosActivos->pluck('id');
 
-            // Obtener matrículas activas de esos ciclos
+            // Matrículas vigentes de esos ciclos; los aplazados no asisten mientras dure el aplazamiento.
             $matriculas = Matricula::whereIn('ciclo_id', $ciclosIds)
                 ->where('status', 1)
+                ->where('estado_academico', Matricula::ESTADO_ACTIVO)
                 ->with(['estudiante', 'ciclo'])
                 ->get();
 

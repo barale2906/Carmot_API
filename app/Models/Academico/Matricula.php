@@ -3,6 +3,7 @@
 namespace App\Models\Academico;
 
 use App\Models\Configuracion\Eps;
+use App\Models\Crm\Referido;
 use App\Models\Configuracion\Poblacion;
 use App\Models\Configuracion\Sede;
 use App\Models\Financiero\Cartera\Cartera;
@@ -32,6 +33,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property int $estudiante_id
  * @property int $matriculado_por_id
  * @property int $comercial_id
+ * @property int|null $referido_id lead del CRM del que proviene
  * @property string $fecha_matricula
  * @property string $fecha_inicio
  * @property float $monto
@@ -69,6 +71,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property string|null $multiculturalidad
  * @property string|null $foto
  * @property int $status 0: Inactivo | 1: Activo | 2: Anulado
+ * @property int $estado_academico 1 Activo | 2 Aplazado | 3 Desertado | 4 Retirado | 5 Graduado
+ * @property \Illuminate\Support\Carbon|null $fecha_estado_academico
  * @property-read \App\Models\Academico\Curso          $curso
  * @property-read \App\Models\Academico\Ciclo          $ciclo
  * @property-read \App\Models\User                     $estudiante
@@ -87,6 +91,31 @@ class Matricula extends Model
     // -------------------------------------------------------------------------
     // Catálogos de valores permitidos (usados en validaciones y en el Resource)
     // -------------------------------------------------------------------------
+
+    /** Estado académico del estudiante (independiente del `status` administrativo). */
+    public const ESTADO_ACTIVO    = 1;
+    public const ESTADO_APLAZADO  = 2;
+    public const ESTADO_DESERTADO = 3;
+    public const ESTADO_RETIRADO  = 4;
+    public const ESTADO_GRADUADO  = 5;
+
+    public const ESTADOS_ACADEMICOS = [
+        self::ESTADO_ACTIVO    => 'Activo',
+        self::ESTADO_APLAZADO  => 'Aplazado',
+        self::ESTADO_DESERTADO => 'Desertado',
+        self::ESTADO_RETIRADO  => 'Retirado',
+        self::ESTADO_GRADUADO  => 'Graduado',
+    ];
+
+    /**
+     * Estados que cierran la formación: la matrícula deja de estar vigente (status 0),
+     * con lo que libera el cupo del ciclo y permite una nueva matrícula en el curso.
+     */
+    public const ESTADOS_ACADEMICOS_FINALES = [
+        self::ESTADO_DESERTADO,
+        self::ESTADO_RETIRADO,
+        self::ESTADO_GRADUADO,
+    ];
 
     public const TIPOS_IDENTIFICACION = [
         'CC' => 'Cédula de Ciudadanía',
@@ -157,6 +186,8 @@ class Matricula extends Model
      */
     protected $casts = [
         'status' => 'integer',
+        'estado_academico' => 'integer',
+        'fecha_estado_academico' => 'date',
         'fecha_matricula' => 'date',
         'fecha_inicio' => 'date',
         'fecha_nacimiento' => 'date',
@@ -216,6 +247,22 @@ class Matricula extends Model
     }
 
     /**
+     * Historial de cambios de estado académico, del más reciente al más antiguo.
+     */
+    public function historialEstados(): HasMany
+    {
+        return $this->hasMany(MatriculaEstado::class)->latest('fecha')->latest('id');
+    }
+
+    /**
+     * Lead del CRM del que proviene la matrícula.
+     */
+    public function referido(): BelongsTo
+    {
+        return $this->belongsTo(Referido::class);
+    }
+
+    /**
      * EPS a la que pertenece el estudiante al momento de la matrícula.
      */
     public function eps(): BelongsTo
@@ -269,6 +316,11 @@ class Matricula extends Model
     public function getActivaAttribute(): bool
     {
         return $this->status === 1;
+    }
+
+    public function getEstadoAcademicoTextoAttribute(): ?string
+    {
+        return self::ESTADOS_ACADEMICOS[$this->estado_academico] ?? null;
     }
 
     public function getTipoIdentificacionTextoAttribute(): ?string
@@ -411,6 +463,7 @@ class Matricula extends Model
             ->when(isset($filters['curso_id']) && $filters['curso_id'], fn ($q) => $q->byCurso($filters['curso_id']))
             ->when(isset($filters['ciclo_id']) && $filters['ciclo_id'], fn ($q) => $q->byCiclo($filters['ciclo_id']))
             ->when(isset($filters['estudiante_id']) && $filters['estudiante_id'], fn ($q) => $q->byEstudiante($filters['estudiante_id']))
+            ->when(! empty($filters['estado_academico']), fn ($q) => $q->where('estado_academico', $filters['estado_academico']))
             ->when(
                 isset($filters['fecha_matricula_inicio']) && isset($filters['fecha_matricula_fin']),
                 fn ($q) => $q->byFechaMatriculaRange($filters['fecha_matricula_inicio'], $filters['fecha_matricula_fin'])
@@ -449,6 +502,8 @@ class Matricula extends Model
             'recibosPago',
             'carteras',
             'lpPrecioProducto',
+            'referido',
+            'historialEstados',
         ];
     }
 
@@ -571,6 +626,12 @@ class Matricula extends Model
         });
 
         static::created(function ($matricula) {
+            // El lead del CRM queda matriculado aunque la matrícula nazca inactiva:
+            // la conversión comercial ya ocurrió.
+            if ($matricula->referido_id) {
+                $matricula->referido?->marcarMatriculado($matricula);
+            }
+
             if ($matricula->status === 1) {
                 $matricula->incrementarInscritos();
                 $matricula->attachEstudianteACurso();

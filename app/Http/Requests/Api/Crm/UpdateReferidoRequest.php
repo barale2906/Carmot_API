@@ -36,6 +36,8 @@ class UpdateReferidoRequest extends FormRequest
                 'max:20',
                 Rule::unique('referidos', 'celular')->ignore($referidoId)
             ],
+            'talla_overol' => ['sometimes', 'nullable', 'string', 'max:10'],
+            'talla_botas' => ['sometimes', 'nullable', 'string', 'max:10'],
             'ciudad' => ['sometimes', 'string', 'max:100'],
             'status' => ['sometimes', 'integer', 'in:0,1,2,3,4'],
         ];
@@ -54,6 +56,8 @@ class UpdateReferidoRequest extends FormRequest
             'celular.unique' => 'Este número de celular ya está registrado.',
             'celular.max' => 'El número de celular no puede exceder los 20 caracteres.',
             'ciudad.max' => 'El nombre de la ciudad no puede exceder los 100 caracteres.',
+            'talla_overol.max' => 'La talla de overol no puede exceder los 10 caracteres.',
+            'talla_botas.max' => 'La talla de botas no puede exceder los 10 caracteres.',
             'status.in' => 'El estado debe ser uno de: 0 (Creado), 1 (Interesado), 2 (Pendiente), 3 (Matriculado), 4 (Declinado).',
         ];
     }
@@ -70,6 +74,8 @@ class UpdateReferidoRequest extends FormRequest
             'gestor_id' => 'gestor',
             'celular' => 'número de celular',
             'ciudad' => 'ciudad',
+            'talla_overol' => 'talla de overol',
+            'talla_botas' => 'talla de botas',
             'status' => 'estado',
         ];
     }

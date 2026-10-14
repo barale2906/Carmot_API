@@ -184,7 +184,37 @@ trait HasAgendaScopes
         return $query->where('status', 4);
     }
 
+    /**
+     * Busca por nombre o celular del lead agendado.
+     *
+     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @param string $search
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    public function scopeSearchReferido($query, $search)
+    {
+        return $query->whereHas('referido', function ($q) use ($search) {
+            $q->where('nombre', 'like', '%' . $search . '%')
+                ->orWhere('celular', 'like', '%' . $search . '%');
+        });
+    }
 
-
-
+    /**
+     * Aplica los filtros del listado de agendas.
+     *
+     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @param array $filters
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    public function scopeWithAgendaFilters($query, array $filters)
+    {
+        return $query
+            ->when(! empty($filters['search']), fn ($q) => $q->searchReferido($filters['search']))
+            ->when(! empty($filters['referido_id']), fn ($q) => $q->byReferido($filters['referido_id']))
+            ->when(! empty($filters['agendador_id']), fn ($q) => $q->byAgendador($filters['agendador_id']))
+            ->when(! empty($filters['jornada']), fn ($q) => $q->byJornada($filters['jornada']))
+            ->when(isset($filters['status']) && $filters['status'] !== '', fn ($q) => $q->where('status', $filters['status']))
+            ->when(! empty($filters['fecha_desde']), fn ($q) => $q->byFechaDesde($filters['fecha_desde']))
+            ->when(! empty($filters['fecha_hasta']), fn ($q) => $q->byFechaHasta($filters['fecha_hasta']));
+    }
 }

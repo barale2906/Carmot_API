@@ -81,13 +81,17 @@ class LibroDiarioTest extends TestCase
         $this->assertTrue($registros->every(fn ($r) => filled($r['usuario'])));
 
         $movimiento = LdMovimiento::where('tercero_nombre', 'Papelería Lápiz')->first();
-        $fila = $registros->firstWhere('registro_id', $movimiento->id);
+        // registro_id solo es único dentro de su origen (un recibo y un movimiento pueden compartir id).
+        $fila = $registros->first(fn ($r) => $r['origen'] === LibroDiarioService::ORIGEN_MOVIMIENTO && $r['registro_id'] === $movimiento->id);
         $this->assertSame($movimiento->usuario->name, $fila['usuario']);
 
+        // Nombre único: con uno aleatorio de la factory la búsqueda podía coincidir con otro usuario.
+        $movimiento->usuario->update(['primer_nombre' => 'Eustaquiolibro']);
+
         $this->actingAs($this->usuario)
-            ->getJson(route('libro-diario.index', ['search' => $movimiento->usuario->primer_nombre]))
+            ->getJson(route('libro-diario.index', ['search' => 'Eustaquiolibro']))
             ->assertOk()
-            ->assertJsonPath('data.0.usuario', $movimiento->usuario->name);
+            ->assertJsonPath('data.0.usuario', $movimiento->usuario->fresh()->name);
     }
 
     /** @test */

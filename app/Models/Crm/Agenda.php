@@ -44,6 +44,46 @@ class Agenda extends Model
     }
 
     /**
+     * Campos por los que se puede ordenar el listado.
+     *
+     * @return array
+     */
+    protected function getAllowedSortFields(): array
+    {
+        return ['fecha', 'hora', 'jornada', 'status', 'created_at', 'updated_at'];
+    }
+
+    /**
+     * Relaciones que se pueden cargar vía `with`.
+     *
+     * @return array
+     */
+    protected function getAllowedRelations(): array
+    {
+        return ['referido', 'agendador'];
+    }
+
+    /**
+     * Relaciones cargadas por defecto.
+     *
+     * @return array
+     */
+    protected function getDefaultRelations(): array
+    {
+        return ['referido', 'agendador'];
+    }
+
+    /**
+     * La agenda no tiene relaciones contables.
+     *
+     * @return array
+     */
+    protected function getCountableRelations(): array
+    {
+        return [];
+    }
+
+    /**
      * Relación con el referido al que pertenece este agendamiento.
      *
      * @return BelongsTo
@@ -74,7 +114,7 @@ class Agenda extends Model
             'referido_id' => $this->referido_id,
             'seguidor_id' => $this->agendador_id,
             'fecha' => now(),
-            'seguimiento' => "AGENDA: Cita agendada para el {$this->fecha} a las {$this->hora} ({$this->jornada})"
+            'seguimiento' => "AGENDA: Cita agendada para el {$this->fecha->format('Y-m-d')} a las {$this->hora} ({$this->jornada})"
         ]);
     }
 

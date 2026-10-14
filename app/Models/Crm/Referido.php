@@ -3,6 +3,7 @@
 namespace App\Models\Crm;
 
 use App\Models\Academico\Curso;
+use App\Models\Academico\Matricula;
 use App\Models\User;
 use App\Traits\HasFilterScopes;
 use App\Traits\HasRelationScopes;
@@ -53,6 +54,49 @@ class Referido extends Model
     public function gestor() : BelongsTo
     {
         return $this->BelongsTo(User::class);
+    }
+
+    /**
+     * Matrículas generadas a partir de este lead.
+     *
+     * @return HasMany
+     */
+    public function matriculas(): HasMany
+    {
+        return $this->hasMany(Matricula::class);
+    }
+
+    /**
+     * Busca por nombre o celular: el asesor suele identificar al lead por su número.
+     * Sobrescribe el scope genérico de HasFilterScopes, que solo busca por nombre.
+     *
+     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @param string $search
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    public function scopeSearch($query, $search)
+    {
+        return $query->where(function ($q) use ($search) {
+            $q->where('nombre', 'like', '%' . $search . '%')
+                ->orWhere('celular', 'like', '%' . $search . '%');
+        });
+    }
+
+    /**
+     * Marca el lead como matriculado y deja constancia en su bitácora de seguimiento.
+     *
+     * @param Matricula $matricula
+     * @return void
+     */
+    public function marcarMatriculado(Matricula $matricula): void
+    {
+        $this->update(['status' => 3]);
+
+        $this->seguimientos()->create([
+            'seguidor_id' => $matricula->matriculado_por_id,
+            'fecha'       => now()->toDateString(),
+            'seguimiento' => "MATRÍCULA: Convertido en la matrícula #{$matricula->id}.",
+        ]);
     }
 
     /**

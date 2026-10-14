@@ -42,6 +42,7 @@ class StoreMatriculaRequest extends FormRequest
             'estudiante_id'        => 'required|integer|exists:users,id',
             'matriculado_por_id'   => 'required|integer|exists:users,id',
             'comercial_id'         => 'required|integer|exists:users,id',
+            'referido_id'          => ['nullable', 'integer', Rule::exists('referidos', 'id')->whereNull('deleted_at')],
             'fecha_matricula'      => 'required|date',
             'fecha_inicio'         => 'required|date|after_or_equal:fecha_matricula',
             'monto'                   => 'required|numeric|min:0',
@@ -164,6 +165,7 @@ class StoreMatriculaRequest extends FormRequest
             'tipo_discapacidad.required_if'  => 'Selecciona el tipo de discapacidad.',
             'tipo_discapacidad.in'           => 'El tipo de discapacidad no es válido. Valores permitidos: ' . implode(', ', array_keys(Matricula::TIPOS_DISCAPACIDAD)) . '.',
             'eps_id.exists'               => 'La EPS seleccionada no existe.',
+            'referido_id.exists'          => 'El lead seleccionado no existe o fue eliminado.',
             'correo_contacto.email'       => 'El correo del contacto debe ser una dirección de correo válida.',
 
             // Foto
@@ -226,6 +228,7 @@ class StoreMatriculaRequest extends FormRequest
             'nivel_educacion'         => 'nivel de educación',
             'regimen_salud'           => 'régimen de salud',
             'eps_id'                  => 'EPS',
+            'referido_id'             => 'lead',
             'enfermedad_prioritaria'  => 'enfermedad de atención prioritaria',
             'enfermedad_detalle'      => 'enfermedad',
             'tipo_discapacidad'       => 'tipo de discapacidad',

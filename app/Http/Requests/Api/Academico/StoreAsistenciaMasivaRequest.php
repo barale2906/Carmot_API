@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Api\Academico;
 
+use App\Models\Academico\AsistenciaClaseProgramada;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -25,7 +26,7 @@ class StoreAsistenciaMasivaRequest extends FormRequest
         return [
             'clase_programada_id' => ['required', 'integer', 'exists:asistencia_clases_programadas,id'],
             'asistencias' => ['required', 'array', 'min:1'],
-            'asistencias.*.estudiante_id' => ['required', 'integer', 'exists:users,id'],
+            'asistencias.*.estudiante_id' => ['required', 'integer', 'distinct', 'exists:users,id'],
             'asistencias.*.estado' => ['required', Rule::in(['presente', 'ausente', 'justificado', 'tardanza'])],
             'asistencias.*.observaciones' => ['nullable', 'string', 'max:5000'],
         ];
@@ -48,10 +49,34 @@ class StoreAsistenciaMasivaRequest extends FormRequest
             'asistencias.*.estudiante_id.required' => 'El campo estudiante es obligatorio en cada asistencia.',
             'asistencias.*.estudiante_id.integer' => 'El campo estudiante debe ser un número entero.',
             'asistencias.*.estudiante_id.exists' => 'El estudiante seleccionado no existe.',
+            'asistencias.*.estudiante_id.distinct' => 'Un estudiante aparece repetido en la lista.',
             'asistencias.*.estado.required' => 'El campo estado es obligatorio en cada asistencia.',
             'asistencias.*.estado.in' => 'El estado debe ser: presente, ausente, justificado o tardanza.',
             'asistencias.*.observaciones.string' => 'Las observaciones deben ser texto.',
             'asistencias.*.observaciones.max' => 'Las observaciones no pueden exceder los 5000 caracteres.',
         ];
+    }
+
+    /**
+     * No se toma asistencia en una clase cancelada ni en una que todavía no ocurre.
+     *
+     * @param \Illuminate\Validation\Validator $validator
+     * @return void
+     */
+    public function withValidator($validator): void
+    {
+        $validator->after(function ($validator) {
+            $clase = AsistenciaClaseProgramada::find($this->clase_programada_id);
+
+            if (! $clase) {
+                return;
+            }
+
+            if ($clase->estado === 'cancelada') {
+                $validator->errors()->add('clase_programada_id', 'La clase está cancelada: no se puede tomar asistencia.');
+            } elseif ($clase->fecha_clase->isAfter(today())) {
+                $validator->errors()->add('clase_programada_id', 'La clase es del ' . $clase->fecha_clase->format('d/m/Y') . ': la asistencia se toma el día de la clase o después.');
+            }
+        });
     }
 }

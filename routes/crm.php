@@ -18,10 +18,7 @@ use Illuminate\Support\Facades\Route;
 // Todas las rutas de referidos requieren autenticación con Sanctum.
 // Los permisos específicos para cada acción CRUD se manejan en el ReferidoController.
 Route::middleware('auth:sanctum')->group(function () {
-    // Rutas principales de referidos (CRUD estándar)
-    Route::apiResource('referidos', ReferidoController::class);
-
-    // Rutas adicionales para soft delete
+    // Rutas adicionales (registradas antes del apiResource para que {referido} no las capture)
     Route::prefix('referidos')->group(function () {
         Route::post('{id}/restore', [ReferidoController::class, 'restore'])
             ->name('referidos.restore');
@@ -34,9 +31,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('statistics', [ReferidoController::class, 'statistics'])
             ->name('referidos.statistics');
     });
-
-    // Rutas principales de Seguimientos (CRUD estándar)
-    Route::apiResource('seguimientos', SeguimientoController::class);
+    Route::apiResource('referidos', ReferidoController::class);
 
     // Rutas adicionales para seguimientos
     Route::prefix('seguimientos')->group(function () {
@@ -49,9 +44,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('by-seguidor/{seguidorId}', [SeguimientoController::class, 'bySeguidor'])
             ->name('seguimientos.by-seguidor');
     });
-
-    // Rutas principales de Agendas (CRUD estándar)
-    Route::apiResource('agendas', AgendaController::class);
+    Route::apiResource('seguimientos', SeguimientoController::class);
 
     // Rutas adicionales para agendas
     Route::prefix('agendas')->group(function () {
@@ -66,4 +59,5 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('statistics', [AgendaController::class, 'statistics'])
             ->name('agendas.statistics');
     });
+    Route::apiResource('agendas', AgendaController::class);
 });

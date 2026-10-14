@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\Dashboard\DashboardController;
+use App\Http\Controllers\Api\Dashboard\DashboardResumenController;
 use App\Http\Controllers\Api\Dashboard\KpiConfigController;
 use App\Http\Controllers\Api\Dashboard\KpiController;
 use App\Http\Controllers\Api\Dashboard\KpiCrudController;
@@ -20,6 +21,9 @@ use Illuminate\Support\Facades\Route;
 // Todas las rutas de dashboard requieren autenticación con Sanctum.
 // Los permisos específicos para cada acción se manejan en los controladores.
 Route::middleware('auth:sanctum')->group(function () {
+    // Resumen del dashboard de inicio (cada sección según los permisos del usuario)
+    Route::get('resumen', [DashboardResumenController::class, 'index'])->name('dashboard.resumen');
+
     // Rutas de dashboards
     Route::apiResource('dashboards', DashboardController::class);
     Route::post('dashboards/{dashboard}/export-pdf', [DashboardController::class, 'exportPdf']);

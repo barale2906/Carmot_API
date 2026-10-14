@@ -8,6 +8,7 @@ use App\Http\Requests\Api\Academico\UpdateGrupoRequest;
 use App\Http\Requests\Api\Academico\StoreGrupoHorarioRequest;
 use App\Http\Requests\Api\Academico\UpdateGrupoHorarioRequest;
 use App\Http\Resources\Api\Academico\GrupoResource;
+use App\Http\Resources\Api\Academico\GrupoVigenteResource;
 use App\Models\Academico\Grupo;
 use App\Models\Configuracion\Horario;
 use App\Traits\HasActiveStatus;
@@ -27,6 +28,8 @@ class GrupoController extends Controller
     public function __construct()
     {
         $this->middleware('permission:aca_grupos')->only(['index', 'show', 'filters', 'statistics', 'getHorarios', 'getHorariosEstadisticas']);
+        // Selector de las pantallas de asistencia y calificaciones: lo usan profesores sin acceso a la gestión de grupos.
+        $this->middleware('permission:aca_grupos|aca_asistencias|aca_notas')->only(['vigentes']);
         $this->middleware('permission:aca_grupoCrear')->only(['store', 'storeHorarios']);
         $this->middleware('permission:aca_grupoEditar')->only(['update', 'updateHorarios']);
         $this->middleware('permission:aca_grupoInactivar')->only(['destroy', 'restore', 'forceDelete', 'trashed', 'destroyHorarios']);
@@ -513,6 +516,27 @@ class GrupoController extends Controller
 
         return response()->json([
             'data' => $estadisticas,
+        ]);
+    }
+
+    /**
+     * Grupos con al menos un ciclo vigente (activo y dentro de fechas): los grupos
+     * en los que hoy se toma asistencia y se registran notas.
+     * Con `mis_grupos=1` se limita a los grupos donde el usuario es el profesor.
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function vigentes(Request $request): JsonResponse
+    {
+        $grupos = Grupo::whereHas('ciclos', fn ($q) => $q->activosVigentes())
+            ->when($request->boolean('mis_grupos'), fn ($q) => $q->where('profesor_id', $request->user()->id))
+            ->with(['modulo', 'sede', 'profesor'])
+            ->orderBy('nombre')
+            ->get();
+
+        return response()->json([
+            'data' => GrupoVigenteResource::collection($grupos),
         ]);
     }
 }

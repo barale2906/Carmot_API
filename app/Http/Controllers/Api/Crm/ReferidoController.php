@@ -78,6 +78,8 @@ class ReferidoController extends Controller
             'nombre' => $request->nombre,
             'celular' => $request->celular,
             'ciudad' => $request->ciudad,
+            'talla_overol' => $request->talla_overol,
+            'talla_botas' => $request->talla_botas,
             'status' => $request->status ?? 0, // Por defecto estado "Creado"
         ]);
 
@@ -127,6 +129,8 @@ class ReferidoController extends Controller
             'nombre',
             'celular',
             'ciudad',
+            'talla_overol',
+            'talla_botas',
             'status',
         ]));
 
@@ -249,7 +253,11 @@ class ReferidoController extends Controller
     {
         $ciudades = Referido::distinct()->pluck('ciudad')->filter()->sort()->values();
         $cursos = Curso::select('id', 'nombre')->get();
-        $gestores = User::select('id', 'name', 'email')->get();
+        // `name` es un accessor (nombre compuesto), no una columna: se arma en PHP.
+        $gestores = User::select('id', 'primer_nombre', 'segundo_nombre', 'primer_apellido', 'segundo_apellido', 'email')
+            ->orderBy('primer_nombre')
+            ->get()
+            ->map(fn (User $user) => ['id' => $user->id, 'name' => $user->name, 'email' => $user->email]);
 
         return response()->json([
             'data' => [

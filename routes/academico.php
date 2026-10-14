@@ -91,6 +91,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('grupos')->group(function () {
         Route::get('trashed', [GrupoController::class, 'trashed'])->name('grupos.trashed');
         Route::get('filters', [GrupoController::class, 'filters'])->name('grupos.filters');
+        Route::get('vigentes', [GrupoController::class, 'vigentes'])->name('grupos.vigentes');
         Route::get('statistics', [GrupoController::class, 'statistics'])->name('grupos.statistics');
         Route::post('{id}/restore', [GrupoController::class, 'restore'])->name('grupos.restore');
         Route::delete('{id}/force-delete', [GrupoController::class, 'forceDelete'])->name('grupos.force-delete');
@@ -183,6 +184,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('filters', [MatriculaController::class, 'filters'])->name('matriculas.filters');
         Route::get('statistics', [MatriculaController::class, 'statistics'])->name('matriculas.statistics');
         Route::get('precarga-estudiante/{estudianteId}', [MatriculaController::class, 'precargaEstudiante'])->name('matriculas.precarga-estudiante');
+        Route::post('{matricula}/estado-academico', [MatriculaController::class, 'cambiarEstadoAcademico'])->name('matriculas.estado-academico');
+        Route::get('{matricula}/historial-estados', [MatriculaController::class, 'historialEstados'])->name('matriculas.historial-estados');
         Route::post('{id}/restore', [MatriculaController::class, 'restore'])->name('matriculas.restore');
         Route::delete('{id}/force-delete', [MatriculaController::class, 'forceDelete'])->name('matriculas.force-delete');
     });
@@ -195,7 +198,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('{id}/restore', [EsquemaCalificacionController::class, 'restore'])->name('esquemas-calificacion.restore');
         Route::get('modulo/{moduloId}/grupo/{grupoId?}', [EsquemaCalificacionController::class, 'getByModuloGrupo'])->name('esquemas-calificacion.by-modulo-grupo');
     });
-    Route::apiResource('esquemas-calificacion', EsquemaCalificacionController::class);
+    // El parámetro debe coincidir con la variable del controlador para el route model binding.
+    Route::apiResource('esquemas-calificacion', EsquemaCalificacionController::class)
+        ->parameters(['esquemas-calificacion' => 'esquema_calificacion']);
 
     // -------------------------------------------------------------------------
     // Notas de estudiantes
@@ -208,7 +213,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('grupo/{grupoId}/modulo/{moduloId}/sabana', [NotaEstudianteController::class, 'sabanaGrupal'])->name('notas-estudiantes.sabana-grupal');
         Route::post('{id}/restore', [NotaEstudianteController::class, 'restore'])->name('notas-estudiantes.restore');
     });
-    Route::apiResource('notas-estudiantes', NotaEstudianteController::class);
+    Route::apiResource('notas-estudiantes', NotaEstudianteController::class)
+        ->parameters(['notas-estudiantes' => 'nota_estudiante']);
 
     // -------------------------------------------------------------------------
     // Asistencias
