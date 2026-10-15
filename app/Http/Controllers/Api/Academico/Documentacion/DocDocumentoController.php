@@ -125,7 +125,7 @@ class DocDocumentoController extends Controller
             $request->user()
         );
 
-        return $this->pdf->generarPDF($tipoDocumento, $contenido)
+        return $this->pdf->generarPDF($tipoDocumento, $contenido, $entidad)
             ->download($this->pdf->nombreArchivo($tipoDocumento, $entidad?->getKey()));
     }
 

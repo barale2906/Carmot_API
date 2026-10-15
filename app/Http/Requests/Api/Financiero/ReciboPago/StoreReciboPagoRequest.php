@@ -72,7 +72,8 @@ class StoreReciboPagoRequest extends FormRequest
             'conceptos_adicionales.*.concepto_pago_id' => 'required|integer|exists:conceptos_pago,id',
             'conceptos_adicionales.*.cantidad'          => 'required|integer|min:1',
 
-            // Medios de pago — la suma debe igualar monto_a_pagar (bruto, incluye sobrecargos).
+            // Medios de pago — la suma debe igualar monto_a_pagar, sin sobrecargos: cada medio se envía
+            // por su valor base y al registrar el recibo se le suma su recargo (queda lo cobrado).
             // Si el medio es 'transferencia' solo puede haber un elemento en este array.
             // En un recibo de costo cero (monto_a_pagar = 0) no se registran medios de pago.
             'medios_pago'                               => $this->esReciboCostoCero()
@@ -106,9 +107,9 @@ class StoreReciboPagoRequest extends FormRequest
     public function withValidator($validator): void
     {
         $validator->after(function ($validator) {
-            // El recibo solo se genera dentro de un turno de caja abierto del cajero en la sede
-            if (! $validator->errors()->hasAny(['cajero_id', 'sede_id'])
-                && ! LdTurnoCaja::abiertoDe((int) $this->cajero_id, (int) $this->sede_id)->exists()) {
+            // El recibo solo se genera dentro de un turno de caja abierto del cajero (en cualquier sede)
+            if (! $validator->errors()->has('cajero_id')
+                && ! LdTurnoCaja::abiertoDe((int) $this->cajero_id)->exists()) {
                 $validator->errors()->add('cajero_id', LdTurnoCaja::MENSAJE_SIN_TURNO);
             }
 
@@ -140,7 +141,7 @@ class StoreReciboPagoRequest extends FormRequest
                 if (abs($suma - (float) $this->monto_a_pagar) > 0.01) {
                     $validator->errors()->add(
                         'medios_pago',
-                        'La suma de los medios de pago debe ser igual al monto a pagar (incluyendo sobrecargos).'
+                        'La suma de los medios de pago debe ser igual al monto a pagar (sin recargos: el recargo se suma al medio de pago al registrar).'
                     );
                 }
             }

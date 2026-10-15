@@ -6,12 +6,14 @@ use App\Traits\HasActiveStatus;
 use App\Traits\HasActiveStatusValidation;
 use App\Traits\HasJornadaStatus;
 use App\Traits\HasJornadaStatusValidation;
+use App\Http\Requests\Api\Academico\Concerns\ValidaDatosGrupo;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Validator;
 use Illuminate\Validation\Rule;
 
 class StoreGrupoRequest extends FormRequest
 {
-    use HasActiveStatus, HasActiveStatusValidation, HasJornadaStatus, HasJornadaStatusValidation;
+    use HasActiveStatus, HasActiveStatusValidation, HasJornadaStatus, HasJornadaStatusValidation, ValidaDatosGrupo;
 
     /**
      * Determina si el usuario está autorizado para hacer esta solicitud.
@@ -33,7 +35,6 @@ class StoreGrupoRequest extends FormRequest
             'modulo_id' => 'required|integer|exists:modulos,id',
             'profesor_id' => 'required|integer|exists:users,id',
             'nombre' => ['required', 'string', 'max:255', Rule::unique('grupos', 'nombre')->whereNull('deleted_at')],
-            'inscritos' => 'required|integer|min:0|max:50',
             'jornada' => self::getJornadaValidationRule(),
             'status' => self::getStatusValidationRule(),
 
@@ -68,10 +69,6 @@ class StoreGrupoRequest extends FormRequest
             'nombre.string' => 'El nombre del grupo debe ser una cadena de texto.',
             'nombre.max' => 'El nombre del grupo no puede tener más de 255 caracteres.',
             'nombre.unique' => 'Ya existe un grupo con este nombre.',
-            'inscritos.required' => 'El número de inscritos es obligatorio.',
-            'inscritos.integer' => 'El número de inscritos debe ser un número entero.',
-            'inscritos.min' => 'El número de inscritos no puede ser menor a 0.',
-            'inscritos.max' => 'El número de inscritos no puede ser mayor a 50.',
 
             // Mensajes para horarios
             'horarios.array' => 'Los horarios deben ser un arreglo.',
@@ -103,7 +100,6 @@ class StoreGrupoRequest extends FormRequest
             'sede_id' => 'sede',
             'modulo_id' => 'módulo',
             'profesor_id' => 'profesor',
-            'inscritos' => 'número de inscritos',
             'jornada' => 'jornada',
             'horarios' => 'horarios',
             'horarios.*.area_id' => 'área',
@@ -129,5 +125,20 @@ class StoreGrupoRequest extends FormRequest
             }
             $this->merge(['horarios' => $horarios]);
         }
+    }
+
+    /**
+     * Validaciones posteriores: profesor con rol profesor y áreas de la sede del grupo.
+     *
+     * @param Validator $validator
+     * @return void
+     */
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator) {
+            $this->validarProfesor($validator, $this->input('profesor_id'));
+            $this->validarAreasEnSede($validator, $this->input('sede_id'), $this->input('horarios'));
+            $this->validarHorariosEnJornadaSede($validator, $this->input('sede_id'), $this->input('horarios'));
+        });
     }
 }

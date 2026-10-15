@@ -60,7 +60,6 @@ class ProgramacionResource extends JsonResource
                 'email' => $this->sede->email,
                 'hora_inicio' => $this->sede->hora_inicio?->format('H:i:s'),
                 'hora_fin' => $this->sede->hora_fin?->format('H:i:s'),
-                'status' => $this->sede->status,
             ]),
 
             /** @var array<int, array{id: int, nombre: string, inscritos: int, jornada: int, jornada_nombre: string, status: int, status_text: string, fecha_inicio_grupo: string|null, fecha_fin_grupo: string|null, modulo: array{id: int, nombre: string, duracion: int}|null, profesor: array{id: int, name: string, email: string}|null, horarios: array<int, array{id: int, dia: string, hora: string, duracion_horas: int}>|null}> */

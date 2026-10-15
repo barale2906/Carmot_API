@@ -165,6 +165,30 @@ class DescuentoTest extends TestCase
             ->assertJsonPath('data.nombre', 'Descuento modificado');
     }
 
+    /** @test */
+    public function un_descuento_activo_no_cambia_su_calculo_sin_volver_a_aprobacion(): void
+    {
+        // N06 (prueba integral 2): "Pronto pago 5 %" pasó a 50 % y siguió activo
+        $descuento = Descuento::factory()->activo()->pagoAnticipado()->create(['valor' => 5]);
+
+        $this->actingAs($this->usuario)
+            ->putJson(route('descuentos.update', $descuento), ['valor' => 50])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['valor'])
+            ->assertJsonFragment([Descuento::MENSAJE_CALCULO_BLOQUEADO]);
+
+        $this->assertDatabaseHas('descuentos', ['id' => $descuento->id, 'valor' => 5]);
+
+        // El formulario reenvía el registro completo: si el cálculo no cambia, se guarda
+        $this->actingAs($this->usuario)
+            ->putJson(route('descuentos.update', $descuento), [
+                ...$descuento->fresh()->only(Descuento::CAMPOS_CALCULO),
+                'nombre' => 'Pronto pago renombrado',
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.nombre', 'Pronto pago renombrado');
+    }
+
     // ─── destroy ──────────────────────────────────────────────────────────────
 
     /** @test */
@@ -240,6 +264,54 @@ class DescuentoTest extends TestCase
 
         $this->actingAs($sinPermiso)
             ->postJson(route('descuentos.activar', $descuento))
+            ->assertForbidden();
+    }
+
+    // ─── aplicar (código promocional) ─────────────────────────────────────────
+
+    /** @test */
+    public function aplica_el_descuento_por_codigo_promocional_sin_importar_mayusculas(): void
+    {
+        Permission::create(['name' => 'fin_descuentoAplicar', 'descripcion' => 'aplicar descuento']);
+        $this->usuario->givePermissionTo('fin_descuentoAplicar');
+
+        $lista    = \App\Models\Financiero\Lp\LpListaPrecio::factory()->create();
+        $producto = \App\Models\Financiero\Lp\LpProducto::factory()->create();
+        $descuento = Descuento::factory()->codigoPromocional()->vigente()->create([
+            'tipo_movimiento'     => Descuento::MOVIMIENTO_DESCUENTO,
+            'codigo_descuento'    => 'CARMOT50',
+            'tipo'                => Descuento::TIPO_VALOR_FIJO,
+            'valor'               => 50000,
+            'aplicacion'          => Descuento::APLICACION_VALOR_TOTAL,
+            'permite_acumulacion' => true,
+        ]);
+        $descuento->listasPrecios()->attach($lista->id);
+
+        $datos = [
+            'precio_total'    => 400000,
+            'matricula'       => 250000,
+            'valor_cuota'     => 200000,
+            'producto_id'     => $producto->id,
+            'lista_precio_id' => $lista->id,
+        ];
+
+        $this->actingAs($this->usuario)
+            ->postJson(route('descuentos.aplicar'), [...$datos, 'codigo_promocional' => 'carmot50'])
+            ->assertOk()
+            ->assertJsonPath('data.total_descuentos', 50000)
+            ->assertJsonPath('data.descuentos_aplicados.0.descuento_id', $descuento->id);
+
+        $this->actingAs($this->usuario)
+            ->postJson(route('descuentos.aplicar'), $datos)
+            ->assertOk()
+            ->assertJsonPath('data.total_descuentos', 0);
+    }
+
+    /** @test */
+    public function rechaza_aplicar_sin_permiso(): void
+    {
+        $this->actingAs(User::factory()->create())
+            ->postJson(route('descuentos.aplicar'), [])
             ->assertForbidden();
     }
 }

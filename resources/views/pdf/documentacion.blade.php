@@ -10,7 +10,6 @@
 
 <footer>
     <span class="numero">{{ $tipoDocumento->nombre }} · Impreso el {{ now()->format('d/m/Y') }}</span>
-    <span class="pagina"></span>
 </footer>
 
 <div class="titulo">{{ $tipoDocumento->nombre }}</div>

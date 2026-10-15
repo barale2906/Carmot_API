@@ -151,10 +151,14 @@ class InvPrecioProductoController extends Controller
     }
 
     /**
-     * Elimina el precio (soft delete).
+     * Elimina el precio (soft delete). No se permite si la lista está aprobada o activa.
      */
     public function destroy(InvPrecioProducto $precio): JsonResponse
     {
+        if ($precio->listaPrecio?->preciosBloqueados()) {
+            return response()->json(['message' => LpListaPrecio::MENSAJE_PRECIOS_BLOQUEADOS], 422);
+        }
+
         $precio->delete();
 
         return response()->json([
@@ -163,11 +167,16 @@ class InvPrecioProductoController extends Controller
     }
 
     /**
-     * Restaura un precio eliminado lógicamente.
+     * Restaura un precio eliminado lógicamente. No se permite si la lista está aprobada o activa.
      */
     public function restore(int $id): JsonResponse
     {
         $precio = InvPrecioProducto::onlyTrashed()->findOrFail($id);
+
+        if ($precio->listaPrecio?->preciosBloqueados()) {
+            return response()->json(['message' => LpListaPrecio::MENSAJE_PRECIOS_BLOQUEADOS], 422);
+        }
+
         $precio->restore();
 
         return response()->json([

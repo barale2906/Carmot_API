@@ -18,6 +18,7 @@ use App\Models\Academico\NotaEstudiante;
 use App\Models\Academico\TipoNotaEsquema;
 use App\Services\Academico\SabanaNotasService;
 use Illuminate\Http\JsonResponse;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -37,7 +38,7 @@ class NotaEstudianteController extends Controller
     }
 
     /**
-     * Muestra una lista de notas de estudiantes.
+     * Muestra una lista de notas de estudiantes. A un alumno solo se le listan sus propias notas.
      *
      * @param Request $request
      * @return JsonResponse
@@ -48,6 +49,11 @@ class NotaEstudianteController extends Controller
             'estudiante_id', 'grupo_id', 'modulo_id', 'esquema_calificacion_id',
             'tipo_nota_esquema_id', 'status', 'include_trashed', 'only_trashed'
         ]);
+
+        // El alumno solo ve sus propias notas
+        if ($request->user()->esSoloEstudiante()) {
+            $filters['estudiante_id'] = $request->user()->id;
+        }
 
         $relations = $request->has('with')
             ? explode(',', $request->with)
@@ -79,6 +85,8 @@ class NotaEstudianteController extends Controller
      */
     public function store(StoreNotaEstudianteRequest $request): JsonResponse
     {
+        $this->autorizarGrupo($request, Grupo::findOrFail($request->grupo_id));
+
         try {
             DB::beginTransaction();
 
@@ -157,6 +165,8 @@ class NotaEstudianteController extends Controller
      */
     public function storeMasivo(StoreNotaMasivaRequest $request): JsonResponse
     {
+        $this->autorizarGrupo($request, Grupo::findOrFail($request->grupo_id));
+
         try {
             DB::beginTransaction();
 
@@ -250,6 +260,8 @@ class NotaEstudianteController extends Controller
      */
     public function show(NotaEstudiante $notaEstudiante, Request $request): JsonResponse
     {
+        abort_unless($request->user()->puedeVerEstudiante($notaEstudiante->estudiante_id), 403, 'Solo puede consultar su propia información.');
+
         $relations = $request->has('with')
             ? explode(',', $request->with)
             : ['estudiante', 'grupo', 'modulo', 'esquemaCalificacion', 'tipoNotaEsquema', 'registradoPor'];
@@ -270,6 +282,8 @@ class NotaEstudianteController extends Controller
      */
     public function update(UpdateNotaEstudianteRequest $request, NotaEstudiante $notaEstudiante): JsonResponse
     {
+        $this->autorizarGrupo($request, $notaEstudiante->grupo);
+
         try {
             DB::beginTransaction();
 
@@ -355,7 +369,7 @@ class NotaEstudianteController extends Controller
     }
 
     /**
-     * Calcula la nota final de un estudiante en un módulo.
+     * Calcula la nota final de un estudiante en un módulo. Un alumno solo puede calcular la suya.
      *
      * @param Request $request
      * @param int $estudianteId
@@ -365,6 +379,8 @@ class NotaEstudianteController extends Controller
      */
     public function calcularNotaFinal(Request $request, int $estudianteId, int $moduloId, ?int $grupoId = null): JsonResponse
     {
+        abort_unless($request->user()->puedeVerEstudiante($estudianteId), 403, 'Solo puede consultar su propia información.');
+
         try {
             // Obtener el esquema activo
             $esquema = EsquemaCalificacion::activoParaModuloGrupo($moduloId, $grupoId)->first();
@@ -426,7 +442,7 @@ class NotaEstudianteController extends Controller
     }
 
     /**
-     * Obtiene la sabana de notas de un estudiante (todos sus módulos).
+     * Obtiene la sabana de notas de un estudiante (todos sus módulos). Un alumno solo puede pedir la suya.
      *
      * @param Request $request
      * @param int $estudianteId
@@ -434,6 +450,9 @@ class NotaEstudianteController extends Controller
      */
     public function sabanaEstudiante(Request $request, int $estudianteId): JsonResponse
     {
+        abort_unless($request->user()->puedeVerEstudiante($estudianteId), 403, 'Solo puede consultar su propia información.');
+        User::findOrFail($estudianteId); // 404 si no existe (antes 500, B27)
+
         try {
             $data = $this->sabanaNotas->porEstudiante(
                 $estudianteId,
@@ -460,7 +479,7 @@ class NotaEstudianteController extends Controller
     }
 
     /**
-     * Obtiene la sabana de notas grupal (todos los estudiantes de un grupo en un módulo).
+     * Obtiene la sabana de notas grupal (todos los estudiantes de un grupo en un módulo). Prohibida para alumnos.
      *
      * @param Request $request
      * @param int $grupoId
@@ -469,6 +488,8 @@ class NotaEstudianteController extends Controller
      */
     public function sabanaGrupal(Request $request, int $grupoId, int $moduloId): JsonResponse
     {
+        abort_if($request->user()->esSoloEstudiante(), 403, 'Un estudiante no puede consultar la información de un grupo completo.');
+
         try {
             $grupo = Grupo::with('modulo')->findOrFail($grupoId);
             $modulo = Modulo::findOrFail($moduloId);
@@ -575,5 +596,18 @@ class NotaEstudianteController extends Controller
                 'error' => $e->getMessage(),
             ], 500);
         }
+    }
+
+    /**
+     * Corta con 403 si el usuario no puede registrar notas en el grupo (B25):
+     * solo su profesor o el personal con la sede del grupo asignada.
+     *
+     * @param Request $request
+     * @param Grupo|null $grupo
+     * @return void
+     */
+    private function autorizarGrupo(Request $request, ?Grupo $grupo): void
+    {
+        abort_unless($grupo && $request->user()->puedeGestionarGrupo($grupo), 403, 'Solo el profesor del grupo o el personal de su sede puede registrar en este grupo.');
     }
 }

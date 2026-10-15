@@ -4,9 +4,14 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
 
 /**
- * Agrega los permisos de órdenes de compra del módulo Inventarios.
+ * Agrega los permisos de órdenes de compra del módulo Inventarios y los asigna
+ * a los roles que gestionan compras (superusuario y coordinador).
+ * Seguro de correr múltiples veces (usa firstOrCreate + syncRoles).
+ *
+ * Ejecutar con: php artisan db:seed --class=AddInventariosOcPermissionsSeeder
  */
 class AddInventariosOcPermissionsSeeder extends Seeder
 {
@@ -17,17 +22,26 @@ class AddInventariosOcPermissionsSeeder extends Seeder
      */
     public function run(): void
     {
+        app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+
+        $superusuario = Role::firstOrCreate(['name' => 'superusuario', 'guard_name' => 'web']);
+        $coordinador  = Role::firstOrCreate(['name' => 'coordinador',  'guard_name' => 'web']);
+
+        $gestion = [$superusuario, $coordinador];
+
         $permisos = [
-            ['name' => 'inv_oc',         'descripcion' => 'Ver órdenes de compra de inventario'],
-            ['name' => 'inv_ocCrear',    'descripcion' => 'Crear órdenes de compra de inventario'],
-            ['name' => 'inv_ocEditar',   'descripcion' => 'Editar órdenes de compra en borrador'],
-            ['name' => 'inv_ocEnviar',   'descripcion' => 'Enviar órdenes de compra al proveedor'],
-            ['name' => 'inv_ocRecibir',  'descripcion' => 'Registrar recepción de mercancía en OC'],
-            ['name' => 'inv_ocCancelar', 'descripcion' => 'Cancelar órdenes de compra abiertas'],
+            'inv_oc'         => ['Ver órdenes de compra de inventario', $gestion],
+            'inv_ocCrear'    => ['Crear órdenes de compra de inventario', $gestion],
+            'inv_ocEditar'   => ['Editar órdenes de compra en borrador', $gestion],
+            'inv_ocEnviar'   => ['Enviar órdenes de compra al proveedor', $gestion],
+            'inv_ocRecibir'  => ['Registrar recepción de mercancía en OC', $gestion],
+            'inv_ocCancelar' => ['Cancelar órdenes de compra abiertas', [$superusuario]],
         ];
 
-        foreach ($permisos as $permiso) {
-            Permission::firstOrCreate(['name' => $permiso['name']], $permiso);
+        foreach ($permisos as $nombre => [$descripcion, $roles]) {
+            Permission::firstOrCreate(['name' => $nombre], ['descripcion' => $descripcion])->syncRoles($roles);
         }
+
+        $this->command?->info('Permisos de órdenes de compra aplicados correctamente.');
     }
 }

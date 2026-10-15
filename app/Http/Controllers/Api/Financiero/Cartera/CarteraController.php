@@ -136,6 +136,8 @@ class CarteraController extends Controller
             'total_valor'  => (float) $matricula->carteras->sum('valor'),
             'total_saldo'  => (float) $matricula->carteras->sum('saldo'),
             'total_abono'  => (float) $matricula->carteras->sum('abono'),
+            // Valor total = abonado + descuento + saldo: sin esta columna no cuadraba (F16)
+            'total_descuento' => (float) $matricula->carteras->sum('descuento'),
             'carteras'     => CarteraResource::collection($matricula->carteras),
         ]);
 

@@ -19,9 +19,9 @@ class NumeroALetrasService
         4  => 'CUATRO',      5  => 'CINCO',        6  => 'SEIS',         7  => 'SIETE',
         8  => 'OCHO',        9  => 'NUEVE',        10 => 'DIEZ',         11 => 'ONCE',
         12 => 'DOCE',        13 => 'TRECE',        14 => 'CATORCE',      15 => 'QUINCE',
-        16 => 'DIECISEIS',   17 => 'DIECISIETE',   18 => 'DIECIOCHO',    19 => 'DIECINUEVE',
-        20 => 'VEINTE',      21 => 'VEINTIUNO',    22 => 'VEINTIDOS',    23 => 'VEINTITRES',
-        24 => 'VEINTICUATRO', 25 => 'VEINTICINCO', 26 => 'VEINTISEIS',   27 => 'VEINTISIETE',
+        16 => 'DIECISÉIS',   17 => 'DIECISIETE',   18 => 'DIECIOCHO',    19 => 'DIECINUEVE',
+        20 => 'VEINTE',      21 => 'VEINTIUNO',    22 => 'VEINTIDÓS',    23 => 'VEINTITRÉS',
+        24 => 'VEINTICUATRO', 25 => 'VEINTICINCO', 26 => 'VEINTISÉIS',   27 => 'VEINTISIETE',
         28 => 'VEINTIOCHO',  29 => 'VEINTINUEVE',
     ];
 
@@ -39,7 +39,8 @@ class NumeroALetrasService
     ];
 
     /**
-     * Convierte un valor monetario a letras.
+     * Convierte un valor monetario a letras, con tildes y la preposición "DE" en los
+     * millones exactos ("UN MILLÓN DE PESOS M/CTE").
      *
      * @param float  $numero Valor a convertir.
      * @param string $moneda Nombre de la moneda en plural (PESOS, DÓLARES…).
@@ -57,7 +58,9 @@ class NumeroALetrasService
             $centavos = 0;
         }
 
-        $texto = $this->enteroALetras($entero) . ' ' . $moneda;
+        // Millones exactos llevan "DE": "UN MILLÓN DE PESOS", "DOS MILLONES DE PESOS"
+        $de    = ($entero >= 1000000 && $entero % 1000000 === 0) ? ' DE' : '';
+        $texto = $this->enteroALetras($entero) . $de . ' ' . $moneda;
 
         if ($centavos > 0) {
             $texto .= ' CON ' . $this->enteroALetras($centavos) . ' CENTAVOS';
@@ -101,7 +104,7 @@ class NumeroALetrasService
             $millones = intdiv($numero, 1000000);
             $resto    = $numero % 1000000;
             $prefijo  = $millones === 1
-                ? 'UN MILLON'
+                ? 'UN MILLÓN'
                 : $this->apocopar($this->componer($millones)) . ' MILLONES';
 
             return trim($prefijo . ' ' . ($resto > 0 ? $this->componer($resto) : ''));

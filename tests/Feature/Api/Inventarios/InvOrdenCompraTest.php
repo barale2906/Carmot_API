@@ -352,4 +352,25 @@ class InvOrdenCompraTest extends TestCase
 
         $this->assertCount(2, $response->json('data'));
     }
+
+    /** @test */
+    public function recibir_rechaza_mas_de_lo_pendiente_o_un_item_de_otra_orden(): void
+    {
+        $orden = $this->crearOrden(InvOrdenCompra::STATUS_ENVIADA); // 10 solicitadas
+        $item  = $orden->items()->first();
+        $ajeno = $this->crearOrden(InvOrdenCompra::STATUS_ENVIADA)->items()->first();
+
+        $this->actingAs($this->responsable)
+            ->postJson(route('inv-oc.recibir', $orden), [
+                'items' => [
+                    ['orden_item_id' => $item->id, 'cantidad_recibida' => 50],
+                    ['orden_item_id' => $ajeno->id, 'cantidad_recibida' => 1],
+                ],
+            ])
+            ->assertUnprocessable()
+            ->assertJsonFragment(['La cantidad recibida (50) excede lo pendiente (10).'])
+            ->assertJsonValidationErrors('items.1.orden_item_id');
+
+        $this->assertSame(InvOrdenCompra::STATUS_ENVIADA, $orden->fresh()->status);
+    }
 }

@@ -26,8 +26,9 @@ class SedeFactory extends Factory
             'direccion' => $this->faker->streetAddress(),
             'telefono' => $this->faker->phoneNumber(),
             'email' => $this->faker->unique()->safeEmail(),
-            'hora_inicio' => $this->faker->time('H:i:s', '08:00:00'),
-            'hora_fin' => $this->faker->time('H:i:s', '18:00:00'),
+            // Jornada fija y amplia: los horarios de grupo deben caber en ella (N02)
+            'hora_inicio' => '06:00:00',
+            'hora_fin' => '22:00:00',
             'poblacion_id' => \App\Models\Configuracion\Poblacion::whereIn('nombre', $ciudadesColombia)
                 ->where('pais', 'Colombia')
                 ->inRandomOrder()

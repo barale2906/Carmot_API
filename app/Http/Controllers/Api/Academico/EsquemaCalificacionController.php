@@ -7,6 +7,7 @@ use App\Http\Requests\Api\Academico\StoreEsquemaCalificacionRequest;
 use App\Http\Requests\Api\Academico\UpdateEsquemaCalificacionRequest;
 use App\Http\Resources\Api\Academico\EsquemaCalificacionResource;
 use App\Models\Academico\EsquemaCalificacion;
+use App\Models\Academico\Grupo;
 use App\Models\Academico\TipoNotaEsquema;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -66,13 +67,16 @@ class EsquemaCalificacionController extends Controller
     }
 
     /**
-     * Almacena un nuevo esquema de calificación.
+     * Almacena un nuevo esquema de calificación. El profesor solo crea esquemas de sus
+     * grupos; el general del módulo (sin grupo) es de la coordinación (N16).
      *
      * @param StoreEsquemaCalificacionRequest $request
      * @return JsonResponse
      */
     public function store(StoreEsquemaCalificacionRequest $request): JsonResponse
     {
+        $this->autorizarEsquema($request, $request->grupo_id);
+
         try {
             DB::beginTransaction();
 
@@ -139,7 +143,8 @@ class EsquemaCalificacionController extends Controller
     }
 
     /**
-     * Actualiza el esquema de calificación especificado.
+     * Actualiza el esquema de calificación especificado. El profesor solo edita esquemas
+     * de sus grupos y no los puede pasar a otro grupo ni volverlos generales (N16).
      *
      * @param UpdateEsquemaCalificacionRequest $request
      * @param EsquemaCalificacion $esquemaCalificacion
@@ -147,6 +152,11 @@ class EsquemaCalificacionController extends Controller
      */
     public function update(UpdateEsquemaCalificacionRequest $request, EsquemaCalificacion $esquemaCalificacion): JsonResponse
     {
+        $this->autorizarEsquema($request, $esquemaCalificacion->grupo_id);
+        if ($request->has('grupo_id')) {
+            $this->autorizarEsquema($request, $request->grupo_id);
+        }
+
         try {
             DB::beginTransaction();
 
@@ -213,13 +223,17 @@ class EsquemaCalificacionController extends Controller
     }
 
     /**
-     * Elimina el esquema de calificación especificado (soft delete).
+     * Elimina el esquema de calificación especificado (soft delete). El profesor solo
+     * elimina esquemas de sus grupos (N16).
      *
+     * @param Request $request
      * @param EsquemaCalificacion $esquemaCalificacion
      * @return JsonResponse
      */
-    public function destroy(EsquemaCalificacion $esquemaCalificacion): JsonResponse
+    public function destroy(Request $request, EsquemaCalificacion $esquemaCalificacion): JsonResponse
     {
+        $this->autorizarEsquema($request, $esquemaCalificacion->grupo_id);
+
         // Verificar si tiene notas registradas
         if ($esquemaCalificacion->notasEstudiantes()->count() > 0) {
             return response()->json([
@@ -235,14 +249,17 @@ class EsquemaCalificacionController extends Controller
     }
 
     /**
-     * Restaura un esquema eliminado (soft delete).
+     * Restaura un esquema eliminado (soft delete). El profesor solo restaura esquemas de
+     * sus grupos (N16).
      *
+     * @param Request $request
      * @param int $id
      * @return JsonResponse
      */
-    public function restore(int $id): JsonResponse
+    public function restore(Request $request, int $id): JsonResponse
     {
         $esquema = EsquemaCalificacion::onlyTrashed()->findOrFail($id);
+        $this->autorizarEsquema($request, $esquema->grupo_id);
         $esquema->restore();
 
         return response()->json([
@@ -275,5 +292,27 @@ class EsquemaCalificacionController extends Controller
         return response()->json([
             'data' => new EsquemaCalificacionResource($esquema),
         ]);
+    }
+
+    /**
+     * Corta con 403 si quien solo es profesor intenta gestionar un esquema general del
+     * módulo (sin grupo) o el de un grupo que no dicta. El profesor se ciñe a la planeación
+     * del curso; lo que controla es cómo obtiene las notas de sus grupos (N16).
+     *
+     * @param Request $request
+     * @param int|string|null $grupoId
+     * @return void
+     */
+    private function autorizarEsquema(Request $request, $grupoId): void
+    {
+        $usuario = $request->user();
+        if (! $usuario->esSoloProfesor()) {
+            return;
+        }
+
+        abort_unless($grupoId, 403, 'El esquema general del módulo lo define la coordinación: el profesor crea esquemas para sus grupos.');
+
+        $grupo = Grupo::find($grupoId);
+        abort_unless($grupo && $usuario->puedeGestionarGrupo($grupo), 403, 'Solo puede gestionar los esquemas de los grupos que dicta.');
     }
 }

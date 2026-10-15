@@ -2,7 +2,6 @@
 
 namespace App\Http\Resources\Api\Financiero\Cartera;
 
-use App\Models\Financiero\ConceptoPago\ConceptoPago;
 use App\Traits\Financiero\HasCarteraStatus;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -32,7 +31,7 @@ class CarteraResource extends JsonResource
             'sede_id'          => $this->sede_id,
             'estudiante_id'    => $this->estudiante_id,
             'numero_cuota'     => $this->numero_cuota,
-            'concepto'         => $this->numero_cuota === 0 ? ConceptoPago::MATRICULA : ConceptoPago::MENSUALIDAD,
+            'concepto'         => $this->conceptoNombre(),
             'valor'            => $this->valor,
             'saldo'            => $this->saldo,
             'abono'            => $this->abono,

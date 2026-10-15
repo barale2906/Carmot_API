@@ -23,7 +23,8 @@ class AplazamientoController extends Controller
     {
         $this->middleware('permission:aca_aplazamientos')->only(['index', 'show', 'historialCiclo']);
         $this->middleware('permission:aca_aplazamientoCrear')->only(['aplazar', 'confirmar', 'ampliar', 'interrumpir']);
-        $this->middleware('permission:aca_aplazamientoInactivar')->only(['revertir']);
+        // Devolver un aplazamiento es siempre del superusuario, no depende del permiso asignado al rol (N25)
+        $this->middleware('role:superusuario')->only(['revertir']);
     }
 
     // -------------------------------------------------------------------------
@@ -174,6 +175,7 @@ class AplazamientoController extends Controller
 
     /**
      * Revierte completamente el aplazamiento, restaurando todas las fechas al estado original.
+     * Solo el superusuario (N25).
      *
      * @param Request      $request
      * @param Aplazamiento $aplazamiento

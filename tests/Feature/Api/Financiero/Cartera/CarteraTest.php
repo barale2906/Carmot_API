@@ -62,8 +62,8 @@ class CarteraTest extends TestCase
     /** @test */
     public function lista_carteras_agrupadas_por_matricula(): void
     {
-        $this->crearCartera(['numero_cuota' => 0, 'valor' => 100000, 'saldo' => 100000]);
-        $this->crearCartera(['numero_cuota' => 1, 'valor' => 200000, 'saldo' => 150000]);
+        $this->crearCartera(['numero_cuota' => 0, 'valor' => 100000, 'abono' => 0, 'descuento' => 0, 'saldo' => 100000]);
+        $this->crearCartera(['numero_cuota' => 1, 'valor' => 200000, 'abono' => 30000, 'descuento' => 20000, 'saldo' => 150000]);
 
         $response = $this->actingAs($this->usuario)
             ->getJson(route('carteras.index'));
@@ -78,6 +78,7 @@ class CarteraTest extends TestCase
                     'total_valor',
                     'total_saldo',
                     'total_abono',
+                    'total_descuento',
                     'carteras',
                 ]],
                 'meta' => [
@@ -93,6 +94,11 @@ class CarteraTest extends TestCase
         $data = $response->json('data');
         $this->assertCount(1, $data);
         $this->assertCount(2, $data[0]['carteras']);
+        // Valor total = abonado + descuento + saldo (F16)
+        $this->assertEquals(
+            $data[0]['total_valor'],
+            $data[0]['total_abono'] + $data[0]['total_descuento'] + $data[0]['total_saldo']
+        );
         $this->assertEquals($this->matricula->id, $data[0]['matricula_id']);
 
         // Totales globales reflejan la suma de todas las cuotas (sin paginación)
@@ -375,7 +381,7 @@ class CarteraTest extends TestCase
     /** @test */
     public function registra_un_acuerdo_de_pago(): void
     {
-        $this->crearCartera(['status' => Cartera::getStatusKey('Activa')]);
+        $this->crearCartera(['status' => Cartera::getStatusKey('Activa'), 'valor' => 350000, 'abono' => 0, 'descuento' => 0, 'saldo' => 350000]);
 
         $response = $this->actingAs($this->usuario)
             ->postJson(route('carteras.acuerdo-pago'), [
@@ -401,13 +407,17 @@ class CarteraTest extends TestCase
             ->count();
 
         $this->assertEquals(4, $nuevas);
+
+        // Conceptos del acuerdo, no "Matrícula"/"Mensualidad" (B38)
+        $conceptos = collect($response->json('data.carteras_acuerdo'))->pluck('concepto')->unique()->values()->all();
+        $this->assertSame(['Inicial Acuerdo', 'Cuota Acuerdo'], $conceptos);
     }
 
     /** @test */
     public function acuerdo_de_pago_de_fin_de_mes_no_se_corre_al_mes_siguiente(): void
     {
         $this->travelTo(Carbon::parse('2027-01-31'));
-        $this->crearCartera(['status' => Cartera::getStatusKey('Activa')]);
+        $this->crearCartera(['status' => Cartera::getStatusKey('Activa'), 'valor' => 300000, 'abono' => 0, 'descuento' => 0, 'saldo' => 300000]);
 
         $this->actingAs($this->usuario)
             ->postJson(route('carteras.acuerdo-pago'), [
@@ -426,6 +436,25 @@ class CarteraTest extends TestCase
             ->all();
 
         $this->assertEquals(['2027-02-28', '2027-03-31', '2027-04-30'], $fechas);
+    }
+
+    /** @test */
+    public function el_acuerdo_de_pago_debe_cubrir_el_saldo_pendiente(): void
+    {
+        $this->crearCartera(['status' => Cartera::getStatusKey('Activa'), 'valor' => 4800000, 'abono' => 0, 'descuento' => 0, 'saldo' => 4800000]);
+
+        $this->actingAs($this->usuario)
+            ->postJson(route('carteras.acuerdo-pago'), [
+                'matricula_id'  => $this->matricula->id,
+                'monto_inicial' => 500000,
+                'numero_cuotas' => 8,
+                'valor_cuota'   => 500000,
+            ])
+            ->assertUnprocessable()
+            ->assertJsonFragment(['El acuerdo suma $4.500.000 y no cubre el saldo pendiente de $4.800.000 (faltan $300.000).']);
+
+        // La cartera original no se reemplaza
+        $this->assertDatabaseMissing('carteras', ['matricula_id' => $this->matricula->id, 'status' => Cartera::getStatusKey('En Acuerdo')]);
     }
 
     /** @test */

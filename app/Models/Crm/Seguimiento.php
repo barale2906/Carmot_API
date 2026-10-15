@@ -19,6 +19,15 @@ class Seguimiento extends Model
     protected $guarded = ['id', 'created_at', 'updated_at'];
 
     /**
+     * Conversión de atributos: la fecha del seguimiento se expone como Y-m-d (B13).
+     *
+     * @var array<string, string>
+     */
+    protected $casts = [
+        'fecha' => 'date',
+    ];
+
+    /**
      * Obtiene los campos permitidos para ordenamiento específicos de seguimientos.
      * Sobrescribe el método del trait HasSortingScopes.
      *

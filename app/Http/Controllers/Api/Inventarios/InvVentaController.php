@@ -347,13 +347,17 @@ class InvVentaController extends Controller
      * Recién aquí el abono cuenta en el pedido. Si lo salda, el pedido pasa a
      * 'pagado' con todas sus entregas PENDIENTES (sin mover stock aunque haya
      * existencias): el estudiante retira los productos después, desde Entregas.
-     * Responde 422 si el pedido ya no está activo o el abono supera su saldo.
+     * Responde 422 si el pedido ya no está activo o el abono supera su saldo, y 403
+     * si quien aprueba es quien registró el recibo.
      *
+     * @param Request    $request
      * @param ReciboPago $reciboPago
      * @return JsonResponse
      */
-    public function aprobarTransferencia(ReciboPago $reciboPago): JsonResponse
+    public function aprobarTransferencia(Request $request, ReciboPago $reciboPago): JsonResponse
     {
+        abort_if($reciboPago->registradoPor($request->user()), 403, ReciboPago::MENSAJE_APROBACION_PROPIA);
+
         if ($reciboPago->origen !== ReciboPago::ORIGEN_INVENTARIOS) {
             return response()->json(['message' => 'Este recibo no pertenece al módulo de inventarios.'], 422);
         }

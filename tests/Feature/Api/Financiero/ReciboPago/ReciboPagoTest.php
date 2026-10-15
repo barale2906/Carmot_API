@@ -261,6 +261,21 @@ class ReciboPagoTest extends TestCase
     }
 
     /** @test */
+    public function crear_recibo_acepta_turno_abierto_en_otra_sede(): void
+    {
+        $concepto = ConceptoPago::factory()->create(['nombre' => 'Copia Certificado', 'tipo' => 1, 'valor' => 25000]);
+        $turno = LdTurnoCaja::where('cajero_id', $this->usuario->id)->first();
+        $turno->update(['sede_id' => Sede::factory()->create()->id]);
+
+        $id = $this->actingAs($this->usuario)
+            ->postJson(route('recibos-pago.store'), $this->payloadSoloAdicionales($concepto))
+            ->assertCreated()
+            ->json('data.id');
+
+        $this->assertSame($turno->id, ReciboPago::find($id)->turno_caja_id);
+    }
+
+    /** @test */
     public function crea_recibo_con_solo_concepto_adicional(): void
     {
         $concepto = ConceptoPago::factory()->create(['nombre' => 'Copia Certificado', 'tipo' => 1, 'valor' => 25000]);
@@ -636,6 +651,56 @@ class ReciboPagoTest extends TestCase
     }
 
     // ─── precalcular-descuento ────────────────────────────────────────────────
+
+    /** @test */
+    public function precalcular_descuento_devuelve_el_reparto_exacto_y_el_minimo_con_descuento(): void
+    {
+        // Matrícula de 200.000 con 10 % de promoción, vencida; cuota 1 de 400.000 a futuro
+        Descuento::factory()->vigente()->promocionMatricula()->create([
+            'tipo'       => Descuento::TIPO_PORCENTUAL,
+            'valor'      => 10,
+            'aplicacion' => Descuento::APLICACION_MATRICULA,
+        ]);
+        $matricula = $this->crearCuota(0, 200000, -1);
+        $cuota1    = $this->crearCuota(1, 400000, 30);
+
+        $data = $this->actingAs($this->usuario)
+            ->postJson(route('recibos-pago.precalcular-descuento'), [
+                'matricula_id'  => $this->matricula->id,
+                'monto_a_pagar' => 200000,
+            ])
+            ->assertOk()
+            ->json('data');
+
+        // La matrícula cuesta 180.000 y el excedente de 20.000 abona a la cuota 1 (F09)
+        $this->assertEquals(180000, $data['minimo_a_pagar']);
+        // El máximo es el costo efectivo de todo lo pendiente: 180.000 + 400.000 (N12)
+        $this->assertEquals(580000, $data['maximo_a_pagar']);
+        $this->assertEquals(
+            [
+                ['cartera_id' => $matricula->id, 'valor' => 180000, 'descuento' => 20000, 'cierra' => true],
+                ['cartera_id' => $cuota1->id, 'valor' => 20000, 'descuento' => 0, 'cierra' => false],
+            ],
+            collect($data['distribucion'])->map(fn ($l) => collect($l)->only(['cartera_id', 'valor', 'descuento', 'cierra'])->all())->all()
+        );
+        $this->assertNull($data['distribucion_error']);
+    }
+
+    /** @test */
+    public function precalcular_descuento_informa_si_el_monto_supera_el_maximo(): void
+    {
+        $this->crearCuota(1, 100000);
+
+        $this->actingAs($this->usuario)
+            ->postJson(route('recibos-pago.precalcular-descuento'), [
+                'matricula_id'  => $this->matricula->id,
+                'monto_a_pagar' => 150000,
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.distribucion', null)
+            ->assertJsonPath('data.distribucion_error', fn ($msg) => str_contains($msg, 'supera'))
+            ->assertJsonPath('data.maximo_a_pagar', 100000);
+    }
 
     /** @test */
     public function precalcular_descuento_retorna_aplica_true_cuando_hay_descuento_activo_y_sin_mora(): void

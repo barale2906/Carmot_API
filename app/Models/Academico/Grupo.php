@@ -86,6 +86,76 @@ class Grupo extends Model
     }
 
     /**
+     * Advertencias de cruce de horario del profesor: otros grupos activos suyos con una
+     * sesión el mismo día que se solapa en hora (B03). No bloquea: en el calendario cíclico
+     * dos grupos del mismo curso pueden compartir franja si se dictan en épocas distintas.
+     *
+     * @return array<int, string>
+     */
+    public function crucesHorarioProfesor(): array
+    {
+        if (! $this->profesor_id) {
+            return [];
+        }
+
+        $propios = $this->horarios()->get(['dia', 'hora', 'duracion_horas']);
+        if ($propios->isEmpty()) {
+            return [];
+        }
+
+        $nombres = self::where('profesor_id', $this->profesor_id)
+            ->where('status', 1)
+            ->whereKeyNot($this->id)
+            ->pluck('nombre', 'id');
+
+        $otros = Horario::query()
+            ->where('tipo', false)
+            ->whereIn('grupo_id', $nombres->keys())
+            ->whereIn('dia', $propios->pluck('dia')->unique())
+            ->get(['grupo_id', 'dia', 'hora', 'duracion_horas']);
+
+        $minutos = fn ($h) => \Carbon\Carbon::parse($h->hora)->hour * 60 + \Carbon\Carbon::parse($h->hora)->minute;
+        $mensajes = [];
+
+        foreach ($propios as $propio) {
+            $inicio = $minutos($propio);
+            $fin    = $inicio + 60 * max(1, (int) $propio->duracion_horas);
+
+            foreach ($otros->where('dia', $propio->dia) as $otro) {
+                $inicioOtro = $minutos($otro);
+                $finOtro    = $inicioOtro + 60 * max(1, (int) $otro->duracion_horas);
+
+                if ($inicio < $finOtro && $inicioOtro < $fin) {
+                    $mensajes[] = sprintf(
+                        'El profesor también dicta el grupo %s el %s a las %s: verifique que no se ejecuten en las mismas fechas.',
+                        $nombres[$otro->grupo_id],
+                        $otro->dia,
+                        \Carbon\Carbon::parse($otro->hora)->format('H:i')
+                    );
+                }
+            }
+        }
+
+        return array_values(array_unique($mensajes));
+    }
+
+    /**
+     * IDs de los estudiantes con matrícula vigente en algún ciclo que incluye este grupo:
+     * los únicos a los que se les puede registrar asistencia o notas en él.
+     *
+     * @return \Illuminate\Support\Collection<int, int>
+     */
+    public function idsEstudiantesVigentes(): \Illuminate\Support\Collection
+    {
+        return Matricula::vigentes()
+            ->whereIn('ciclo_id', $this->ciclos()->pluck('ciclos.id'))
+            ->pluck('estudiante_id')
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values();
+    }
+
+    /**
      * Relación con Programacion (muchos a muchos).
      * Un grupo puede pertenecer a múltiples programaciones.
      * La tabla pivot incluye las fechas de inicio y fin específicas del grupo en cada programación.

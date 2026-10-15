@@ -440,8 +440,9 @@ class HorarioController extends Controller
     {
         $stats = [
             'totales' => [
-                'total' => Horario::count(),
-                'activos' => Horario::whereNull('deleted_at')->count(),
+                // total = activos + eliminados (count() a secas excluía los eliminados, F17)
+                'total' => Horario::withTrashed()->count(),
+                'activos' => Horario::count(),
                 'eliminados' => Horario::onlyTrashed()->count(),
             ],
             'por_sede' => Horario::with('sede')

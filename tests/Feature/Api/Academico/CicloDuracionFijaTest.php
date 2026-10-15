@@ -144,11 +144,40 @@ class CicloDuracionFijaTest extends TestCase
         $response = $this->crearCicloFijo('2027-02-24', '2027-02-10');
         $ciclo    = Ciclo::latest('id')->first();
 
-        // A conserva el slot del origen (no se ajusta); B arranca en el cursor (10-feb) → martes 16 y 23
+        // A conserva el slot del origen (no se ajusta) y termina después de la fecha fijada
         $this->assertPivot($ciclo, $this->grupoA, '2027-02-01', '2027-03-01', 10.0);
         $this->assertEquals($origen->id, $this->pivot($ciclo, $this->grupoA)->ciclo_origen_id);
-        $this->assertPivot($ciclo, $this->grupoB, '2027-02-16', '2027-02-23', 4.0);
         $this->assertStringContainsString("El grupo 'Grupo A' comparte fechas", $response->json('data.ajuste.advertencia'));
+    }
+
+    /** @test */
+    public function el_modulo_libre_arranca_despues_del_tramo_compartido_y_se_ajusta_al_resto(): void
+    {
+        $this->crearCiclo(['fecha_fin_automatica' => true, 'grupos' => [$this->grupoA->id]]);
+
+        // Ciclo que entra con A en ejecución: B no se dicta en paralelo, arranca el martes 03-02.
+        // Fecha fin 03-23 → caben 4 martes (02, 09, 16, 23) = 8 de 10 h
+        $this->crearCicloFijo('2027-03-23', '2027-02-10');
+        $ciclo = Ciclo::latest('id')->first();
+
+        $this->assertPivot($ciclo, $this->grupoA, '2027-02-01', '2027-03-01', 10.0);
+        $this->assertPivot($ciclo, $this->grupoB, '2027-03-02', '2027-03-23', 8.0);
+    }
+
+    /** @test */
+    public function el_ciclo_entra_al_modulo_en_curso_y_el_primer_modulo_pasa_al_final(): void
+    {
+        // Ciclo de referencia con B (módulo 2) en ejecución del 02-02 al 03-02
+        $this->crearCiclo(['fecha_fin_automatica' => true, 'fecha_inicio' => '2027-02-02', 'grupos' => [$this->grupoB->id]]);
+
+        // Nuevo ciclo con A (módulo 1, libre) y B: la rotación arranca en B y A va al final
+        $this->crearCiclo(['fecha_fin_automatica' => true, 'fecha_inicio' => '2027-02-03']);
+        $ciclo = Ciclo::latest('id')->first();
+
+        $this->assertPivot($ciclo, $this->grupoB, '2027-02-02', '2027-03-02', 10.0);
+        // A: primer lunes después del 03-02 → 03-08, 5 lunes
+        $this->assertPivot($ciclo, $this->grupoA, '2027-03-08', '2027-04-05', 10.0);
+        $this->assertEquals('2027-04-05', $ciclo->fresh()->fecha_fin->toDateString());
     }
 
     /** @test */
@@ -221,6 +250,33 @@ class CicloDuracionFijaTest extends TestCase
     }
 
     /** @test */
+    public function store_rechaza_un_grupo_sin_horarios_porque_su_modulo_quedaria_sin_fechas(): void
+    {
+        $sinHorario = Grupo::factory()->create(['sede_id' => $this->sede->id, 'modulo_id' => $this->moduloA->id, 'status' => 1, 'nombre' => 'Grupo Sin Horario']);
+
+        $this->actingAs($this->usuario)
+            ->postJson(route('ciclos.store'), $this->datosCiclo(['grupos' => [$sinHorario->id, $this->grupoB->id]]))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('grupos')
+            ->assertJsonFragment(['El grupo Grupo Sin Horario no tiene horarios: no se pueden calcular las fechas de su módulo.']);
+
+        $this->assertDatabaseCount('ciclos', 0);
+    }
+
+    /** @test */
+    public function update_rechaza_agregar_un_grupo_sin_horarios(): void
+    {
+        $this->crearCiclo([]);
+        $ciclo      = Ciclo::firstOrFail();
+        $sinHorario = Grupo::factory()->create(['sede_id' => $this->sede->id, 'modulo_id' => $this->moduloA->id, 'status' => 1]);
+
+        $this->actingAs($this->usuario)
+            ->putJson(route('ciclos.update', $ciclo), ['grupos' => [$sinHorario->id, $this->grupoB->id]])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('grupos');
+    }
+
+    /** @test */
     public function update_rechaza_quitar_la_fecha_fin_en_modo_fijo(): void
     {
         $this->crearCicloFijo('2027-06-30');
@@ -254,6 +310,20 @@ class CicloDuracionFijaTest extends TestCase
 
         $this->assertEqualsWithDelta(60, $response->json('data.porcentaje_horas'), 0.01);
         $this->assertStringContainsString('60 %', $response->json('data.advertencia'));
+    }
+
+    /** @test */
+    public function previsualizar_sigue_la_secuencia_ciclica_desde_el_modulo_en_curso(): void
+    {
+        $this->crearCiclo(['fecha_fin_automatica' => true, 'fecha_inicio' => '2027-02-02', 'grupos' => [$this->grupoB->id]]);
+
+        $this->actingAs($this->usuario)
+            ->getJson(route('ciclos.previsualizar', ['curso_id' => $this->curso->id, 'fecha_inicio' => '2027-02-03']))
+            ->assertOk()
+            // Orden canónico en la respuesta; A (libre) se calcula después del tramo en curso de B
+            ->assertJsonPath('data.modulos.0.grupos.0.fecha_inicio', '2027-03-08')
+            ->assertJsonPath('data.modulos.1.grupos.0.con_fechas', true)
+            ->assertJsonPath('data.modulos.1.grupos.0.fecha_fin', '2027-03-02');
     }
 
     /** @test */

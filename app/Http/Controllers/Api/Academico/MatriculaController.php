@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\Academico\CambiarEstadoAcademicoRequest;
 use App\Http\Requests\Api\Academico\StoreMatriculaRequest;
 use App\Http\Requests\Api\Academico\UpdateMatriculaRequest;
+use App\Http\Resources\Api\Academico\EvaluacionCierreResource;
 use App\Http\Resources\Api\Academico\MatriculaEstadoResource;
 use App\Http\Resources\Api\Academico\MatriculaPrecargaResource;
 use App\Http\Resources\Api\Academico\MatriculaResource;
@@ -14,6 +15,7 @@ use App\Models\Academico\Curso;
 use App\Models\Academico\Matricula;
 use App\Models\Configuracion\Poblacion;
 use App\Models\User;
+use App\Services\Academico\EvaluacionCierreService;
 use App\Services\Academico\MatriculaEstadoService;
 use App\Services\ArchivoService;
 use App\Traits\HasActiveStatus;
@@ -44,7 +46,7 @@ class MatriculaController extends Controller
 
     public function __construct()
     {
-        $this->middleware('permission:aca_matriculas')->only(['index', 'show', 'filters', 'statistics', 'precargaEstudiante', 'historialEstados']);
+        $this->middleware('permission:aca_matriculas')->only(['index', 'show', 'filters', 'statistics', 'precargaEstudiante', 'historialEstados', 'evaluacionCierre']);
         $this->middleware('permission:aca_matriculaEstado')->only(['cambiarEstadoAcademico']);
         $this->middleware('permission:aca_matriculaCrear')->only(['store']);
         $this->middleware('permission:aca_matriculaEditar')->only(['update']);
@@ -103,7 +105,8 @@ class MatriculaController extends Controller
         }
 
         $matricula = Matricula::create($data);
-        $matricula->load(['curso', 'ciclo', 'estudiante', 'matriculadoPor', 'comercial', 'lugarOrigen']);
+        // refresh: toma estado_academico y demás valores por defecto de la BD (B16)
+        $matricula->refresh()->load(['curso', 'ciclo', 'estudiante', 'matriculadoPor', 'comercial', 'lugarOrigen']);
 
         return response()->json([
             'message' => 'Matrícula creada exitosamente.',
@@ -288,14 +291,15 @@ class MatriculaController extends Controller
     }
 
     /**
-     * Obtiene estadísticas de matrículas.
+     * Obtiene estadísticas de matrículas. `totales.total` cuenta las no eliminadas y
+     * `por_status` las separa en activas, inactivas y anuladas (N22: `totales` ya no
+     * repite un "activas" que contaba todas las no eliminadas).
      */
     public function statistics(): JsonResponse
     {
         $stats = [
             'totales' => [
-                'total'     => Matricula::count(),
-                'activas'   => Matricula::whereNull('deleted_at')->count(),
+                'total'      => Matricula::count(),
                 'eliminadas' => Matricula::onlyTrashed()->count(),
             ],
             'por_status' => [
@@ -357,9 +361,10 @@ class MatriculaController extends Controller
     /**
      * Cambia el estado académico de la matrícula (aplazado, desertado, retirado, graduado…).
      *
-     * Los estados finales (desertado, retirado, graduado) dejan la matrícula inactiva y
-     * liberan el cupo del ciclo; volver a Activo o Aplazado la reactiva. Cada cambio
-     * queda en el historial con fecha, motivo y usuario.
+     * Los estados finales (desertado, retirado, graduado, reprobado) dejan la matrícula
+     * inactiva y liberan el cupo del ciclo; volver a Activo o Aplazado la reactiva. Cada
+     * cambio queda en el historial con fecha, motivo y usuario. Solo lo hace quien tiene
+     * asignada la sede de la matrícula (N21).
      *
      * @param CambiarEstadoAcademicoRequest $request
      * @param Matricula $matricula
@@ -368,6 +373,8 @@ class MatriculaController extends Controller
      */
     public function cambiarEstadoAcademico(CambiarEstadoAcademicoRequest $request, Matricula $matricula, MatriculaEstadoService $servicio): JsonResponse
     {
+        abort_unless($request->user()->tieneAccesoSede((int) $matricula->sede_id), 403, 'No tiene asignada la sede de esta matrícula.');
+
         $servicio->cambiar(
             $matricula,
             (int) $request->estado_academico,
@@ -381,6 +388,22 @@ class MatriculaController extends Controller
         return response()->json([
             'message' => "Estado académico actualizado a {$matricula->estado_academico_texto}.",
             'data'    => new MatriculaResource($matricula),
+        ]);
+    }
+
+    /**
+     * Evaluación de cierre de la matrícula: ciclo terminado, nota final de cada módulo
+     * frente a la nota aprobatoria, cumplimiento de asistencia y saldo pendiente. Es lo
+     * que se exige para graduar.
+     *
+     * @param Matricula $matricula
+     * @param EvaluacionCierreService $evaluacion
+     * @return JsonResponse
+     */
+    public function evaluacionCierre(Matricula $matricula, EvaluacionCierreService $evaluacion): JsonResponse
+    {
+        return response()->json([
+            'data' => new EvaluacionCierreResource($evaluacion->evaluar($matricula)),
         ]);
     }
 

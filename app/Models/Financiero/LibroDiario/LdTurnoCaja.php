@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Arr;
 
 /**
  * Modelo LdTurnoCaja
@@ -58,7 +59,7 @@ class LdTurnoCaja extends Model
     public const STATUS_POR_APROBAR = 2;
 
     /** Mensaje de validación cuando se intenta registrar un pago sin turno abierto. */
-    public const MENSAJE_SIN_TURNO = 'No tiene un turno de caja abierto en esta sede. Abra el turno registrando la base inicial antes de generar pagos.';
+    public const MENSAJE_SIN_TURNO = 'No tiene un turno de caja abierto. Abra el turno registrando la base inicial antes de generar pagos.';
 
     protected $table = 'ld_turnos_caja';
 
@@ -104,12 +105,38 @@ class LdTurnoCaja extends Model
 
     /**
      * Indica si el usuario puede ver el arqueo de este turno (efectivo esperado y
-     * diferencia): debe supervisar cajas y no ser el cajero del turno. Así nadie ve
-     * el esperado de su propia caja, sin importar su rol.
+     * diferencia) y todo lo que mueve efectivo: quien supervisa cajas y no es el cajero
+     * del turno, o cualquiera con acceso al turno una vez aprobado el cierre (Cerrado).
+     *
+     * Mientras el turno está abierto o por aprobar, su cajero solo ve los pagos por
+     * medios distintos al efectivo (N26): con la base, los ingresos y egresos en efectivo
+     * y las consignaciones calcularía el esperado. No se libera en "Por aprobar" porque un
+     * cierre rechazado vuelve a Abierto para recontar.
      */
     public function arqueoVisiblePara(?User $usuario): bool
     {
+        if ($this->status === self::STATUS_CERRADO) {
+            return true;
+        }
+
         return self::supervisaCaja($usuario) && $usuario->id !== $this->cajero_id;
+    }
+
+    /**
+     * Resumen que ve el cajero antes de que se apruebe su cierre: solo los medios de pago
+     * distintos al efectivo y las transferencias por aprobar (N26). `restringido` le indica
+     * a la interfaz que no hay totales que mostrar.
+     *
+     * @param array<string, mixed> $resumen
+     * @return array<string, mixed>
+     */
+    public static function resumenSinEfectivo(array $resumen): array
+    {
+        return [
+            'restringido' => true,
+            'por_medio_pago' => Arr::except($resumen['por_medio_pago'] ?? [], 'efectivo'),
+            'transferencias_pendientes' => $resumen['transferencias_pendientes'] ?? null,
+        ];
     }
 
     public function sede(): BelongsTo
@@ -164,12 +191,12 @@ class LdTurnoCaja extends Model
     }
 
     /**
-     * Scope del turno abierto de un cajero en una sede.
+     * Scope del turno abierto de un cajero, en cualquier sede: los pagos de cualquier
+     * sede se pueden recibir desde cualquier sede.
      */
-    public function scopeAbiertoDe($query, int $cajeroId, int $sedeId)
+    public function scopeAbiertoDe($query, int $cajeroId)
     {
         return $query->where('cajero_id', $cajeroId)
-            ->where('sede_id', $sedeId)
             ->where('status', self::STATUS_ABIERTO);
     }
 

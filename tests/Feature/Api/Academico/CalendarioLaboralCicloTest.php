@@ -16,6 +16,7 @@ use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 /**
@@ -64,6 +65,8 @@ class CalendarioLaboralCicloTest extends TestCase
         $this->usuario->givePermissionTo($permisos);
 
         $this->sede  = Sede::factory()->create();
+        // Programar clases exige la sede del grupo (N18)
+        $this->usuario->sedes()->attach($this->sede->id);
         $this->curso = Curso::factory()->create();
 
         $this->moduloA = Modulo::create(['nombre' => 'Módulo A', 'duracion' => 10, 'status' => 1]);
@@ -240,6 +243,27 @@ class CalendarioLaboralCicloTest extends TestCase
         $this->assertDatabaseMissing('asistencia_clases_programadas', ['ciclo_id' => $ciclo->id, 'fecha_clase' => '2027-02-15']);
     }
 
+    /** @test */
+    public function las_clases_generadas_no_superan_las_horas_del_modulo(): void
+    {
+        // Módulo de 10 h con sesiones de 3 h: 3 + 3 + 3 + 1 (la última se recorta, B21)
+        \DB::table('horarios')->where('grupo_id', $this->grupoA->id)->update(['duracion_horas' => 3]);
+        $ciclo = $this->crearCicloPorApi([$this->grupoA->id]);
+
+        $this->actingAs($this->usuario)
+            ->postJson(route('asistencia-clases-programadas.generar-automaticas'), [
+                'grupo_id' => $this->grupoA->id,
+                'ciclo_id' => $ciclo->id,
+            ])
+            ->assertOk()
+            ->assertJsonPath('clases_generadas', 4);
+
+        $clases = \DB::table('asistencia_clases_programadas')->where('ciclo_id', $ciclo->id)->orderBy('fecha_clase')->get();
+        $this->assertEquals(10, $clases->sum('duracion_horas'));
+        $this->assertEquals(1, (float) $clases->last()->duracion_horas);
+        $this->assertSame('09:00:00', $clases->last()->hora_fin);
+    }
+
     // =========================================================================
     // Recálculo automático
     // =========================================================================
@@ -412,7 +436,10 @@ class CalendarioLaboralCicloTest extends TestCase
             ->assertCreated()
             ->json('data.id');
 
-        $this->actingAs($this->usuario)
+        // Revertir es del superusuario (N25)
+        $superusuario = User::factory()->create();
+        $superusuario->assignRole(Role::create(['name' => 'superusuario', 'guard_name' => 'web']));
+        $this->actingAs($superusuario)
             ->postJson(route('aplazamientos.revertir', $aplazamientoId))
             ->assertOk();
 

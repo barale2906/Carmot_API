@@ -44,9 +44,9 @@ class ReferidoResource extends JsonResource
                 return $this->seguimientos->map(function ($seguimiento) {
                     return [
                         'id' => $seguimiento->id,
-                        'fecha' => $seguimiento->fecha,
+                        'fecha' => $seguimiento->fecha?->format('Y-m-d'),
                         'seguimiento' => $seguimiento->seguimiento,
-                        'created_at' => $seguimiento->created_at,
+                        'created_at' => $seguimiento->created_at?->format('Y-m-d H:i:s'),
                     ];
                 });
             }),
@@ -54,20 +54,20 @@ class ReferidoResource extends JsonResource
                 return $this->agendamientos->map(function ($agendamiento) {
                     return [
                         'id' => $agendamiento->id,
-                        'fecha' => $agendamiento->fecha,
+                        'fecha' => $agendamiento->fecha?->format('Y-m-d'),
                         'hora' => $agendamiento->hora,
                         'jornada' => $agendamiento->jornada,
                         'status' => $agendamiento->status,
                         'status_text' => \App\Models\Crm\Agenda::getStatusText($agendamiento->status),
-                        'created_at' => $agendamiento->created_at,
+                        'created_at' => $agendamiento->created_at?->format('Y-m-d H:i:s'),
                     ];
                 });
             }),
             'seguimientos_count' => $this->when(isset($this->seguimientos_count), $this->seguimientos_count),
             'agendamientos_count' => $this->when(isset($this->agendamientos_count), $this->agendamientos_count),
-            'created_at' => $this->created_at,
-            'updated_at' => $this->updated_at,
-            'deleted_at' => $this->when($this->deleted_at, $this->deleted_at),
+            'created_at' => $this->created_at?->format('Y-m-d H:i:s'),
+            'updated_at' => $this->updated_at?->format('Y-m-d H:i:s'),
+            'deleted_at' => $this->when($this->deleted_at, fn () => $this->deleted_at->format('Y-m-d H:i:s')),
             'is_deleted' => $this->trashed(),
             'is_matriculado' => $this->isMatriculado(),
             'can_be_deleted' => $this->canBeDeleted(),

@@ -56,8 +56,6 @@ class CicloResource extends JsonResource
                 'email' => $this->sede->email,
                 'hora_inicio' => $this->sede->hora_inicio?->format('H:i:s'),
                 'hora_fin' => $this->sede->hora_fin?->format('H:i:s'),
-                'status' => $this->sede->status,
-                'status_text' => self::getActiveStatusText($this->sede->status),
             ]),
 
             'curso' => $this->whenLoaded('curso', [

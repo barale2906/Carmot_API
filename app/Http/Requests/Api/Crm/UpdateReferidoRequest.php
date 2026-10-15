@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Api\Crm;
 
+use App\Models\User;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -28,7 +29,8 @@ class UpdateReferidoRequest extends FormRequest
 
         return [
             'curso_id' => ['sometimes', 'integer', 'exists:cursos,id'],
-            'gestor_id' => ['sometimes', 'integer', 'exists:users,id'],
+            // Cambiarlo reasigna el lead y queda en su bitácora (N07)
+            'gestor_id' => ['sometimes', 'integer', 'exists:users,id', User::reglaPersonal('El asesor debe ser alguien del personal, no un estudiante.')],
             'nombre' => ['sometimes', 'nullable', 'string', 'max:255'],
             'celular' => [
                 'sometimes',

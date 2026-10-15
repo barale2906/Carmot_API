@@ -98,7 +98,7 @@ class CicloController extends Controller
             'fecha_inicio'        => $request->fecha_inicio,
             'fecha_fin'           => $request->fecha_fin,
             'fecha_fin_automatica' => $request->fecha_fin_automatica ?? true,
-            'inscritos'           => $request->inscritos,
+            'inscritos'           => 0, // contador que mantienen las matrículas (B15)
             'status'              => $request->status ?? 1,
         ]);
 
@@ -207,7 +207,7 @@ class CicloController extends Controller
         $ciclo->update($request->only([
             'sede_id', 'curso_id', 'nombre', 'descripcion',
             'fecha_inicio', 'fecha_fin', 'fecha_fin_automatica',
-            'inscritos', 'status',
+            'status',
         ]));
 
         if ($request->has('grupos')) {
@@ -386,6 +386,7 @@ class CicloController extends Controller
      * entre ejecuciones (con_fechas=false) para que el frontend los presente
      * al usuario con la posibilidad de reordenar. Con fecha_fin simula el modo
      * de fecha fin fija (factor de ajuste, horas planeadas y advertencia).
+     * Con sede_id solo lista los grupos de esa sede.
      *
      * @param Request $request
      * @return JsonResponse
@@ -396,12 +397,14 @@ class CicloController extends Controller
             'curso_id'    => 'required|integer|exists:cursos,id',
             'fecha_inicio' => 'required|date',
             'fecha_fin'    => 'nullable|date|after:fecha_inicio',
+            'sede_id'      => 'nullable|integer|exists:sedes,id',
         ]);
 
         $resultado = $this->calendario->previsualizarCurso(
             (int) $request->curso_id,
             $request->fecha_inicio,
-            $request->fecha_fin
+            $request->fecha_fin,
+            $request->filled('sede_id') ? (int) $request->sede_id : null
         );
 
         return response()->json(['data' => $resultado]);
@@ -515,7 +518,7 @@ class CicloController extends Controller
                 'fecha_fin_automatica' => $ciclo->fecha_fin_automatica,
                 'duracion_dias'       => $ciclo->duracion_dias,
             ],
-            'grupos' => $ciclo->grupos->map(function ($grupo) {
+            'grupos' => $ciclo->grupos->map(function ($grupo) use ($ciclo) {
                 return [
                     'id'     => $grupo->id,
                     'nombre' => $grupo->nombre,
@@ -641,8 +644,8 @@ class CicloController extends Controller
                 'ciclo' => [
                     'id'                  => $ciclo->id,
                     'nombre'              => $ciclo->nombre,
-                    'fecha_inicio'        => $ciclo->fecha_inicio,
-                    'fecha_fin'           => $ciclo->fecha_fin,
+                    'fecha_inicio'        => $ciclo->fecha_inicio?->format('Y-m-d'),
+                    'fecha_fin'           => $ciclo->fecha_fin?->format('Y-m-d'),
                     'fecha_fin_automatica' => $ciclo->fecha_fin_automatica,
                 ],
                 'cronograma' => $cronograma,

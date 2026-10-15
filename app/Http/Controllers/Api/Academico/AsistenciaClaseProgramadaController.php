@@ -7,6 +7,7 @@ use App\Http\Requests\Api\Academico\StoreAsistenciaClaseProgramadaRequest;
 use App\Http\Requests\Api\Academico\UpdateAsistenciaClaseProgramadaRequest;
 use App\Http\Resources\Api\Academico\AsistenciaClaseProgramadaResource;
 use App\Models\Academico\AsistenciaClaseProgramada;
+use App\Models\Academico\Grupo;
 use App\Services\Asistencia\GenerarClasesProgramadasService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -56,13 +57,16 @@ class AsistenciaClaseProgramadaController extends Controller
     }
 
     /**
-     * Almacena una nueva clase programada manualmente.
+     * Almacena una nueva clase programada manualmente. Solo el profesor del grupo o el
+     * personal de su sede (N18).
      *
      * @param StoreAsistenciaClaseProgramadaRequest $request
      * @return JsonResponse
      */
     public function store(StoreAsistenciaClaseProgramadaRequest $request): JsonResponse
     {
+        $this->autorizarGrupo($request, Grupo::find($request->grupo_id));
+
         try {
             $clase = AsistenciaClaseProgramada::create([
                 'grupo_id' => $request->grupo_id,
@@ -94,6 +98,7 @@ class AsistenciaClaseProgramadaController extends Controller
      * basándose en los horarios del grupo y las fechas de inicio/fin del grupo
      * en el pivot ciclo_grupo. Omite clases ya existentes para ese slot y las
      * sesiones que caen en días no laborables (reportadas en clases_omitidas).
+     * Solo el profesor del grupo o el personal de su sede (N18).
      *
      * @param Request $request
      * @return JsonResponse
@@ -104,6 +109,8 @@ class AsistenciaClaseProgramadaController extends Controller
             'grupo_id' => 'required|integer|exists:grupos,id',
             'ciclo_id' => 'required|integer|exists:ciclos,id',
         ]);
+
+        $this->autorizarGrupo($request, Grupo::find($request->grupo_id));
 
         $resultado = $this->generador->generarParaGrupoCiclo(
             (int) $request->grupo_id,
@@ -136,7 +143,8 @@ class AsistenciaClaseProgramadaController extends Controller
     }
 
     /**
-     * Actualiza una clase programada específica.
+     * Actualiza una clase programada específica. Solo el profesor del grupo o el
+     * personal de su sede (N18).
      *
      * @param UpdateAsistenciaClaseProgramadaRequest $request
      * @param int $id
@@ -144,8 +152,10 @@ class AsistenciaClaseProgramadaController extends Controller
      */
     public function update(UpdateAsistenciaClaseProgramadaRequest $request, int $id): JsonResponse
     {
+        $clase = AsistenciaClaseProgramada::with('grupo')->findOrFail($id);
+        $this->autorizarGrupo($request, $clase->grupo);
+
         try {
-            $clase = AsistenciaClaseProgramada::findOrFail($id);
 
             $clase->update($request->validated());
 
@@ -162,15 +172,18 @@ class AsistenciaClaseProgramadaController extends Controller
     }
 
     /**
-     * Elimina una clase programada.
+     * Elimina una clase programada. Solo el profesor del grupo o el personal de su sede (N18).
      *
+     * @param Request $request
      * @param int $id
      * @return JsonResponse
      */
-    public function destroy(int $id): JsonResponse
+    public function destroy(Request $request, int $id): JsonResponse
     {
+        $clase = AsistenciaClaseProgramada::with('grupo')->findOrFail($id);
+        $this->autorizarGrupo($request, $clase->grupo);
+
         try {
-            $clase = AsistenciaClaseProgramada::findOrFail($id);
             $clase->delete();
 
             return response()->json([
@@ -182,5 +195,18 @@ class AsistenciaClaseProgramadaController extends Controller
                 'error' => $e->getMessage(),
             ], 500);
         }
+    }
+
+    /**
+     * Corta con 403 si el usuario no puede gestionar las clases del grupo: solo su
+     * profesor o el personal con la sede del grupo asignada (como asistencia y notas).
+     *
+     * @param Request $request
+     * @param Grupo|null $grupo
+     * @return void
+     */
+    private function autorizarGrupo(Request $request, ?Grupo $grupo): void
+    {
+        abort_unless($grupo && $request->user()->puedeGestionarGrupo($grupo), 403, 'Solo el profesor del grupo o el personal de su sede puede programar clases en este grupo.');
     }
 }

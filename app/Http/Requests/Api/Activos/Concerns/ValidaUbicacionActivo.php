@@ -3,10 +3,12 @@
 namespace App\Http\Requests\Api\Activos\Concerns;
 
 use App\Models\Configuracion\Area;
+use App\Models\User;
 
 /**
- * Validaciones de ubicación compartidas por el registro y el traslado de activos:
- * el usuario debe tener asignada la sede y el área debe pertenecer a esa sede.
+ * Validaciones compartidas por el registro, la edición y el traslado de activos:
+ * el usuario debe tener asignada la sede, el área debe pertenecer a esa sede y el
+ * responsable debe ser personal del instituto (no un estudiante).
  */
 trait ValidaUbicacionActivo
 {
@@ -33,5 +35,19 @@ trait ValidaUbicacionActivo
         if (! $areaEnSede) {
             $validator->errors()->add('area_id', 'El área seleccionada no pertenece a la sede.');
         }
+    }
+
+    /**
+     * Regla del responsable: debe ser personal, no un estudiante (F15).
+     *
+     * @return \Closure
+     */
+    protected function reglaResponsable(): \Closure
+    {
+        return function (string $atributo, $valor, \Closure $fallar) {
+            if ($valor && ! User::personal()->whereKey($valor)->exists()) {
+                $fallar('El responsable debe ser un usuario del personal, no un estudiante.');
+            }
+        };
     }
 }

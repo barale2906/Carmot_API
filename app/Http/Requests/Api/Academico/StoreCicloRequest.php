@@ -2,14 +2,16 @@
 
 namespace App\Http\Requests\Api\Academico;
 
+use App\Http\Requests\Api\Academico\Concerns\ValidaGruposDelCiclo;
 use App\Traits\HasActiveStatus;
 use App\Traits\HasActiveStatusValidation;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class StoreCicloRequest extends FormRequest
 {
-    use HasActiveStatus, HasActiveStatusValidation;
+    use HasActiveStatus, HasActiveStatusValidation, ValidaGruposDelCiclo;
 
     /**
      * Determina si el usuario está autorizado para hacer esta solicitud.
@@ -56,7 +58,6 @@ class StoreCicloRequest extends FormRequest
                 Rule::requiredIf(fn () => $this->has('fecha_fin_automatica') && ! $this->boolean('fecha_fin_automatica')),
             ],
             'fecha_fin_automatica' => 'nullable|boolean',
-            'inscritos' => 'nullable|integer|min:0',
             'grupos' => 'nullable|array',
             'grupos.*' => 'integer|exists:grupos,id',
             'status' => self::getStatusValidationRule(),
@@ -90,8 +91,6 @@ class StoreCicloRequest extends FormRequest
             'fecha_fin.after' => 'La fecha de fin debe ser posterior a la fecha de inicio.',
             'fecha_fin.required' => 'La fecha de fin es obligatoria cuando la fecha fin es fija (no automática).',
             'fecha_fin_automatica.boolean' => 'El cálculo automático de fecha de fin debe ser verdadero o falso.',
-            'inscritos.integer' => 'El número de inscritos debe ser un número entero.',
-            'inscritos.min' => 'El número de inscritos no puede ser negativo.',
             'grupos.array' => 'Los grupos deben ser un array.',
             'grupos.*.integer' => 'Cada grupo debe ser un número entero.',
             'grupos.*.exists' => 'Uno o más grupos seleccionados no existen.',
@@ -112,7 +111,17 @@ class StoreCicloRequest extends FormRequest
             'fecha_inicio' => 'fecha de inicio',
             'fecha_fin' => 'fecha de fin',
             'fecha_fin_automatica' => 'cálculo automático de fecha de fin',
-            'inscritos' => 'inscritos',
         ];
+    }
+
+    /**
+     * Validaciones posteriores: los grupos deben ser de la sede y del curso del ciclo y tener horarios.
+     *
+     * @param Validator $validator
+     * @return void
+     */
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(fn (Validator $validator) => $this->validarGruposDelCiclo($validator, $this->input('sede_id'), $this->input('curso_id')));
     }
 }

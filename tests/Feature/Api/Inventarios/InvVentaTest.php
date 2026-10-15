@@ -144,6 +144,30 @@ class InvVentaTest extends TestCase
     }
 
     /** @test */
+    public function quien_registra_la_transferencia_no_puede_aprobarla(): void
+    {
+        [, $reciboId] = $this->venderPorTransferencia($this->precio);
+
+        $this->actingAs($this->cajero)
+            ->postJson(route('inv-ventas.aprobar-transferencia', $reciboId))
+            ->assertForbidden()
+            ->assertJsonFragment(['message' => ReciboPago::MENSAJE_APROBACION_PROPIA]);
+    }
+
+    /** @test */
+    public function store_rechaza_despachar_desde_un_almacen_de_otra_sede(): void
+    {
+        $almacenAjeno = InvAlmacen::factory()->create(['sede_id' => \App\Models\Configuracion\Sede::factory()->create()->id]);
+
+        $this->actingAs($this->cajero)
+            ->postJson(route('inv-ventas.store'), $this->payloadPedido(['almacen_id' => $almacenAjeno->id]))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('almacen_id');
+
+        $this->assertDatabaseCount('inv_pedidos', 0);
+    }
+
+    /** @test */
     public function store_numero_recibo_usa_prefijo_codigo_inventario_de_la_sede(): void
     {
         $response = $this->actingAs($this->cajero)
@@ -575,6 +599,17 @@ class InvVentaTest extends TestCase
      * @param int $cantidad
      * @return void
      */
+    /**
+     * Otro usuario con los mismos permisos que el cajero: nadie aprueba la transferencia que registró (B32).
+     */
+    private function aprobador(): User
+    {
+        $aprobador = User::factory()->create();
+        $aprobador->givePermissionTo($this->cajero->getAllPermissions());
+
+        return $aprobador;
+    }
+
     private function darStock(int $cantidad): void
     {
         InvStock::create([
@@ -635,7 +670,7 @@ class InvVentaTest extends TestCase
 
         [$pedidoId, $reciboId] = $this->venderPorTransferencia($this->precio);
 
-        $this->actingAs($this->cajero)
+        $this->actingAs($this->aprobador())
             ->postJson(route('inv-ventas.aprobar-transferencia', $reciboId))
             ->assertOk();
 
@@ -658,7 +693,7 @@ class InvVentaTest extends TestCase
 
         [$pedidoId, $reciboId] = $this->venderPorTransferencia($abono);
 
-        $this->actingAs($this->cajero)
+        $this->actingAs($this->aprobador())
             ->postJson(route('inv-ventas.aprobar-transferencia', $reciboId))
             ->assertOk();
 
@@ -700,7 +735,7 @@ class InvVentaTest extends TestCase
         $this->assertDatabaseHas('inv_pedidos', ['id' => $pedidoId, 'saldo' => $mitad]);
         $this->assertDatabaseCount('inv_entregas_simple', 0);
 
-        $this->actingAs($this->cajero)
+        $this->actingAs($this->aprobador())
             ->postJson(route('inv-ventas.aprobar-transferencia', $reciboId))
             ->assertOk();
 
@@ -757,7 +792,7 @@ class InvVentaTest extends TestCase
 
         InvPedido::find($pedidoId)->update(['status' => InvPedido::STATUS_CANCELADO]);
 
-        $this->actingAs($this->cajero)
+        $this->actingAs($this->aprobador())
             ->postJson(route('inv-ventas.aprobar-transferencia', $reciboId))
             ->assertUnprocessable();
 
@@ -776,7 +811,7 @@ class InvVentaTest extends TestCase
 
         [, $reciboId] = $this->venderPorTransferencia($this->precio);
 
-        $this->actingAs($this->cajero)
+        $this->actingAs($this->aprobador())
             ->postJson(route('recibos-pago.aprobar-transferencia', $reciboId))
             ->assertUnprocessable();
 

@@ -85,6 +85,28 @@ class Descuento extends Model
     const STATUS_ACTIVO     = 3;
 
     /**
+     * Campos que definen cuánto y cuándo se descuenta o recarga. En un descuento aprobado
+     * o activo no se cambian (N06): el cambio entraría en vigor sin pasar por aprobación.
+     * La vigencia, el alcance (listas, sedes, poblaciones, productos) y los textos sí.
+     */
+    const CAMPOS_CALCULO = [
+        'tipo_movimiento', 'codigo_descuento', 'tipo', 'valor', 'aplicacion', 'tipo_activacion',
+        'dias_anticipacion', 'permite_acumulacion', 'medios_pago', 'marca_tarjeta',
+    ];
+
+    const MENSAJE_CALCULO_BLOQUEADO = 'El descuento ya está aprobado o activo: este campo no se puede modificar. Cree uno nuevo e inactive el actual.';
+
+    /**
+     * Indica si los campos de cálculo ya no se pueden modificar (aprobado o activo).
+     *
+     * @return bool
+     */
+    public function calculoBloqueado(): bool
+    {
+        return in_array((int) $this->status, [self::STATUS_APROBADO, self::STATUS_ACTIVO], true);
+    }
+
+    /**
      * Nombre de la tabla asociada al modelo.
      *
      * @var string

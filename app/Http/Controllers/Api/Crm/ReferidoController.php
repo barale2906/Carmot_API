@@ -115,7 +115,8 @@ class ReferidoController extends Controller
     }
 
     /**
-     * Actualiza el referido especificado en la base de datos.
+     * Actualiza el referido especificado en la base de datos. Si cambia el asesor, la
+     * reasignación queda en la bitácora del lead (N07).
      *
      * @param UpdateReferidoRequest $request
      * @param Referido $referido
@@ -123,6 +124,8 @@ class ReferidoController extends Controller
      */
     public function update(UpdateReferidoRequest $request, Referido $referido): JsonResponse
     {
+        $gestorAnteriorId = $referido->gestor_id;
+
         $referido->update($request->only([
             'curso_id',
             'gestor_id',
@@ -135,6 +138,10 @@ class ReferidoController extends Controller
         ]));
 
         $referido->load(['curso', 'gestor']);
+
+        if ($referido->wasChanged('gestor_id')) {
+            $referido->registrarReasignacion($gestorAnteriorId, $request->user()->id);
+        }
 
         return response()->json([
             'message' => 'Referido actualizado exitosamente.',
@@ -254,7 +261,9 @@ class ReferidoController extends Controller
         $ciudades = Referido::distinct()->pluck('ciudad')->filter()->sort()->values();
         $cursos = Curso::select('id', 'nombre')->get();
         // `name` es un accessor (nombre compuesto), no una columna: se arma en PHP.
-        $gestores = User::select('id', 'primer_nombre', 'segundo_nombre', 'primer_apellido', 'segundo_apellido', 'email')
+        // Solo personal: los estudiantes no gestionan leads (N07)
+        $gestores = User::personal()
+            ->select('id', 'primer_nombre', 'segundo_nombre', 'primer_apellido', 'segundo_apellido', 'email')
             ->orderBy('primer_nombre')
             ->get()
             ->map(fn (User $user) => ['id' => $user->id, 'name' => $user->name, 'email' => $user->email]);

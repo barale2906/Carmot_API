@@ -281,7 +281,8 @@ class ActActivoController extends Controller
                 'categorias'   => ActCategoria::where('status', 1)->orderBy('nombre')->get(['id', 'nombre']),
                 'estados'      => ActActivo::ESTADOS,
                 // `name` es un accessor (nombre compuesto): se arma en PHP.
-                'responsables' => User::select('id', 'primer_nombre', 'segundo_nombre', 'primer_apellido', 'segundo_apellido')
+                // Solo personal: antes se listaban también los estudiantes (F15)
+                'responsables' => User::personal()->select('id', 'primer_nombre', 'segundo_nombre', 'primer_apellido', 'segundo_apellido')
                     ->orderBy('primer_nombre')
                     ->get()
                     ->map(fn (User $user) => ['id' => $user->id, 'name' => $user->name]),

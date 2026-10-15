@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\Academico\AplazamientoController;
+use App\Http\Controllers\Api\Academico\EstudianteController;
 use App\Http\Controllers\Api\Academico\AsistenciaClaseProgramadaController;
 use App\Http\Controllers\Api\Academico\AsistenciaConfiguracionController;
 use App\Http\Controllers\Api\Academico\AsistenciaController;
@@ -174,7 +175,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('{programacion}/desasignar-grupo', [ProgramacionController::class, 'desasignarGrupo'])->name('programaciones.desasignar-grupo');
         Route::get('{programacion}/cronograma', [ProgramacionController::class, 'cronograma'])->name('programaciones.cronograma');
     });
-    Route::apiResource('programaciones', ProgramacionController::class);
+    Route::apiResource('programaciones', ProgramacionController::class)
+        ->parameters(['programaciones' => 'programacion']);
 
     // -------------------------------------------------------------------------
     // Matrículas
@@ -186,6 +188,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('precarga-estudiante/{estudianteId}', [MatriculaController::class, 'precargaEstudiante'])->name('matriculas.precarga-estudiante');
         Route::post('{matricula}/estado-academico', [MatriculaController::class, 'cambiarEstadoAcademico'])->name('matriculas.estado-academico');
         Route::get('{matricula}/historial-estados', [MatriculaController::class, 'historialEstados'])->name('matriculas.historial-estados');
+        Route::get('{matricula}/evaluacion-cierre', [MatriculaController::class, 'evaluacionCierre'])->name('matriculas.evaluacion-cierre');
         Route::post('{id}/restore', [MatriculaController::class, 'restore'])->name('matriculas.restore');
         Route::delete('{id}/force-delete', [MatriculaController::class, 'forceDelete'])->name('matriculas.force-delete');
     });
@@ -240,6 +243,11 @@ Route::middleware('auth:sanctum')->group(function () {
     // Asistencia — Configuraciones
     // -------------------------------------------------------------------------
     Route::apiResource('asistencia-configuraciones', AsistenciaConfiguracionController::class);
+
+    // -------------------------------------------------------------------------
+    // Estudiantes (buscador y registro desde matrícula, ventas y recibos, B49)
+    // -------------------------------------------------------------------------
+    Route::apiResource('estudiantes', EstudianteController::class)->except(['destroy']);
 
     // -------------------------------------------------------------------------
     // Biblioteca

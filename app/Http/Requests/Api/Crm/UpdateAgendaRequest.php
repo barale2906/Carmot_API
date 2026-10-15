@@ -76,17 +76,23 @@ class UpdateAgendaRequest extends FormRequest
     }
 
     /**
-     * Prepara los datos para la validación.
+     * Prepara los datos para la validación: si cambia el referido sin indicar agendador,
+     * queda el usuario autenticado (B46); si cambia la hora, la jornada se deriva de ella (B12).
      *
      * @return void
      */
     protected function prepareForValidation(): void
     {
-        // Si se está actualizando el referido, también actualizar el agendador
-        if ($this->has('referido_id')) {
-            $this->merge([
-                'agendador_id' => auth()->id()
-            ]);
+        $datos = [];
+
+        if ($this->has('referido_id') && ! $this->has('agendador_id')) {
+            $datos['agendador_id'] = auth()->id();
         }
+
+        if (is_string($this->hora) && preg_match('/^(\d{2}):\d{2}$/', $this->hora, $m)) {
+            $datos['jornada'] = (int) $m[1] < 12 ? 'am' : 'pm';
+        }
+
+        $this->merge($datos);
     }
 }

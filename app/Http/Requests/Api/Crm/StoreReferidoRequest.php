@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Api\Crm;
 
+use App\Models\User;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreReferidoRequest extends FormRequest
@@ -25,7 +26,8 @@ class StoreReferidoRequest extends FormRequest
     {
         return [
             'curso_id' => ['required', 'integer', 'exists:cursos,id'],
-            'gestor_id' => ['required', 'integer', 'exists:users,id'],
+            // Asesor que gestiona el lead hasta matricularlo o hasta que lo reasignen (N07)
+            'gestor_id' => ['required', 'integer', 'exists:users,id', User::reglaPersonal('El asesor debe ser alguien del personal, no un estudiante.')],
             'nombre' => ['nullable', 'string', 'max:255'],
             'celular' => ['required', 'string', 'unique:referidos,celular', 'max:20'],
             'talla_overol' => ['nullable', 'string', 'max:10'],

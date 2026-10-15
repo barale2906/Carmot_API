@@ -173,7 +173,8 @@ class LpListaPrecioController extends Controller
             DB::commit();
 
             // Cargar relaciones por defecto
-            $listaPrecio->load(['poblaciones']);
+            // refresh: toma el status por defecto de la BD (antes respondía null, B10)
+            $listaPrecio->refresh()->load(['poblaciones']);
 
             return response()->json([
                 'message' => 'Lista de precios creada exitosamente.',
@@ -401,6 +402,7 @@ class LpListaPrecioController extends Controller
             // Crear la nueva lista en estado "En Proceso"
             $nuevaLista = LpListaPrecio::create([
                 'nombre'      => $request->string('nombre'),
+                'codigo'      => $request->input('codigo'),
                 'fecha_inicio' => $request->date('fecha_inicio'),
                 'fecha_fin'   => $request->date('fecha_fin'),
                 'descripcion' => $request->input('descripcion', $lpListaPrecio->descripcion),

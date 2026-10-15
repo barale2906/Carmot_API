@@ -100,6 +100,14 @@ class StoreKpiRequest extends FormRequest
             if ($hasDenModel && !$hasDenOp) {
                 $validator->errors()->add('denominator_operation', 'La operación del denominador es obligatoria cuando se especifica un modelo.');
             }
+
+            // Solo el conteo puede ir sin campo (cuenta registros); sum/avg/max/min lo necesitan (B40)
+            if ($this->input('numerator_operation') !== 'count' && ! $this->filled('numerator_field')) {
+                $validator->errors()->add('numerator_field', 'El campo del numerador es obligatorio salvo en la operación de conteo.');
+            }
+            if ($hasDenModel && $hasDenOp && $this->input('denominator_operation') !== 'count' && ! $this->filled('denominator_field')) {
+                $validator->errors()->add('denominator_field', 'El campo del denominador es obligatorio salvo en la operación de conteo.');
+            }
         });
     }
 }

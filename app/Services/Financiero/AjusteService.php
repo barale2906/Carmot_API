@@ -47,7 +47,8 @@ class AjusteService extends DescuentoService
     }
 
     /**
-     * Persiste un sobrecargo en la tabla recibo_pago_sobrecargo y devuelve el registro creado.
+     * Persiste un sobrecargo en la tabla recibo_pago_sobrecargo, suma el recargo al valor
+     * del medio de pago (que queda con lo realmente cobrado) y devuelve el registro creado.
      * El método no actualiza sobrecargo_total en el encabezado del recibo;
      * eso se delega a calcularTotales() en el controlador.
      *
@@ -61,10 +62,12 @@ class AjusteService extends DescuentoService
         ReciboPago $recibo,
         ReciboPagoMedioPago $medioPago
     ): ReciboPagoSobrecargo {
-        $valorBase       = (float) $medioPago->valor;
+        // Base = valor del medio sin los sobrecargos ya aplicados a él (no se encadenan)
+        $yaAplicado      = (float) ReciboPagoSobrecargo::where('recibo_pago_medio_pago_id', $medioPago->id)->sum('valor_sobrecargo');
+        $valorBase       = (float) $medioPago->valor - $yaAplicado;
         $valorSobrecargo = $sobrecargo->calcularSobrecargo($valorBase);
 
-        return ReciboPagoSobrecargo::create([
+        $registro = ReciboPagoSobrecargo::create([
             'recibo_pago_id'             => $recibo->id,
             'descuento_id'               => $sobrecargo->id,
             'recibo_pago_medio_pago_id'  => $medioPago->id,
@@ -72,6 +75,12 @@ class AjusteService extends DescuentoService
             'valor_sobrecargo'           => $valorSobrecargo,
             'valor_final'                => $valorBase + $valorSobrecargo,
         ]);
+
+        // El medio de pago registra lo realmente cobrado (p. ej. en el datáfono): base + recargo.
+        // Así el libro diario y el cierre de caja cuadran con el recibo (B30).
+        $medioPago->increment('valor', $valorSobrecargo);
+
+        return $registro;
     }
 
     /**

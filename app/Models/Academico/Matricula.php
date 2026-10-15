@@ -38,6 +38,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property string $fecha_inicio
  * @property float $monto
  * @property float|null $valor_cuota
+ * @property int|null $numero_cuotas Número de cuotas, tomado del precio de lista vinculado
  * @property string|null $observaciones
  * @property string|null $tipo_identificacion CC | CE | TI | RC | PA | OT
  * @property string|null $departamento_expedicion
@@ -98,6 +99,7 @@ class Matricula extends Model
     public const ESTADO_DESERTADO = 3;
     public const ESTADO_RETIRADO  = 4;
     public const ESTADO_GRADUADO  = 5;
+    public const ESTADO_REPROBADO = 6;
 
     public const ESTADOS_ACADEMICOS = [
         self::ESTADO_ACTIVO    => 'Activo',
@@ -105,6 +107,7 @@ class Matricula extends Model
         self::ESTADO_DESERTADO => 'Desertado',
         self::ESTADO_RETIRADO  => 'Retirado',
         self::ESTADO_GRADUADO  => 'Graduado',
+        self::ESTADO_REPROBADO => 'Reprobado',
     ];
 
     /**
@@ -115,6 +118,16 @@ class Matricula extends Model
         self::ESTADO_DESERTADO,
         self::ESTADO_RETIRADO,
         self::ESTADO_GRADUADO,
+        self::ESTADO_REPROBADO,
+    ];
+
+    /**
+     * Estados con los que se cierra el ciclo cursado (resultado académico). Solo se llega
+     * a ellos desde Activo y solo se sale de ellos de vuelta a Activo, para corregir un error.
+     */
+    public const ESTADOS_ACADEMICOS_CIERRE = [
+        self::ESTADO_GRADUADO,
+        self::ESTADO_REPROBADO,
     ];
 
     public const TIPOS_IDENTIFICACION = [
@@ -622,6 +635,11 @@ class Matricula extends Model
             }
             if (! $matricula->enfermedad_prioritaria) {
                 $matricula->enfermedad_detalle = null;
+            }
+
+            // El número de cuotas sale del precio de lista vinculado (variable numero_cuotas del contrato, F08)
+            if ($matricula->lp_precio_producto_id && ($matricula->isDirty('lp_precio_producto_id') || $matricula->numero_cuotas === null)) {
+                $matricula->numero_cuotas = LpPrecioProducto::whereKey($matricula->lp_precio_producto_id)->value('numero_cuotas');
             }
         });
 

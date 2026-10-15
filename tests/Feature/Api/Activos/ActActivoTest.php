@@ -186,6 +186,11 @@ class ActActivoTest extends TestCase
 
         $this->actingAs($this->usuario)->postJson(route('act-activos.trasladar', $activo), $base + ['sede_id' => $this->otraSede->id])
             ->assertUnprocessable()->assertJsonValidationErrors('sede_id');
+
+        // N15 (prueba integral 2): tampoco se editan sus datos
+        $this->actingAs($this->usuario)->putJson(route('act-activos.update', $activo), ['nombre' => 'Lote renombrado'])
+            ->assertUnprocessable()->assertJsonValidationErrors('estado');
+        $this->assertDatabaseMissing('act_activos', ['id' => $activo->id, 'nombre' => 'Lote renombrado']);
     }
 
     /** @test */
@@ -227,5 +232,27 @@ class ActActivoTest extends TestCase
         $this->actingAs($lector)->postJson(route('act-activos.store'), $this->payload(['codigo' => 'X']))->assertForbidden();
         $this->actingAs($lector)->postJson(route('act-activos.trasladar', $activo), [])->assertForbidden();
         $this->actingAs($lector)->deleteJson(route('act-activos.destroy', $activo))->assertForbidden();
+    }
+
+    /** @test */
+    public function el_responsable_debe_ser_personal_y_no_un_estudiante(): void
+    {
+        \Spatie\Permission\Models\Role::firstOrCreate(['name' => User::ROL_ALUMNO]);
+        \Spatie\Permission\Models\Role::firstOrCreate(['name' => 'profesor']);
+        $alumno = User::factory()->create();
+        $alumno->assignRole(User::ROL_ALUMNO);
+        $profesor = User::factory()->create();
+        $profesor->assignRole('profesor');
+
+        $this->actingAs($this->usuario)->postJson(route('act-activos.store'), $this->payload(['codigo' => 'ACT-R1', 'responsable_id' => $alumno->id]))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('responsable_id');
+
+        $this->actingAs($this->usuario)->postJson(route('act-activos.store'), $this->payload(['codigo' => 'ACT-R2', 'responsable_id' => $profesor->id]))
+            ->assertCreated();
+
+        $ids = collect($this->actingAs($this->usuario)->getJson(route('act-activos.filters'))->json('data.responsables'))->pluck('id');
+        $this->assertContains($profesor->id, $ids);
+        $this->assertNotContains($alumno->id, $ids);
     }
 }

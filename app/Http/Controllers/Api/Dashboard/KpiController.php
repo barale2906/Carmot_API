@@ -52,7 +52,12 @@ class KpiController extends Controller
         $opts = $request->validated();
         
         // El servicio ahora maneja el chart_schema de las opciones con prioridad sobre el del KPI
-        $result = $this->service->compute($kpi, $opts);
+        try {
+            $result = $this->service->compute($kpi, $opts);
+        } catch (\InvalidArgumentException $e) {
+            // KPI incompleto o mal configurado: error del usuario, no del servidor (B40)
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
 
         return (new KpiComputeResource($result))
             ->response()

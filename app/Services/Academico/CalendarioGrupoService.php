@@ -38,6 +38,14 @@ use Illuminate\Support\Facades\DB;
  * día y que aún no ha terminado al iniciar este; así varias ejecuciones
  * independientes del mismo grupo (p. ej. un ciclo y su clon) no se adoptan
  * entre sí al recalcular.
+ *
+ * Calendario cíclico: los módulos rotan (1 → 2 → 3 → 1 …) y los grupos son fijos
+ * aunque formen parte de varios ciclos. Un ciclo que inicia con módulos ya en
+ * ejecución entra en el que está corriendo: la secuencia arranca en el tramo
+ * compartido que empieza primero y los módulos anteriores pasan al final. Los
+ * módulos libres se programan después de los tramos que los preceden, nunca en
+ * paralelo; si aun así se cruzan (con un tramo del ciclo o con el mismo grupo en
+ * otro ciclo) se advierte.
  */
 class CalendarioGrupoService
 {
@@ -159,14 +167,18 @@ class CalendarioGrupoService
      * ajuste, las horas planeadas por grupo, la fecha fin teórica (100 %) y la
      * intensidad semanal sugerida para dictar el curso completo.
      *
+     * Con $sedeId solo se listan los grupos de esa sede (el ciclo solo admite grupos de su sede).
+     *
      * @param int         $cursoId
      * @param string      $fechaInicio Fecha de inicio propuesta (Y-m-d).
      * @param string|null $fechaFin    Fecha fin fija propuesta (Y-m-d) o null.
+     * @param int|null    $sedeId      Sede del ciclo; null = todas.
      * @return array
      */
-    public function previsualizarCurso(int $cursoId, string $fechaInicio, ?string $fechaFin = null): array
+    public function previsualizarCurso(int $cursoId, string $fechaInicio, ?string $fechaFin = null, ?int $sedeId = null): array
     {
         $curso = Curso::with([
+            'modulosOrdenados.grupos' => fn ($q) => $q->when($sedeId, fn ($q) => $q->where('grupos.sede_id', $sedeId)),
             'modulosOrdenados.grupos.horarios',
             'modulosOrdenados.grupos.modulo',
         ])->findOrFail($cursoId);
@@ -241,7 +253,8 @@ class CalendarioGrupoService
             }
         }
 
-        $simular   = fn (float $factor) => $this->simularLibres($libres, $cursor0, $factor, $noLab);
+        $pasos     = $this->secuenciaCiclica($grupos, $compartidos);
+        $simular   = fn (float $factor) => $this->simularLibres($pasos, $cursor0, $factor, $noLab);
         $teorico   = $simular(1.0);
         $factor    = null;
         $resultado = $teorico;
@@ -255,6 +268,11 @@ class CalendarioGrupoService
             [$factor, $ajustado] = $this->buscarFactor($simular, $teorico, $limite);
             $resultado   = $ajustado ?? $teorico;
             $advertencia = $this->advertencia($factor, $limite, $teorico['fin'], $teorico['secuencia'], $compartidos);
+        }
+
+        $cruces = $this->cruces($ciclo, $resultado['resultado'], $compartidos, $libres);
+        if ($cruces) {
+            $advertencia = trim(($advertencia ?? '') . ' ' . implode(' ', $cruces));
         }
 
         $plan = [];
@@ -280,21 +298,27 @@ class CalendarioGrupoService
     }
 
     /**
-     * Simula la secuencia de grupos libres con un factor: cada grupo cubre
-     * duración × factor horas desde el cursor; el siguiente arranca el día
-     * después de la última sesión. Los grupos sin horarios o sin duración se omiten.
+     * Simula la secuencia cíclica con un factor. Un tramo compartido es fijo: solo
+     * lleva el cursor al día siguiente de su fin. Cada grupo libre cubre
+     * duración × factor horas desde el cursor; el siguiente arranca el día después
+     * de su última sesión. Los grupos sin horarios o sin duración se omiten.
      *
-     * @param array<int, Grupo> $libres
+     * @param array<int, array{grupo: Grupo, compartido: array|null}> $pasos Ver secuenciaCiclica()
      * @return array{resultado: array<int, array>, fin: Carbon|null, secuencia: array<int, Grupo>}
      */
-    private function simularLibres(array $libres, Carbon $cursor0, float $factor, \Closure $noLab): array
+    private function simularLibres(array $pasos, Carbon $cursor0, float $factor, \Closure $noLab): array
     {
         $cursor    = $cursor0->copy();
         $resultado = [];
         $secuencia = [];
         $fin       = null;
 
-        foreach ($libres as $grupo) {
+        foreach ($pasos as ['grupo' => $grupo, 'compartido' => $compartido]) {
+            if ($compartido) {
+                $cursor = $this->maxFecha($cursor, $compartido['fecha_fin']->copy()->addDay());
+                continue;
+            }
+
             $horas = (float) ($grupo->modulo->duracion ?? 0) * $factor;
             $rango = $horas > 0
                 ? $this->calendarioLaboral->calcularRangoGrupo($grupo, $cursor, $horas, $noLab($grupo->sede_id))
@@ -314,9 +338,12 @@ class CalendarioGrupoService
     }
 
     /**
-     * Simula la previsualización de un curso con un factor. En cada módulo,
-     * el primer grupo entre ejecuciones determina cuándo avanza el cursor;
-     * esos grupos forman la secuencia usada para el ajuste.
+     * Simula la previsualización de un curso con un factor. Recorre los módulos en
+     * secuencia cíclica (ver secuenciaCiclica): arranca en el módulo cuya ejecución
+     * existente empieza primero. Un módulo con ejecución existente lleva el cursor al
+     * día siguiente de su fin; si no, el primer grupo entre ejecuciones determina
+     * cuándo avanza el cursor y esos grupos forman la secuencia usada para el ajuste.
+     * Los módulos se devuelven en su orden canónico.
      *
      * @param array<int, array|null> $existentesPorGrupo Fechas activas de cada grupo (precalculadas)
      * @return array{resultado: array<int, array>, fin: Carbon|null, secuencia: array<int, Grupo>}
@@ -328,9 +355,19 @@ class CalendarioGrupoService
         $secuencia = [];
         $fin       = null;
 
-        foreach ($curso->modulosOrdenados as $modulo) {
+        $modulosCurso = $curso->modulosOrdenados->values();
+        $inicioExistente = $modulosCurso->map(fn ($modulo) => $modulo->grupos
+            ->map(fn ($g) => $existentesPorGrupo[$g->id]['fecha_inicio'] ?? null)
+            ->filter()->min());
+        $rotacion = $inicioExistente->filter()->sort()->keys()->first() ?? 0;
+        $indices  = $modulosCurso->keys()->all();
+        $orden    = array_merge(array_slice($indices, $rotacion), array_slice($indices, 0, $rotacion));
+
+        foreach ($orden as $indice) {
+            $modulo         = $modulosCurso[$indice];
             $gruposModulo   = [];
             $primerSinFecha = null;
+            $finExistente   = null;
             $duracion       = (float) ($modulo->duracion ?? 0);
 
             foreach ($modulo->grupos as $grupo) {
@@ -339,6 +376,9 @@ class CalendarioGrupoService
                 $existentes  = $existentesPorGrupo[$grupo->id] ?? null;
 
                 if ($existentes) {
+                    if ($existentes['fecha_inicio'] === $inicioExistente[$indice]) {
+                        $finExistente = Carbon::parse($existentes['fecha_fin']);
+                    }
                     $gruposModulo[] = [
                         'grupo_id'            => $grupo->id,
                         'grupo_nombre'        => $grupo->nombre,
@@ -381,12 +421,15 @@ class CalendarioGrupoService
                 }
             }
 
-            if ($primerSinFecha) {
+            if ($finExistente) {
+                // Tramo en ejecución: fijo, los módulos siguientes arrancan después
+                $cursor = $this->maxFecha($cursor, $finExistente->copy()->addDay());
+            } elseif ($primerSinFecha) {
                 $cursor = $primerSinFecha->copy()->addDay();
                 $fin    = $primerSinFecha;
             }
 
-            $modulos[] = [
+            $modulos[$indice] = [
                 'modulo_id'     => $modulo->id,
                 'modulo_nombre' => $modulo->nombre,
                 'orden'         => $modulo->pivot->orden,
@@ -395,7 +438,9 @@ class CalendarioGrupoService
             ];
         }
 
-        return ['resultado' => $modulos, 'fin' => $fin, 'secuencia' => $secuencia];
+        ksort($modulos);
+
+        return ['resultado' => array_values($modulos), 'fin' => $fin, 'secuencia' => $secuencia];
     }
 
     /**
@@ -523,6 +568,74 @@ class CalendarioGrupoService
     // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------
+
+    /**
+     * Ordena los grupos del ciclo en secuencia cíclica: si hay tramos compartidos,
+     * la secuencia arranca en el que empieza primero (el módulo que está corriendo
+     * cuando inicia el ciclo) y los grupos anteriores pasan al final.
+     *
+     * @param Collection<int, Grupo> $grupos      Ordenados por ciclo_grupo.orden
+     * @param array<int, array>      $compartidos Tramos fijos por grupo_id
+     * @return array<int, array{grupo: Grupo, compartido: array|null}>
+     */
+    private function secuenciaCiclica(Collection $grupos, array $compartidos): array
+    {
+        $lista = $grupos->values()->all();
+
+        if ($compartidos) {
+            $primero = collect($compartidos)->sortBy(fn ($c) => $c['fecha_inicio']->timestamp)->keys()->first();
+            $pos     = collect($lista)->search(fn (Grupo $g) => $g->id === $primero);
+            $lista   = array_merge(array_slice($lista, $pos), array_slice($lista, 0, $pos));
+        }
+
+        return array_map(fn (Grupo $g) => ['grupo' => $g, 'compartido' => $compartidos[$g->id] ?? null], $lista);
+    }
+
+    /**
+     * Mensajes de cruce de los grupos libres programados: con un tramo compartido
+     * del mismo ciclo o con el mismo grupo dictándose en otro ciclo en esas fechas.
+     *
+     * @param Ciclo              $ciclo
+     * @param array<int, array>  $resultado   Rangos de los grupos libres por grupo_id
+     * @param array<int, array>  $compartidos Tramos fijos por grupo_id
+     * @param array<int, Grupo>  $libres
+     * @return array<int, string>
+     */
+    private function cruces(Ciclo $ciclo, array $resultado, array $compartidos, array $libres): array
+    {
+        $mensajes = [];
+        $nombres  = collect($libres)->mapWithKeys(fn (Grupo $g) => [$g->id => $g->nombre]);
+
+        foreach ($resultado as $grupoId => $rango) {
+            $nombre = $nombres[$grupoId] ?? "#{$grupoId}";
+
+            foreach ($compartidos as $compartido) {
+                if ($rango['fecha_inicio']->lte($compartido['fecha_fin']) && $rango['fecha_fin']->gte($compartido['fecha_inicio'])) {
+                    $mensajes[] = "El módulo del grupo '{$nombre}' se cruza con el del grupo '{$compartido['grupo']->nombre}' "
+                        . '(' . $compartido['fecha_inicio']->format('d/m/Y') . ' – ' . $compartido['fecha_fin']->format('d/m/Y') . ').';
+                }
+            }
+
+            $otro = DB::table('ciclo_grupo')
+                ->join('ciclos', 'ciclos.id', '=', 'ciclo_grupo.ciclo_id')
+                ->whereNull('ciclos.deleted_at')
+                ->where('ciclo_grupo.grupo_id', $grupoId)
+                ->where('ciclo_grupo.ciclo_id', '!=', $ciclo->id)
+                ->whereNull('ciclo_grupo.ciclo_origen_id')
+                ->whereNotNull('ciclo_grupo.fecha_inicio_grupo')
+                ->where('ciclo_grupo.fecha_inicio_grupo', '<=', $rango['fecha_fin']->toDateString())
+                ->where('ciclo_grupo.fecha_fin_grupo', '>=', $rango['fecha_inicio']->toDateString())
+                ->first(['ciclos.nombre', 'ciclo_grupo.fecha_inicio_grupo', 'ciclo_grupo.fecha_fin_grupo']);
+
+            if ($otro) {
+                $mensajes[] = "El grupo '{$nombre}' ya se dicta en el ciclo {$otro->nombre} del "
+                    . Carbon::parse($otro->fecha_inicio_grupo)->format('d/m/Y') . ' al '
+                    . Carbon::parse($otro->fecha_fin_grupo)->format('d/m/Y') . ': las fechas se cruzan.';
+            }
+        }
+
+        return $mensajes;
+    }
 
     /**
      * Ejecución del grupo en otro ciclo que este ciclo debe compartir: fila

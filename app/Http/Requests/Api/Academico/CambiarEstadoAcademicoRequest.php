@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Api\Academico;
 
 use App\Models\Academico\Matricula;
+use App\Services\Academico\EvaluacionCierreService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -68,6 +69,11 @@ class CambiarEstadoAcademicoRequest extends FormRequest
      * distinto del actual, la fecha no puede ser anterior a la matrícula y, al reactivar,
      * el estudiante no puede tener ya otra matrícula vigente en el mismo curso.
      *
+     * Graduado y Reprobado cierran el ciclo cursado: solo se llega a ellos desde Activo y
+     * solo se sale de ellos a Activo (corrección). Graduar exige aprobar la evaluación de
+     * cierre (ciclo terminado, notas completas y aprobadas, asistencia) y reprobar exige
+     * el ciclo terminado sin haberla aprobado (N20), o la pérdida definitiva por fallas (N24).
+     *
      * @param \Illuminate\Validation\Validator $validator
      * @return void
      */
@@ -96,6 +102,17 @@ class CambiarEstadoAcademicoRequest extends FormRequest
                 $validator->errors()->add('fecha', 'La fecha del cambio no puede ser anterior a la fecha de matrícula.');
             }
 
+            $actual = (int) $matricula->estado_academico;
+
+            if (in_array($actual, Matricula::ESTADOS_ACADEMICOS_CIERRE, true) && $nuevo !== Matricula::ESTADO_ACTIVO) {
+                $validator->errors()->add('estado_academico', "La matrícula está en estado {$matricula->estado_academico_texto}: solo puede volver a Activo para corregir un error.");
+                return;
+            }
+
+            if (in_array($nuevo, Matricula::ESTADOS_ACADEMICOS_CIERRE, true)) {
+                $this->validarCierre($validator, $matricula, $actual, $nuevo);
+            }
+
             $reactiva = $matricula->status === 0 && ! in_array($nuevo, Matricula::ESTADOS_ACADEMICOS_FINALES, true);
             $otraVigente = $reactiva && Matricula::where('estudiante_id', $matricula->estudiante_id)
                 ->where('curso_id', $matricula->curso_id)
@@ -107,5 +124,39 @@ class CambiarEstadoAcademicoRequest extends FormRequest
                 $validator->errors()->add('estado_academico', 'El estudiante ya tiene otra matrícula vigente en este curso: no se puede reactivar esta.');
             }
         });
+    }
+
+    /**
+     * Valida el paso a Graduado o Reprobado con la evaluación de cierre de la matrícula.
+     *
+     * @param \Illuminate\Validation\Validator $validator
+     * @param Matricula $matricula
+     * @param int $actual
+     * @param int $nuevo
+     * @return void
+     */
+    private function validarCierre($validator, Matricula $matricula, int $actual, int $nuevo): void
+    {
+        if ($actual !== Matricula::ESTADO_ACTIVO) {
+            $validator->errors()->add('estado_academico', 'Solo se puede graduar o reprobar una matrícula en estado Activo.');
+            return;
+        }
+
+        $evaluacion = app(EvaluacionCierreService::class)->evaluar($matricula, $this->date('fecha'));
+
+        if ($nuevo === Matricula::ESTADO_GRADUADO) {
+            foreach ($evaluacion['motivos'] as $motivo) {
+                $validator->errors()->add('estado_academico', "No se puede graduar: {$motivo}");
+            }
+            return;
+        }
+
+        // Quien ya perdió por fallas sin posibilidad de recuperarse se reprueba de una vez:
+        // la matrícula finaliza y el estudiante queda libre para matricularse de nuevo (N24).
+        if (! $evaluacion['ciclo_terminado'] && ! $evaluacion['asistencia']['perdida_definitiva']) {
+            $validator->errors()->add('estado_academico', 'No se puede reprobar antes de que termine el ciclo, salvo que ya haya perdido por fallas.');
+        } elseif ($evaluacion['aprueba']) {
+            $validator->errors()->add('estado_academico', 'El estudiante cumple las notas y la asistencia: corresponde graduarlo.');
+        }
     }
 }

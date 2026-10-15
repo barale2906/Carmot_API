@@ -8,7 +8,7 @@ use Illuminate\Http\Resources\Json\JsonResource;
 class AsistenciaConfiguracionResource extends JsonResource
 {
     /**
-     * Transform the resource into an array.
+     * Transforma la configuración de asistencia en arreglo; curso y módulo son opcionales.
      *
      * @return array<string, mixed>
      */
@@ -18,16 +18,17 @@ class AsistenciaConfiguracionResource extends JsonResource
             'id' => $this->id,
 
             // Relaciones cargadas
-            'curso' => $this->whenLoaded('curso', [
+            // Closures: la configuración puede ser general (sin curso) o por curso (sin módulo)
+            'curso' => $this->whenLoaded('curso', fn () => $this->curso ? [
                 'id' => $this->curso->id,
                 'nombre' => $this->curso->nombre,
                 'duracion' => $this->curso->duracion,
-            ]),
+            ] : null),
 
-            'modulo' => $this->whenLoaded('modulo', [
+            'modulo' => $this->whenLoaded('modulo', fn () => $this->modulo ? [
                 'id' => $this->modulo->id,
                 'nombre' => $this->modulo->nombre,
-            ]),
+            ] : null),
 
             // Campos principales
             'curso_id' => $this->curso_id,

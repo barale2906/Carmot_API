@@ -5,6 +5,7 @@ namespace App\Http\Requests\Api\Financiero\Lp;
 use App\Models\Financiero\Lp\LpProducto;
 use App\Models\Financiero\Lp\LpProductoReferencia;
 use App\Services\Financiero\LpPrecioProductoService;
+use App\Models\Financiero\Lp\LpListaPrecio;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -35,7 +36,11 @@ class StoreLpPrecioProductoRequest extends FormRequest
     {
         return [
             'lista_precio_id' => 'required|integer|exists:lp_listas_precios,id',
-            'producto_id' => 'required|integer|exists:lp_productos,id',
+            // Uno por lista, incluidos los eliminados: el índice único los cuenta (N04)
+            'producto_id' => [
+                'required', 'integer', 'exists:lp_productos,id',
+                Rule::unique('lp_precios_producto', 'producto_id')->where('lista_precio_id', $this->input('lista_precio_id')),
+            ],
             'precio_contado' => 'required|numeric|min:0',
             'precio_total' => [
                 'nullable',
@@ -80,6 +85,10 @@ class StoreLpPrecioProductoRequest extends FormRequest
     public function withValidator($validator): void
     {
         $validator->after(function ($validator) {
+            if (LpListaPrecio::find($this->lista_precio_id)?->preciosBloqueados()) {
+                $validator->errors()->add('lista_precio_id', LpListaPrecio::MENSAJE_PRECIOS_BLOQUEADOS);
+            }
+
             if ($this->filled('producto_id')) {
                 $producto = LpProducto::with('tipoProducto')->find($this->producto_id);
 
@@ -162,6 +171,7 @@ class StoreLpPrecioProductoRequest extends FormRequest
             'producto_id.required' => 'El producto es obligatorio.',
             'producto_id.integer' => 'El producto debe ser un número entero.',
             'producto_id.exists' => 'El producto seleccionado no existe.',
+            'producto_id.unique' => 'Este producto ya tiene precio en la lista (si fue eliminado, restáurelo).',
             'precio_contado.required' => 'El precio de contado es obligatorio.',
             'precio_contado.numeric' => 'El precio de contado debe ser un número.',
             'precio_contado.min' => 'El precio de contado debe ser mayor o igual a 0.',

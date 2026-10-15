@@ -2,12 +2,14 @@
 
 namespace App\Http\Requests\Api\Configuracion;
 
+use App\Http\Requests\Api\Configuracion\Concerns\ReglaContrasena;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
-use Illuminate\Validation\Rules\Password;
 
 class UpdateUserRequest extends FormRequest
 {
+    use ReglaContrasena;
+
     public function authorize(): bool
     {
         return true;
@@ -29,7 +31,9 @@ class UpdateUserRequest extends FormRequest
             // ----------------------------------------------------------------
             'email'    => ['sometimes', 'string', 'email', 'max:255', Rule::unique('users')->ignore($this->user)],
             'documento' => ['sometimes', 'string', 'max:255', Rule::unique('users')->ignore($this->user)],
-            'password' => ['sometimes', 'confirmed', Password::defaults()],
+            'password' => ['sometimes', 'confirmed', ...$this->reglaContrasena(
+                $this->has('roles') ? (array) $this->input('roles') : ($this->user?->getRoleNames()->all() ?? [])
+            )],
 
             // ----------------------------------------------------------------
             // Roles, permisos y relaciones
@@ -48,6 +52,7 @@ class UpdateUserRequest extends FormRequest
     public function messages(): array
     {
         return [
+            'password.regex'           => 'La contraseña no puede tener espacios.',
             'primer_nombre.max'        => 'El primer nombre no puede superar 80 caracteres.',
             'segundo_nombre.max'       => 'El segundo nombre no puede superar 80 caracteres.',
             'primer_apellido.max'      => 'El primer apellido no puede superar 80 caracteres.',

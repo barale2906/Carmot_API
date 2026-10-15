@@ -33,9 +33,11 @@ class DocVariableResolverServiceTest extends TestCase
         $this->assertSame('CIENTO UNO PESOS M/CTE', $servicio->convertir(101));
         $this->assertSame('MIL QUINIENTOS PESOS M/CTE', $servicio->convertir(1500));
         $this->assertSame('VEINTIUN MIL PESOS M/CTE', $servicio->convertir(21000));
-        $this->assertSame('UN MILLON PESOS M/CTE', $servicio->convertir(1000000));
+        $this->assertSame('UN MILLÓN DE PESOS M/CTE', $servicio->convertir(1000000));
+        $this->assertSame('DOS MILLONES DE PESOS M/CTE', $servicio->convertir(2000000));
+        $this->assertSame('VEINTIDÓS MIL DIECISÉIS PESOS M/CTE', $servicio->convertir(22016));
         $this->assertSame(
-            'UN MILLON DOSCIENTOS CINCUENTA MIL PESOS M/CTE',
+            'UN MILLÓN DOSCIENTOS CINCUENTA MIL PESOS M/CTE',
             $servicio->convertir(1250000)
         );
         $this->assertSame(
@@ -79,7 +81,7 @@ class DocVariableResolverServiceTest extends TestCase
         );
 
         $this->assertSame('$ 1.250.000', $valores['monto']);
-        $this->assertSame('UN MILLON DOSCIENTOS CINCUENTA MIL PESOS M/CTE', $valores['monto_letras']);
+        $this->assertSame('UN MILLÓN DOSCIENTOS CINCUENTA MIL PESOS M/CTE', $valores['monto_letras']);
         $this->assertSame('6', $valores['numero_cuotas']);
         $this->assertSame('15/01/2026', $valores['fecha_matricula']);
         $this->assertSame('15 de enero de 2026', $valores['fecha_matricula_larga']);
@@ -97,6 +99,16 @@ class DocVariableResolverServiceTest extends TestCase
         $this->assertSame('24/09/2026', $valores['documento.fecha']);
         $this->assertSame('Contrato de matrícula', $valores['documento.tipo']);
         $this->assertSame(config('documentacion.instituto.nombre'), $valores['instituto.nombre']);
+    }
+
+    /** @test */
+    public function sin_env_el_instituto_toma_el_nombre_y_nit_reales_y_no_el_de_la_app(): void
+    {
+        $valores = app(DocVariableResolverService::class)->resolver(['instituto.nombre', 'instituto.nit'], null);
+
+        $this->assertSame(config('documentacion.instituto.nombre'), $valores['instituto.nombre']);
+        $this->assertNotSame(config('app.name'), $valores['instituto.nombre']);
+        $this->assertNotSame('', $valores['instituto.nit']);
     }
 
     /** @test */

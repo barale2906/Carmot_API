@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Academico;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\Academico\AsignarGruposProgramacionRequest;
 use App\Http\Requests\Api\Academico\StoreProgramacionRequest;
 use App\Http\Requests\Api\Academico\UpdateProgramacionRequest;
 use App\Http\Resources\Api\Academico\ProgramacionResource;
@@ -21,9 +22,9 @@ class ProgramacionController extends Controller
      */
     public function __construct()
     {
-        $this->middleware('permission:aca_programaciones')->only(['index', 'show', 'filters', 'statistics']);
+        $this->middleware('permission:aca_programaciones')->only(['index', 'show', 'filters', 'statistics', 'cronograma']);
         $this->middleware('permission:aca_programacionCrear')->only(['store']);
-        $this->middleware('permission:aca_programacionEditar')->only(['update']);
+        $this->middleware('permission:aca_programacionEditar')->only(['update', 'asignarGrupos', 'desasignarGrupo']);
         $this->middleware('permission:aca_programacionInactivar')->only(['destroy', 'restore', 'forceDelete', 'trashed']);
     }
 
@@ -366,21 +367,14 @@ class ProgramacionController extends Controller
     }
 
     /**
-     * Asigna grupos a una programación.
+     * Asigna grupos a una programación. Deben ser de su sede y de módulos de su curso (N23).
      *
-     * @param Request $request
+     * @param AsignarGruposProgramacionRequest $request
      * @param Programacion $programacion
      * @return JsonResponse
      */
-    public function asignarGrupos(Request $request, Programacion $programacion): JsonResponse
+    public function asignarGrupos(AsignarGruposProgramacionRequest $request, Programacion $programacion): JsonResponse
     {
-        $request->validate([
-            'grupos' => 'required|array',
-            'grupos.*.grupo_id' => 'required|integer|exists:grupos,id',
-            'grupos.*.fecha_inicio_grupo' => 'nullable|date|after_or_equal:' . $programacion->fecha_inicio->format('Y-m-d') . '|before_or_equal:' . $programacion->fecha_fin->format('Y-m-d'),
-            'grupos.*.fecha_fin_grupo' => 'nullable|date|after:grupos.*.fecha_inicio_grupo|before_or_equal:' . $programacion->fecha_fin->format('Y-m-d'),
-        ]);
-
         $gruposConFechas = [];
         foreach ($request->grupos as $grupo) {
             $gruposConFechas[] = [

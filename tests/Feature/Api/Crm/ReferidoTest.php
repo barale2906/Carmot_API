@@ -8,6 +8,7 @@ use App\Models\Crm\Seguimiento;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 /**
@@ -32,6 +33,9 @@ class ReferidoTest extends TestCase
 
         $this->usuario = User::factory()->create();
         $this->usuario->givePermissionTo(['crm_referidos', 'crm_referidoCrear', 'crm_referidoEditar', 'crm_referidoInactivar']);
+        // El asesor de un lead debe ser del personal (N07)
+        Role::create(['name' => User::ROL_ALUMNO]);
+        $this->usuario->assignRole(Role::create(['name' => 'auxiliar']));
         $this->curso = Curso::factory()->create();
     }
 
@@ -117,6 +121,45 @@ class ReferidoTest extends TestCase
             ->postJson(route('referidos.store'), ['celular' => '3001112233'])
             ->assertUnprocessable()
             ->assertJsonValidationErrors(['celular', 'curso_id', 'gestor_id', 'ciudad']);
+    }
+
+    /** @test */
+    public function el_asesor_debe_ser_del_personal_y_el_selector_no_lista_estudiantes(): void
+    {
+        $estudiante = User::factory()->create();
+        $estudiante->assignRole(User::ROL_ALUMNO);
+
+        $this->actingAs($this->usuario)
+            ->postJson(route('referidos.store'), [
+                'curso_id' => $this->curso->id, 'gestor_id' => $estudiante->id, 'celular' => '3109998877', 'ciudad' => 'Tunja',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('gestor_id');
+
+        $gestores = collect($this->actingAs($this->usuario)->getJson(route('referidos.filters'))->assertOk()->json('data.gestores'))->pluck('id');
+        $this->assertContains($this->usuario->id, $gestores);
+        $this->assertNotContains($estudiante->id, $gestores);
+    }
+
+    /** @test */
+    public function reasignar_el_lead_queda_en_su_bitacora(): void
+    {
+        $referido = $this->crearReferido();
+        $nuevo = User::factory()->create(['primer_nombre' => 'Laura', 'segundo_nombre' => null, 'primer_apellido' => 'Gómez', 'segundo_apellido' => null]);
+        $nuevo->assignRole('auxiliar');
+
+        $this->actingAs($this->usuario)
+            ->putJson(route('referidos.update', $referido), ['gestor_id' => $nuevo->id])
+            ->assertOk()
+            ->assertJsonPath('data.gestor.id', $nuevo->id);
+
+        $bitacora = $referido->seguimientos()->latest('id')->first();
+        $this->assertSame($this->usuario->id, $bitacora->seguidor_id);
+        $this->assertStringStartsWith('REASIGNACIÓN: de ' . $this->usuario->name . ' a ' . $nuevo->name, $bitacora->seguimiento);
+
+        // Editar otros datos no deja una reasignación
+        $this->actingAs($this->usuario)->putJson(route('referidos.update', $referido), ['ciudad' => 'Duitama'])->assertOk();
+        $this->assertSame(1, $referido->seguimientos()->count());
     }
 
     /** @test */

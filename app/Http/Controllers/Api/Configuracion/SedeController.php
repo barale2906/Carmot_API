@@ -197,7 +197,7 @@ class SedeController extends Controller
     }
 
     /**
-     * Actualiza la sede especificada en la base de datos.
+     * Actualiza la sede especificada en la base de datos. Solo sobre sedes asignadas al usuario (403 en otra, B45).
      *
      * @param UpdateSedeRequest $request
      * @param Sede $sede
@@ -205,6 +205,8 @@ class SedeController extends Controller
      */
     public function update(UpdateSedeRequest $request, Sede $sede): JsonResponse
     {
+        abort_unless($request->user()->tieneAccesoSede($sede->id), 403, 'No tiene asignada esta sede.');
+
         $sede->update($request->only([
             'nombre',
             'direccion',
@@ -227,9 +229,11 @@ class SedeController extends Controller
             }
         }
 
-        // Actualizar horarios: si se proporcionan, usarlos; si no vienen o vienen vacíos, generar para cada área con hora_inicio/hora_fin de la sede
+        // Actualizar horarios de atención de la sede: si se proporcionan, usarlos; si no vienen o vienen vacíos,
+        // generar para cada área con hora_inicio/hora_fin de la sede. Solo se reemplazan los de sede (tipo = true):
+        // los horarios de los grupos no se tocan, o sus ciclos se quedarían sin fechas (bug B47).
         if ($request->filled('horarios')) {
-            $sede->horarios()->delete();
+            $sede->horarios()->where('tipo', true)->delete();
             foreach ($request->horarios as $horarioData) {
                 $sede->horarios()->create([
                     'area_id' => $horarioData['area_id'],
@@ -243,7 +247,7 @@ class SedeController extends Controller
                 ]);
             }
         } else {
-            $sede->horarios()->delete();
+            $sede->horarios()->where('tipo', true)->delete();
             $this->generarHorariosDesdeSede($sede);
         }
 
@@ -256,13 +260,16 @@ class SedeController extends Controller
     }
 
     /**
-     * Elimina la sede especificada de la base de datos (soft delete).
+     * Elimina la sede especificada de la base de datos (soft delete). Solo sobre sedes asignadas al usuario (403 en otra, B45).
      *
+     * @param Request $request
      * @param Sede $sede
      * @return JsonResponse
      */
-    public function destroy(Sede $sede): JsonResponse
+    public function destroy(Request $request, Sede $sede): JsonResponse
     {
+        abort_unless($request->user()->tieneAccesoSede($sede->id), 403, 'No tiene asignada esta sede.');
+
         // Verificar si tiene grupos asociados
         if ($sede->grupos()->count() > 0) {
             return response()->json([
@@ -278,14 +285,16 @@ class SedeController extends Controller
     }
 
     /**
-     * Restaura una sede eliminada (soft delete).
+     * Restaura una sede eliminada (soft delete). Solo sobre sedes asignadas al usuario (403 en otra, B45).
      *
+     * @param Request $request
      * @param int $id
      * @return JsonResponse
      */
-    public function restore(int $id): JsonResponse
+    public function restore(Request $request, int $id): JsonResponse
     {
         $sede = Sede::onlyTrashed()->findOrFail($id);
+        abort_unless($request->user()->tieneAccesoSede($sede->id), 403, 'No tiene asignada esta sede.');
         $sede->restore();
 
         return response()->json([
@@ -295,14 +304,16 @@ class SedeController extends Controller
     }
 
     /**
-     * Elimina permanentemente una sede.
+     * Elimina permanentemente una sede. Solo sobre sedes asignadas al usuario (403 en otra, B45).
      *
+     * @param Request $request
      * @param int $id
      * @return JsonResponse
      */
-    public function forceDelete(int $id): JsonResponse
+    public function forceDelete(Request $request, int $id): JsonResponse
     {
         $sede = Sede::onlyTrashed()->findOrFail($id);
+        abort_unless($request->user()->tieneAccesoSede($sede->id), 403, 'No tiene asignada esta sede.');
 
         // Verificar si tiene grupos asociados
         if ($sede->grupos()->withTrashed()->count() > 0) {

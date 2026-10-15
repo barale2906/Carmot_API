@@ -54,6 +54,66 @@ class LpPrecioProductoTest extends TestCase
     }
 
     /** @test */
+    public function no_se_agregan_ni_editan_precios_en_una_lista_aprobada_o_activa(): void
+    {
+        $producto = $this->productoNoFinanciable();
+
+        foreach ([LpListaPrecio::STATUS_APROBADA, LpListaPrecio::STATUS_ACTIVA] as $status) {
+            $lista = LpListaPrecio::factory()->create(['status' => $status]);
+
+            $this->actingAs($this->usuario)->postJson(route('precios-producto.store'), [
+                'lista_precio_id' => $lista->id,
+                'producto_id' => $producto->id,
+                'precio_contado' => 100000,
+                'matricula' => 0,
+            ])
+                ->assertUnprocessable()
+                ->assertJsonFragment([LpListaPrecio::MENSAJE_PRECIOS_BLOQUEADOS]);
+        }
+
+        $id = $this->actingAs($this->usuario)->postJson(route('precios-producto.store'), [
+            'lista_precio_id' => ($lista = $this->listaPrecio())->id,
+            'producto_id' => $producto->id,
+            'precio_contado' => 100000,
+            'matricula' => 0,
+        ])->assertCreated()->json('data.id');
+
+        $lista->update(['status' => LpListaPrecio::STATUS_ACTIVA]);
+
+        $this->actingAs($this->usuario)->putJson(route('precios-producto.update', $id), ['precio_contado' => 1])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('lista_precio_id');
+    }
+
+    /** @test */
+    public function rechaza_un_segundo_precio_del_mismo_producto_en_la_lista(): void
+    {
+        // N04 (prueba integral 2): respondía 500 por el índice único uk_lista_producto
+        $lista = $this->listaPrecio();
+        $datos = [
+            'lista_precio_id' => $lista->id,
+            'producto_id' => $this->productoNoFinanciable()->id,
+            'precio_contado' => 100000,
+            'matricula' => 0,
+        ];
+
+        $id = $this->actingAs($this->usuario)->postJson(route('precios-producto.store'), $datos)
+            ->assertCreated()->json('data.id');
+
+        $this->actingAs($this->usuario)->postJson(route('precios-producto.store'), $datos)
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('producto_id');
+
+        // También cuenta el precio eliminado, que sigue ocupando el índice
+        LpPrecioProducto::findOrFail($id)->delete();
+        $this->actingAs($this->usuario)->postJson(route('precios-producto.store'), $datos)
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('producto_id');
+
+        $this->assertSame(1, LpPrecioProducto::withTrashed()->where('lista_precio_id', $lista->id)->count());
+    }
+
+    /** @test */
     public function al_crear_calcula_valor_cuota_sin_restar_dos_veces_la_matricula(): void
     {
         $lista = $this->listaPrecio();

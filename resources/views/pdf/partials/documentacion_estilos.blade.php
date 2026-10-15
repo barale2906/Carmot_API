@@ -15,8 +15,7 @@
              border-top: 1px solid #ccc; padding-top: 6px; font-size: 9px; color: #777; }
     /* Sin float: en dompdf un float dentro del pie fijo hace que las tablas del
        cuerpo se partan en una página por fila (páginas casi en blanco). */
-    footer .pagina { position: absolute; right: 0; top: 6px; }
-    footer .pagina:after { content: counter(page) " / " counter(pages); }
+    /* El número "página / total" lo dibuja DocPdfService::numerarPaginas (dompdf no soporta counter(pages)). */
 
     .titulo { text-align: center; font-size: 15px; font-weight: bold;
               text-transform: uppercase; margin-bottom: 18px; }

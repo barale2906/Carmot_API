@@ -49,6 +49,8 @@
     </table>
 </div>
 
+{{-- Antes de aprobado el cierre, el cajero solo ve los medios distintos al efectivo (N26) --}}
+@if ($verArqueo)
 <div class="section">
     <div class="section-title">Ingresos y egresos</div>
     <table>
@@ -60,6 +62,7 @@
         <tr><td>Consignaciones</td><td class="text-right">{{ $cop($r['consignaciones'] ?? 0) }}</td></tr>
     </table>
 </div>
+@endif
 
 <div class="section">
     <div class="section-title">Por medio de pago</div>
@@ -75,7 +78,7 @@
             </tr>
         </thead>
         <tbody>
-        @foreach (($r['por_medio_pago'] ?? []) as $medio => $valores)
+        @foreach (($verArqueo ? ($r['por_medio_pago'] ?? []) : \App\Models\Financiero\LibroDiario\LdTurnoCaja::resumenSinEfectivo($r)['por_medio_pago']) as $medio => $valores)
             <tr>
                 <td>{{ $medios[$medio] ?? $medio }}</td>
                 <td class="text-right">{{ $cop($valores['academico'] ?? 0) }}</td>
@@ -92,8 +95,8 @@
 <div class="section">
     <div class="section-title">Arqueo de efectivo</div>
     <table>
-        <tr><td>Base inicial</td><td class="text-right">{{ $cop($turno->base_inicial) }}</td></tr>
         @if ($verArqueo)
+            <tr><td>Base inicial</td><td class="text-right">{{ $cop($turno->base_inicial) }}</td></tr>
             <tr><td>Efectivo esperado</td><td class="text-right">{{ $cop($r['efectivo_esperado'] ?? 0) }}</td></tr>
         @endif
         <tr><td>Efectivo contado</td><td class="text-right">{{ $turno->efectivo_contado !== null ? $cop($turno->efectivo_contado) : '—' }}</td></tr>
@@ -122,9 +125,11 @@
     </tr>
 </table>
 
+@if ($verArqueo)
 <div class="footer">
     Recibos: {{ $r['cantidades']['recibos'] ?? 0 }} · Movimientos: {{ $r['cantidades']['movimientos'] ?? 0 }} · Consignaciones: {{ $r['cantidades']['consignaciones'] ?? 0 }}
 </div>
+@endif
 
 </body>
 </html>

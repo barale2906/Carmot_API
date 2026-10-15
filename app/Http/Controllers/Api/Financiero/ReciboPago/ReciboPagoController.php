@@ -244,13 +244,16 @@ class ReciboPagoController extends Controller
             }
 
             // ── 3. Distribución automática entre cuotas de cartera ────────────
-            // Para transferencias se omite: la distribución ocurre al aprobar el recibo.
+            // Para transferencias la distribución ocurre al aprobar el recibo; aquí solo se
+            // valida el tope para que la transferencia no quede imposible de aprobar (N10).
             // Se ejecuta aun con monto de cartera 0 para descargar las cuotas de costo cero
             // (valor 0 o descuento del 100 %).
             $planCartera    = [];
             $descuentoTotal = 0.0;
 
-            if (! $esTransferencia) {
+            if ($esTransferencia) {
+                $this->validarTopeTransferencia($matricula, max(0.0, $montoCartera), (bool) ($data['aplicar_descuento'] ?? false), $fecha);
+            } else {
                 $planCartera    = $this->distribucionService->distribuir(
                     $matricula,
                     max(0.0, $montoCartera),
@@ -275,7 +278,7 @@ class ReciboPagoController extends Controller
                 'sede_id'           => $data['sede_id'],
                 'estudiante_id'     => $matricula->estudiante_id,
                 'cajero_id'         => $data['cajero_id'],
-                'turno_caja_id'     => LdTurnoCaja::abiertoDe((int) $data['cajero_id'], (int) $data['sede_id'])->value('id'),
+                'turno_caja_id'     => LdTurnoCaja::abiertoDe((int) $data['cajero_id'])->value('id'),
                 'fecha_recibo'      => $data['fecha_recibo'],
                 'fecha_transaccion' => $data['fecha_transaccion'],
                 'valor_total'       => $montoAPagar,
@@ -336,9 +339,8 @@ class ReciboPagoController extends Controller
                 $esCerrada       = $statusSnapshot === Cartera::getStatusKey('Cerrada');
                 $unitarioDisplay = $esCerrada ? $saldoAntes : $linea['valor'];
 
-                $concepto = ConceptoPago::porNombre(
-                    $cartera->numero_cuota === 0 ? ConceptoPago::MATRICULA : ConceptoPago::MENSUALIDAD
-                );
+                $concepto = ConceptoPago::porNombre($cartera->conceptoNombre())
+                    ?? ConceptoPago::porNombre($cartera->numero_cuota === 0 ? ConceptoPago::MATRICULA : ConceptoPago::MENSUALIDAD);
 
                 if ($concepto) {
                     $recibo->conceptosPago()->attach($concepto->id, [
@@ -653,6 +655,10 @@ class ReciboPagoController extends Controller
      *   - Descuento de matrícula (promocion_matricula): aplica siempre que exista descuento activo y haya cuota 0 pendiente.
      *   - cuotas_costo_cero: cuotas pendientes cuyo costo efectivo es 0 (valor 0 o descuento del 100 %),
      *     que se descargan en cualquier recibo — incluso con monto_a_pagar = 0 (recibo de costo cero).
+     *   - distribucion: reparto exacto del monto por cuota (valor, descuento, cierra), o null con
+     *     distribucion_error si el monto supera el máximo.
+     *   - minimo_a_pagar: costo efectivo, con descuentos, de las cuotas vencidas a la fecha.
+     *   - maximo_a_pagar: costo efectivo, con descuentos, de todas las cuotas pendientes (tope del recibo, N12).
      * El frontend debe usar estos valores para mostrar el costo efectivo y calcular el monto neto a pagar.
      *
      * @param Request $request matricula_id, monto_a_pagar (puede ser 0), fecha_transaccion (opcional)
@@ -675,6 +681,8 @@ class ReciboPagoController extends Controller
 
             $resultado         = $this->carteraDescuentoService->calcular($matricula, $monto, $fecha);
             $resultadoMatricula = $this->carteraDescuentoService->calcularDescuentoMatricula($matricula, $fecha);
+
+            $previa = $this->distribucionService->previsualizar($matricula, $monto, true, $fecha);
 
             // Con monto 0 el plan de distribución contiene solo las cuotas de costo cero
             $cuotasCostoCero = collect($this->distribucionService->distribuir($matricula, 0.0, true, $fecha))
@@ -711,6 +719,12 @@ class ReciboPagoController extends Controller
                         ] : null,
                     ],
                     'cuotas_costo_cero' => $cuotasCostoCero,
+                    // Reparto exacto que aplicará el recibo (abono y descuento por cuota) y el
+                    // mínimo a pagar con descuentos, para que la previsualización no lo recalcule (F09)
+                    'distribucion'   => $previa['lineas'],
+                    'distribucion_error' => $previa['error'],
+                    'minimo_a_pagar' => $this->distribucionService->minimoAPagar($matricula, true, $fecha),
+                    'maximo_a_pagar' => $this->distribucionService->maximoAPagar($matricula, true, $fecha),
                 ],
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
@@ -854,6 +868,7 @@ class ReciboPagoController extends Controller
      * Asigna el número de recibo, ejecuta la distribución de cartera con la fecha
      * de generación para los descuentos, cierra el recibo y envía el correo al estudiante.
      * Rechaza los recibos de inventario (origen=0): se aprueban en InvVentaController.
+     * Quien registró el recibo no puede aprobarlo (403).
      *
      * @param Request    $request
      * @param ReciboPago $reciboPago
@@ -868,6 +883,8 @@ class ReciboPagoController extends Controller
             ], 422);
         }
 
+        abort_if($reciboPago->registradoPor($request->user()), 403, ReciboPago::MENSAJE_APROBACION_PROPIA);
+
         if (! $reciboPago->estaPendienteAprobacion()) {
             return response()->json([
                 'message' => 'Solo se pueden aprobar recibos pendientes de aprobación.',
@@ -880,14 +897,7 @@ class ReciboPagoController extends Controller
             $matricula   = $reciboPago->matricula;
             $fechaRecibo = Carbon::parse($reciboPago->fecha_recibo);
 
-            // Calcular monto de cartera: total pagado - sobrecargos - adicionales ya registrados
-            $totalAdicionales = (float) $reciboPago->conceptosPago()
-                ->wherePivotNull('id_relacional')
-                ->sum('recibo_pago_concepto_pago.valor');
-
-            $montoCartera = (float) $reciboPago->valor_total
-                - (float) $reciboPago->sobrecargo_total
-                - $totalAdicionales;
+            $montoCartera = $reciboPago->montoCartera();
 
             $descuentoTotal = 0.0;
             $planCartera    = [];
@@ -1352,13 +1362,16 @@ class ReciboPagoController extends Controller
     }
 
     /**
-     * Genera el PDF del recibo de pago.
+     * Genera el PDF del recibo de pago. Un alumno solo puede descargar sus propios recibos (403 en los ajenos).
      *
+     * @param Request $request
      * @param ReciboPago $reciboPago Recibo de pago para generar PDF
      * @return \Illuminate\Http\Response Respuesta con el PDF
      */
-    public function generarPDF(ReciboPago $reciboPago)
+    public function generarPDF(Request $request, ReciboPago $reciboPago)
     {
+        abort_unless($request->user()->puedeVerEstudiante($reciboPago->estudiante_id), 403, 'Solo puede consultar su propia información.');
+
         try {
             $pdfService = new ReciboPagoPDFService();
             $pdf = $pdfService->generarPDF($reciboPago);
@@ -1542,5 +1555,33 @@ class ReciboPagoController extends Controller
             ], 500);
         }
     }
-}
 
+    /**
+     * Valida que una transferencia no supere lo que la matrícula aún puede pagar, sumando
+     * las transferencias que ya esperan aprobación (N10). Sin esto el recibo se registra
+     * pero al aprobarlo la distribución lo rechaza y queda sin salida.
+     *
+     * @param Matricula $matricula
+     * @param float     $montoCartera
+     * @param bool      $aplicarDescuento
+     * @param Carbon    $fecha
+     * @return void
+     *
+     * @throws \InvalidArgumentException
+     */
+    private function validarTopeTransferencia(Matricula $matricula, float $montoCartera, bool $aplicarDescuento, Carbon $fecha): void
+    {
+        $pendientes = ReciboPago::byMatricula($matricula->id)
+            ->where('status', ReciboPago::STATUS_PENDIENTE_APROBACION)
+            ->get()
+            ->sum(fn (ReciboPago $recibo) => $recibo->montoCartera());
+
+        try {
+            $this->distribucionService->distribuir($matricula, $montoCartera + $pendientes, $aplicarDescuento, $fecha);
+        } catch (\InvalidArgumentException $e) {
+            throw new \InvalidArgumentException($pendientes > 0
+                ? "La matrícula ya tiene {$pendientes} en transferencias pendientes de aprobación. {$e->getMessage()}"
+                : $e->getMessage());
+        }
+    }
+}

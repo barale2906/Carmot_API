@@ -80,16 +80,24 @@ class StoreAgendaRequest extends FormRequest
     }
 
     /**
-     * Prepara los datos para la validación.
+     * Prepara los datos para la validación: agendador por defecto, estado inicial y
+     * jornada derivada de la hora.
      *
      * @return void
      */
     protected function prepareForValidation(): void
     {
-        // Establecer el agendador_id automáticamente como el usuario autenticado
-        $this->merge([
-            'agendador_id' => auth()->id(),
-            'status' => $this->status ?? 0 // Por defecto, status 0 (Agendado)
-        ]);
+        $datos = [
+            // Se respeta el agendador asignado; si no viene, es el usuario autenticado (B46)
+            'agendador_id' => $this->agendador_id ?? auth()->id(),
+            'status' => $this->status ?? 0, // Por defecto, status 0 (Agendado)
+        ];
+
+        // La jornada se deriva de la hora para que no se contradigan (15:00 nunca es "am", B12)
+        if (is_string($this->hora) && preg_match('/^(\d{2}):\d{2}$/', $this->hora, $m)) {
+            $datos['jornada'] = (int) $m[1] < 12 ? 'am' : 'pm';
+        }
+
+        $this->merge($datos);
     }
 }

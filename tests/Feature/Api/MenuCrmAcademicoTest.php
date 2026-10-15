@@ -20,7 +20,7 @@ class MenuCrmAcademicoTest extends TestCase
         parent::setUp();
 
         app()[PermissionRegistrar::class]->forgetCachedPermissions();
-        foreach (['crm_referidos', 'aca_asistencias', 'aca_notas', 'act_activos', 'act_categorias'] as $nombre) {
+        foreach (['crm_referidos', 'aca_asistencias', 'aca_notas', 'act_activos', 'act_categorias', 'ac_biblioteca', 'co_roles'] as $nombre) {
             Permission::create(['name' => $nombre, 'descripcion' => $nombre]);
         }
     }
@@ -57,6 +57,34 @@ class MenuCrmAcademicoTest extends TestCase
         $soloNotas = User::factory()->create();
         $soloNotas->givePermissionTo('aca_notas');
         $this->assertSame(['academico-calificaciones'], $this->opciones($soloNotas, 'academico'));
+    }
+
+    /** @test */
+    public function el_alumno_no_ve_asistencia_ni_calificaciones_aunque_tenga_los_permisos_de_consulta(): void
+    {
+        \Spatie\Permission\Models\Role::create(['name' => User::ROL_ALUMNO])->givePermissionTo(['aca_asistencias', 'aca_notas']);
+        $alumno = User::factory()->create();
+        $alumno->assignRole(User::ROL_ALUMNO);
+
+        $this->assertSame([], $this->opciones($alumno, 'academico'));
+    }
+
+    /** @test */
+    public function quien_solo_consulta_la_biblioteca_la_ve_en_academico(): void
+    {
+        $user = User::factory()->create();
+        $user->givePermissionTo('ac_biblioteca');
+
+        $this->assertSame(['academico-biblioteca'], $this->opciones($user, 'academico'));
+    }
+
+    /** @test */
+    public function roles_y_permisos_aparece_con_el_permiso_co_roles(): void
+    {
+        $user = User::factory()->create();
+        $user->givePermissionTo('co_roles');
+
+        $this->assertSame(['configuracion-roles-permisos'], $this->opciones($user, 'configuracion'));
     }
 
     /** @test */

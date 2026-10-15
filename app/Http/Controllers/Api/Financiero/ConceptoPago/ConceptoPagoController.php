@@ -72,12 +72,12 @@ class ConceptoPagoController extends Controller
 
             // Aplicar filtro por valor mínimo
             if ($request->filled('valor_min')) {
-                $query->where('valor', '>=', $request->numeric('valor_min'));
+                $query->where('valor', '>=', $request->float('valor_min'));
             }
 
             // Aplicar filtro por valor máximo
             if ($request->filled('valor_max')) {
-                $query->where('valor', '<=', $request->numeric('valor_max'));
+                $query->where('valor', '<=', $request->float('valor_max'));
             }
 
             if ($request->boolean('include_trashed', false)) {

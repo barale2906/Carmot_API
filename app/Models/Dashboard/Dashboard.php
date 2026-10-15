@@ -38,6 +38,21 @@ class Dashboard extends Model
      */
     protected $fillable = ['tenant_id', 'user_id', 'name', 'is_default'];
 
+    /** Mensaje cuando alguien intenta modificar un tablero ajeno. */
+    public const MENSAJE_SIN_PERMISO = 'Solo el dueño del tablero o un superusuario puede modificarlo.';
+
+    /**
+     * Indica si el usuario puede modificar el tablero y sus tarjetas: su dueño o un
+     * superusuario. Antes cualquier usuario autenticado podía cambiar tableros ajenos.
+     *
+     * @param \App\Models\User $usuario
+     * @return bool
+     */
+    public function puedeEditar(\App\Models\User $usuario): bool
+    {
+        return (int) $this->user_id === (int) $usuario->id || $usuario->hasRole('superusuario');
+    }
+
     /**
      * Los atributos que deben ser convertidos a tipos nativos.
      *

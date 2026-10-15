@@ -83,6 +83,7 @@ class GrupoController extends Controller
 
     /**
      * Almacena un nuevo grupo en la base de datos.
+     * meta.advertencias avisa si el profesor tiene otro grupo activo en la misma franja (B03).
      *
      * @param StoreGrupoRequest $request
      * @return JsonResponse
@@ -98,7 +99,8 @@ class GrupoController extends Controller
                 'modulo_id' => $request->modulo_id,
                 'profesor_id' => $request->profesor_id,
                 'nombre' => $request->nombre,
-                'inscritos' => $request->inscritos,
+                // Contador que mantienen las matrículas; no se digita (B15)
+                'inscritos' => 0,
                 'jornada' => $request->jornada,
                 'status' => $request->status ?? 1, // Por defecto estado "Activo"
             ]);
@@ -140,6 +142,7 @@ class GrupoController extends Controller
             return response()->json([
                 'message' => $message,
                 'data' => new GrupoResource($grupo),
+                'meta' => ['advertencias' => $grupo->crucesHorarioProfesor()],
             ], 201);
 
         } catch (\Exception $e) {
@@ -177,6 +180,7 @@ class GrupoController extends Controller
 
     /**
      * Actualiza el grupo especificado en la base de datos.
+     * meta.advertencias avisa si el profesor tiene otro grupo activo en la misma franja (B03).
      *
      * @param UpdateGrupoRequest $request
      * @param Grupo $grupo
@@ -189,7 +193,6 @@ class GrupoController extends Controller
             'modulo_id',
             'profesor_id',
             'nombre',
-            'inscritos',
             'jornada',
             'status',
         ]));
@@ -199,19 +202,21 @@ class GrupoController extends Controller
         return response()->json([
             'message' => 'Grupo actualizado exitosamente.',
             'data' => new GrupoResource($grupo),
+            'meta' => ['advertencias' => $grupo->crucesHorarioProfesor()],
         ]);
     }
 
     /**
      * Elimina el grupo especificado de la base de datos (soft delete).
+     * Se rechaza si hay estudiantes con matrícula vigente en ciclos del grupo.
      *
      * @param Grupo $grupo
      * @return JsonResponse
      */
     public function destroy(Grupo $grupo): JsonResponse
     {
-        // Verificar si tiene inscritos
-        if ($grupo->inscritos > 0) {
+        // Estudiantes con matrícula vigente en ciclos del grupo (no el contador, B05)
+        if ($grupo->idsEstudiantesVigentes()->isNotEmpty()) {
             return response()->json([
                 'message' => 'No se puede eliminar el grupo porque tiene estudiantes inscritos.',
             ], 422);
@@ -243,6 +248,7 @@ class GrupoController extends Controller
 
     /**
      * Elimina permanentemente un grupo.
+     * Se rechaza si hay estudiantes con matrícula vigente en ciclos del grupo.
      *
      * @param int $id
      * @return JsonResponse
@@ -251,8 +257,8 @@ class GrupoController extends Controller
     {
         $grupo = Grupo::onlyTrashed()->findOrFail($id);
 
-        // Verificar si tiene inscritos
-        if ($grupo->inscritos > 0) {
+        // Estudiantes con matrícula vigente en ciclos del grupo (no el contador, B05)
+        if ($grupo->idsEstudiantesVigentes()->isNotEmpty()) {
             return response()->json([
                 'message' => 'No se puede eliminar permanentemente el grupo porque tiene estudiantes inscritos.',
             ], 422);
@@ -381,6 +387,7 @@ class GrupoController extends Controller
 
     /**
      * Asigna horarios a un grupo específico.
+     * meta.advertencias avisa si el profesor tiene otro grupo activo en la misma franja (B03).
      *
      * @param StoreGrupoHorarioRequest $request
      * @param Grupo $grupo
@@ -407,6 +414,7 @@ class GrupoController extends Controller
             return response()->json([
                 'message' => 'Horarios asignados exitosamente al grupo.',
                 'data' => new GrupoResource($grupo),
+                'meta' => ['advertencias' => $grupo->crucesHorarioProfesor()],
             ], 201);
         }
 
@@ -417,6 +425,7 @@ class GrupoController extends Controller
 
     /**
      * Actualiza los horarios de un grupo específico.
+     * meta.advertencias avisa si el profesor tiene otro grupo activo en la misma franja (B03).
      *
      * @param UpdateGrupoHorarioRequest $request
      * @param Grupo $grupo
@@ -451,6 +460,7 @@ class GrupoController extends Controller
         return response()->json([
             'message' => 'Horarios del grupo actualizados exitosamente.',
             'data' => new GrupoResource($grupo),
+            'meta' => ['advertencias' => $grupo->crucesHorarioProfesor()],
         ]);
     }
 
@@ -520,17 +530,23 @@ class GrupoController extends Controller
     }
 
     /**
-     * Grupos con al menos un ciclo vigente (activo y dentro de fechas): los grupos
-     * en los que hoy se toma asistencia y se registran notas.
-     * Con `mis_grupos=1` se limita a los grupos donde el usuario es el profesor.
+     * Grupos con al menos un ciclo en curso o en su plazo de cierre (`academico.dias_cierre_ciclo`
+     * días después de la fecha fin): los grupos en los que hoy se toma asistencia y se registran notas.
+     * Con `mis_grupos=1` se limita a los grupos donde el usuario es el profesor; a quien
+     * solo es profesor siempre se le limita así. El resto del personal ve solo los grupos
+     * de sus sedes (F11).
      *
      * @param Request $request
      * @return JsonResponse
      */
     public function vigentes(Request $request): JsonResponse
     {
-        $grupos = Grupo::whereHas('ciclos', fn ($q) => $q->activosVigentes())
-            ->when($request->boolean('mis_grupos'), fn ($q) => $q->where('profesor_id', $request->user()->id))
+        $usuario   = $request->user();
+        $misGrupos = $request->boolean('mis_grupos') || $usuario->esSoloProfesor();
+
+        $grupos = Grupo::whereHas('ciclos', fn ($q) => $q->abiertosParaRegistro())
+            ->when($misGrupos, fn ($q) => $q->where('profesor_id', $usuario->id))
+            ->when(! $misGrupos, fn ($q) => $q->whereIn('sede_id', $usuario->idsSedesAccesibles()))
             ->with(['modulo', 'sede', 'profesor'])
             ->orderBy('nombre')
             ->get();

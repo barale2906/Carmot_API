@@ -6,6 +6,7 @@ use App\Models\Financiero\Lp\LpPrecioProducto;
 use App\Models\Financiero\Lp\LpProducto;
 use App\Models\Financiero\Lp\LpProductoReferencia;
 use App\Services\Financiero\LpPrecioProductoService;
+use App\Models\Financiero\Lp\LpListaPrecio;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -40,9 +41,17 @@ class UpdateLpPrecioProductoRequest extends FormRequest
      */
     public function rules(): array
     {
+        $actual = $this->resolvedLpPrecioProducto();
+
         return [
             'lista_precio_id' => 'sometimes|integer|exists:lp_listas_precios,id',
-            'producto_id' => 'sometimes|integer|exists:lp_productos,id',
+            // Uno por lista, incluidos los eliminados: el índice único los cuenta (N04)
+            'producto_id' => [
+                'sometimes', 'integer', 'exists:lp_productos,id',
+                Rule::unique('lp_precios_producto', 'producto_id')
+                    ->where('lista_precio_id', $this->input('lista_precio_id', $actual?->lista_precio_id))
+                    ->ignore($actual?->id),
+            ],
             'precio_contado' => 'sometimes|numeric|min:0',
             'precio_total' => [
                 'sometimes',
@@ -96,6 +105,12 @@ class UpdateLpPrecioProductoRequest extends FormRequest
     {
         $validator->after(function ($validator) {
             $precioProducto = $this->resolvedLpPrecioProducto();
+
+            // Ni la lista actual ni la de destino pueden estar aprobadas o activas (B11)
+            $listas = array_filter([$precioProducto?->lista_precio_id, $this->input('lista_precio_id')]);
+            if (LpListaPrecio::whereKey($listas)->get()->contains(fn (LpListaPrecio $l) => $l->preciosBloqueados())) {
+                $validator->errors()->add('lista_precio_id', LpListaPrecio::MENSAJE_PRECIOS_BLOQUEADOS);
+            }
 
             $productoId = $this->input('producto_id') ?? ($precioProducto ? $precioProducto->producto_id : null);
 
@@ -216,6 +231,7 @@ class UpdateLpPrecioProductoRequest extends FormRequest
             'lista_precio_id.exists' => 'La lista de precios seleccionada no existe.',
             'producto_id.integer' => 'El producto debe ser un número entero.',
             'producto_id.exists' => 'El producto seleccionado no existe.',
+            'producto_id.unique' => 'Este producto ya tiene precio en la lista (si fue eliminado, restáurelo).',
             'precio_contado.numeric' => 'El precio de contado debe ser un número.',
             'precio_contado.min' => 'El precio de contado debe ser mayor o igual a 0.',
             'precio_total.numeric' => 'El precio total debe ser un número.',

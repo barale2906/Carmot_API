@@ -82,47 +82,47 @@ class Kpi extends Model
 
     /**
      * Obtiene el rango de fechas por defecto del KPI.
-     * Según el documento, si no hay definición de período, toma la fecha inmediatamente anterior
-     * y hace una regresión de tiempo con base en el período definido.
+     * El rango termina hoy (incluye lo registrado en el día, B42) y retrocede según el
+     * período definido: diario = hoy; semanal = últimos 7 días; mensual = último mes, etc.
      *
      * @return array{start: \Carbon\Carbon, end: \Carbon\Carbon}
      */
     public function getDefaultTimeRange(): array
     {
-        // Tomar el día anterior como fecha final y retroceder el período correspondiente
-        $yesterday = \Carbon\Carbon::now()->subDay();
+        // Hoy es la fecha final (antes era ayer y lo registrado en el día no aparecía, B42)
+        $hoy = \Carbon\Carbon::now();
 
         switch ($this->period_type) {
             case 'daily':
                 return [
-                    'start' => $yesterday->copy()->startOfDay(),
-                    'end' => $yesterday->copy()->endOfDay()
+                    'start' => $hoy->copy()->startOfDay(),
+                    'end' => $hoy->copy()->endOfDay()
                 ];
             case 'weekly':
                 return [
-                    'start' => $yesterday->copy()->subWeek()->addDay()->startOfDay(),
-                    'end' => $yesterday->copy()->endOfDay()
+                    'start' => $hoy->copy()->subWeek()->addDay()->startOfDay(),
+                    'end' => $hoy->copy()->endOfDay()
                 ];
             case 'monthly':
                 return [
-                    'start' => $yesterday->copy()->subMonth()->addDay()->startOfDay(),
-                    'end' => $yesterday->copy()->endOfDay()
+                    'start' => $hoy->copy()->subMonth()->addDay()->startOfDay(),
+                    'end' => $hoy->copy()->endOfDay()
                 ];
             case 'quarterly':
                 return [
-                    'start' => $yesterday->copy()->subMonths(3)->addDay()->startOfDay(),
-                    'end' => $yesterday->copy()->endOfDay()
+                    'start' => $hoy->copy()->subMonths(3)->addDay()->startOfDay(),
+                    'end' => $hoy->copy()->endOfDay()
                 ];
             case 'yearly':
                 return [
-                    'start' => $yesterday->copy()->subYear()->addDay()->startOfDay(),
-                    'end' => $yesterday->copy()->endOfDay()
+                    'start' => $hoy->copy()->subYear()->addDay()->startOfDay(),
+                    'end' => $hoy->copy()->endOfDay()
                 ];
             default:
                 // Por defecto, último año (más amplio para incluir datos de migraciones/seeders)
                 return [
-                    'start' => $yesterday->copy()->subYear()->addDay()->startOfDay(),
-                    'end' => $yesterday->copy()->endOfDay()
+                    'start' => $hoy->copy()->subYear()->addDay()->startOfDay(),
+                    'end' => $hoy->copy()->endOfDay()
                 ];
         }
     }
@@ -330,6 +330,18 @@ class Kpi extends Model
     }
 
     /**
+     * Indica si la operación es un conteo sin campo: cuenta registros, no requiere campo.
+     *
+     * @param string|null $operacion
+     * @param string|null $campo
+     * @return bool
+     */
+    public function esConteoSinCampo(?string $operacion, ?string $campo): bool
+    {
+        return $operacion === 'count' && empty($campo);
+    }
+
+    /**
      * Verifica si el KPI está completamente configurado y es válido.
      *
      * @return bool
@@ -337,8 +349,9 @@ class Kpi extends Model
     public function isFullyConfigured(): bool
     {
         // Configuración mínima: numerador válido siempre
+        // Un conteo sin campo cuenta registros (COUNT(*)), igual que en KpiCalculationService (B40)
         $numeratorOk = $this->hasValidNumeratorModel() &&
-                       $this->hasValidNumeratorField() &&
+                       ($this->esConteoSinCampo($this->numerator_operation, $this->numerator_field) || $this->hasValidNumeratorField()) &&
                        $this->hasValidNumeratorOperation();
 
         // Denominador opcional: si NO hay modelo, se considera KPI de solo numerador
@@ -351,7 +364,7 @@ class Kpi extends Model
 
         // Si hay datos de denominador, entonces deben ser válidos
         $denominatorOk = $this->hasValidDenominatorModel() &&
-                         $this->hasValidDenominatorField() &&
+                         ($this->esConteoSinCampo($this->denominator_operation, $this->denominator_field) || $this->hasValidDenominatorField()) &&
                          $this->hasValidDenominatorOperation();
 
         return $numeratorOk && $denominatorOk;

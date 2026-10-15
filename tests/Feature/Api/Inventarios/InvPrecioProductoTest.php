@@ -263,21 +263,50 @@ class InvPrecioProductoTest extends TestCase
     }
 
     /** @test */
-    public function store_con_grupo_funciona_en_lista_activa(): void
+    public function no_se_modifican_precios_de_una_lista_aprobada_o_activa(): void
     {
-        $this->lista->update(['status' => LpListaPrecio::STATUS_ACTIVA]);
-        $grupo    = InvProducto::factory()->grupo()->create();
-        $variante = InvProducto::factory()->create(['producto_padre_id' => $grupo->id, 'status' => 1]);
+        // N14 (prueba integral 2): el cambio entraría en vigor sin pasar por aprobación
+        $precio = InvPrecioProducto::create([
+            'lista_precio_id' => $this->lista->id,
+            'producto_id' => $this->producto->id,
+            'precio' => 6000,
+        ]);
+        $eliminado = InvPrecioProducto::create([
+            'lista_precio_id' => $this->lista->id,
+            'producto_id' => InvProducto::factory()->create(['tipo' => 'simple'])->id,
+            'precio' => 9000,
+        ]);
+        $eliminado->delete();
 
-        $this->actingAs($this->usuario)
-            ->postJson(route('inv-precios.store'), [
-                'lista_precio_id' => $this->lista->id,
-                'producto_id'     => $grupo->id,
-                'precio'          => 45000,
-            ])
-            ->assertCreated();
+        foreach ([LpListaPrecio::STATUS_APROBADA, LpListaPrecio::STATUS_ACTIVA] as $status) {
+            $this->lista->update(['status' => $status]);
 
-        $this->assertDatabaseHas('inv_precios_producto', ['producto_id' => $variante->id, 'precio' => 45000]);
+            $this->actingAs($this->usuario)
+                ->postJson(route('inv-precios.store'), [
+                    'lista_precio_id' => $this->lista->id,
+                    'producto_id' => $this->producto->id,
+                    'precio' => 1,
+                ])
+                ->assertUnprocessable()
+                ->assertJsonValidationErrors(['lista_precio_id']);
+
+            $this->actingAs($this->usuario)
+                ->putJson(route('inv-precios.update', $precio), ['precio' => 1])
+                ->assertUnprocessable()
+                ->assertJsonValidationErrors(['precio']);
+
+            $this->actingAs($this->usuario)
+                ->deleteJson(route('inv-precios.destroy', $precio))
+                ->assertUnprocessable()
+                ->assertJsonFragment(['message' => LpListaPrecio::MENSAJE_PRECIOS_BLOQUEADOS]);
+
+            $this->actingAs($this->usuario)
+                ->postJson(route('inv-precios.restore', $eliminado->id))
+                ->assertUnprocessable();
+        }
+
+        $this->assertDatabaseHas('inv_precios_producto', ['id' => $precio->id, 'precio' => 6000, 'deleted_at' => null]);
+        $this->assertSoftDeleted('inv_precios_producto', ['id' => $eliminado->id]);
     }
 
     /** @test */

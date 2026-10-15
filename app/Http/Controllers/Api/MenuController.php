@@ -47,7 +47,7 @@ class MenuController extends Controller
         ];
 
         // Configuración - módulo con varios submenús
-        if ($this->hasAnyPermission($user, ['co_users', 'co_roles_permisos', 'co_poblaciones', 'co_sedes', 'co_diasNoLaborables'])) {
+        if ($this->hasAnyPermission($user, ['co_users', 'co_roles', 'co_poblaciones', 'co_sedes', 'co_diasNoLaborables'])) {
             $configChildren = [];
 
             // Usuarios
@@ -62,13 +62,14 @@ class MenuController extends Controller
             }
 
             // Roles y permisos
-            if ($user->can('co_roles_permisos')) {
+            // co_roles_permisos no existía: la opción nunca aparecía (B48)
+            if ($user->can('co_roles')) {
                 $configChildren[] = [
                     'id' => 'configuracion-roles-permisos',
                     'title' => 'Roles y permisos',
                     'icon' => 'security',
-                    'route' => '/configuracion/roles-permisos',
-                    'permission' => 'co_roles_permisos',
+                    'route' => '/configuracion/roles',
+                    'permission' => 'co_roles',
                 ];
             }
 
@@ -200,7 +201,7 @@ class MenuController extends Controller
         // Académico - módulo con submenús según la estructura requerida
         if ($this->hasAnyPermission($user, [
             'aca_programas', 'aca_programaciones', 'aca_matriculas', 'aca_cursos',
-            'aca_documentos', 'aca_docPlantillas', 'aca_docTipos', 'aca_asistencias', 'aca_notas',
+            'aca_documentos', 'aca_docPlantillas', 'aca_docTipos', 'aca_asistencias', 'aca_notas', 'ac_biblioteca',
         ])) {
             $academicoChildren = [];
 
@@ -237,8 +238,12 @@ class MenuController extends Controller
                 ];
             }
 
+            // Asistencia y Calificaciones son pantallas de trabajo del personal: el alumno
+            // tiene los permisos de consulta para ver lo suyo, pero no estas opciones.
+            $esPersonal = ! $user->esSoloEstudiante();
+
             // Asistencia
-            if ($user->can('aca_asistencias')) {
+            if ($esPersonal && $user->can('aca_asistencias')) {
                 $academicoChildren[] = [
                     'id' => 'academico-asistencia',
                     'title' => 'Asistencia',
@@ -249,7 +254,7 @@ class MenuController extends Controller
             }
 
             // Calificaciones (planilla de notas y esquemas)
-            if ($user->can('aca_notas')) {
+            if ($esPersonal && $user->can('aca_notas')) {
                 $academicoChildren[] = [
                     'id' => 'academico-calificaciones',
                     'title' => 'Calificaciones',
@@ -267,6 +272,17 @@ class MenuController extends Controller
                     'icon' => 'school',
                     'route' => '/academico/cursos',
                     'permission' => 'aca_cursos',
+                ];
+            }
+
+            // Biblioteca directa para quien la consulta sin gestionar cursos (p. ej. el profesor, B43)
+            if (! $user->can('aca_cursos') && $user->can('ac_biblioteca')) {
+                $academicoChildren[] = [
+                    'id' => 'academico-biblioteca',
+                    'title' => 'Biblioteca',
+                    'icon' => 'book',
+                    'route' => '/academico/cursos/biblioteca',
+                    'permission' => 'ac_biblioteca',
                 ];
             }
 
@@ -467,7 +483,7 @@ class MenuController extends Controller
                 $financieroChildren[] = [
                     'id' => 'financiero-grupo-libro-diario',
                     'title' => 'Libro diario',
-                    'icon' => 'menu_book',
+                    'icon' => 'book',
                     'route' => '#financiero-libro-diario',
                     'children' => $libroChildren,
                     'disabled' => false,

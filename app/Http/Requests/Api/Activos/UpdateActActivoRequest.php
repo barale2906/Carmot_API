@@ -2,15 +2,19 @@
 
 namespace App\Http\Requests\Api\Activos;
 
+use App\Http\Requests\Api\Activos\Concerns\ValidaUbicacionActivo;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 /**
  * Edición de los datos descriptivos del activo. La sede, el área y el estado no se
  * editan aquí: cambian con los endpoints de traslado y de cambio de estado, que dejan historial.
+ * Un activo dado de baja ya no se edita: la baja es definitiva (N15).
  */
 class UpdateActActivoRequest extends FormRequest
 {
+    use ValidaUbicacionActivo;
+
     /**
      * Determina si el usuario está autorizado para realizar esta petición.
      *
@@ -33,7 +37,7 @@ class UpdateActActivoRequest extends FormRequest
             'nombre'         => ['sometimes', 'string', 'max:200'],
             'descripcion'    => ['sometimes', 'nullable', 'string', 'max:2000'],
             'categoria_id'   => ['sometimes', 'integer', Rule::exists('act_categorias', 'id')->where('status', 1)->whereNull('deleted_at')],
-            'responsable_id' => ['sometimes', 'nullable', 'integer', 'exists:users,id'],
+            'responsable_id' => ['sometimes', 'nullable', 'integer', 'exists:users,id', $this->reglaResponsable()],
             'marca'          => ['sometimes', 'nullable', 'string', 'max:100'],
             'modelo'         => ['sometimes', 'nullable', 'string', 'max:100'],
             'serial'         => ['sometimes', 'nullable', 'string', 'max:100'],
@@ -41,6 +45,21 @@ class UpdateActActivoRequest extends FormRequest
             'valor'          => ['sometimes', 'numeric', 'min:0', 'max:9999999999999'],
             'observaciones'  => ['sometimes', 'nullable', 'string', 'max:2000'],
         ];
+    }
+
+    /**
+     * Rechaza la edición de un activo dado de baja.
+     *
+     * @param \Illuminate\Validation\Validator $validator
+     * @return void
+     */
+    public function withValidator($validator): void
+    {
+        $validator->after(function ($validator) {
+            if ($this->route('activo')?->estaDeBaja()) {
+                $validator->errors()->add('estado', 'El activo está dado de baja: no se puede editar.');
+            }
+        });
     }
 
     /**

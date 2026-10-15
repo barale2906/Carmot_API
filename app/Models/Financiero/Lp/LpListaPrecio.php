@@ -63,6 +63,20 @@ class LpListaPrecio extends Model
      */
     const STATUS_ACTIVA = 3;
 
+    /** Mensaje cuando se intenta cambiar precios de una lista aprobada o activa (B11). */
+    public const MENSAJE_PRECIOS_BLOQUEADOS = 'La lista de precios ya está aprobada o activa: sus precios no se pueden modificar. Cree o clone una lista en proceso.';
+
+    /**
+     * Indica si los precios de la lista ya no se pueden agregar, editar ni eliminar:
+     * una vez aprobada o activa, un cambio entraría en vigor sin pasar por aprobación.
+     *
+     * @return bool
+     */
+    public function preciosBloqueados(): bool
+    {
+        return in_array((int) $this->status, [self::STATUS_APROBADA, self::STATUS_ACTIVA], true);
+    }
+
     /**
      * Nombre de la tabla asociada al modelo.
      *

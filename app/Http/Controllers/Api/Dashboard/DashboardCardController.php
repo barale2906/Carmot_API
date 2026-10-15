@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\Api\Dashboard\DashboardCardResource;
 use App\Http\Requests\Api\Dashboard\StoreDashboardCardRequest;
 use App\Http\Requests\Api\Dashboard\UpdateDashboardCardRequest;
+use App\Models\Dashboard\Dashboard;
 use App\Models\Dashboard\DashboardCard;
 use App\Http\Requests\Api\Dashboard\KpiComputeRequest;
 use App\Http\Resources\Api\Dashboard\KpiComputeResource;
@@ -66,6 +67,7 @@ class DashboardCardController extends Controller
     public function store(StoreDashboardCardRequest $request): JsonResponse
     {
         $validated = $request->validated();
+        $this->autorizarTablero($request, Dashboard::findOrFail($validated['dashboard_id']));
         $card = DashboardCard::create($validated);
 
         return (new DashboardCardResource($card->load(['dashboard', 'kpi'])))->response()->setStatusCode(201);
@@ -94,6 +96,7 @@ class DashboardCardController extends Controller
     public function update(UpdateDashboardCardRequest $request, int $id): JsonResponse
     {
         $card = DashboardCard::findOrFail($id);
+        $this->autorizarTablero($request, $card->dashboard);
         $validated = $request->validated();
         $card->update($validated);
 
@@ -103,12 +106,14 @@ class DashboardCardController extends Controller
     /**
      * Elimina una tarjeta de dashboard.
      *
+     * @param Request $request
      * @param int $id ID de la tarjeta
      * @return JsonResponse Respuesta de confirmación
      */
-    public function destroy(int $id): JsonResponse
+    public function destroy(Request $request, int $id): JsonResponse
     {
         $card = DashboardCard::findOrFail($id);
+        $this->autorizarTablero($request, $card->dashboard);
         $card->delete();
 
         return response()->json(['message' => 'Tarjeta de dashboard eliminada exitosamente.']);
@@ -142,6 +147,7 @@ class DashboardCardController extends Controller
     public function updatePosition(Request $request, int $id): JsonResponse
     {
         $card = DashboardCard::findOrFail($id);
+        $this->autorizarTablero($request, $card->dashboard);
 
         $validated = $request->validate([
             'x_position' => 'required|integer|min:0',
@@ -219,7 +225,12 @@ class DashboardCardController extends Controller
             $opts['filters'] = $cardFilters;
         }
 
-        $result = $this->kpiService->compute($kpi, $opts);
+        try {
+            $result = $this->kpiService->compute($kpi, $opts);
+        } catch (\InvalidArgumentException $e) {
+            // KPI incompleto o mal configurado: error del usuario, no del servidor (B40)
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
 
         // Priorizar chart_schema: request > card > resultado del servicio
         $chartSchemaToApply = null;
@@ -237,5 +248,17 @@ class DashboardCardController extends Controller
         }
 
         return (new KpiComputeResource($result))->response();
+    }
+
+    /**
+     * Corta con 403 si el usuario no es dueño del tablero ni superusuario.
+     *
+     * @param Request $request
+     * @param Dashboard|null $dashboard
+     * @return void
+     */
+    private function autorizarTablero(Request $request, ?Dashboard $dashboard): void
+    {
+        abort_unless($dashboard && $dashboard->puedeEditar($request->user()), 403, Dashboard::MENSAJE_SIN_PERMISO);
     }
 }

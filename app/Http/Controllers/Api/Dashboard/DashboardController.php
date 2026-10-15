@@ -103,6 +103,7 @@ class DashboardController extends Controller
     public function update(UpdateDashboardRequest $request, int $dashboardId): JsonResponse
     {
         $dashboard = Dashboard::findOrFail($dashboardId);
+        abort_unless($dashboard->puedeEditar($request->user()), 403, Dashboard::MENSAJE_SIN_PERMISO);
         $validated = $request->validated();
 
         $dashboard->update($validated);
@@ -121,14 +122,16 @@ class DashboardController extends Controller
     }
 
     /**
-     * Elimina un dashboard.
+     * Elimina un dashboard. Solo su dueño o un superusuario (403 en otro caso).
      *
+     * @param Request $request
      * @param int $dashboardId ID del dashboard
      * @return JsonResponse Respuesta de confirmación
      */
-    public function destroy(int $dashboardId): JsonResponse
+    public function destroy(Request $request, int $dashboardId): JsonResponse
     {
         $dashboard = Dashboard::findOrFail($dashboardId);
+        abort_unless($dashboard->puedeEditar($request->user()), 403, Dashboard::MENSAJE_SIN_PERMISO);
         $dashboard->delete();
 
         return response()->json(['message' => 'Dashboard eliminado exitosamente.']);

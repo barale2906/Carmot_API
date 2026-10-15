@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Api\Academico;
 
+use App\Http\Requests\Api\Academico\Concerns\ValidaGruposDelCiclo;
 use App\Traits\HasActiveStatus;
 use App\Traits\HasActiveStatusValidation;
 use Illuminate\Foundation\Http\FormRequest;
@@ -10,7 +11,7 @@ use Illuminate\Validation\Validator;
 
 class UpdateCicloRequest extends FormRequest
 {
-    use HasActiveStatus, HasActiveStatusValidation;
+    use HasActiveStatus, HasActiveStatusValidation, ValidaGruposDelCiclo;
 
     /**
      * Determina si el usuario está autorizado para hacer esta solicitud.
@@ -59,7 +60,6 @@ class UpdateCicloRequest extends FormRequest
             'fecha_inicio' => 'sometimes|date|after_or_equal:today',
             'fecha_fin' => 'sometimes|nullable|date|after:fecha_inicio',
             'fecha_fin_automatica' => 'sometimes|boolean',
-            'inscritos' => 'sometimes|nullable|integer|min:0',
             'grupos' => 'sometimes|nullable|array',
             'grupos.*' => 'integer|exists:grupos,id',
             'status' => self::getStatusValidationRule(),
@@ -84,6 +84,12 @@ class UpdateCicloRequest extends FormRequest
             if (! $automatica && ! $fechaFin) {
                 $validator->errors()->add('fecha_fin', $this->messages()['fecha_fin.required']);
             }
+
+            $this->validarGruposDelCiclo(
+                $validator,
+                $this->input('sede_id', $ciclo->sede_id),
+                $this->input('curso_id', $ciclo->curso_id)
+            );
         });
     }
 
@@ -110,8 +116,6 @@ class UpdateCicloRequest extends FormRequest
             'fecha_fin.after' => 'La fecha de fin debe ser posterior a la fecha de inicio.',
             'fecha_fin.required' => 'La fecha de fin es obligatoria cuando la fecha fin es fija (no automática).',
             'fecha_fin_automatica.boolean' => 'El cálculo automático de fecha de fin debe ser verdadero o falso.',
-            'inscritos.integer' => 'El número de inscritos debe ser un número entero.',
-            'inscritos.min' => 'El número de inscritos no puede ser negativo.',
             'grupos.array' => 'Los grupos deben ser un array.',
             'grupos.*.integer' => 'Cada grupo debe ser un número entero.',
             'grupos.*.exists' => 'Uno o más grupos seleccionados no existen.',
@@ -132,7 +136,6 @@ class UpdateCicloRequest extends FormRequest
             'fecha_inicio' => 'fecha de inicio',
             'fecha_fin' => 'fecha de fin',
             'fecha_fin_automatica' => 'cálculo automático de fecha de fin',
-            'inscritos' => 'inscritos',
         ];
     }
 }

@@ -19,11 +19,11 @@ class SeguimientoResource extends JsonResource
             'id' => $this->id,
             'referido_id' => $this->referido_id,
             'seguidor_id' => $this->seguidor_id,
-            'fecha' => $this->fecha,
+            'fecha' => $this->fecha?->format('Y-m-d'),
             'seguimiento' => $this->seguimiento,
-            'created_at' => $this->created_at,
-            'updated_at' => $this->updated_at,
-            'deleted_at' => $this->deleted_at,
+            'created_at' => $this->created_at?->format('Y-m-d H:i:s'),
+            'updated_at' => $this->updated_at?->format('Y-m-d H:i:s'),
+            'deleted_at' => $this->deleted_at?->format('Y-m-d H:i:s'),
 
             // Relaciones
             'referido' => $this->whenLoaded('referido'),

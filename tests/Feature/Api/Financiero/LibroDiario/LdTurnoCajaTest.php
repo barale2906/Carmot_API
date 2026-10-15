@@ -47,7 +47,8 @@ class LdTurnoCajaTest extends TestCase
             ->assertCreated()
             ->assertJsonPath('data.status', LdTurnoCaja::STATUS_ABIERTO)
             ->assertJsonPath('data.base_inicial', 200000)
-            ->assertJsonPath('data.resumen.base_inicial', 200000)
+            // N26: antes del cierre aprobado el cajero no ve nada que mueva efectivo
+            ->assertJsonMissingPath('data.resumen.base_inicial')
             ->assertJsonMissingPath('data.resumen.efectivo_esperado');
 
         $this->assertDatabaseHas('ld_turno_eventos', ['accion' => LdTurnoEvento::ACCION_APERTURA, 'usuario_id' => $this->cajero->id]);
@@ -137,11 +138,14 @@ class LdTurnoCajaTest extends TestCase
             ->assertJsonMissingPath('data.efectivo_esperado')
             ->assertJsonMissingPath('data.diferencia')
             ->assertJsonMissingPath('data.resumen.efectivo_esperado')
-            ->assertJsonPath('data.resumen.ingresos.academico', 80000)
-            ->assertJsonPath('data.resumen.ingresos.inventario', 50000)
-            ->assertJsonPath('data.resumen.ingresos.otros', 10000)
-            ->assertJsonPath('data.resumen.egresos', 30000)
-            ->assertJsonPath('data.resumen.consignaciones', 60000)
+            // N26: solo los medios distintos al efectivo; sin base, totales ni consignaciones
+            ->assertJsonPath('data.resumen.restringido', true)
+            ->assertJsonMissingPath('data.resumen.base_inicial')
+            ->assertJsonMissingPath('data.resumen.ingresos')
+            ->assertJsonMissingPath('data.resumen.egresos')
+            ->assertJsonMissingPath('data.resumen.consignaciones')
+            ->assertJsonMissingPath('data.resumen.por_medio_pago.efectivo')
+            ->assertJsonPath('data.resumen.por_medio_pago.tarjeta_debito.inventario', 50000)
             ->assertJsonPath('data.resumen.transferencias_pendientes.cantidad', 1);
 
         $this->assertSame(ReciboPago::STATUS_CERRADO, $recibo->fresh()->status);
@@ -256,6 +260,13 @@ class LdTurnoCajaTest extends TestCase
             ->assertJsonPath('data.observaciones_aprobacion', 'Cuadra');
 
         $this->assertDatabaseHas('ld_turno_eventos', ['turno_caja_id' => $turno->id, 'accion' => LdTurnoEvento::ACCION_APROBACION]);
+
+        // N26: con el cierre aprobado, el cajero ya ve el detalle completo y el arqueo
+        $this->actingAs($this->cajero)->getJson(route('libro-diario.turnos.show', $turno))
+            ->assertOk()
+            ->assertJsonPath('data.resumen.base_inicial', fn ($v) => (float) $v === (float) $turno->base_inicial)
+            ->assertJsonPath('data.diferencia', fn ($v) => (float) $v === 100000 - (float) $turno->base_inicial)
+            ->assertJsonPath('data.resumen.por_medio_pago.efectivo.ingresos', 0);
     }
 
     /** @test */
@@ -317,7 +328,7 @@ class LdTurnoCajaTest extends TestCase
             ->postJson(route('libro-diario.turnos.reversar', $turno), ['motivo' => 'Corrección'])
             ->assertUnprocessable();
 
-        $this->assertFalse(LdTurnoCaja::abiertoDe($this->cajero->id, $this->sede->id)->exists());
+        $this->assertFalse(LdTurnoCaja::abiertoDe($this->cajero->id)->exists());
         $this->abrir()->assertUnprocessable()->assertJsonValidationErrors('turno');
     }
 

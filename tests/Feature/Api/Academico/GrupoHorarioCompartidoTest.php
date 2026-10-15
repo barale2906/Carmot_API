@@ -48,8 +48,11 @@ class GrupoHorarioCompartidoTest extends TestCase
 
         $this->area   = Area::factory()->active()->create(['nombre' => 'Aula 101']);
         $this->sede   = Sede::factory()->create();
+        $this->sede->areas()->attach($this->area->id);
         $this->modulo = Modulo::factory()->withoutCursos()->create(['status' => 1]);
         $this->profesor = User::factory()->create();
+        \Spatie\Permission\Models\Role::create(['name' => User::ROL_PROFESOR]);
+        $this->profesor->assignRole(User::ROL_PROFESOR);
     }
 
     // =========================================================================
@@ -241,6 +244,7 @@ class GrupoHorarioCompartidoTest extends TestCase
     {
         $areaVieja = Area::factory()->active()->create(['nombre' => 'Área Vieja']);
         $areaNueva = Area::factory()->active()->create(['nombre' => 'Área Nueva']);
+        $this->sede->areas()->attach([$areaVieja->id, $areaNueva->id]);
 
         $grupo = $this->crearGrupo('Grupo Cambio Area');
 

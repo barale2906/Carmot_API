@@ -29,6 +29,9 @@ class SedeCodigoTest extends TestCase
 
         $this->usuario = User::factory()->create();
         $this->usuario->givePermissionTo(['co_sedes', 'co_sedeCrear', 'co_sedeEditar']);
+        // Superusuario: accede a todas las sedes (las demás solo editan las asignadas, B45)
+        \Spatie\Permission\Models\Role::create(['name' => 'superusuario']);
+        $this->usuario->assignRole('superusuario');
     }
 
     /** Payload mínimo válido para crear una sede. */
@@ -110,6 +113,47 @@ class SedeCodigoTest extends TestCase
             ->assertJsonPath('data.codigo_academico', 'DUI-AC');
 
         $this->assertDatabaseHas('sedes', ['id' => $sede->id, 'codigo_academico' => 'DUI-AC']);
+    }
+
+    /** @test */
+    public function update_regenera_los_horarios_de_sede_sin_borrar_los_de_los_grupos(): void
+    {
+        $sede  = Sede::factory()->create();
+        $area  = \App\Models\Configuracion\Area::factory()->create();
+        $grupo = \App\Models\Academico\Grupo::factory()->create(['sede_id' => $sede->id]);
+        $sede->areas()->attach($area->id);
+
+        $base = [
+            'sede_id' => $sede->id, 'area_id' => $area->id, 'periodo' => true, 'dia' => 'lunes',
+            'hora' => '08:00:00', 'duracion_horas' => 2, 'status' => 1, 'created_at' => now(), 'updated_at' => now(),
+        ];
+        \DB::table('horarios')->insert($base + ['tipo' => true, 'grupo_id' => null, 'grupo_nombre' => null]);
+        $horarioGrupo = \DB::table('horarios')->insertGetId($base + ['tipo' => false, 'grupo_id' => $grupo->id, 'grupo_nombre' => $grupo->nombre]);
+
+        $this->actingAs($this->usuario)
+            ->putJson(route('sedes.update', $sede), ['codigo_inventario' => 'NUE-INV'])
+            ->assertOk();
+
+        $this->assertDatabaseHas('horarios', ['id' => $horarioGrupo, 'deleted_at' => null]);
+        $this->assertSame(1, $grupo->horarios()->count());
+    }
+
+    /** @test */
+    public function un_usuario_no_edita_una_sede_que_no_tiene_asignada(): void
+    {
+        $propia = Sede::factory()->create();
+        $ajena  = Sede::factory()->create();
+        $coordinador = User::factory()->create();
+        $coordinador->givePermissionTo('co_sedeEditar');
+        $coordinador->sedes()->attach($propia->id);
+
+        $this->actingAs($coordinador)
+            ->putJson(route('sedes.update', $ajena), ['codigo_academico' => 'X-AC'])
+            ->assertForbidden();
+
+        $this->actingAs($coordinador)
+            ->putJson(route('sedes.update', $propia), ['codigo_academico' => 'P-AC'])
+            ->assertOk();
     }
 
     /** @test */

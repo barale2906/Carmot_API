@@ -36,7 +36,6 @@
 
 <footer>
     <span class="numero">Matrícula {{ $codigo }} · Impreso el {{ now()->format('d/m/Y') }}</span>
-    <span class="pagina"></span>
 </footer>
 
 @include('pdf.partials.hoja_matricula')

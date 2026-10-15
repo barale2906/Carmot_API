@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Api\Academico;
 
+use App\Http\Requests\Api\Academico\Concerns\ValidaGruposDeProgramacion;
 use App\Traits\HasActiveStatus;
 use App\Traits\HasActiveStatusValidation;
 use App\Traits\HasJornadaStatus;
@@ -10,7 +11,7 @@ use Illuminate\Foundation\Http\FormRequest;
 
 class StoreProgramacionRequest extends FormRequest
 {
-    use HasActiveStatus, HasActiveStatusValidation, HasJornadaStatus, HasJornadaStatusValidation;
+    use HasActiveStatus, HasActiveStatusValidation, HasJornadaStatus, HasJornadaStatusValidation, ValidaGruposDeProgramacion;
 
     /**
      * Determina si el usuario está autorizado para hacer esta solicitud.
@@ -49,6 +50,21 @@ class StoreProgramacionRequest extends FormRequest
             'grupos.*.fecha_fin_grupo' => 'nullable|date|after:grupos.*.fecha_inicio_grupo|before_or_equal:fecha_fin',
             'status' => self::getStatusValidationRule(),
         ];
+    }
+
+    /**
+     * Los grupos deben ser de la sede de la programación y de módulos de su curso (N23).
+     *
+     * @param \Illuminate\Validation\Validator $validator
+     * @return void
+     */
+    public function withValidator($validator): void
+    {
+        $validator->after(fn ($validator) => $this->validarGruposDeProgramacion(
+            $validator,
+            $this->input('sede_id'),
+            $this->input('curso_id')
+        ));
     }
 
     /**

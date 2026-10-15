@@ -45,6 +45,8 @@ class CalendarioGrupoTest extends TestCase
         ]);
 
         $this->sede = Sede::factory()->create();
+        // Programar clases exige la sede del grupo (N18)
+        $this->usuario->sedes()->attach($this->sede->id);
         $this->curso = Curso::factory()->create();
 
         // Crear módulos directamente (sin factory) para evitar que configure() los asocie
@@ -255,8 +257,8 @@ class CalendarioGrupoTest extends TestCase
         $this->assertEquals($refInicio, $pivotA->fecha_inicio_grupo);
         $this->assertEquals($refFin, $pivotA->fecha_fin_grupo);
 
-        // grupoB → primera sesión real (martes) desde fecha_inicio del ciclo
-        $primerMartes = Carbon::parse($fechaInicio);
+        // grupoB → calendario cíclico: arranca después del tramo en ejecución de grupoA, nunca en paralelo
+        $primerMartes = Carbon::parse($refFin)->addDay();
         if (! $primerMartes->isTuesday()) {
             $primerMartes = $primerMartes->next(Carbon::TUESDAY);
         }

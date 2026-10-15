@@ -7,12 +7,14 @@ use App\Traits\HasActiveStatusValidation;
 use App\Traits\HasJornadaStatus;
 use App\Traits\HasJornadaStatusValidation;
 use App\Models\Academico\Grupo;
+use App\Http\Requests\Api\Academico\Concerns\ValidaDatosGrupo;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Validator;
 use Illuminate\Validation\Rule;
 
 class UpdateGrupoRequest extends FormRequest
 {
-    use HasActiveStatus, HasActiveStatusValidation, HasJornadaStatus, HasJornadaStatusValidation;
+    use HasActiveStatus, HasActiveStatusValidation, HasJornadaStatus, HasJornadaStatusValidation, ValidaDatosGrupo;
 
     /**
      * Determina si el usuario está autorizado para hacer esta solicitud.
@@ -42,7 +44,6 @@ class UpdateGrupoRequest extends FormRequest
                 'max:255',
                 Rule::unique('grupos', 'nombre')->ignore($grupoId, 'id')->whereNull('deleted_at'),
             ],
-            'inscritos' => 'sometimes|integer|min:0|max:50',
             'jornada' => self::getJornadaValidationRuleOptional(),
             'status' => self::getStatusValidationRule(),
         ];
@@ -65,9 +66,6 @@ class UpdateGrupoRequest extends FormRequest
             'nombre.string' => 'El nombre del grupo debe ser una cadena de texto.',
             'nombre.max' => 'El nombre del grupo no puede tener más de 255 caracteres.',
             'nombre.unique' => 'Ya existe un grupo con este nombre.',
-            'inscritos.integer' => 'El número de inscritos debe ser un número entero.',
-            'inscritos.min' => 'El número de inscritos no puede ser menor a 0.',
-            'inscritos.max' => 'El número de inscritos no puede ser mayor a 50.',
         ], array_merge(self::getStatusValidationMessages(), self::getJornadaValidationMessages()));
     }
 
@@ -82,8 +80,20 @@ class UpdateGrupoRequest extends FormRequest
             'sede_id' => 'sede',
             'modulo_id' => 'módulo',
             'profesor_id' => 'profesor',
-            'inscritos' => 'número de inscritos',
             'jornada' => 'jornada',
         ];
+    }
+
+    /**
+     * Validaciones posteriores: profesor con rol profesor y áreas de la sede del grupo.
+     *
+     * @param Validator $validator
+     * @return void
+     */
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator) {
+            $this->validarProfesor($validator, $this->input('profesor_id'));
+        });
     }
 }

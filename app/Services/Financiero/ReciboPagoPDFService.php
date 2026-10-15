@@ -53,9 +53,10 @@ class ReciboPagoPDFService
         }
 
         $logoBase64 = null;
-        $logoPath = public_path('images/logo.svg');
+        // PNG de letras claras (el encabezado del recibo es azul oscuro): dompdf no dibuja bien el SVG (B18)
+        $logoPath = public_path('images/logo-pdf-claro.png');
         if (file_exists($logoPath)) {
-            $logoBase64 = 'data:image/svg+xml;base64,' . base64_encode(file_get_contents($logoPath));
+            $logoBase64 = 'data:image/png;base64,' . base64_encode(file_get_contents($logoPath));
         }
 
         // El estado de cada cartera se lee del pivot (snapshot guardado al crear el recibo),

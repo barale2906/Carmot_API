@@ -2,62 +2,88 @@
 
 namespace App\Services\Asistencia;
 
+use App\Models\Academico\Asistencia;
 use App\Models\Academico\AsistenciaConfiguracion;
-use App\Services\Asistencia\CalcularPorcentajeAsistenciaService;
+use App\Models\Academico\Matricula;
+use Illuminate\Support\Collection;
 
+/**
+ * Aplica la regla de asistencia vigente (porcentaje mínimo, horas mínimas, si cuentan
+ * las justificadas y si se pierde por fallas) a las asistencias de un estudiante.
+ *
+ * Lo usan el reporte de asistencia por grupo y la evaluación de cierre de la matrícula
+ * (N19), para que ambos digan lo mismo.
+ */
 class VerificarCumplimientoService
 {
-    protected CalcularPorcentajeAsistenciaService $calcularService;
-
-    public function __construct(CalcularPorcentajeAsistenciaService $calcularService)
+    /**
+     * Cumplimiento de la matrícula en su ciclo, con la regla del curso (incluye horas mínimas).
+     *
+     * Agrega `perdida_definitiva` (N24): con la regla "pierde por fallas", las horas faltadas
+     * ya superan lo que el mínimo permite sobre el total de horas del ciclo (o ya no alcanzan
+     * las horas mínimas), así que el estudiante no puede recuperarse aunque asista al resto.
+     *
+     * @param Matricula $matricula
+     * @return array<string, mixed>
+     */
+    public function porMatricula(Matricula $matricula): array
     {
-        $this->calcularService = $calcularService;
+        $asistencias = Asistencia::where('estudiante_id', $matricula->estudiante_id)
+            ->where('ciclo_id', $matricula->ciclo_id)
+            ->with('claseProgramada')
+            ->get();
+
+        $configuracion = AsistenciaConfiguracion::obtenerPara($matricula->curso_id);
+        $resultado     = $this->evaluar($asistencias, $configuracion, true);
+
+        $matricula->loadMissing('ciclo.grupos.modulo');
+        $horasCiclo   = (float) $matricula->ciclo?->grupos->sum(fn ($grupo) => (float) $grupo->modulo?->duracion);
+        $horasFaltas  = $resultado['horas_totales'] - $resultado['horas_asistidas'];
+        $maxAsistible = $horasCiclo - $horasFaltas;
+
+        $resultado['horas_ciclo']        = round($horasCiclo, 2);
+        $resultado['perdida_definitiva'] = (bool) $configuracion?->perder_por_fallas && $horasCiclo > 0 && (
+            ($resultado['porcentaje_minimo'] !== null && $maxAsistible / $horasCiclo * 100 < $resultado['porcentaje_minimo'])
+            || ($resultado['horas_minimas'] !== null && $maxAsistible < $resultado['horas_minimas'])
+        );
+
+        return $resultado;
     }
 
     /**
-     * Verifica si un estudiante cumple con el mínimo de asistencia requerido.
+     * Evalúa un conjunto de asistencias contra una configuración. Sin configuración no hay
+     * mínimo que cumplir. Las horas mínimas solo aplican al curso completo.
      *
-     * @param int $estudianteId
-     * @param int $cursoId
-     * @param int|null $moduloId
-     * @return array
+     * @param Collection<int, Asistencia>   $asistencias
+     * @param AsistenciaConfiguracion|null  $configuracion
+     * @param bool                          $conHorasMinimas
+     * @return array<string, mixed>
      */
-    public function verificar(int $estudianteId, int $cursoId, ?int $moduloId = null): array
+    public function evaluar(Collection $asistencias, ?AsistenciaConfiguracion $configuracion, bool $conHorasMinimas = false): array
     {
-        // Obtener configuración vigente
-        $configuracion = AsistenciaConfiguracion::obtenerPara($cursoId, $moduloId);
+        $cuentaJustificadas = ! $configuracion || $configuracion->aplicar_justificaciones;
+        $horas              = fn (Asistencia $a) => (float) ($a->claseProgramada->duracion_horas ?? 0);
 
-        if (!$configuracion) {
-            return [
-                'cumple' => false,
-                'porcentaje' => 0,
-                'porcentaje_minimo' => 0,
-                'mensaje' => 'No se encontró una configuración de asistencia vigente.',
-            ];
-        }
+        $horasTotales   = $asistencias->sum($horas);
+        $horasAsistidas = $asistencias
+            ->filter(fn (Asistencia $a) => $a->esPresente() || ($cuentaJustificadas && $a->esJustificada()))
+            ->sum($horas);
+        $porcentaje = $horasTotales > 0 ? round($horasAsistidas / $horasTotales * 100, 2) : 0.0;
 
-        // Calcular porcentaje de asistencia
-        $porcentaje = $moduloId 
-            ? $this->calcularService->porModulo($estudianteId, 0, 0) // Necesitaría grupo_id y ciclo_id
-            : $this->calcularService->porCurso($estudianteId, $cursoId);
-
-        // Comparar con mínimo
-        $cumple = $porcentaje >= $configuracion->porcentaje_minimo;
+        $minimo       = $configuracion ? (float) $configuracion->porcentaje_minimo : null;
+        $horasMinimas = $conHorasMinimas && $configuracion?->horas_minimas ? (float) $configuracion->horas_minimas : null;
+        $cumple       = ($minimo === null || $porcentaje >= $minimo)
+            && ($horasMinimas === null || $horasAsistidas >= $horasMinimas);
 
         return [
-            'cumple' => $cumple,
-            'porcentaje' => round($porcentaje, 2),
-            'porcentaje_minimo' => (float) $configuracion->porcentaje_minimo,
-            'diferencia' => round($porcentaje - $configuracion->porcentaje_minimo, 2),
-            'mensaje' => $cumple 
-                ? 'El estudiante cumple con el mínimo de asistencia requerido.'
-                : 'El estudiante no cumple con el mínimo de asistencia requerido.',
-            'configuracion' => [
-                'id' => $configuracion->id,
-                'aplicar_justificaciones' => $configuracion->aplicar_justificaciones,
-                'perder_por_fallas' => $configuracion->perder_por_fallas,
-            ],
+            'porcentaje'        => $porcentaje,
+            'horas_totales'     => round($horasTotales, 2),
+            'horas_asistidas'   => round($horasAsistidas, 2),
+            'porcentaje_minimo' => $minimo,
+            'horas_minimas'     => $horasMinimas,
+            'cumple'            => $cumple,
+            'pierde_por_fallas' => ! $cumple && (bool) $configuracion?->perder_por_fallas,
+            'configuracion_id'  => $configuracion?->id,
         ];
     }
 }
-

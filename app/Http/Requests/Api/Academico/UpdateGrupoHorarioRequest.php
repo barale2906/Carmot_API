@@ -4,11 +4,13 @@ namespace App\Http\Requests\Api\Academico;
 
 use App\Traits\HasActiveStatus;
 use App\Traits\HasActiveStatusValidation;
+use App\Http\Requests\Api\Academico\Concerns\ValidaDatosGrupo;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Validator;
 
 class UpdateGrupoHorarioRequest extends FormRequest
 {
-    use HasActiveStatus, HasActiveStatusValidation;
+    use HasActiveStatus, HasActiveStatusValidation, ValidaDatosGrupo;
 
     /**
      * Determina si el usuario está autorizado para hacer esta solicitud.
@@ -86,5 +88,19 @@ class UpdateGrupoHorarioRequest extends FormRequest
             }
             $this->merge(['horarios' => $horarios]);
         }
+    }
+
+    /**
+     * Validaciones posteriores: profesor con rol profesor y áreas de la sede del grupo.
+     *
+     * @param Validator $validator
+     * @return void
+     */
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator) {
+            $this->validarAreasEnSede($validator, $this->route('grupo')?->sede_id, $this->input('horarios'));
+            $this->validarHorariosEnJornadaSede($validator, $this->route('grupo')?->sede_id, $this->input('horarios'));
+        });
     }
 }

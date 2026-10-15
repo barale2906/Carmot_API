@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Api\Inventarios;
 
+use App\Models\Financiero\Lp\LpListaPrecio;
 use App\Models\Inventarios\InvProducto;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Validator;
@@ -49,6 +50,12 @@ class StoreInvPrecioProductoRequest extends FormRequest
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $v) {
+            // Lista aprobada o activa: el cambio entraría en vigor sin aprobación (N14)
+            if (LpListaPrecio::find($this->lista_precio_id)?->preciosBloqueados()) {
+                $v->errors()->add('lista_precio_id', LpListaPrecio::MENSAJE_PRECIOS_BLOQUEADOS);
+                return;
+            }
+
             $producto = InvProducto::find($this->producto_id);
 
             if ($producto?->tipo === 'grupo' && $producto->idsReceptoresDePrecio()->isEmpty()) {

@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\DB;
  *
  * Campos requeridos: nombre, fecha_inicio, fecha_fin.
  * Campos opcionales:
+ *   - codigo       → código único de la nueva lista; no se hereda porque es único (N05).
  *   - descripcion  → si se omite, se hereda de la lista origen.
  *   - poblaciones  → array de IDs de poblacion; si se omite, se heredan de la lista origen.
  *   - copiar_precios → bool (default true); si false, crea la lista vacía sin precios.
@@ -42,6 +43,7 @@ class CloneLpListaPrecioRequest extends FormRequest
     {
         return [
             'nombre'        => 'required|string|max:255',
+            'codigo'        => 'nullable|string|max:100|unique:lp_listas_precios,codigo',
             'fecha_inicio'  => 'required|date|after_or_equal:today',
             'fecha_fin'     => 'required|date|after:fecha_inicio',
             'descripcion'   => 'sometimes|nullable|string',
@@ -61,6 +63,9 @@ class CloneLpListaPrecioRequest extends FormRequest
         return [
             'nombre.required'           => 'El nombre de la nueva lista es obligatorio.',
             'nombre.max'                => 'El nombre no puede exceder 255 caracteres.',
+            'codigo.string'             => 'El código debe ser una cadena de texto.',
+            'codigo.max'                => 'El código no puede exceder 100 caracteres.',
+            'codigo.unique'             => 'El código de la lista de precios ya existe.',
             'fecha_inicio.required'     => 'La fecha de inicio es obligatoria.',
             'fecha_inicio.date'         => 'La fecha de inicio debe ser una fecha válida.',
             'fecha_inicio.after_or_equal' => 'La fecha de inicio debe ser hoy o una fecha futura.',

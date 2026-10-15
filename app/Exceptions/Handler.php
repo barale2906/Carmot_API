@@ -3,6 +3,7 @@
 namespace App\Exceptions;
 
 use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
+use Spatie\Permission\Exceptions\UnauthorizedException;
 use Throwable;
 
 class Handler extends ExceptionHandler
@@ -19,12 +20,23 @@ class Handler extends ExceptionHandler
     ];
 
     /**
-     * Register the exception handling callbacks for the application.
+     * Registra los callbacks de manejo de excepciones de la aplicación.
      */
     public function register(): void
     {
         $this->reportable(function (Throwable $e) {
             //
+        });
+
+        // Mensaje de permisos en español: Spatie responde "User does not have the right permissions." (F14)
+        $this->renderable(function (UnauthorizedException $e, $request) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'message' => $e->getMessage() === 'User is not logged in.'
+                        ? 'Debe iniciar sesión.'
+                        : 'No tiene permiso para realizar esta acción.',
+                ], $e->getStatusCode());
+            }
         });
     }
 }

@@ -21,7 +21,9 @@ use Illuminate\Support\Facades\DB;
  *     → Cuota 0 (matrícula):  valor = lp.matricula,   fecha = fecha_matricula
  *     → Cuota 1 (primera mensualidad):
  *        - Ciclo no ha iniciado: fecha = base (ciclo.fecha_inicio)
- *        - Ciclo ya inició o sin ciclo: fecha = fecha_matricula
+ *        - Ciclo ya inició o sin ciclo: fecha = fecha_matricula. Es la regla esperada: la
+ *          matrícula y la primera cuota se pagan el mismo día, salvo que la cuota tenga
+ *          descuento del 100 % (costo cero: no genera mora y se descarga en cualquier recibo, N11).
  *     → Cuotas 2..N:          valor = lp.valorDeCuota(n) (cuotas_detalle si existe, si no valor_cuota),
  *                             fecha = base + (n-1) meses
  *

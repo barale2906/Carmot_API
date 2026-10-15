@@ -10,10 +10,12 @@ use App\Http\Resources\Api\Academico\AsistenciaResource;
 use App\Http\Resources\Api\Academico\ListaAsistenciaResource;
 use App\Models\Academico\Asistencia;
 use App\Models\Academico\AsistenciaClaseProgramada;
+use App\Models\Academico\AsistenciaConfiguracion;
 use App\Models\Academico\Ciclo;
 use App\Models\Academico\Grupo;
 use App\Models\Academico\Matricula;
 use App\Services\Asistencia\RegistroAsistenciaService;
+use App\Services\Asistencia\VerificarCumplimientoService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -23,7 +25,10 @@ class AsistenciaController extends Controller
     /**
      * Constructor del controlador.
      */
-    public function __construct(private readonly RegistroAsistenciaService $registroAsistencia)
+    public function __construct(
+        private readonly RegistroAsistenciaService $registroAsistencia,
+        private readonly VerificarCumplimientoService $cumplimiento
+    )
     {
         $this->middleware('permission:aca_asistencias')->only(['index', 'show', 'listaAsistencia', 'reporteEstudiante', 'reporteGrupo']);
         $this->middleware('permission:aca_asistenciaCrear')->only(['store', 'storeMasivo']);
@@ -32,7 +37,7 @@ class AsistenciaController extends Controller
     }
 
     /**
-     * Muestra una lista de asistencias con filtros.
+     * Muestra una lista de asistencias con filtros. A un alumno solo se le listan sus propias asistencias.
      *
      * @param Request $request
      * @return JsonResponse
@@ -43,6 +48,11 @@ class AsistenciaController extends Controller
             'estudiante_id', 'grupo_id', 'ciclo_id', 'curso_id', 'modulo_id',
             'clase_programada_id', 'estado', 'fecha_registro', 'include_trashed', 'only_trashed'
         ]);
+
+        // El alumno solo ve sus propias asistencias
+        if ($request->user()->esSoloEstudiante()) {
+            $filters['estudiante_id'] = $request->user()->id;
+        }
 
         $relations = $request->has('with')
             ? explode(',', $request->with)
@@ -74,6 +84,8 @@ class AsistenciaController extends Controller
      */
     public function store(StoreAsistenciaRequest $request): JsonResponse
     {
+        $this->autorizarGrupo($request, AsistenciaClaseProgramada::findOrFail($request->clase_programada_id)->grupo);
+
         try {
             DB::beginTransaction();
 
@@ -124,6 +136,7 @@ class AsistenciaController extends Controller
     public function storeMasivo(StoreAsistenciaMasivaRequest $request): JsonResponse
     {
         $clase = AsistenciaClaseProgramada::findOrFail($request->clase_programada_id);
+        $this->autorizarGrupo($request, $clase->grupo);
 
         $resultado = $this->registroAsistencia->registrarClase($clase, $request->asistencias, auth()->id());
 
@@ -138,15 +151,18 @@ class AsistenciaController extends Controller
     }
 
     /**
-     * Muestra una asistencia específica.
+     * Muestra una asistencia específica. Un alumno solo puede ver las suyas (403 en las ajenas).
      *
+     * @param Request $request
      * @param int $id
      * @return JsonResponse
      */
-    public function show(int $id): JsonResponse
+    public function show(Request $request, int $id): JsonResponse
     {
         $asistencia = Asistencia::withRelations(['estudiante', 'claseProgramada', 'grupo', 'ciclo', 'modulo', 'curso', 'registradoPor'])
             ->findOrFail($id);
+
+        abort_unless($request->user()->puedeVerEstudiante($asistencia->estudiante_id), 403, 'Solo puede consultar su propia información.');
 
         return response()->json([
             'data' => new AsistenciaResource($asistencia),
@@ -162,6 +178,8 @@ class AsistenciaController extends Controller
      */
     public function update(UpdateAsistenciaRequest $request, int $id): JsonResponse
     {
+        $this->autorizarGrupo($request, Asistencia::findOrFail($id)->grupo);
+
         try {
             $asistencia = Asistencia::findOrFail($id);
 
@@ -227,7 +245,8 @@ class AsistenciaController extends Controller
     }
 
     /**
-     * Obtiene la lista de asistencia por grupo (ciclos activos).
+     * Obtiene la lista de asistencia por grupo: ciclos en curso o en su plazo de cierre
+     * (`academico.dias_cierre_ciclo`). Prohibida para alumnos.
      *
      * @param Request $request
      * @param int $grupoId
@@ -235,19 +254,21 @@ class AsistenciaController extends Controller
      */
     public function listaAsistencia(Request $request, int $grupoId): JsonResponse
     {
+        abort_if($request->user()->esSoloEstudiante(), 403, 'Un estudiante no puede consultar la información de un grupo completo.');
+
         try {
             $grupo = Grupo::findOrFail($grupoId);
 
-            // Obtener ciclos activos que contienen este grupo
+            // Ciclos del grupo en curso o dentro del plazo de cierre (N17)
             $ciclosActivos = Ciclo::whereHas('grupos', function ($query) use ($grupoId) {
                 $query->where('grupos.id', $grupoId);
             })
-                ->activosVigentes()
+                ->abiertosParaRegistro()
                 ->get();
 
             if ($ciclosActivos->isEmpty()) {
                 return response()->json([
-                    'message' => 'No se encontraron ciclos activos para este grupo.',
+                    'message' => 'No hay ciclos en curso ni en periodo de cierre para este grupo.',
                     'data' => new ListaAsistenciaResource([
                         'grupo' => $grupo,
                         'ciclos' => collect([]),
@@ -299,7 +320,7 @@ class AsistenciaController extends Controller
     }
 
     /**
-     * Genera reporte de asistencia por estudiante.
+     * Genera reporte de asistencia por estudiante. Un alumno solo puede pedir el suyo.
      *
      * @param Request $request
      * @param int $id
@@ -307,6 +328,8 @@ class AsistenciaController extends Controller
      */
     public function reporteEstudiante(Request $request, int $id): JsonResponse
     {
+        abort_unless($request->user()->puedeVerEstudiante($id), 403, 'Solo puede consultar su propia información.');
+
         try {
             $estudiante = \App\Models\User::findOrFail($id);
             $grupoId = $request->get('grupo_id');
@@ -374,7 +397,8 @@ class AsistenciaController extends Controller
     }
 
     /**
-     * Genera reporte de asistencia por grupo.
+     * Genera reporte de asistencia por grupo con el cumplimiento de la regla de asistencia
+     * de cada estudiante (porcentaje mínimo y pérdida por fallas). Prohibido para alumnos.
      *
      * @param Request $request
      * @param int $grupoId
@@ -382,6 +406,8 @@ class AsistenciaController extends Controller
      */
     public function reporteGrupo(Request $request, int $grupoId): JsonResponse
     {
+        abort_if($request->user()->esSoloEstudiante(), 403, 'Un estudiante no puede consultar la información de un grupo completo.');
+
         try {
             $grupo = Grupo::with('modulo')->findOrFail($grupoId);
             $cicloId = $request->get('ciclo_id');
@@ -395,20 +421,11 @@ class AsistenciaController extends Controller
             $asistencias = $query->with(['estudiante', 'claseProgramada', 'ciclo'])
                 ->get();
 
-            // Agrupar por estudiante
-            $reportePorEstudiante = $asistencias->groupBy('estudiante_id')->map(function ($asistenciasEstudiante) {
-                $estudiante = $asistenciasEstudiante->first()->estudiante;
-                $totalClases = $asistenciasEstudiante->count();
-                $presentes = $asistenciasEstudiante->where('estado', 'presente')->count();
-                $horasTotales = $asistenciasEstudiante->sum(function ($a) {
-                    return $a->claseProgramada->duracion_horas ?? 0;
-                });
-                $horasAsistidas = $asistenciasEstudiante->filter(function ($a) {
-                    return in_array($a->estado, ['presente', 'tardanza', 'justificado']);
-                })->sum(function ($a) {
-                    return $a->claseProgramada->duracion_horas ?? 0;
-                });
-                $porcentaje = $horasTotales > 0 ? ($horasAsistidas / $horasTotales) * 100 : 0;
+            // Agrupar por estudiante; el cumplimiento usa la regla del curso y módulo del grupo (N19)
+            $reportePorEstudiante = $asistencias->groupBy('estudiante_id')->map(function ($asistenciasEstudiante) use ($grupo) {
+                $estudiante    = $asistenciasEstudiante->first()->estudiante;
+                $configuracion = AsistenciaConfiguracion::obtenerPara($asistenciasEstudiante->first()->curso_id, $grupo->modulo_id);
+                $cumplimiento  = $this->cumplimiento->evaluar($asistenciasEstudiante, $configuracion);
 
                 return [
                     'estudiante' => [
@@ -416,11 +433,14 @@ class AsistenciaController extends Controller
                         'name' => $estudiante->name,
                         'email' => $estudiante->email,
                     ],
-                    'total_clases' => $totalClases,
-                    'presentes' => $presentes,
-                    'horas_totales' => round($horasTotales, 2),
-                    'horas_asistidas' => round($horasAsistidas, 2),
-                    'porcentaje_asistencia' => round($porcentaje, 2),
+                    'total_clases' => $asistenciasEstudiante->count(),
+                    'presentes' => $asistenciasEstudiante->where('estado', 'presente')->count(),
+                    'horas_totales' => $cumplimiento['horas_totales'],
+                    'horas_asistidas' => $cumplimiento['horas_asistidas'],
+                    'porcentaje_asistencia' => $cumplimiento['porcentaje'],
+                    'porcentaje_minimo' => $cumplimiento['porcentaje_minimo'],
+                    'cumple_minimo' => $cumplimiento['cumple'],
+                    'pierde_por_fallas' => $cumplimiento['pierde_por_fallas'],
                 ];
             })->values();
 
@@ -433,7 +453,8 @@ class AsistenciaController extends Controller
                     ],
                     'resumen_grupal' => [
                         'total_estudiantes' => $reportePorEstudiante->count(),
-                        'total_clases' => $asistencias->count(),
+                        // Clases distintas con asistencia, no registros (uno por estudiante, B24)
+                        'total_clases' => $asistencias->pluck('clase_programada_id')->unique()->count(),
                     ],
                     'estudiantes' => $reportePorEstudiante,
                 ],
@@ -444,5 +465,18 @@ class AsistenciaController extends Controller
                 'error' => $e->getMessage(),
             ], 500);
         }
+    }
+
+    /**
+     * Corta con 403 si el usuario no puede registrar asistencia en el grupo (B22):
+     * solo su profesor o el personal con la sede del grupo asignada.
+     *
+     * @param Request $request
+     * @param Grupo|null $grupo
+     * @return void
+     */
+    private function autorizarGrupo(Request $request, ?Grupo $grupo): void
+    {
+        abort_unless($grupo && $request->user()->puedeGestionarGrupo($grupo), 403, 'Solo el profesor del grupo o el personal de su sede puede registrar en este grupo.');
     }
 }

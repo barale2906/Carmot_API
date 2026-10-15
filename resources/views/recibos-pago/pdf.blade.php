@@ -150,8 +150,8 @@
                 @endif
             </td>
             <td class="org-cell">
-                <div class="org-name">Centro de Capacitaciones CARMOT</div>
-                <div class="org-nit">NIT: 1.048.849.874-0</div>
+                <div class="org-name">{{ config('documentacion.instituto.nombre') }}</div>
+                <div class="org-nit">NIT: {{ config('documentacion.instituto.nit') }}</div>
                 @if($recibo->sede)
                     <div class="org-sede">Sede: {{ $recibo->sede->nombre }}</div>
                 @endif
@@ -347,7 +347,7 @@
 
     {{-- ── Pie de página ───────────────────────────────────────────────────── --}}
     <div class="footer">
-        Centro de Capacitaciones CARMOT — NIT: 1.048.849.874-0<br>
+        {{ config('documentacion.instituto.nombre') }} — NIT: {{ config('documentacion.instituto.nit') }}<br>
         Generado el: {{ now()->format('d/m/Y H:i') }}
     </div>
 

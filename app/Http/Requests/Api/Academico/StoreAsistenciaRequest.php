@@ -2,11 +2,15 @@
 
 namespace App\Http\Requests\Api\Academico;
 
+use App\Http\Requests\Api\Academico\Concerns\ValidaEstudiantesDelGrupo;
+use App\Models\Academico\AsistenciaClaseProgramada;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class StoreAsistenciaRequest extends FormRequest
 {
+    use ValidaEstudiantesDelGrupo;
+
     /**
      * Determine if the user is authorized to make this request.
      */
@@ -64,5 +68,19 @@ class StoreAsistenciaRequest extends FormRequest
                 'hora_registro' => now()->format('H:i:s'),
             ]);
         }
+    }
+
+    /**
+     * Solo se registra asistencia a estudiantes con matrícula vigente en el grupo de la clase.
+     *
+     * @param \Illuminate\Validation\Validator $validator
+     * @return void
+     */
+    public function withValidator($validator): void
+    {
+        $validator->after(function ($validator) {
+            $clase = AsistenciaClaseProgramada::with('grupo')->find($this->input('clase_programada_id'));
+            $this->validarEstudiantesDelGrupo($validator, $clase?->grupo, [$this->input('estudiante_id')]);
+        });
     }
 }

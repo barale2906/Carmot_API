@@ -2,10 +2,14 @@
 
 namespace App\Http\Requests\Api\Academico;
 
+use App\Http\Requests\Api\Academico\Concerns\ValidaEstudiantesDelGrupo;
+use App\Models\Academico\Grupo;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreNotaEstudianteRequest extends FormRequest
 {
+    use ValidaEstudiantesDelGrupo;
+
     /**
      * Determina si el usuario está autorizado para hacer esta solicitud.
      */
@@ -90,5 +94,18 @@ class StoreNotaEstudianteRequest extends FormRequest
         if (!$this->has('status')) {
             $this->merge(['status' => 1]); // Registrada por defecto
         }
+    }
+
+    /**
+     * Solo se registran notas a estudiantes con matrícula vigente en el grupo.
+     *
+     * @param \Illuminate\Validation\Validator $validator
+     * @return void
+     */
+    public function withValidator($validator): void
+    {
+        $validator->after(function ($validator) {
+            $this->validarEstudiantesDelGrupo($validator, Grupo::find($this->input('grupo_id')), [$this->input('estudiante_id')]);
+        });
     }
 }

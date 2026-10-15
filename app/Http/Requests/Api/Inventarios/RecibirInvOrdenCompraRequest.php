@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Api\Inventarios;
 
+use App\Models\Inventarios\InvOrdenCompraItem;
 use Illuminate\Foundation\Http\FormRequest;
 
 /**
@@ -44,5 +45,38 @@ class RecibirInvOrdenCompraRequest extends FormRequest
             'items.*.cantidad_recibida.required'      => 'La cantidad recibida es obligatoria.',
             'items.*.cantidad_recibida.min'           => 'La cantidad recibida debe ser al menos 1.',
         ];
+    }
+
+    /**
+     * Cada ítem debe ser de esta orden y no se puede recibir más de lo pendiente: antes se
+     * recortaba en silencio y la orden se cerraba sin avisar (B34).
+     *
+     * @param \Illuminate\Validation\Validator $validator
+     * @return void
+     */
+    public function withValidator($validator): void
+    {
+        $validator->after(function ($validator) {
+            if ($validator->errors()->isNotEmpty()) {
+                return;
+            }
+
+            $orden = $this->route('ordenCompra');
+            $ordenId = is_object($orden) ? $orden->getKey() : (int) $orden;
+            $items = InvOrdenCompraItem::whereKey(collect($this->input('items'))->pluck('orden_item_id'))->get()->keyBy('id');
+
+            foreach ($this->input('items') as $i => $fila) {
+                $item = $items->get($fila['orden_item_id']);
+
+                if (! $item || (int) $item->orden_id !== $ordenId) {
+                    $validator->errors()->add("items.{$i}.orden_item_id", 'El ítem no pertenece a esta orden de compra.');
+                } elseif ((int) $fila['cantidad_recibida'] > $item->cantidadPendiente()) {
+                    $validator->errors()->add(
+                        "items.{$i}.cantidad_recibida",
+                        "La cantidad recibida ({$fila['cantidad_recibida']}) excede lo pendiente ({$item->cantidadPendiente()})."
+                    );
+                }
+            }
+        });
     }
 }

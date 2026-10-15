@@ -39,8 +39,8 @@ class GrupoVigentesTest extends TestCase
             'status' => 1, 'fecha_inicio' => now()->subYear()->toDateString(), 'fecha_fin' => now()->subMonth()->toDateString(),
         ]);
 
-        $this->grupo                = Grupo::factory()->create(['profesor_id' => $this->profesor->id]);
-        $this->grupoOtroProfesor    = Grupo::factory()->create(['profesor_id' => User::factory()->create()->id]);
+        $this->grupo                = Grupo::factory()->create(['profesor_id' => $this->profesor->id, 'sede_id' => \App\Models\Configuracion\Sede::factory()->create()->id]);
+        $this->grupoOtroProfesor    = Grupo::factory()->create(['profesor_id' => User::factory()->create()->id, 'sede_id' => \App\Models\Configuracion\Sede::factory()->create()->id]);
         $this->grupoSinCicloVigente = Grupo::factory()->create(['profesor_id' => $this->profesor->id]);
 
         $vigente->grupos()->attach($this->grupo->id, ['orden' => 1]);
@@ -52,6 +52,8 @@ class GrupoVigentesTest extends TestCase
     public function lista_solo_grupos_con_ciclo_vigente(): void
     {
         $this->profesor->givePermissionTo('aca_asistencias');
+        // Personal (no solo profesor): ve los grupos de sus sedes
+        $this->profesor->sedes()->attach([$this->grupo->sede_id, $this->grupoOtroProfesor->sede_id]);
 
         $ids = collect($this->actingAs($this->profesor)->getJson(route('grupos.vigentes'))
             ->assertOk()
@@ -82,5 +84,59 @@ class GrupoVigentesTest extends TestCase
         }
 
         $this->actingAs(User::factory()->create())->getJson(route('grupos.vigentes'))->assertForbidden();
+    }
+
+    /** @test */
+    public function el_personal_solo_ve_los_grupos_de_sus_sedes(): void
+    {
+        $this->profesor->givePermissionTo('aca_asistencias');
+        $this->profesor->sedes()->attach($this->grupoOtroProfesor->sede_id);
+
+        $this->actingAs($this->profesor)->getJson(route('grupos.vigentes'))
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $this->grupoOtroProfesor->id);
+    }
+
+    /** @test */
+    public function a_quien_solo_es_profesor_siempre_se_le_muestran_sus_grupos(): void
+    {
+        \Spatie\Permission\Models\Role::create(['name' => User::ROL_PROFESOR])->givePermissionTo('aca_asistencias');
+        $this->profesor->assignRole(User::ROL_PROFESOR);
+
+        $this->actingAs($this->profesor)->getJson(route('grupos.vigentes'))
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $this->grupo->id);
+    }
+
+    /** @test */
+    public function un_ciclo_recien_terminado_sigue_abierto_durante_el_plazo_de_cierre(): void
+    {
+        config(['academico.dias_cierre_ciclo' => 15]);
+        $this->profesor->givePermissionTo('aca_asistencias');
+
+        $reciente = Ciclo::factory()->create([
+            'status' => 1, 'fecha_inicio' => now()->subMonth()->toDateString(), 'fecha_fin' => now()->subDays(3)->toDateString(),
+        ]);
+        $grupoReciente = Grupo::factory()->create(['profesor_id' => $this->profesor->id]);
+        $reciente->grupos()->attach($grupoReciente->id, ['orden' => 1]);
+        $matricula = \App\Models\Academico\Matricula::factory()->create([
+            'ciclo_id' => $reciente->id, 'curso_id' => $reciente->curso_id, 'status' => 1,
+        ]);
+
+        $ids = collect($this->actingAs($this->profesor)->getJson(route('grupos.vigentes', ['mis_grupos' => 1]))->json('data'))->pluck('id');
+        $this->assertContains($grupoReciente->id, $ids->all());
+        $this->assertNotContains($this->grupoSinCicloVigente->id, $ids->all());
+
+        $this->actingAs($this->profesor)
+            ->getJson(route('asistencias.lista-asistencia', $grupoReciente->id))
+            ->assertOk()
+            ->assertJsonPath('data.estudiantes.0.id', $matricula->estudiante_id);
+
+        config(['academico.dias_cierre_ciclo' => 2]);
+
+        $this->actingAs($this->profesor)
+            ->getJson(route('asistencias.lista-asistencia', $grupoReciente->id))
+            ->assertOk()
+            ->assertJsonCount(0, 'data.estudiantes');
     }
 }

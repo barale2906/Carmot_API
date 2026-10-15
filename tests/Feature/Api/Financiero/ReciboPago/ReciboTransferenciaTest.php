@@ -119,6 +119,7 @@ class ReciboTransferenciaTest extends TestCase
     public function store_crea_recibo_pendiente_al_elegir_transferencia(): void
     {
         Storage::fake('public');
+        $this->crearCartera();
 
         $payload = [
             'sede_id'           => $this->sede->id,
@@ -152,6 +153,49 @@ class ReciboTransferenciaTest extends TestCase
             'banco_id'           => $this->banco->id,
             'numero_transaccion' => 'TXN-TEST-001',
         ]);
+    }
+
+    /** @test */
+    public function store_rechaza_transferencia_que_supera_lo_que_falta_por_pagar(): void
+    {
+        // N10 (prueba integral 2): se aceptaba y luego no se podía aprobar ni corregir
+        $this->crearCartera();
+        $transferencia = fn (int $valor, string $txn) => [
+            'sede_id'           => $this->sede->id,
+            'cajero_id'         => $this->cajero->id,
+            'matricula_id'      => $this->matricula->id,
+            'origen'            => ReciboPago::ORIGEN_ACADEMICO,
+            'fecha_recibo'      => now()->format('Y-m-d'),
+            'fecha_transaccion' => now()->format('Y-m-d H:i:s'),
+            'monto_a_pagar'     => $valor,
+            'medios_pago'       => [[
+                'medio_pago'         => 'transferencia',
+                'valor'              => $valor,
+                'banco_id'           => $this->banco->id,
+                'numero_transaccion' => $txn,
+            ]],
+        ];
+
+        $this->actingAs($this->cajero)
+            ->postJson(route('recibos-pago.store'), $transferencia(150000, 'TXN-TOPE-1'))
+            ->assertUnprocessable();
+
+        $this->actingAs($this->cajero)
+            ->postJson(route('recibos-pago.store'), $transferencia(60000, 'TXN-TOPE-2'))
+            ->assertCreated();
+
+        // La transferencia pendiente cuenta para el tope de la siguiente
+        $mensaje = $this->actingAs($this->cajero)
+            ->postJson(route('recibos-pago.store'), $transferencia(60000, 'TXN-TOPE-3'))
+            ->assertUnprocessable()
+            ->json('message');
+        $this->assertStringContainsString('transferencias pendientes de aprobación', $mensaje);
+
+        $this->actingAs($this->cajero)
+            ->postJson(route('recibos-pago.store'), $transferencia(40000, 'TXN-TOPE-4'))
+            ->assertCreated();
+
+        $this->assertSame(2, ReciboPago::where('status', ReciboPago::STATUS_PENDIENTE_APROBACION)->count());
     }
 
     /** @test */
@@ -460,5 +504,18 @@ class ReciboTransferenciaTest extends TestCase
 
         $this->assertSoftDeleted('recibos_pago', ['id' => $recibo->id]);
         Storage::disk('public')->assertMissing($path);
+    }
+
+    /** @test */
+    public function el_validador_no_puede_aprobar_una_transferencia_que_el_mismo_registro(): void
+    {
+        $recibo = $this->crearReciboPendiente(['cajero_id' => $this->validador->id]);
+
+        $this->actingAs($this->validador)
+            ->postJson(route('recibos-pago.aprobar-transferencia', $recibo))
+            ->assertForbidden()
+            ->assertJsonFragment(['message' => ReciboPago::MENSAJE_APROBACION_PROPIA]);
+
+        $this->assertTrue($recibo->fresh()->estaPendienteAprobacion());
     }
 }

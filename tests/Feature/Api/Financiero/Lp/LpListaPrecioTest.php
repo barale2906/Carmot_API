@@ -245,6 +245,30 @@ class LpListaPrecioTest extends TestCase
     }
 
     /** @test */
+    public function al_clonar_guarda_el_codigo_enviado_y_lo_exige_unico(): void
+    {
+        // N05 (prueba integral 2): el clon quedaba con codigo NULL
+        $listaOrigen = LpListaPrecio::factory()->enProceso()->create(['codigo' => 'LP-2026']);
+        $datos = [
+            'nombre'         => 'Lista 2027',
+            'codigo'         => 'LP-2027',
+            'fecha_inicio'   => now()->addYear()->toDateString(),
+            'fecha_fin'      => now()->addYears(2)->toDateString(),
+            'copiar_precios' => false,
+        ];
+
+        $this->actingAs($this->usuario)
+            ->postJson(route('listas-precios.clonar', $listaOrigen), $datos)
+            ->assertCreated()
+            ->assertJsonPath('data.codigo', 'LP-2027');
+
+        $this->actingAs($this->usuario)
+            ->postJson(route('listas-precios.clonar', $listaOrigen), ['codigo' => 'LP-2026'] + $datos)
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('codigo');
+    }
+
+    /** @test */
     public function rechaza_clonar_sin_permiso(): void
     {
         $sinPermiso = User::factory()->create();

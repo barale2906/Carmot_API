@@ -42,6 +42,7 @@ class MatriculaEstadoAcademicoTest extends TestCase
             'status'          => 1,
             'fecha_matricula' => now()->subMonths(2)->toDateString(),
         ]);
+        $this->coordinador->sedes()->attach($this->matricula->sede_id);
     }
 
     private function cambiar(int $estado, array $extra = [])
@@ -170,5 +171,21 @@ class MatriculaEstadoAcademicoTest extends TestCase
         $this->actingAs($soloLectura)
             ->postJson(route('matriculas.estado-academico', $this->matricula), [])
             ->assertForbidden();
+    }
+
+    /** @test */
+    public function las_estadisticas_separan_activas_de_no_eliminadas(): void
+    {
+        // N22 (prueba integral 2): totales.activas contaba todas las no eliminadas
+        Matricula::factory()->create(['status' => 2]);
+        Matricula::factory()->create(['status' => 1])->delete();
+
+        $data = $this->actingAs($this->coordinador)->getJson(route('matriculas.statistics'))->assertOk()->json('data');
+
+        $this->assertArrayNotHasKey('activas', $data['totales']);
+        $this->assertSame(Matricula::count(), $data['totales']['total']);
+        $this->assertSame(1, $data['totales']['eliminadas']);
+        $this->assertSame(1, $data['por_status']['anuladas']);
+        $this->assertSame(Matricula::where('status', 1)->count(), $data['por_status']['activas']);
     }
 }

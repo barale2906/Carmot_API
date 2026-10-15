@@ -6,12 +6,13 @@ use App\Models\Academico\Matricula;
 use App\Services\ArchivoService;
 use App\Traits\HasActiveStatus;
 use App\Traits\HasActiveStatusValidation;
+use App\Http\Requests\Api\Academico\Concerns\ValidaCicloDeMatricula;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class StoreMatriculaRequest extends FormRequest
 {
-    use HasActiveStatus, HasActiveStatusValidation;
+    use HasActiveStatus, HasActiveStatusValidation, ValidaCicloDeMatricula;
 
     /**
      * Opciones de estado: extiende el trait para incluir "Anulado".
@@ -187,6 +188,8 @@ class StoreMatriculaRequest extends FormRequest
     public function withValidator($validator): void
     {
         $validator->after(function ($validator) {
+            $this->validarCicloDeMatricula($validator, $this->input('ciclo_id'), $this->input('sede_id'), $this->input('curso_id'));
+
             $estudianteId = $this->input('estudiante_id');
             $cursoId      = $this->input('curso_id');
 

@@ -5,15 +5,15 @@ namespace App\Http\Resources\Api\Financiero\LibroDiario;
 use App\Models\Financiero\LibroDiario\LdTurnoCaja;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
-use Illuminate\Support\Arr;
 
 /**
  * Recurso de un turno de caja. El resumen es el congelado al cierre; en un turno
  * abierto el controlador lo asigna calculado en vivo, sin guardarlo.
  *
- * Conteo ciego: el efectivo esperado, la diferencia y los datos de arqueo de la
- * bitácora solo se incluyen para quien supervisa cajas y no es el cajero del turno
- * (LdTurnoCaja::arqueoVisiblePara).
+ * Conteo ciego: el efectivo esperado, la diferencia, los datos de arqueo de la bitácora
+ * y lo que mueve efectivo en el resumen (base, ingresos, egresos, consignaciones) solo se
+ * incluyen para quien supervisa cajas y no es el cajero del turno, o con el cierre ya
+ * aprobado (LdTurnoCaja::arqueoVisiblePara). Antes, el cajero solo ve los otros medios (N26).
  */
 class LdTurnoCajaResource extends JsonResource
 {
@@ -49,7 +49,7 @@ class LdTurnoCajaResource extends JsonResource
             'aprobado_at' => $this->aprobado_at?->format('Y-m-d H:i:s'),
             'observaciones_aprobacion' => $this->observaciones_aprobacion,
             'ajustado' => $this->ajustado,
-            'resumen' => $verArqueo || $this->resumen === null ? $this->resumen : Arr::except($this->resumen, 'efectivo_esperado'),
+            'resumen' => $verArqueo || $this->resumen === null ? $this->resumen : LdTurnoCaja::resumenSinEfectivo($this->resumen),
             'autorizacion' => $this->whenLoaded('autorizacion', fn () => $this->autorizacion?->only(['id', 'motivo', 'autorizado_por_id'])),
             'eventos' => $this->whenLoaded('eventos', fn () => $this->eventos->map(fn ($e) => [
                 'id' => $e->id,

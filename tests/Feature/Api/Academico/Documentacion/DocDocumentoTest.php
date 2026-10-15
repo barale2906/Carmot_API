@@ -113,7 +113,7 @@ class DocDocumentoTest extends TestCase
 
         $this->assertStringContainsString('Matrícula ' . $matricula->id, $contenido);
         $this->assertStringContainsString($matricula->estudiante->name, $contenido);
-        $this->assertStringContainsString('UN MILLON DOSCIENTOS CINCUENTA MIL PESOS M/CTE', $contenido);
+        $this->assertStringContainsString('UN MILLÓN DOSCIENTOS CINCUENTA MIL PESOS M/CTE', $contenido);
         $this->assertStringNotContainsString('{{', $contenido);
     }
 

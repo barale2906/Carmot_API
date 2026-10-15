@@ -30,7 +30,7 @@ class TrasladarActActivoRequest extends FormRequest
         return [
             'sede_id'        => ['required', 'integer', 'exists:sedes,id'],
             'area_id'        => ['nullable', 'integer', 'exists:areas,id'],
-            'responsable_id' => ['sometimes', 'nullable', 'integer', 'exists:users,id'],
+            'responsable_id' => ['sometimes', 'nullable', 'integer', 'exists:users,id', $this->reglaResponsable()],
             'fecha'          => ['required', 'date', 'before_or_equal:today'],
             'motivo'         => ['required', 'string', 'min:5', 'max:1000'],
         ];

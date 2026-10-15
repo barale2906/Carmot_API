@@ -50,6 +50,7 @@ class KpiCalculationService
 
         $numerator = $this->aggregate(
             $kpi->getNumeratorModelClass(),
+            $kpi->getNumeratorModelConfig()['excluded_status'] ?? [],
             $kpi->numerator_operation,
             $kpi->numerator_field,
             $dateField,
@@ -67,6 +68,7 @@ class KpiCalculationService
         if ($hasDenominator) {
             $denominator = $this->aggregate(
                 $kpi->getDenominatorModelClass(),
+                $kpi->getDenominatorModelConfig()['excluded_status'] ?? [],
                 $kpi->denominator_operation,
                 $kpi->denominator_field,
                 $dateField,
@@ -183,6 +185,7 @@ class KpiCalculationService
      * Ejecuta una agregación sobre un modelo/clase.
      *
      * @param string|null $modelClass Clase del modelo Eloquent
+     * @param array<int, int> $excludedStatus Estados que no cuentan si no se filtra por `status` (config/kpis.php)
      * @param string $operation Operación de agregación (count|sum|avg|max|min)
      * @param string|null $field Campo al que aplicar la operación
      * @param string $dateField Campo de fecha para filtrado temporal
@@ -193,7 +196,7 @@ class KpiCalculationService
      * @param int $groupLimit Límite de grupos
      * @return float|array<string, float>
      */
-    private function aggregate(?string $modelClass, string $operation, ?string $field, string $dateField, Carbon $start, Carbon $end, array $filters, ?string $groupBy = null, int $groupLimit = 0): float|array
+    private function aggregate(?string $modelClass, array $excludedStatus, string $operation, ?string $field, string $dateField, Carbon $start, Carbon $end, array $filters, ?string $groupBy = null, int $groupLimit = 0): float|array
     {
         if (!$modelClass || !class_exists($modelClass)) {
             return 0.0;
@@ -205,6 +208,11 @@ class KpiCalculationService
         // Fecha
         if ($dateField) {
             $query->whereBetween($dateField, [$start->copy()->startOfDay(), $end->copy()->endOfDay()]);
+        }
+
+        // Estados que no cuentan (anulados, pendientes...), salvo que se filtre el estado (N27)
+        if ($excludedStatus !== [] && ($filters['status'] ?? '') === '') {
+            $query->whereNotIn('status', $excludedStatus);
         }
 
         // Filtros simples de igualdad

@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Api\Financiero\Cartera;
 
+use App\Models\Academico\Matricula;
 use Illuminate\Foundation\Http\FormRequest;
 
 /**
@@ -67,5 +68,34 @@ class StoreAcuerdoPagoRequest extends FormRequest
             'valor_cuota'   => 'valor de cuota',
             'observaciones' => 'observaciones',
         ];
+    }
+
+    /**
+     * El total pactado (cuota inicial + cuotas × valor) debe cubrir el saldo pendiente de la
+     * matrícula (B37): la cartera original se reemplaza y la diferencia se perdía sin rastro.
+     * Se admite un total mayor (redondeo de cuotas o intereses de financiación).
+     *
+     * @param \Illuminate\Validation\Validator $validator
+     * @return void
+     */
+    public function withValidator($validator): void
+    {
+        $validator->after(function ($validator) {
+            if ($validator->errors()->isNotEmpty()) {
+                return;
+            }
+
+            $saldo = (float) Matricula::find($this->matricula_id)->carteras()->pendientes()->sum('saldo');
+            $total = (float) $this->monto_inicial + (int) $this->numero_cuotas * (float) $this->valor_cuota;
+
+            if ($total < $saldo - 0.01) {
+                $validator->errors()->add('valor_cuota', sprintf(
+                    'El acuerdo suma $%s y no cubre el saldo pendiente de $%s (faltan $%s).',
+                    number_format($total, 0, ',', '.'),
+                    number_format($saldo, 0, ',', '.'),
+                    number_format($saldo - $total, 0, ',', '.')
+                ));
+            }
+        });
     }
 }

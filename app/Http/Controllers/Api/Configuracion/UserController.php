@@ -54,17 +54,7 @@ class UserController extends Controller
         try {
             $query = User::query();
 
-            if ($request->filled('search')) {
-                $search = $request->input('search');
-                $query->where(function ($q) use ($search) {
-                    $q->where('primer_nombre', 'like', "%{$search}%")
-                      ->orWhere('segundo_nombre', 'like', "%{$search}%")
-                      ->orWhere('primer_apellido', 'like', "%{$search}%")
-                      ->orWhere('segundo_apellido', 'like', "%{$search}%")
-                      ->orWhere('email', 'like', "%{$search}%")
-                      ->orWhere('documento', 'like', "%{$search}%");
-                });
-            }
+            $query->buscar($request->input('search'));
 
             if ($request->filled('role')) {
                 $query->role($request->input('role'));
@@ -317,8 +307,9 @@ class UserController extends Controller
     {
         $stats = [
             'totales' => [
-                'total' => User::count(),
-                'activos' => User::whereNull('deleted_at')->count(),
+                // total = activos + eliminados (count() a secas excluía los eliminados, F19)
+                'total' => User::withTrashed()->count(),
+                'activos' => User::count(),
                 'eliminados' => User::onlyTrashed()->count(),
             ],
             'por_rol' => User::with('roles')

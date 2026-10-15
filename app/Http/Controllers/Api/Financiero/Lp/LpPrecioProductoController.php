@@ -234,11 +234,17 @@ class LpPrecioProductoController extends Controller
     /**
      * Elimina (soft delete) el precio de producto especificado.
      *
+     * No se permite si la lista ya está aprobada o activa (422).
+     *
      * @param LpPrecioProducto $lpPrecioProducto Precio de producto a eliminar
      * @return JsonResponse Respuesta JSON de confirmación
      */
     public function destroy(LpPrecioProducto $lpPrecioProducto): JsonResponse
     {
+        if ($lpPrecioProducto->listaPrecio?->preciosBloqueados()) {
+            return response()->json(['message' => LpListaPrecio::MENSAJE_PRECIOS_BLOQUEADOS], 422);
+        }
+
         try {
             $lpPrecioProducto->delete();
 

@@ -73,8 +73,10 @@ class DashboardResumenTest extends TestCase
     {
         $this->usuario->givePermissionTo('aca_matriculas');
 
+        // Un estudiante distinto por matrícula: la factory elige uno al azar y podía repetirlo
         Matricula::factory()->count(3)->create([
             'sede_id' => $this->sedePropia->id, 'status' => 1, 'fecha_matricula' => now()->subMonth(),
+            'estudiante_id' => fn () => User::factory()->create()->id,
         ]);
         Matricula::factory()->create([
             'sede_id' => $this->sedePropia->id, 'status' => 0, 'fecha_matricula' => now()->subMonth(),

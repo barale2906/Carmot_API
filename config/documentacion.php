@@ -16,13 +16,14 @@ return [
     |--------------------------------------------------------------------------
     |
     | Valores institucionales disponibles como variables globales en cualquier
-    | documento (encabezados, pies de página, cláusulas legales).
+    | documento (encabezados, pies de página, cláusulas legales) y en el PDF de
+    | los recibos. Una sola fuente: se ajustan con INSTITUTO_* en el .env.
     |
     */
 
     'instituto' => [
-        'nombre'    => env('INSTITUTO_NOMBRE', env('APP_NAME', 'Instituto')),
-        'nit'       => env('INSTITUTO_NIT', ''),
+        'nombre'    => env('INSTITUTO_NOMBRE', 'Centro de Capacitaciones CARMOT'),
+        'nit'       => env('INSTITUTO_NIT', '1.048.849.874-0'),
         'direccion' => env('INSTITUTO_DIRECCION', ''),
         'telefono'  => env('INSTITUTO_TELEFONO', ''),
     ],

@@ -2,9 +2,11 @@
 
 namespace App\Console\Commands\Financiero;
 
+use App\Models\Academico\Matricula;
 use App\Models\Financiero\Cartera\Cartera;
 use App\Models\Financiero\Descuento\Descuento;
 use App\Models\Financiero\Descuento\DescuentoAplicado;
+use App\Services\Financiero\ReciboPagoDistribucionService;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
@@ -14,6 +16,7 @@ use Illuminate\Support\Facades\DB;
  *
  * Aplica mora a las carteras vencidas que aún tienen saldo pendiente.
  * Se ejecuta diariamente. Usa fecha_ultimo_cobro_mora para evitar doble cobro en el mismo día.
+ * No cobra mora a las cuotas de costo cero (valor 0 o descuento del 100 %): no se debe nada (N11).
  *
  * Flujo por cartera vencida:
  *  1. Busca el sobrecargo de mora activo (tipo_activacion='mora_automatica').
@@ -33,9 +36,10 @@ class AplicarMoraDiaria extends Command
     /**
      * Ejecuta el comando.
      *
+     * @param ReciboPagoDistribucionService $distribucion
      * @return int Código de salida
      */
-    public function handle(): int
+    public function handle(ReciboPagoDistribucionService $distribucion): int
     {
         $hoy = Carbon::today();
 
@@ -58,6 +62,12 @@ class AplicarMoraDiaria extends Command
                   ->orWhereDate('fecha_ultimo_cobro_mora', '<', $hoy);
             })
             ->get();
+
+        // Con monto 0 la distribución descarga solo las cuotas de costo cero de cada matrícula
+        $costoCero = Matricula::whereIn('id', $carteras->pluck('matricula_id')->unique())->get()
+            ->flatMap(fn (Matricula $matricula) => collect($distribucion->distribuir($matricula, 0.0, true, $hoy))
+                ->map(fn (array $linea) => $linea['cartera']->id));
+        $carteras = $carteras->reject(fn (Cartera $cartera) => $costoCero->contains($cartera->id));
 
         if ($carteras->isEmpty()) {
             $this->line('No hay carteras vencidas pendientes de cobro de mora.');

@@ -21,7 +21,9 @@ class GenerarClasesProgramadasService
     }
 
     /**
-     * Genera clases programadas automáticamente para un grupo y ciclo.
+     * Genera clases programadas automáticamente para un grupo y ciclo. La suma de horas
+     * no supera las planeadas del grupo en el ciclo (o la duración del módulo): la última
+     * sesión se recorta.
      * No duplica clases ya existentes para el mismo slot (fecha + hora).
      *
      * @param int $grupoId
@@ -52,16 +54,27 @@ class GenerarClasesProgramadasService
             $clasesGeneradas = [];
             $clasesOmitidas  = 0;
 
+            // Las clases no superan las horas del módulo: la última sesión se recorta (B21)
+            $horasObjetivo = (float) ($pivot->pivot->horas_planeadas ?? $grupo->modulo->duracion ?? 0);
+            $acumuladas    = 0.0;
+
             foreach ($this->calendarioLaboral->recorrerSesiones($grupo, $fechaInicio, $fechaFin) as $sesion) {
                 if ($sesion['no_laborable'] !== null) {
                     $clasesOmitidas++;
                     continue;
                 }
 
+                $restantes = $horasObjetivo > 0 ? $horasObjetivo - $acumuladas : (float) $sesion['horario']->duracion_horas;
+                if ($restantes <= 0.001) {
+                    break;
+                }
+
                 $horario       = $sesion['horario'];
+                $duracion      = min((float) $horario->duracion_horas, $restantes);
+                $acumuladas   += $duracion;
                 $fechaClase    = $sesion['fecha']->format('Y-m-d');
                 $horaInicio    = Carbon::parse($horario->hora);
-                $horaFin       = $horaInicio->copy()->addHours($horario->duracion_horas);
+                $horaFin       = $horaInicio->copy()->addMinutes((int) round($duracion * 60));
                 $horaInicioStr = $horaInicio->format('H:i:s');
 
                 $existe = AsistenciaClaseProgramada::where('grupo_id', $grupoId)
@@ -77,7 +90,7 @@ class GenerarClasesProgramadasService
                         'fecha_clase'       => $fechaClase,
                         'hora_inicio'       => $horaInicioStr,
                         'hora_fin'          => $horaFin->format('H:i:s'),
-                        'duracion_horas'    => $horario->duracion_horas,
+                        'duracion_horas'    => $duracion,
                         'estado'            => 'programada',
                         'creado_por_id'     => auth()->id(),
                         'fecha_programacion' => now(),

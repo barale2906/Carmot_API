@@ -526,6 +526,21 @@ class ReciboPago extends Model
         return "{$prefijo}-{$consecutivoFormateado}";
     }
 
+    /** Mensaje cuando el cajero intenta aprobar su propia transferencia (B32). */
+    public const MENSAJE_APROBACION_PROPIA = 'No puede aprobar una transferencia que usted mismo registró: debe aprobarla otro usuario.';
+
+    /**
+     * Indica si el usuario registró este recibo (es su cajero): separación de funciones,
+     * nadie aprueba su propia transferencia.
+     *
+     * @param \App\Models\User $usuario
+     * @return bool
+     */
+    public function registradoPor(\App\Models\User $usuario): bool
+    {
+        return (int) $this->cajero_id === (int) $usuario->id;
+    }
+
     /**
      * Calcula los totales del recibo basándose en los productos y descuentos.
      *
@@ -675,6 +690,21 @@ class ReciboPago extends Model
     public function estaPendienteAprobacion(): bool
     {
         return $this->status === self::STATUS_PENDIENTE_APROBACION;
+    }
+
+    /**
+     * Parte del recibo que se aplica a la cartera: total pagado menos recargos y menos
+     * los conceptos adicionales (los que no van a una cuota).
+     *
+     * @return float
+     */
+    public function montoCartera(): float
+    {
+        $totalAdicionales = (float) $this->conceptosPago()
+            ->wherePivotNull('id_relacional')
+            ->sum('recibo_pago_concepto_pago.valor');
+
+        return (float) $this->valor_total - (float) $this->sobrecargo_total - $totalAdicionales;
     }
 
     /**

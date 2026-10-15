@@ -13,6 +13,7 @@ use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class AplazamientoCicloTest extends TestCase
@@ -20,6 +21,7 @@ class AplazamientoCicloTest extends TestCase
     use RefreshDatabase;
 
     private User $usuario;
+    private User $superusuario;
     private TipoAplazamiento $tipo;
     private Ciclo $ciclo;
 
@@ -35,6 +37,10 @@ class AplazamientoCicloTest extends TestCase
 
         $this->usuario = User::factory()->create();
         $this->usuario->givePermissionTo(['aca_aplazamientos', 'aca_aplazamientoCrear', 'aca_aplazamientoInactivar']);
+
+        // Revertir es del superusuario, aunque otro rol tenga el permiso (N25)
+        $this->superusuario = User::factory()->create();
+        $this->superusuario->assignRole(Role::create(['name' => 'superusuario']));
 
         $this->tipo = TipoAplazamiento::factory()->create(['nombre' => 'Prueba']);
 
@@ -330,6 +336,20 @@ class AplazamientoCicloTest extends TestCase
     }
 
     /** @test */
+    public function confirmar_un_aplazamiento_ampliado_indica_la_ampliacion_vigente(): void
+    {
+        $aplazamiento = $this->crearAplazamientoPendiente(diasReinicio: 25);
+        $this->actingAs($this->usuario)->postJson(route('aplazamientos.ampliar', $aplazamiento), [
+            'fecha_reinicio_probable' => now()->addDays(40)->format('Y-m-d'),
+        ])->assertCreated();
+        $hijo = Aplazamiento::where('aplazamiento_padre_id', $aplazamiento->id)->firstOrFail();
+
+        $this->actingAs($this->usuario)->postJson(route('aplazamientos.confirmar', $aplazamiento))
+            ->assertUnprocessable()
+            ->assertJsonFragment(["Este aplazamiento fue ampliado: confirme la ampliación #{$hijo->id}, que es la vigente."]);
+    }
+
+    /** @test */
     public function ampliar_mueve_fechas_del_ciclo(): void
     {
         $aplazamiento = $this->crearAplazamientoPendiente(diasReinicio: 25);
@@ -433,7 +453,7 @@ class AplazamientoCicloTest extends TestCase
         $fechaInicioOriginal = $this->ciclo->fecha_inicio->copy();
         $aplazamiento        = $this->crearAplazamientoPendiente(diasReinicio: 25);
 
-        $response = $this->actingAs($this->usuario)
+        $response = $this->actingAs($this->superusuario)
             ->postJson(route('aplazamientos.revertir', $aplazamiento));
 
         $response->assertOk();
@@ -461,7 +481,7 @@ class AplazamientoCicloTest extends TestCase
         $this->assertNotEquals($fechaVencOriginal->format('Y-m-d'), $fechaVencMovida->format('Y-m-d'));
 
         // Revertir
-        $this->actingAs($this->usuario)
+        $this->actingAs($this->superusuario)
             ->postJson(route('aplazamientos.revertir', $aplazamiento));
 
         $cartera->refresh();
@@ -471,12 +491,24 @@ class AplazamientoCicloTest extends TestCase
     }
 
     /** @test */
+    public function solo_el_superusuario_revierte_aunque_otro_rol_tenga_el_permiso(): void
+    {
+        $aplazamiento = $this->crearAplazamientoPendiente(diasReinicio: 25);
+
+        $this->actingAs($this->usuario)
+            ->postJson(route('aplazamientos.revertir', $aplazamiento))
+            ->assertForbidden();
+
+        $this->assertSame(0, $aplazamiento->fresh()->estado);
+    }
+
+    /** @test */
     public function revertir_rechaza_aplazamiento_no_pendiente(): void
     {
         $aplazamiento = $this->crearAplazamientoPendiente(diasReinicio: 25);
         $aplazamiento->update(['estado' => 1]); // Confirmado
 
-        $response = $this->actingAs($this->usuario)
+        $response = $this->actingAs($this->superusuario)
             ->postJson(route('aplazamientos.revertir', $aplazamiento));
 
         $response->assertStatus(422);

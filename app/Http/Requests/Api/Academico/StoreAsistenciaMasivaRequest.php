@@ -3,11 +3,14 @@
 namespace App\Http\Requests\Api\Academico;
 
 use App\Models\Academico\AsistenciaClaseProgramada;
+use App\Http\Requests\Api\Academico\Concerns\ValidaEstudiantesDelGrupo;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class StoreAsistenciaMasivaRequest extends FormRequest
 {
+    use ValidaEstudiantesDelGrupo;
+
     /**
      * Determine if the user is authorized to make this request.
      */
@@ -58,7 +61,8 @@ class StoreAsistenciaMasivaRequest extends FormRequest
     }
 
     /**
-     * No se toma asistencia en una clase cancelada ni en una que todavía no ocurre.
+     * No se toma asistencia en una clase cancelada ni en una que todavía no ocurre,
+     * y solo a estudiantes con matrícula vigente en el grupo de la clase.
      *
      * @param \Illuminate\Validation\Validator $validator
      * @return void
@@ -77,6 +81,13 @@ class StoreAsistenciaMasivaRequest extends FormRequest
             } elseif ($clase->fecha_clase->isAfter(today())) {
                 $validator->errors()->add('clase_programada_id', 'La clase es del ' . $clase->fecha_clase->format('d/m/Y') . ': la asistencia se toma el día de la clase o después.');
             }
+
+            $this->validarEstudiantesDelGrupo(
+                $validator,
+                $clase->grupo,
+                array_column((array) $this->input('asistencias', []), 'estudiante_id'),
+                'asistencias'
+            );
         });
     }
 }

@@ -23,14 +23,17 @@ class ConfirmarAplazamientoRequest extends FormRequest
     }
 
     /**
-     * Solo se puede confirmar un aplazamiento Pendiente.
+     * Solo se puede confirmar un aplazamiento Pendiente. Si fue ampliado, indica cuál es la
+     * ampliación que se debe confirmar (N25).
      */
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $v) {
             $aplazamiento = $this->route('aplazamiento');
 
-            if (!$aplazamiento || !$aplazamiento->esPendiente()) {
+            if ($aplazamiento && ($ampliacion = $aplazamiento->ampliacionVigente())) {
+                $v->errors()->add('aplazamiento', "Este aplazamiento fue ampliado: confirme la ampliación #{$ampliacion->id}, que es la vigente.");
+            } elseif (!$aplazamiento || !$aplazamiento->esPendiente()) {
                 $v->errors()->add('aplazamiento', 'Solo se puede confirmar un aplazamiento en estado Pendiente.');
             }
         });

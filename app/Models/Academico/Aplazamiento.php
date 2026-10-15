@@ -108,6 +108,22 @@ class Aplazamiento extends Model
         return $this->estado === self::getEstadoKey('Pendiente');
     }
 
+    /**
+     * Ampliación vigente de este aplazamiento: al ampliar, el original queda "Ampliado" y
+     * la que se confirma, interrumpe o revierte es la última ampliación de la cadena (N25).
+     *
+     * @return Aplazamiento|null
+     */
+    public function ampliacionVigente(): ?Aplazamiento
+    {
+        $actual = $this;
+        while ($actual->estado === self::getEstadoKey('Ampliado') && ($hijo = $actual->hijos()->latest('id')->first())) {
+            $actual = $hijo;
+        }
+
+        return $actual->is($this) ? null : $actual;
+    }
+
     protected function getAllowedSortFields(): array
     {
         return ['fecha_aplazamiento', 'fecha_reinicio_probable', 'dias_aplazamiento', 'estado', 'created_at'];

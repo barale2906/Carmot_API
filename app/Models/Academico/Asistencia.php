@@ -240,17 +240,6 @@ class Asistencia extends Model
     }
 
     /**
-     * Verifica si la asistencia cuenta para el mínimo requerido.
-     * Las asistencias presentes y justificadas cuentan, las ausentes no.
-     *
-     * @return bool
-     */
-    public function contarParaMinimo(): bool
-    {
-        return $this->esPresente() || $this->esJustificada();
-    }
-
-    /**
      * Obtiene los campos permitidos para ordenamiento.
      *
      * @return array

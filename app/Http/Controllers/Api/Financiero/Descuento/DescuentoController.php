@@ -388,14 +388,14 @@ class DescuentoController extends Controller
             $fechaProgramada = $request->filled('fecha_programada') ? Carbon::parse($request->date('fecha_programada')) : null;
 
             $resultado = $service->calcularPrecioConDescuentos(
-                precioTotal: $request->numeric('precio_total'),
-                matricula: $request->numeric('matricula'),
-                valorCuota: $request->numeric('valor_cuota'),
+                precioTotal: $request->float('precio_total'),
+                matricula: $request->float('matricula'),
+                valorCuota: $request->float('valor_cuota'),
                 productoId: $request->integer('producto_id'),
                 listaPrecioId: $request->integer('lista_precio_id'),
                 sedeId: $request->integer('sede_id'),
                 poblacionId: $request->integer('poblacion_id'),
-                codigoPromocional: $request->string('codigo_promocional'),
+                codigoPromocional: $request->input('codigo_promocional'),
                 fechaPago: $fechaPago,
                 fechaProgramada: $fechaProgramada
             );

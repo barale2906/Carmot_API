@@ -5,6 +5,7 @@ namespace App\Services\Academico\Documentacion;
 use App\Models\Academico\Documentacion\DocTipoDocumento;
 use App\Models\Academico\Matricula;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Storage;
 
 /**
@@ -26,16 +27,17 @@ class DocPdfService
      *
      * @param DocTipoDocumento $tipoDocumento Tipo del documento, para el título.
      * @param string           $contenidoHtml Contenido con variables y bloques resueltos.
+     * @param Model|null       $entidad       Registro del documento: su sede da dirección y teléfono del encabezado.
      * @return \Barryvdh\DomPDF\PDF
      */
-    public function generarPDF(DocTipoDocumento $tipoDocumento, string $contenidoHtml)
+    public function generarPDF(DocTipoDocumento $tipoDocumento, string $contenidoHtml, ?Model $entidad = null)
     {
-        return Pdf::loadView('pdf.documentacion', [
+        return $this->numerarPaginas(Pdf::loadView('pdf.documentacion', [
             'tipoDocumento' => $tipoDocumento,
             'contenido'     => $contenidoHtml,
-            'instituto'     => config('documentacion.instituto', []),
+            'instituto'     => app(DatosInstitutoService::class)->paraEntidad($entidad),
             'logoBase64'    => $this->logoBase64(),
-        ])->setPaper('letter', 'portrait');
+        ])->setPaper('letter', 'portrait'));
     }
 
     /**
@@ -52,14 +54,14 @@ class DocPdfService
     {
         $matricula->loadMissing(['estudiante', 'curso', 'ciclo.sede', 'sede', 'eps', 'lugarOrigen', 'matriculadoPor']);
 
-        return Pdf::loadView('pdf.documentos_matricula', [
+        return $this->numerarPaginas(Pdf::loadView('pdf.documentos_matricula', [
             'matricula'  => $matricula,
             'codigo'     => $this->codigoMatricula($matricula),
             'documentos' => $documentos,
-            'instituto'  => config('documentacion.instituto', []),
+            'instituto'  => app(DatosInstitutoService::class)->paraEntidad($matricula),
             'logoBase64' => $this->logoBase64(),
             'fotoBase64' => $this->fotoBase64($matricula),
-        ])->setPaper('letter', 'portrait');
+        ])->setPaper('letter', 'portrait'));
     }
 
     /**
@@ -121,18 +123,43 @@ class DocPdfService
     }
 
     /**
-     * Logo institucional embebido para el encabezado del PDF.
+     * Logo institucional embebido para el encabezado del PDF. Se usa la versión PNG
+     * para fondo claro: dompdf no dibuja bien el SVG (degradados y letras blancas),
+     * que salía como una "C" (B18).
      *
      * @return string|null
      */
     private function logoBase64(): ?string
     {
-        $ruta = public_path('images/logo.svg');
+        $ruta = public_path('images/logo-pdf.png');
 
         if (!file_exists($ruta)) {
             return null;
         }
 
-        return 'data:image/svg+xml;base64,' . base64_encode(file_get_contents($ruta));
+        return 'data:image/png;base64,' . base64_encode(file_get_contents($ruta));
+    }
+
+    /**
+     * Escribe "página / total" en el pie de cada página. dompdf no soporta
+     * counter(pages) en CSS (salía "1 / 0", B18); el total solo se conoce tras
+     * renderizar, así que se dibuja sobre el lienzo con {PAGE_COUNT}.
+     *
+     * @param \Barryvdh\DomPDF\PDF $pdf
+     * @return \Barryvdh\DomPDF\PDF
+     */
+    private function numerarPaginas($pdf)
+    {
+        $pdf->render();
+
+        $dompdf = $pdf->getDomPDF();
+        $canvas = $dompdf->getCanvas();
+        $fuente = $dompdf->getFontMetrics()->getFont('DejaVu Sans');
+
+        // Unidades en puntos (carta = 612 × 792). Margen derecho 50px = 37,5pt; la
+        // línea del pie queda a ~52pt del borde inferior.
+        $canvas->page_text($canvas->get_width() - 37.5 - 30, $canvas->get_height() - 52, '{PAGE_NUM} / {PAGE_COUNT}', $fuente, 7, [0.47, 0.47, 0.47]);
+
+        return $pdf;
     }
 }

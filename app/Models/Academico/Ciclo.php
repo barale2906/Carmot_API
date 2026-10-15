@@ -419,24 +419,23 @@ class Ciclo extends Model
     }
 
     /**
-     * Scope para filtrar ciclos activos y vigentes.
-     * Un ciclo está activo y vigente si:
-     * - status = 1 (activo)
-     * - fecha_inicio <= hoy
-     * - fecha_fin es NULL o fecha_fin >= hoy
+     * Scope de ciclos abiertos para registrar asistencia y notas: activos, ya iniciados
+     * y sin terminar, o terminados hace a lo sumo `academico.dias_cierre_ciclo` días
+     * (plazo para la asistencia de la última clase y el cierre de notas, N17).
      *
      * @param \Illuminate\Database\Eloquent\Builder $query
      * @return \Illuminate\Database\Eloquent\Builder
      */
-    public function scopeActivosVigentes($query)
+    public function scopeAbiertosParaRegistro($query)
     {
-        $hoy = now()->toDateString();
+        $hoy    = now()->toDateString();
+        $limite = now()->subDays(config('academico.dias_cierre_ciclo'))->toDateString();
 
         return $query->where('status', 1)
             ->where('fecha_inicio', '<=', $hoy)
-            ->where(function ($q) use ($hoy) {
+            ->where(function ($q) use ($limite) {
                 $q->whereNull('fecha_fin')
-                  ->orWhere('fecha_fin', '>=', $hoy);
+                  ->orWhere('fecha_fin', '>=', $limite);
             });
     }
 }

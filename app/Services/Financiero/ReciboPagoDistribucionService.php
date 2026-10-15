@@ -5,6 +5,7 @@ namespace App\Services\Financiero;
 use App\Models\Academico\Matricula;
 use App\Models\Financiero\Cartera\Cartera;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Collection;
 
 /**
  * ReciboPagoDistribucionService
@@ -51,12 +52,7 @@ class ReciboPagoDistribucionService
     ): array {
         $fecha = $fechaReferencia ?? Carbon::today();
 
-        // Cargar carteras pendientes ordenadas de más antigua a más reciente
-        $carteras = $matricula->carteras()
-            ->pendientes()
-            ->orderBy('fecha_vencimiento')
-            ->orderBy('numero_cuota')
-            ->get();
+        $carteras = $this->carterasPendientes($matricula);
 
         if ($carteras->isEmpty()) {
             if ($monto <= 0.01) {
@@ -73,6 +69,34 @@ class ReciboPagoDistribucionService
             );
         }
 
+        [$plan, $restante] = $this->planificar($matricula, $carteras, $monto, $aplicarDescuento, $fecha);
+
+        // Si después de cubrir todas las cuotas sobra dinero, el monto ingresado es mayor
+        // que el costo efectivo total (descuentos reducen lo que el estudiante debe pagar).
+        // Se rechaza para que el cajero corrija el monto en lugar de quedar con sobrante.
+        if ($restante > 0.01) {
+            $costoEfectivo = round($monto - $restante, 2);
+            throw new \InvalidArgumentException(
+                "El monto ({$monto}) supera el costo efectivo de las cuotas pendientes. El máximo a pagar es {$costoEfectivo}."
+            );
+        }
+
+        return $plan;
+    }
+
+    /**
+     * Reparte el monto entre las cuotas pendientes (de la más antigua a la más reciente),
+     * aplicando los descuentos que correspondan. Devuelve el plan y el monto que sobró.
+     *
+     * @param  Matricula               $matricula
+     * @param  Collection<int, Cartera> $carteras
+     * @param  float                   $monto
+     * @param  bool                    $aplicarDescuento
+     * @param  Carbon                  $fecha
+     * @return array{0: array<int, array<string, mixed>>, 1: float}
+     */
+    private function planificar(Matricula $matricula, Collection $carteras, float $monto, bool $aplicarDescuento, Carbon $fecha): array
+    {
         // Descuento de matrícula automático (cuota 0, independiente de $aplicarDescuento)
         $infoDescuentoMatricula = $this->descuentoService->calcularDescuentoMatricula($matricula, $fecha);
 
@@ -156,16 +180,99 @@ class ReciboPagoDistribucionService
             $restante -= $aCubrir;
         }
 
-        // Si después de cubrir todas las cuotas sobra dinero, el monto ingresado es mayor
-        // que el costo efectivo total (descuentos reducen lo que el estudiante debe pagar).
-        // Se rechaza para que el cajero corrija el monto en lugar de quedar con sobrante.
-        if ($restante > 0.01) {
-            $costoEfectivo = round($monto - $restante, 2);
-            throw new \InvalidArgumentException(
-                "El monto ({$monto}) supera el costo efectivo de las cuotas pendientes. El máximo a pagar es {$costoEfectivo}."
-            );
+        return [$plan, $restante];
+    }
+
+    /**
+     * Cuotas pendientes de la matrícula, de la más antigua a la más reciente.
+     *
+     * @param  Matricula $matricula
+     * @return Collection<int, Cartera>
+     */
+    private function carterasPendientes(Matricula $matricula): Collection
+    {
+        return $matricula->carteras()
+            ->pendientes()
+            ->orderBy('fecha_vencimiento')
+            ->orderBy('numero_cuota')
+            ->get();
+    }
+
+    /**
+     * Previsualiza, sin persistir, cómo se repartiría un pago entre las cuotas: lo mismo que
+     * aplicará el recibo. Si el monto supera el máximo, devuelve el mensaje en vez de las líneas.
+     *
+     * @param  Matricula $matricula
+     * @param  float     $monto
+     * @param  bool      $aplicarDescuento
+     * @param  Carbon    $fecha
+     * @return array{lineas: array<int, array{cartera_id: int, numero_cuota: int, saldo: float, valor: float, descuento: float, cierra: bool}>|null, error: string|null}
+     */
+    public function previsualizar(Matricula $matricula, float $monto, bool $aplicarDescuento, Carbon $fecha): array
+    {
+        try {
+            $plan = $this->distribuir($matricula, $monto, $aplicarDescuento, $fecha);
+        } catch (\InvalidArgumentException $e) {
+            return ['lineas' => null, 'error' => $e->getMessage()];
         }
 
-        return $plan;
+        $lineas = array_map(fn (array $linea) => [
+            'cartera_id'   => $linea['cartera']->id,
+            'numero_cuota' => (int) $linea['cartera']->numero_cuota,
+            'saldo'        => (float) $linea['cartera']->saldo,
+            'valor'        => round((float) $linea['valor'], 2),
+            'descuento'    => round((float) $linea['descuento'], 2),
+            'cierra'       => $linea['valor'] + $linea['descuento'] >= (float) $linea['cartera']->saldo - 0.01,
+        ], $plan);
+
+        return ['lineas' => $lineas, 'error' => null];
+    }
+
+    /**
+     * Mínimo a pagar a la fecha: el costo efectivo (con los descuentos que apliquen) de las
+     * cuotas vencidas o que vencen ese día. Antes el formulario sugería el saldo bruto (F09).
+     *
+     * @param  Matricula $matricula
+     * @param  bool      $aplicarDescuento
+     * @param  Carbon    $fecha
+     * @return float
+     */
+    public function minimoAPagar(Matricula $matricula, bool $aplicarDescuento, Carbon $fecha): float
+    {
+        $vencidas = $matricula->carteras()->pendientes()
+            ->whereDate('fecha_vencimiento', '<=', $fecha->toDateString())
+            ->pluck('id');
+
+        $saldoVencido = (float) $matricula->carteras()->whereIn('id', $vencidas)->sum('saldo');
+        if ($saldoVencido <= 0) {
+            return 0.0;
+        }
+
+        $lineas = $this->previsualizar($matricula, $saldoVencido, $aplicarDescuento, $fecha)['lineas'] ?? [];
+
+        return round((float) collect($lineas)->whereIn('cartera_id', $vencidas->all())->sum('valor'), 2);
+    }
+
+    /**
+     * Máximo a pagar a la fecha: el costo efectivo de todas las cuotas pendientes con los
+     * descuentos que apliquen al pagarlas completas. Es el tope que valida `distribuir` (N12).
+     *
+     * @param  Matricula $matricula
+     * @param  bool      $aplicarDescuento
+     * @param  Carbon    $fecha
+     * @return float
+     */
+    public function maximoAPagar(Matricula $matricula, bool $aplicarDescuento, Carbon $fecha): float
+    {
+        $carteras = $this->carterasPendientes($matricula);
+
+        $totalSaldo = (float) $carteras->sum('saldo');
+        if ($totalSaldo <= 0) {
+            return 0.0;
+        }
+
+        [, $restante] = $this->planificar($matricula, $carteras, $totalSaldo, $aplicarDescuento, $fecha);
+
+        return round($totalSaldo - $restante, 2);
     }
 }

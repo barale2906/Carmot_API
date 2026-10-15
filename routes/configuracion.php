@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\Configuracion\AreaController;
 use App\Http\Controllers\Api\Configuracion\BancoController;
 use App\Http\Controllers\Api\Configuracion\DiaNoLaborableController;
 use App\Http\Controllers\Api\Configuracion\EpsController;
+use App\Http\Controllers\Api\Configuracion\PerfilController;
 use App\Http\Controllers\Api\Configuracion\HorarioController;
 use App\Http\Controllers\Api\Configuracion\PermissionController;
 use App\Http\Controllers\Api\Configuracion\PoblacionController;
@@ -25,6 +26,9 @@ use Illuminate\Support\Facades\Route;
 // Todas las rutas de configuración requieren autenticación con Sanctum.
 // Los permisos específicos para cada acción se manejan en los controladores.
 Route::middleware('auth:sanctum')->group(function () {
+    // Perfil propio: cambio de contraseña (F03)
+    Route::put('perfil/contrasena', [PerfilController::class, 'cambiarContrasena'])->name('perfil.contrasena');
+
     // Rutas de usuarios (rutas específicas antes del apiResource para evitar conflictos con {user})
     Route::prefix('users')->group(function () {
         Route::get('filters', [UserController::class, 'filters'])

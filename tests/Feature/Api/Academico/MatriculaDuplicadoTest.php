@@ -54,11 +54,15 @@ class MatriculaDuplicadoTest extends TestCase
 
     private function matricular(User $estudiante, Curso $curso, ?Ciclo $ciclo = null)
     {
+        $ciclo ??= Ciclo::factory()->create(['curso_id' => $curso->id]);
+
+        // La matrícula debe ser de la sede y el curso del ciclo
         return $this->actingAs($this->usuario)
             ->postJson(route('matriculas.store'), $this->datosBase([
+                'sede_id'       => $ciclo->sede_id,
                 'estudiante_id' => $estudiante->id,
                 'curso_id'      => $curso->id,
-                'ciclo_id'      => ($ciclo ?? Ciclo::factory()->create())->id,
+                'ciclo_id'      => $ciclo->id,
             ]));
     }
 
@@ -67,7 +71,7 @@ class MatriculaDuplicadoTest extends TestCase
     {
         $estudiante = User::factory()->create();
         $curso      = Curso::factory()->create();
-        $ciclo      = Ciclo::factory()->create();
+        $ciclo      = Ciclo::factory()->create(['curso_id' => $curso->id]);
 
         $this->crearMatricula($estudiante, $curso, 1, $ciclo);
 
@@ -95,7 +99,7 @@ class MatriculaDuplicadoTest extends TestCase
     {
         $estudiante = User::factory()->create();
         $curso      = Curso::factory()->create();
-        $ciclo      = Ciclo::factory()->create();
+        $ciclo      = Ciclo::factory()->create(['curso_id' => $curso->id]);
 
         $this->crearMatricula($estudiante, $curso, 2, $ciclo);
 

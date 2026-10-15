@@ -227,13 +227,12 @@ class SabanaNotasTest extends TestCase
     }
 
     /** @test */
-    public function un_estudiante_inexistente_responde_500_y_no_404(): void
+    public function un_estudiante_inexistente_responde_404(): void
     {
-        // Comportamiento documentado: el findOrFail queda dentro del try del
-        // controlador, así que no se distingue por código de estado de "sin matrícula".
+        // Antes respondía 500 porque el findOrFail quedaba dentro del try (P1.6 / B27)
         $this->actingAs($this->usuario)
             ->getJson(route('notas-estudiantes.sabana-estudiante', 999999))
-            ->assertStatus(500);
+            ->assertNotFound();
     }
 
     /** @test */

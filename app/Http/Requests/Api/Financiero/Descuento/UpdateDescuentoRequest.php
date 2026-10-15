@@ -110,13 +110,24 @@ class UpdateDescuentoRequest extends FormRequest
     }
 
     /**
-     * Validaciones cruzadas para sobrecargos.
+     * Validaciones cruzadas para sobrecargos y bloqueo de los campos de cálculo de un
+     * descuento aprobado o activo (N06): se rechazan solo si cambian su valor, para que
+     * el formulario pueda reenviar el registro completo.
      *
      * @param \Illuminate\Validation\Validator $validator
      */
     public function withValidator($validator): void
     {
         $validator->after(function ($v) {
+            $descuento = $this->route('descuento');
+            if ($descuento instanceof Descuento && $descuento->calculoBloqueado()) {
+                foreach (Descuento::CAMPOS_CALCULO as $campo) {
+                    if ($this->has($campo) && $this->valorCambia($descuento->{$campo}, $this->input($campo))) {
+                        $v->errors()->add($campo, Descuento::MENSAJE_CALCULO_BLOQUEADO);
+                    }
+                }
+            }
+
             $movimiento = $this->input('tipo_movimiento', $this->route('descuento')?->tipo_movimiento);
             $activacion = $this->input('tipo_activacion');
 
@@ -155,5 +166,30 @@ class UpdateDescuentoRequest extends FormRequest
             'status.in'                => Descuento::getStatusValidationMessages()['status.in'] ?? 'Estado no válido.',
         ];
     }
-}
 
+    /**
+     * Compara el valor guardado con el enviado sin distinguir tipos ni el orden de las listas.
+     *
+     * @param mixed $actual
+     * @param mixed $nuevo
+     * @return bool
+     */
+    private function valorCambia($actual, $nuevo): bool
+    {
+        if (is_array($actual) || is_array($nuevo)) {
+            $normalizar = fn ($lista) => collect((array) $lista)->map(fn ($x) => (string) $x)->sort()->values()->all();
+
+            return $normalizar($actual) !== $normalizar($nuevo);
+        }
+
+        if (is_numeric($actual) && is_numeric($nuevo)) {
+            return (float) $actual !== (float) $nuevo;
+        }
+
+        if (is_bool($actual)) {
+            return $actual !== filter_var($nuevo, FILTER_VALIDATE_BOOLEAN);
+        }
+
+        return (string) $actual !== (string) $nuevo;
+    }
+}

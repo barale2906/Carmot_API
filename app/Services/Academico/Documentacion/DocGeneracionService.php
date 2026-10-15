@@ -90,7 +90,7 @@ class DocGeneracionService
         $valores = $this->variables->resolver(
             $plantilla->tipoDocumento->clavesHabilitadas(),
             $entidad,
-            $this->contexto($plantilla->tipoDocumento, $usuario)
+            $this->contexto($plantilla->tipoDocumento, $usuario, $entidad)
         );
 
         $contenido = $this->variables->renderizar($plantilla->contenido_html, $valores);
@@ -199,11 +199,14 @@ class DocGeneracionService
     /**
      * Construye el contexto de las variables globales del documento.
      *
+     * Los datos del instituto llevan la dirección y el teléfono de la sede del registro.
+     *
      * @param DocTipoDocumento $tipoDocumento
      * @param User|null        $usuario
+     * @param Model|null       $entidad
      * @return array<string, mixed>
      */
-    private function contexto(DocTipoDocumento $tipoDocumento, ?User $usuario): array
+    private function contexto(DocTipoDocumento $tipoDocumento, ?User $usuario, ?Model $entidad = null): array
     {
         $hoy = Carbon::today()->toDateString();
 
@@ -216,6 +219,7 @@ class DocGeneracionService
             'usuario' => [
                 'nombre' => $usuario?->name,
             ],
+            'instituto' => app(DatosInstitutoService::class)->paraEntidad($entidad),
         ];
     }
 }

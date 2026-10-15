@@ -7,6 +7,7 @@ use App\Models\Financiero\LibroDiario\LdTurnoCaja;
 use App\Models\Financiero\Lp\LpListaPrecio;
 use App\Models\Inventarios\InvPrecioProducto;
 use App\Services\ArchivoService;
+use App\Models\Inventarios\InvAlmacen;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Validator;
 
@@ -74,8 +75,8 @@ class StoreInvVentaRequest extends FormRequest
     }
 
     /**
-     * Validación cruzada: la sede debe tener lista de precios de inventario activa y
-     * vigente con precio para cada producto, la suma de medios_pago debe igualar
+     * Validación cruzada: el almacén de despacho debe ser de la sede de la venta, la sede
+     * debe tener lista de precios de inventario activa y vigente con precio para cada producto, la suma de medios_pago debe igualar
      * monto_abono y cada bloque de variantes_kit debe apuntar a un ítem del request.
      *
      * @param Validator $validator
@@ -84,12 +85,17 @@ class StoreInvVentaRequest extends FormRequest
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $v) {
-            // La venta genera un recibo: exige el turno de caja abierto del cajero en la sede
-            if (! $v->errors()->has('sede_id')
-                && ! LdTurnoCaja::abiertoDe((int) $this->user()->id, (int) $this->sede_id)->exists()) {
+            // La venta genera un recibo: exige el turno de caja abierto del cajero (en cualquier sede)
+            if (! LdTurnoCaja::abiertoDe((int) $this->user()->id)->exists()) {
                 $v->errors()->add('sede_id', LdTurnoCaja::MENSAJE_SIN_TURNO);
 
                 return;
+            }
+
+            // El despacho sale de una bodega de la sede de la venta (B36)
+            if (! $v->errors()->has('almacen_id')
+                && (int) InvAlmacen::whereKey($this->almacen_id)->value('sede_id') !== (int) $this->sede_id) {
+                $v->errors()->add('almacen_id', 'El almacén de despacho no pertenece a la sede de la venta.');
             }
 
             $this->validarPreciosVigentes($v);

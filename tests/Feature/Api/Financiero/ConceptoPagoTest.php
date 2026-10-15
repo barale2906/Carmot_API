@@ -51,6 +51,19 @@ class ConceptoPagoTest extends TestCase
     }
 
     /** @test */
+    public function filtra_por_rango_de_valor(): void
+    {
+        $barato = ConceptoPago::factory()->tipoCartera()->create(['valor' => 20000]);
+        ConceptoPago::factory()->tipoCartera()->create(['valor' => 900000]);
+
+        $this->actingAs($this->usuario)
+            ->getJson(route('conceptos-pago.index', ['valor_min' => 10000, 'valor_max' => 50000]))
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $barato->id);
+    }
+
+    /** @test */
     public function rechaza_index_sin_permiso(): void
     {
         $this->actingAs(User::factory()->create())

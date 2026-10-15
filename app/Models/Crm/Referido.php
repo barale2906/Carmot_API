@@ -100,6 +100,25 @@ class Referido extends Model
     }
 
     /**
+     * Deja en la bitácora el cambio de asesor: el lead lo gestiona el asesor asignado hasta
+     * matricularlo o hasta que lo reasignen (N07).
+     *
+     * @param int|null $gestorAnteriorId
+     * @param int $reasignadoPorId
+     * @return void
+     */
+    public function registrarReasignacion(?int $gestorAnteriorId, int $reasignadoPorId): void
+    {
+        $anterior = $gestorAnteriorId ? User::find($gestorAnteriorId)?->name : null;
+
+        $this->seguimientos()->create([
+            'seguidor_id' => $reasignadoPorId,
+            'fecha'       => now()->toDateString(),
+            'seguimiento' => 'REASIGNACIÓN: de ' . ($anterior ?? 'sin asesor') . " a {$this->gestor->name}.",
+        ]);
+    }
+
+    /**
      * Determina si el referido está matriculado.
      *
      * @return bool

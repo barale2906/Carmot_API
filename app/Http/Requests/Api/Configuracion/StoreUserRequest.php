@@ -2,11 +2,13 @@
 
 namespace App\Http\Requests\Api\Configuracion;
 
+use App\Http\Requests\Api\Configuracion\Concerns\ReglaContrasena;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rules\Password;
 
 class StoreUserRequest extends FormRequest
 {
+    use ReglaContrasena;
+
     public function authorize(): bool
     {
         return true;
@@ -28,7 +30,7 @@ class StoreUserRequest extends FormRequest
             // ----------------------------------------------------------------
             'email'     => ['required', 'string', 'email', 'max:255', 'unique:users'],
             'documento' => ['required', 'string', 'max:255', 'unique:users'],
-            'password'  => ['required', 'confirmed', Password::defaults()],
+            'password'  => ['required', 'confirmed', ...$this->reglaContrasena((array) $this->input('roles', []))],
 
             // ----------------------------------------------------------------
             // Roles, permisos y relaciones
@@ -47,6 +49,7 @@ class StoreUserRequest extends FormRequest
     public function messages(): array
     {
         return [
+            'password.regex'           => 'La contraseña no puede tener espacios.',
             'primer_nombre.required'   => 'El primer nombre es obligatorio.',
             'primer_nombre.max'        => 'El primer nombre no puede superar 80 caracteres.',
             'segundo_nombre.max'       => 'El segundo nombre no puede superar 80 caracteres.',

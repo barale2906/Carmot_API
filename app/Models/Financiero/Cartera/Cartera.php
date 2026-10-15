@@ -4,6 +4,7 @@ namespace App\Models\Financiero\Cartera;
 
 use App\Models\Academico\Matricula;
 use App\Models\Configuracion\Sede;
+use App\Models\Financiero\ConceptoPago\ConceptoPago;
 use App\Models\Financiero\ReciboPago\ReciboPago;
 use App\Models\User;
 use App\Traits\Financiero\HasCarteraStatus;
@@ -54,6 +55,18 @@ class Cartera extends Model
     protected $table = 'carteras';
 
     protected $guarded = ['id', 'created_at', 'updated_at'];
+
+    /**
+     * Nombre del concepto de la cuota: el guardado (cuotas de acuerdo de pago) o, si no
+     * tiene, Matrícula para la cuota 0 y Mensualidad para las demás (B38).
+     *
+     * @return string
+     */
+    public function conceptoNombre(): string
+    {
+        return $this->concepto
+            ?? ($this->numero_cuota === 0 ? ConceptoPago::MATRICULA : ConceptoPago::MENSUALIDAD);
+    }
 
     protected $casts = [
         'numero_cuota'     => 'integer',

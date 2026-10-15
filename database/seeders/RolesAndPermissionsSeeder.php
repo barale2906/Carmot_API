@@ -24,7 +24,8 @@ class RolesAndPermissionsSeeder extends Seeder
         $profesor = Role::create(['name' => 'profesor']);
         $auxiliar = Role::create(['name' => 'auxiliar']);
         $alumno = Role::create(['name' => 'alumno']);
-        Role::create(['name' => 'cajero']);
+        // El cajero cobra: recibos, cartera, descuentos al cobrar y bancos (B28)
+        $cajero = Role::create(['name' => 'cajero']);
 
         // Create permissions - Roles
         Permission::create([
@@ -78,7 +79,7 @@ class RolesAndPermissionsSeeder extends Seeder
                     'name'=>'co_usersPerfil',
                     'descripcion'=>'perfil usuarios',
                     //'modulo'=>'configuracion'
-                    ])->syncRoles([$Superusuario,$financiero,$coordinador,$profesor,$auxiliar,$alumno]);
+                    ])->syncRoles([$Superusuario,$financiero,$coordinador,$profesor,$auxiliar,$alumno,$cajero]);
 
         // Create permissions Referido
         Permission::create([
@@ -235,7 +236,7 @@ class RolesAndPermissionsSeeder extends Seeder
                     'name'=>'co_sedeCrear',
                     'descripcion'=>'crear sede',
                     //'modulo'=>'configuracion'
-                    ])->syncRoles([$Superusuario,$financiero,$coordinador]);
+                    ])->syncRoles([$Superusuario]); // crear sedes: solo superusuario (B45)
         Permission::create([
                     'name'=>'co_sedeEditar',
                     'descripcion'=>'editar sede',
@@ -245,7 +246,7 @@ class RolesAndPermissionsSeeder extends Seeder
                     'name'=>'co_sedeInactivar',
                     'descripcion'=>'inactivar sede',
                     //'modulo'=>'configuracion'
-                    ])->syncRoles([$Superusuario,$financiero,$coordinador]);
+                    ])->syncRoles([$Superusuario]); // eliminar sedes: solo superusuario (B45)
 
         // Create permissions area
         Permission::create([
@@ -295,7 +296,7 @@ class RolesAndPermissionsSeeder extends Seeder
         Permission::create([
                     'name'=>'co_bancos',
                     'descripcion'=>'ver bancos',
-                    ])->syncRoles([$Superusuario,$financiero,$coordinador,$auxiliar]);
+                    ])->syncRoles([$Superusuario,$financiero,$coordinador,$auxiliar,$cajero]);
         Permission::create([
                     'name'=>'co_bancosCrear',
                     'descripcion'=>'crear banco',
@@ -675,7 +676,7 @@ class RolesAndPermissionsSeeder extends Seeder
                     'name'=>'fin_conceptos_pago',
                     'descripcion'=>'ver conceptos de pago',
                     //'modulo'=>'financiero'
-                    ])->syncRoles([$Superusuario,$financiero,$coordinador]);
+                    ])->syncRoles([$Superusuario,$financiero,$coordinador,$auxiliar,$cajero]); // el formulario de recibo lista los conceptos
         Permission::create([
                     'name'=>'fin_conceptoPagoCrear',
                     'descripcion'=>'crear concepto de pago',
@@ -722,7 +723,7 @@ class RolesAndPermissionsSeeder extends Seeder
                     'name'=>'fin_descuentoAplicar',
                     'descripcion'=>'aplicar descuento',
                     //'modulo'=>'financiero'
-                    ])->syncRoles([$Superusuario,$financiero,$coordinador,$auxiliar]);
+                    ])->syncRoles([$Superusuario,$financiero,$coordinador,$auxiliar,$cajero]);
         Permission::create([
                     'name'=>'fin_descuentoHistorial',
                     'descripcion'=>'ver historial de descuentos aplicados',
@@ -734,12 +735,12 @@ class RolesAndPermissionsSeeder extends Seeder
                     'name'=>'fin_recibos_pago',
                     'descripcion'=>'ver recibos de pago',
                     //'modulo'=>'financiero'
-                    ])->syncRoles([$Superusuario,$financiero,$coordinador,$auxiliar]);
+                    ])->syncRoles([$Superusuario,$financiero,$coordinador,$auxiliar,$cajero]);
         Permission::create([
                     'name'=>'fin_reciboPagoCrear',
                     'descripcion'=>'crear recibo de pago',
                     //'modulo'=>'financiero'
-                    ])->syncRoles([$Superusuario,$financiero,$coordinador,$auxiliar]);
+                    ])->syncRoles([$Superusuario,$financiero,$coordinador,$auxiliar,$cajero]);
         Permission::create([
                     'name'=>'fin_reciboPagoEditar',
                     'descripcion'=>'editar recibo de pago',
@@ -764,7 +765,7 @@ class RolesAndPermissionsSeeder extends Seeder
                     'name'=>'fin_reciboPagoPDF',
                     'descripcion'=>'generar PDF de recibo de pago',
                     //'modulo'=>'financiero'
-                    ])->syncRoles([$Superusuario,$financiero,$coordinador,$auxiliar,$alumno]);
+                    ])->syncRoles([$Superusuario,$financiero,$coordinador,$auxiliar,$alumno,$cajero]);
         Permission::create([
                     'name'=>'fin_reciboPagoAprobar',
                     'descripcion'=>'aprobar o rechazar recibos de pago por transferencia bancaria',
@@ -775,7 +776,7 @@ class RolesAndPermissionsSeeder extends Seeder
         Permission::create([
                     'name'=>'fin_carteras',
                     'descripcion'=>'ver carteras (cuentas por cobrar)',
-                    ])->syncRoles([$Superusuario,$financiero,$coordinador,$auxiliar]);
+                    ])->syncRoles([$Superusuario,$financiero,$coordinador,$auxiliar,$cajero]);
         Permission::create([
                     'name'=>'fin_carteraAnular',
                     'descripcion'=>'anular una cartera',

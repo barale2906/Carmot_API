@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Validation\Rules\Password;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -30,6 +31,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        // Política de contraseñas del personal: la misma que anuncia el formulario de usuarios (F19)
+        Password::defaults(fn () => Password::min(8)->mixedCase()->numbers()->symbols());
     }
 }

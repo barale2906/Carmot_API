@@ -102,6 +102,15 @@ class UpdateKpiRequest extends FormRequest
             if ($hasDenModel && !$hasDenOp) {
                 $validator->errors()->add('denominator_operation', 'La operación del denominador es obligatoria cuando se especifica un modelo.');
             }
+
+            // Solo el conteo puede ir sin campo; se combinan los valores enviados con los guardados (B40)
+            $kpi = $this->route('kpi');
+            $kpi = $kpi instanceof \App\Models\Dashboard\Kpi ? $kpi : \App\Models\Dashboard\Kpi::find($kpi);
+            $numOp    = $this->has('numerator_operation') ? $this->input('numerator_operation') : $kpi?->numerator_operation;
+            $numCampo = $this->has('numerator_field') ? $this->input('numerator_field') : $kpi?->numerator_field;
+            if ($numOp && $numOp !== 'count' && empty($numCampo)) {
+                $validator->errors()->add('numerator_field', 'El campo del numerador es obligatorio salvo en la operación de conteo.');
+            }
         });
     }
 }

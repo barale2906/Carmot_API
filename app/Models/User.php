@@ -54,6 +54,16 @@ class User extends Authenticatable
 {
     use HasApiTokens, HasFactory, Notifiable, HasRoles, SoftDeletes, HasTranslations;
 
+    /**
+     * Rol de los estudiantes: quien solo tiene este rol únicamente consulta su propia información.
+     */
+    public const ROL_ALUMNO = 'alumno';
+
+    /**
+     * Rol de los docentes: el profesor de un grupo debe tenerlo.
+     */
+    public const ROL_PROFESOR = 'profesor';
+
     protected $fillable = [
         'primer_nombre',
         'segundo_nombre',
@@ -135,6 +145,113 @@ class User extends Authenticatable
     public function tieneAccesoSede(int $sedeId): bool
     {
         return in_array($sedeId, $this->idsSedesAccesibles(), true);
+    }
+
+    /**
+     * Indica si el usuario solo tiene el rol de alumno. A estos usuarios las consultas de notas,
+     * asistencias y recibos se les limitan a su propia información, aunque tengan el permiso.
+     */
+    public function esSoloEstudiante(): bool
+    {
+        $roles = $this->getRoleNames();
+
+        return $roles->isNotEmpty() && $roles->every(fn (string $rol) => $rol === self::ROL_ALUMNO);
+    }
+
+    /**
+     * Indica si el usuario puede consultar la información del estudiante indicado:
+     * el personal puede ver a cualquiera; el alumno, solo a sí mismo.
+     */
+    public function puedeVerEstudiante(?int $estudianteId): bool
+    {
+        return ! $this->esSoloEstudiante() || $this->id === $estudianteId;
+    }
+
+    /**
+     * Búsqueda por nombres, apellidos, correo o documento.
+     *
+     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @param string|null $texto
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    public function scopeBuscar($query, ?string $texto)
+    {
+        if (! filled($texto)) {
+            return $query;
+        }
+
+        return $query->where(function ($q) use ($texto) {
+            foreach (['primer_nombre', 'segundo_nombre', 'primer_apellido', 'segundo_apellido', 'email', 'documento'] as $campo) {
+                $q->orWhere($campo, 'like', "%{$texto}%");
+            }
+        });
+    }
+
+    /**
+     * Personal del instituto: usuarios con al menos un rol distinto de alumno
+     * (los responsables de activos, por ejemplo, no pueden ser estudiantes, F15).
+     *
+     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    public function scopePersonal($query)
+    {
+        return $query->whereHas('roles', fn ($q) => $q->where('name', '!=', self::ROL_ALUMNO));
+    }
+
+    /**
+     * Regla de validación: el usuario indicado debe ser del personal (p. ej. el asesor de un
+     * lead, N07). Se usa junto a `exists:users,id`.
+     *
+     * @param string $mensaje
+     * @return \Closure
+     */
+    public static function reglaPersonal(string $mensaje): \Closure
+    {
+        return function (string $atributo, $valor, \Closure $fallar) use ($mensaje) {
+            if ($valor && ! self::personal()->whereKey($valor)->exists()) {
+                $fallar($mensaje);
+            }
+        };
+    }
+
+    /**
+     * Estudiantes: quien no es personal (rol alumno o sin roles) o el personal que tiene
+     * alguna matrícula. Deja fuera al personal y a los superusuarios que no estudian (N01).
+     *
+     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    public function scopeEstudiantes($query)
+    {
+        return $query->where(fn ($q) => $q
+            ->whereDoesntHave('roles', fn ($r) => $r->where('name', '!=', self::ROL_ALUMNO))
+            ->orWhereHas('matriculas'));
+    }
+
+    /**
+     * Indica si el usuario solo dicta clases: tiene el rol profesor y ningún rol
+     * del personal (puede tener además el de alumno).
+     */
+    public function esSoloProfesor(): bool
+    {
+        $roles = $this->getRoleNames();
+
+        return $roles->contains(self::ROL_PROFESOR)
+            && $roles->every(fn (string $rol) => in_array($rol, [self::ROL_PROFESOR, self::ROL_ALUMNO], true));
+    }
+
+    /**
+     * Indica si el usuario puede registrar asistencia y notas del grupo: su profesor,
+     * o personal (no solo profesor) con la sede del grupo asignada.
+     */
+    public function puedeGestionarGrupo(\App\Models\Academico\Grupo $grupo): bool
+    {
+        if ((int) $grupo->profesor_id === $this->id) {
+            return true;
+        }
+
+        return ! $this->esSoloProfesor() && $this->tieneAccesoSede((int) $grupo->sede_id);
     }
 
     public function cursos(): BelongsToMany

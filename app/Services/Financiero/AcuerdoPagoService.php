@@ -4,6 +4,7 @@ namespace App\Services\Financiero;
 
 use App\Models\Academico\Matricula;
 use App\Models\Financiero\Cartera\Cartera;
+use App\Models\Financiero\ConceptoPago\ConceptoPago;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -57,6 +58,7 @@ class AcuerdoPagoService
                     'sede_id'          => $sedeId,
                     'estudiante_id'    => $matricula->estudiante_id,
                     'numero_cuota'     => 0,
+                    'concepto'         => ConceptoPago::INICIAL_ACUERDO,
                     'valor'            => $montoInicial,
                     'saldo'            => $montoInicial,
                     'abono'            => 0,
@@ -75,6 +77,7 @@ class AcuerdoPagoService
                     'sede_id'          => $sedeId,
                     'estudiante_id'    => $matricula->estudiante_id,
                     'numero_cuota'     => $n,
+                    'concepto'         => ConceptoPago::CUOTA_ACUERDO,
                     'valor'            => $valorCuota,
                     'saldo'            => $valorCuota,
                     'abono'            => 0,

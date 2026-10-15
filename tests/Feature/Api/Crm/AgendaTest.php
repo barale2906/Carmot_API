@@ -118,11 +118,12 @@ class AgendaTest extends TestCase
             ->postJson(route('agendas.store'), [
                 'referido_id' => $this->referido->id,
                 'fecha'       => now()->subDay()->toDateString(),
-                'hora'        => '09:30',
+                // Con una hora válida la jornada se deriva de ella; aquí la hora tampoco es válida
+                'hora'        => '9:30 de la mañana',
                 'jornada'     => 'noche',
             ])
             ->assertUnprocessable()
-            ->assertJsonValidationErrors(['fecha', 'jornada']);
+            ->assertJsonValidationErrors(['fecha', 'hora', 'jornada']);
     }
 
     /** @test */
@@ -142,5 +143,24 @@ class AgendaTest extends TestCase
         $this->actingAs(User::factory()->create())
             ->getJson(route('agendas.index'))
             ->assertForbidden();
+    }
+
+    /** @test */
+    public function la_cita_respeta_el_agendador_asignado_y_deriva_la_jornada_de_la_hora(): void
+    {
+        $asesora = User::factory()->create();
+
+        $this->actingAs($this->usuario)
+            ->postJson(route('agendas.store'), [
+                'referido_id'  => $this->referido->id,
+                'agendador_id' => $asesora->id,
+                'fecha'        => now()->addDay()->toDateString(),
+                'hora'         => '15:00',
+                'jornada'      => 'am',
+            ])
+            ->assertCreated()
+            ->assertJsonPath('data.fecha', now()->addDay()->toDateString());
+
+        $this->assertDatabaseHas('agendas', ['agendador_id' => $asesora->id, 'jornada' => 'pm']);
     }
 }

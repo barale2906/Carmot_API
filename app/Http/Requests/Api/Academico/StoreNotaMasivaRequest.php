@@ -4,10 +4,13 @@ namespace App\Http\Requests\Api\Academico;
 
 use App\Models\Academico\EsquemaCalificacion;
 use App\Models\Academico\Grupo;
+use App\Http\Requests\Api\Academico\Concerns\ValidaEstudiantesDelGrupo;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreNotaMasivaRequest extends FormRequest
 {
+    use ValidaEstudiantesDelGrupo;
+
     /**
      * Determina si el usuario está autorizado para hacer esta solicitud.
      */
@@ -121,6 +124,8 @@ class StoreNotaMasivaRequest extends FormRequest
             if (! $esquema->tiposNota()->whereKey($this->tipo_nota_esquema_id)->exists()) {
                 $validator->errors()->add('tipo_nota_esquema_id', 'El tipo de nota no pertenece al esquema de calificación.');
             }
+
+            $this->validarEstudiantesDelGrupo($validator, $grupo, array_column((array) $this->input('notas', []), 'estudiante_id'), 'notas');
         });
     }
 }

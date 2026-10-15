@@ -26,10 +26,12 @@ class AddBibliotecaPermissionsSeeder extends Seeder
         $superusuario = Role::firstOrCreate(['name' => 'superusuario', 'guard_name' => 'web']);
         $coordinador  = Role::firstOrCreate(['name' => 'coordinador',  'guard_name' => 'web']);
         $auxiliar     = Role::firstOrCreate(['name' => 'auxiliar',     'guard_name' => 'web']);
+        $profesor     = Role::firstOrCreate(['name' => 'profesor',     'guard_name' => 'web']);
 
         Permission::firstOrCreate(['name' => 'ac_biblioteca'],
             ['descripcion' => 'Ver documentos de la biblioteca académica'])
-            ->syncRoles([$superusuario, $coordinador, $auxiliar]);
+            // El profesor consulta y descarga el material de sus cursos (B43)
+            ->syncRoles([$superusuario, $coordinador, $auxiliar, $profesor]);
 
         Permission::firstOrCreate(['name' => 'ac_bibliotecaCrear'],
             ['descripcion' => 'Subir documentos a la biblioteca académica'])

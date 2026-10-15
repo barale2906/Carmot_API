@@ -35,7 +35,7 @@ class StoreActActivoRequest extends FormRequest
             'categoria_id'   => ['required', 'integer', Rule::exists('act_categorias', 'id')->where('status', 1)->whereNull('deleted_at')],
             'sede_id'        => ['required', 'integer', 'exists:sedes,id'],
             'area_id'        => ['nullable', 'integer', 'exists:areas,id'],
-            'responsable_id' => ['nullable', 'integer', 'exists:users,id'],
+            'responsable_id' => ['nullable', 'integer', 'exists:users,id', $this->reglaResponsable()],
             'marca'          => ['nullable', 'string', 'max:100'],
             'modelo'         => ['nullable', 'string', 'max:100'],
             'serial'         => ['nullable', 'string', 'max:100'],

@@ -55,8 +55,8 @@ class AbonarInvPedidoRequest extends FormRequest
     }
 
     /**
-     * El abono genera un recibo: exige el turno de caja abierto del cajero en la
-     * sede del pedido. Además, la suma de medios de pago debe igualar el monto abonado.
+     * El abono genera un recibo: exige el turno de caja abierto del cajero (en
+     * cualquier sede). Además, la suma de medios de pago debe igualar el monto abonado.
      *
      * @param Validator $validator
      * @return void
@@ -66,7 +66,7 @@ class AbonarInvPedidoRequest extends FormRequest
         $validator->after(function (Validator $v) {
             $pedido = $this->route('pedido');
 
-            if ($pedido && ! LdTurnoCaja::abiertoDe((int) $this->user()->id, (int) $pedido->sede_id)->exists()) {
+            if ($pedido && ! LdTurnoCaja::abiertoDe((int) $this->user()->id)->exists()) {
                 $v->errors()->add('monto_abono', LdTurnoCaja::MENSAJE_SIN_TURNO);
             }
 
