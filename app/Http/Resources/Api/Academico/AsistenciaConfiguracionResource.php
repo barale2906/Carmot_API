@@ -35,7 +35,6 @@ class AsistenciaConfiguracionResource extends JsonResource
             'modulo_id' => $this->modulo_id,
             'porcentaje_minimo' => (float) $this->porcentaje_minimo,
             'horas_minimas' => $this->horas_minimas,
-            'aplicar_justificaciones' => (bool) $this->aplicar_justificaciones,
             'perder_por_fallas' => (bool) $this->perder_por_fallas,
             'fecha_inicio_vigencia' => $this->fecha_inicio_vigencia?->format('Y-m-d'),
             'fecha_fin_vigencia' => $this->fecha_fin_vigencia?->format('Y-m-d'),

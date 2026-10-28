@@ -10,6 +10,9 @@ class SabanaNotasEstudianteResource extends JsonResource
     /**
      * Transforma el recurso en un array.
      * Este resource representa la sabana de notas de un estudiante en todos sus módulos.
+     * Cada módulo trae el resultado de {@see \App\Services\Academico\SabanaNotasService}:
+     * nota_final, completo, recuperacion, nota_definitiva, aprobado, estado,
+     * puede_recuperar y notas_cerradas.
      *
      * @return array<string, mixed>
      */
@@ -29,6 +32,7 @@ class SabanaNotasEstudianteResource extends JsonResource
             'ciclo' => $this->when(isset($this->resource['ciclo']), [
                 'id' => $this->resource['ciclo']['id'] ?? null,
                 'nombre' => $this->resource['ciclo']['nombre'] ?? null,
+                'notas_cerradas' => $this->resource['ciclo']['notas_cerradas'] ?? false,
             ]),
             'modulos' => $this->resource['modulos'] ?? [],
             'promedio_general' => $this->resource['promedio_general'] ?? null,

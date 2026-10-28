@@ -4,6 +4,7 @@ namespace App\Http\Requests\Api\Academico;
 
 use App\Http\Requests\Api\Academico\Concerns\ValidaEstudiantesDelGrupo;
 use App\Models\Academico\AsistenciaClaseProgramada;
+use App\Models\Academico\Asistencia;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -29,7 +30,9 @@ class StoreAsistenciaRequest extends FormRequest
         return [
             'estudiante_id' => ['required', 'integer', 'exists:users,id'],
             'clase_programada_id' => ['required', 'integer', 'exists:asistencia_clases_programadas,id'],
-            'estado' => ['required', Rule::in(['presente', 'ausente', 'justificado', 'tardanza'])],
+            'estado' => ['required', Rule::in(Asistencia::ESTADOS)],
+            'justificada' => ['sometimes', 'boolean'],
+            'justificacion' => ['nullable', 'required_if:justificada,true', 'string', 'max:500'],
             'hora_registro' => ['nullable', 'date_format:H:i:s'],
             'observaciones' => ['nullable', 'string', 'max:5000'],
         ];
@@ -50,8 +53,11 @@ class StoreAsistenciaRequest extends FormRequest
             'clase_programada_id.integer' => 'El campo clase programada debe ser un número entero.',
             'clase_programada_id.exists' => 'La clase programada seleccionada no existe.',
             'estado.required' => 'El campo estado es obligatorio.',
-            'estado.in' => 'El estado debe ser: presente, ausente, justificado o tardanza.',
+            'estado.in' => 'El estado debe ser: presente, ausente o tardanza (la justificación se marca aparte).',
             'hora_registro.date_format' => 'El formato de hora debe ser H:i:s (ejemplo: 14:30:00).',
+            'justificada.boolean' => 'El campo justificada debe ser verdadero o falso.',
+            'justificacion.required_if' => 'Indique el motivo de la justificación.',
+            'justificacion.max' => 'El motivo de la justificación no puede exceder los 500 caracteres.',
             'observaciones.string' => 'Las observaciones deben ser texto.',
             'observaciones.max' => 'Las observaciones no pueden exceder los 5000 caracteres.',
         ];
@@ -71,7 +77,8 @@ class StoreAsistenciaRequest extends FormRequest
     }
 
     /**
-     * Solo se registra asistencia a estudiantes con matrícula vigente en el grupo de la clase.
+     * Solo se registra asistencia a estudiantes con matrícula vigente en el grupo de la clase,
+     * y solo se justifica una ausencia o una tardanza.
      *
      * @param \Illuminate\Validation\Validator $validator
      * @return void
@@ -79,6 +86,10 @@ class StoreAsistenciaRequest extends FormRequest
     public function withValidator($validator): void
     {
         $validator->after(function ($validator) {
+            if ($this->input('estado') === 'presente' && $this->boolean('justificada')) {
+                $validator->errors()->add('justificada', 'Solo se justifica una ausencia o una tardanza.');
+            }
+
             $clase = AsistenciaClaseProgramada::with('grupo')->find($this->input('clase_programada_id'));
             $this->validarEstudiantesDelGrupo($validator, $clase?->grupo, [$this->input('estudiante_id')]);
         });

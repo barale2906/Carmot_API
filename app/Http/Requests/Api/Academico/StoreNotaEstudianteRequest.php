@@ -3,12 +3,13 @@
 namespace App\Http\Requests\Api\Academico;
 
 use App\Http\Requests\Api\Academico\Concerns\ValidaEstudiantesDelGrupo;
+use App\Http\Requests\Api\Academico\Concerns\ValidaNotasAbiertas;
 use App\Models\Academico\Grupo;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreNotaEstudianteRequest extends FormRequest
 {
-    use ValidaEstudiantesDelGrupo;
+    use ValidaEstudiantesDelGrupo, ValidaNotasAbiertas;
 
     /**
      * Determina si el usuario está autorizado para hacer esta solicitud.
@@ -97,7 +98,8 @@ class StoreNotaEstudianteRequest extends FormRequest
     }
 
     /**
-     * Solo se registran notas a estudiantes con matrícula vigente en el grupo.
+     * Solo se registran notas a estudiantes con matrícula vigente en el grupo y con las
+     * notas del ciclo abiertas.
      *
      * @param \Illuminate\Validation\Validator $validator
      * @return void
@@ -105,7 +107,9 @@ class StoreNotaEstudianteRequest extends FormRequest
     public function withValidator($validator): void
     {
         $validator->after(function ($validator) {
-            $this->validarEstudiantesDelGrupo($validator, Grupo::find($this->input('grupo_id')), [$this->input('estudiante_id')]);
+            $grupo = Grupo::find($this->input('grupo_id'));
+            $this->validarEstudiantesDelGrupo($validator, $grupo, [$this->input('estudiante_id')]);
+            $this->validarNotasAbiertas($validator, $grupo, [$this->input('estudiante_id')]);
         });
     }
 }

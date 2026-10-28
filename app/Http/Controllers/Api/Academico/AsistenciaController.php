@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Academico;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\Academico\FiltrarAsistenciasRequest;
 use App\Http\Requests\Api\Academico\StoreAsistenciaMasivaRequest;
 use App\Http\Requests\Api\Academico\StoreAsistenciaRequest;
 use App\Http\Requests\Api\Academico\UpdateAsistenciaRequest;
@@ -12,13 +13,18 @@ use App\Models\Academico\Asistencia;
 use App\Models\Academico\AsistenciaClaseProgramada;
 use App\Models\Academico\AsistenciaConfiguracion;
 use App\Models\Academico\Ciclo;
+use App\Models\Academico\Curso;
 use App\Models\Academico\Grupo;
 use App\Models\Academico\Matricula;
+use App\Models\Financiero\Cartera\Cartera;
+use App\Services\Academico\AsistenciasExcelService;
 use App\Services\Asistencia\RegistroAsistenciaService;
 use App\Services\Asistencia\VerificarCumplimientoService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AsistenciaController extends Controller
 {
@@ -27,41 +33,39 @@ class AsistenciaController extends Controller
      */
     public function __construct(
         private readonly RegistroAsistenciaService $registroAsistencia,
-        private readonly VerificarCumplimientoService $cumplimiento
+        private readonly VerificarCumplimientoService $cumplimiento,
+        private readonly AsistenciasExcelService $asistenciasExcel
     )
     {
-        $this->middleware('permission:aca_asistencias')->only(['index', 'show', 'listaAsistencia', 'reporteEstudiante', 'reporteGrupo']);
+        $this->middleware('permission:aca_asistencias')->only(['index', 'filters', 'excel', 'show', 'listaAsistencia', 'reporteEstudiante', 'reporteGrupo']);
         $this->middleware('permission:aca_asistenciaCrear')->only(['store', 'storeMasivo']);
         $this->middleware('permission:aca_asistenciaEditar')->only(['update']);
         $this->middleware('permission:aca_asistenciaInactivar')->only(['destroy', 'restore']);
     }
 
     /**
-     * Muestra una lista de asistencias con filtros. A un alumno solo se le listan sus propias asistencias.
+     * Listado de asistencias filtrable por grupo, sede, curso, estudiante y fecha de la clase
+     * (un día o un rango). Cada registro trae el saldo vencido del estudiante (`en_mora`).
+     * Sin `sort_by` ordena por la clase más reciente. A un alumno solo se le listan las suyas.
      *
-     * @param Request $request
+     * @param FiltrarAsistenciasRequest $request
      * @return JsonResponse
      */
-    public function index(Request $request): JsonResponse
+    public function index(FiltrarAsistenciasRequest $request): JsonResponse
     {
-        $filters = $request->only([
-            'estudiante_id', 'grupo_id', 'ciclo_id', 'curso_id', 'modulo_id',
-            'clase_programada_id', 'estado', 'fecha_registro', 'include_trashed', 'only_trashed'
-        ]);
-
-        // El alumno solo ve sus propias asistencias
-        if ($request->user()->esSoloEstudiante()) {
-            $filters['estudiante_id'] = $request->user()->id;
-        }
-
         $relations = $request->has('with')
             ? explode(',', $request->with)
-            : ['estudiante', 'claseProgramada', 'grupo', 'ciclo'];
+            : ['estudiante', 'claseProgramada', 'grupo.sede', 'ciclo', 'curso', 'modulo'];
 
-        $asistencias = Asistencia::withFilters($filters)
+        $asistencias = Asistencia::withFilters($request->filtros())
             ->withRelationsAndCounts($relations, false)
-            ->withSorting($request->get('sort_by', 'fecha_registro'), $request->get('sort_direction', 'desc'))
+            ->when(
+                $request->filled('sort_by'),
+                fn ($q) => $q->withSorting($request->sort_by, $request->get('sort_direction', 'desc')),
+                fn ($q) => $q->ordenadoPorClase()
+            )
             ->paginate($request->get('per_page', 15));
+        Asistencia::cargarMora($asistencias->getCollection());
 
         return response()->json([
             'data' => AsistenciaResource::collection($asistencias),
@@ -74,6 +78,63 @@ class AsistenciaController extends Controller
                 'to' => $asistencias->lastItem(),
             ],
         ]);
+    }
+
+    /**
+     * Opciones de los filtros del listado: sedes del usuario, y cursos y grupos que ya tienen
+     * asistencia registrada (de sus sedes; a quien solo es profesor, solo sus grupos).
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function filters(Request $request): JsonResponse
+    {
+        $usuario = $request->user();
+        $sedes   = $usuario->sedesAccesibles()->sortBy('nombre')->values();
+
+        $grupos = Grupo::whereIn('id', Asistencia::select('grupo_id'))
+            ->when(
+                $usuario->esSoloProfesor(),
+                fn ($q) => $q->where('profesor_id', $usuario->id),
+                fn ($q) => $q->whereIn('sede_id', $sedes->pluck('id'))
+            )
+            ->with('modulo:id,nombre')
+            ->orderBy('nombre')
+            ->get(['id', 'nombre', 'sede_id', 'modulo_id']);
+
+        $cursos = Curso::whereIn('id', Asistencia::whereIn('grupo_id', $grupos->pluck('id'))->select('curso_id'))
+            ->orderBy('nombre')
+            ->get(['id', 'nombre']);
+
+        return response()->json([
+            'data' => [
+                'estados' => collect(Asistencia::ESTADOS)->map(fn ($estado) => ['value' => $estado, 'label' => ucfirst($estado)])->all(),
+                'sedes' => $sedes->map(fn ($sede) => ['id' => $sede->id, 'nombre' => $sede->nombre])->all(),
+                'cursos' => $cursos,
+                'grupos' => $grupos->map(fn ($grupo) => [
+                    'id' => $grupo->id,
+                    'nombre' => $grupo->nombre,
+                    'sede_id' => $grupo->sede_id,
+                    'modulo' => $grupo->modulo?->nombre,
+                ])->all(),
+            ],
+        ]);
+    }
+
+    /**
+     * Descarga en Excel el listado de asistencias con los mismos filtros del listado.
+     *
+     * @param FiltrarAsistenciasRequest $request
+     * @return StreamedResponse
+     */
+    public function excel(FiltrarAsistenciasRequest $request): StreamedResponse
+    {
+        $spreadsheet = $this->asistenciasExcel->generar($request->filtros());
+        $nombre = 'asistencias-' . now()->format('Y-m-d') . '.xlsx';
+
+        return response()->streamDownload(function () use ($spreadsheet) {
+            (new Xlsx($spreadsheet))->save('php://output');
+        }, $nombre, ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']);
     }
 
     /**
@@ -103,6 +164,8 @@ class AsistenciaController extends Controller
                 'modulo_id' => $grupo->modulo_id,
                 'curso_id' => $ciclo->curso_id,
                 'estado' => $request->estado,
+                'justificada' => $request->boolean('justificada'),
+                'justificacion' => $request->boolean('justificada') ? $request->justificacion : null,
                 'hora_registro' => $request->hora_registro ?? now()->format('H:i:s'),
                 'observaciones' => $request->observaciones,
                 'registrado_por_id' => auth()->id(),
@@ -183,7 +246,7 @@ class AsistenciaController extends Controller
         try {
             $asistencia = Asistencia::findOrFail($id);
 
-            $asistencia->update($request->validated());
+            $asistencia->update($request->datos());
 
             return response()->json([
                 'message' => 'Asistencia actualizada exitosamente.',
@@ -246,7 +309,8 @@ class AsistenciaController extends Controller
 
     /**
      * Obtiene la lista de asistencia por grupo: ciclos en curso o en su plazo de cierre
-     * (`academico.dias_cierre_ciclo`). Prohibida para alumnos.
+     * (`academico.dias_cierre_ciclo`). Cada estudiante trae su saldo vencido para que quien
+     * toma la asistencia decida si entra a clase. Prohibida para alumnos.
      *
      * @param Request $request
      * @param int $grupoId
@@ -287,11 +351,14 @@ class AsistenciaController extends Controller
                 ->with(['estudiante', 'ciclo'])
                 ->get();
 
-            // Extraer estudiantes únicos con información del ciclo
-            $estudiantes = $matriculas->map(function ($matricula) {
+            $saldosVencidos = Cartera::saldosVencidosPorEstudiante($matriculas->pluck('estudiante_id')->unique()->values()->all());
+
+            // Extraer estudiantes únicos con información del ciclo y su mora
+            $estudiantes = $matriculas->map(function ($matricula) use ($saldosVencidos) {
                 $estudiante = $matricula->estudiante;
                 $estudiante->ciclo_id = $matricula->ciclo_id;
                 $estudiante->ciclo_nombre = $matricula->ciclo->nombre;
+                $estudiante->saldo_vencido = $saldosVencidos->get($estudiante->id, 0.0);
                 return $estudiante;
             })->unique('id');
 
@@ -352,15 +419,16 @@ class AsistenciaController extends Controller
             $totalClases = $asistencias->count();
             $presentes = $asistencias->where('estado', 'presente')->count();
             $ausentes = $asistencias->where('estado', 'ausente')->count();
-            $justificadas = $asistencias->where('estado', 'justificado')->count();
+            $justificadas = $asistencias->where('justificada', true)->count();
             $tardanzas = $asistencias->where('estado', 'tardanza')->count();
 
             $horasTotales = $asistencias->sum(function ($asistencia) {
                 return $asistencia->claseProgramada->duracion_horas ?? 0;
             });
 
+            // La justificación no borra la falla: solo cuentan presente y tardanza
             $horasAsistidas = $asistencias->filter(function ($asistencia) {
-                return in_array($asistencia->estado, ['presente', 'tardanza', 'justificado']);
+                return $asistencia->esPresente();
             })->sum(function ($asistencia) {
                 return $asistencia->claseProgramada->duracion_horas ?? 0;
             });
@@ -398,7 +466,8 @@ class AsistenciaController extends Controller
 
     /**
      * Genera reporte de asistencia por grupo con el cumplimiento de la regla de asistencia
-     * de cada estudiante (porcentaje mínimo y pérdida por fallas). Prohibido para alumnos.
+     * de cada estudiante (porcentaje mínimo y alerta de pérdida por fallas). Es informativo:
+     * si aprueba o no lo define la nota del profesor. Prohibido para alumnos.
      *
      * @param Request $request
      * @param int $grupoId
@@ -435,6 +504,8 @@ class AsistenciaController extends Controller
                     ],
                     'total_clases' => $asistenciasEstudiante->count(),
                     'presentes' => $asistenciasEstudiante->where('estado', 'presente')->count(),
+                    'ausentes' => $asistenciasEstudiante->where('estado', 'ausente')->count(),
+                    'justificadas' => $asistenciasEstudiante->where('justificada', true)->count(),
                     'horas_totales' => $cumplimiento['horas_totales'],
                     'horas_asistidas' => $cumplimiento['horas_asistidas'],
                     'porcentaje_asistencia' => $cumplimiento['porcentaje'],

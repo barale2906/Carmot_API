@@ -8,11 +8,13 @@ use App\Services\Asistencia\VerificarCumplimientoService;
 use Carbon\Carbon;
 
 /**
- * Evalúa si una matrícula puede cerrarse como Graduada (N20): el ciclo terminó, todos
- * sus módulos tienen la nota completa y alcanzan `academico.nota_aprobatoria`, y el
- * estudiante cumple la regla de asistencia del curso (N19).
+ * Evalúa si una matrícula puede cerrarse como Graduada (N20): el ciclo terminó y todos
+ * sus módulos tienen la nota completa y alcanzan `academico.nota_aprobatoria`, con la
+ * nota final o, si la reprobó, con la de recuperación (SabanaNotasService).
  *
- * La cartera pendiente no impide graduar: sigue siendo exigible y se informa aparte.
+ * Quien define si el estudiante aprueba es el profesor con sus notas: un porcentaje alto de
+ * fallas no impide graduar ni obliga a reprobar; se informa en `advertencias`. Tampoco la
+ * cartera pendiente impide graduar: sigue siendo exigible y se informa aparte.
  */
 class EvaluacionCierreService
 {
@@ -25,7 +27,8 @@ class EvaluacionCierreService
     /**
      * @param Matricula   $matricula
      * @param Carbon|null $fecha Fecha del cierre; por defecto hoy.
-     * @return array<string, mixed> `aprueba` y `motivos` resumen el resultado.
+     * @return array<string, mixed> `aprueba` y `motivos` resumen el resultado; `advertencias`
+     *                              trae lo informativo (asistencia por debajo del mínimo).
      */
     public function evaluar(Matricula $matricula, ?Carbon $fecha = null): array
     {
@@ -46,38 +49,42 @@ class EvaluacionCierreService
         $sabana   = $this->sabanaNotas->porMatricula($matricula);
         $porGrupo = collect($sabana['modulos'] ?? [])->keyBy('grupo.id');
         $modulos  = ($ciclo?->grupos ?? collect())->map(function ($grupo) use ($porGrupo, $notaAprobatoria, &$motivos) {
-            $fila      = $porGrupo->get($grupo->id);
-            $notaFinal = $fila['nota_final'] ?? null;
-            $completo  = (bool) ($fila['completo'] ?? false);
-            $aprobado  = $completo && $notaFinal >= $notaAprobatoria;
-            $nombre    = $grupo->modulo->nombre;
+            $fila         = $porGrupo->get($grupo->id);
+            $notaFinal    = $fila['nota_final'] ?? null;
+            $completo     = (bool) ($fila['completo'] ?? false);
+            $aprobado     = (bool) ($fila['aprobado'] ?? false);
+            $recuperacion = $fila['recuperacion'] ?? null;
+            $nombre       = $grupo->modulo->nombre;
 
             if (! $fila) {
                 $motivos[] = "El módulo {$nombre} no tiene esquema de calificación.";
             } elseif (! $completo) {
                 $motivos[] = "El módulo {$nombre} tiene notas pendientes.";
+            } elseif (! $aprobado && $recuperacion) {
+                $motivos[] = "El módulo {$nombre} se reprobó en la recuperación con {$recuperacion['nota']} (mínimo {$notaAprobatoria}).";
             } elseif (! $aprobado) {
-                $motivos[] = "El módulo {$nombre} tiene nota final {$notaFinal} (mínimo {$notaAprobatoria}).";
+                $motivos[] = "El módulo {$nombre} tiene nota final {$notaFinal} (mínimo {$notaAprobatoria}) y no tiene recuperación.";
             }
 
             return [
-                'modulo'     => ['id' => $grupo->modulo->id, 'nombre' => $nombre],
-                'grupo'      => ['id' => $grupo->id, 'nombre' => $grupo->nombre],
-                'nota_final' => $notaFinal,
-                'completo'   => $completo,
-                'aprobado'   => $aprobado,
+                'modulo'          => ['id' => $grupo->modulo->id, 'nombre' => $nombre],
+                'grupo'           => ['id' => $grupo->id, 'nombre' => $grupo->nombre],
+                'nota_final'      => $notaFinal,
+                'recuperacion'    => $recuperacion,
+                'nota_definitiva' => $fila['nota_definitiva'] ?? null,
+                'completo'        => $completo,
+                'aprobado'        => $aprobado,
             ];
         })->values();
 
-        $asistencia = $this->cumplimiento->porMatricula($matricula);
+        $asistencia   = $this->cumplimiento->porMatricula($matricula);
+        $advertencias = [];
 
         if (! $asistencia['cumple']) {
             $detalle = $asistencia['porcentaje_minimo'] !== null && $asistencia['porcentaje'] < $asistencia['porcentaje_minimo']
                 ? "asistencia {$asistencia['porcentaje']} % (mínimo {$asistencia['porcentaje_minimo']} %)"
                 : "{$asistencia['horas_asistidas']} horas asistidas (mínimo {$asistencia['horas_minimas']})";
-            $motivos[] = $asistencia['pierde_por_fallas']
-                ? "Pierde por fallas: {$detalle}."
-                : "No cumple el mínimo de asistencia: {$detalle}.";
+            $advertencias[] = "No cumple el mínimo de asistencia: {$detalle}. No impide graduar: la aprobación la define la nota del profesor.";
         }
 
         return [
@@ -90,6 +97,7 @@ class EvaluacionCierreService
                 ->sum('saldo'),
             'aprueba'          => $motivos === [],
             'motivos'          => $motivos,
+            'advertencias'     => $advertencias,
         ];
     }
 }

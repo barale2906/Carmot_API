@@ -2,6 +2,7 @@
 
 namespace Database\Factories\Academico;
 
+use App\Models\Academico\Asistencia;
 use App\Models\Academico\AsistenciaClaseProgramada;
 use App\Models\Academico\Ciclo;
 use App\Models\Academico\Curso;
@@ -36,7 +37,7 @@ class AsistenciaFactory extends Factory
             'ciclo_id' => $ciclo->id,
             'modulo_id' => $grupo->modulo_id ?? Modulo::inRandomOrder()->first()?->id ?? Modulo::factory(),
             'curso_id' => $ciclo->curso_id ?? Curso::inRandomOrder()->first()?->id ?? Curso::factory(),
-            'estado' => fake()->randomElement(['presente', 'ausente', 'justificado', 'tardanza']),
+            'estado' => fake()->randomElement(Asistencia::ESTADOS),
             'hora_registro' => fake()->time('H:i:s'),
             'observaciones' => fake()->optional(0.2)->sentence(),
             'registrado_por_id' => User::inRandomOrder()->first()?->id ?? User::factory(),
@@ -69,15 +70,16 @@ class AsistenciaFactory extends Factory
     }
 
     /**
-     * Estado para crear una asistencia justificada.
+     * Estado para crear una ausencia justificada (sigue siendo falla).
      *
      * @return static
      */
     public function justificada(): static
     {
         return $this->state(fn (array $attributes) => [
-            'estado' => 'justificado',
-            'observaciones' => fake()->sentence(),
+            'estado' => 'ausente',
+            'justificada' => true,
+            'justificacion' => fake()->sentence(),
         ]);
     }
 

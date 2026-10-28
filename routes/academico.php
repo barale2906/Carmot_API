@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\Academico\AsistenciaConfiguracionController;
 use App\Http\Controllers\Api\Academico\AsistenciaController;
 use App\Http\Controllers\Api\Academico\BibliotecaController;
 use App\Http\Controllers\Api\Academico\CicloController;
+use App\Http\Controllers\Api\Academico\CierreNotasCicloController;
 use App\Http\Controllers\Api\Academico\CursoController;
 use App\Http\Controllers\Api\Academico\Documentacion\DocDocumentoController;
 use App\Http\Controllers\Api\Academico\Documentacion\DocPlantillaController;
@@ -17,6 +18,7 @@ use App\Http\Controllers\Api\Academico\MatriculaController;
 use App\Http\Controllers\Api\Academico\ModuloController;
 use App\Http\Controllers\Api\Academico\NotaEstudianteController;
 use App\Http\Controllers\Api\Academico\ProgramacionController;
+use App\Http\Controllers\Api\Academico\RecuperacionNotaController;
 use App\Http\Controllers\Api\Academico\TemaController;
 use App\Http\Controllers\Api\Academico\TipoAplazamientoController;
 use App\Http\Controllers\Api\Academico\TopicoController;
@@ -214,16 +216,28 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('estudiante/{estudianteId}/modulo/{moduloId}/grupo/{grupoId}/nota-final', [NotaEstudianteController::class, 'calcularNotaFinal'])->name('notas-estudiantes.calcular-nota-final-grupo');
         Route::get('estudiante/{estudianteId}/sabana', [NotaEstudianteController::class, 'sabanaEstudiante'])->name('notas-estudiantes.sabana-estudiante');
         Route::get('grupo/{grupoId}/modulo/{moduloId}/sabana', [NotaEstudianteController::class, 'sabanaGrupal'])->name('notas-estudiantes.sabana-grupal');
+        Route::get('filters', [NotaEstudianteController::class, 'filters'])->name('notas-estudiantes.filters');
+        Route::get('consolidado', [NotaEstudianteController::class, 'consolidado'])->name('notas-estudiantes.consolidado');
+        Route::get('ciclos/{ciclo}/cierre', [CierreNotasCicloController::class, 'show'])->name('notas-estudiantes.cierre-ciclo');
+        Route::post('ciclos/{ciclo}/cerrar', [CierreNotasCicloController::class, 'cerrar'])->name('notas-estudiantes.cierre-ciclo.cerrar');
+        Route::post('ciclos/{ciclo}/reabrir', [CierreNotasCicloController::class, 'reabrir'])->name('notas-estudiantes.cierre-ciclo.reabrir');
         Route::post('{id}/restore', [NotaEstudianteController::class, 'restore'])->name('notas-estudiantes.restore');
     });
     Route::apiResource('notas-estudiantes', NotaEstudianteController::class)
         ->parameters(['notas-estudiantes' => 'nota_estudiante']);
+
+    // Recuperaciones de módulos reprobados
+    Route::post('recuperaciones-notas/{id}/restore', [RecuperacionNotaController::class, 'restore'])->name('recuperaciones-notas.restore');
+    Route::apiResource('recuperaciones-notas', RecuperacionNotaController::class)
+        ->parameters(['recuperaciones-notas' => 'recuperacion_nota']);
 
     // -------------------------------------------------------------------------
     // Asistencias
     // -------------------------------------------------------------------------
     Route::prefix('asistencias')->group(function () {
         Route::post('masivo', [AsistenciaController::class, 'storeMasivo'])->name('asistencias.masivo');
+        Route::get('filters', [AsistenciaController::class, 'filters'])->name('asistencias.filters');
+        Route::get('excel', [AsistenciaController::class, 'excel'])->name('asistencias.excel');
         Route::get('lista-asistencia/{grupoId}', [AsistenciaController::class, 'listaAsistencia'])->name('asistencias.lista-asistencia');
         Route::get('reporte/estudiante/{id}', [AsistenciaController::class, 'reporteEstudiante'])->name('asistencias.reporte-estudiante');
         Route::get('reporte/grupo/{grupoId}', [AsistenciaController::class, 'reporteGrupo'])->name('asistencias.reporte-grupo');

@@ -12,11 +12,21 @@ use Illuminate\Database\Eloquent\Model;
  * Imprime una fila por módulo del ciclo matriculado. El detalle de los tipos de
  * nota se entrega consolidado en una sola columna para que la tabla mantenga una
  * fila por módulo independientemente de las columnas que elija el administrador.
+ * La nota final impresa es la definitiva: la de recuperación si el módulo se recuperó.
  *
  * @package App\Services\Academico\Documentacion\Bloques
  */
 class DocBloqueSabanaNotas implements DocBloqueContract
 {
+    /**
+     * Etiqueta impresa para cada estado del módulo.
+     */
+    private const ESTADOS = [
+        SabanaNotasService::ESTADO_PENDIENTE => 'Pendiente',
+        SabanaNotasService::ESTADO_APROBADO  => 'Aprobado',
+        SabanaNotasService::ESTADO_REPROBADO => 'Reprobado',
+    ];
+
     /**
      * @param SabanaNotasService $sabana Cálculo compartido con el endpoint de sábana.
      */
@@ -66,9 +76,9 @@ class DocBloqueSabanaNotas implements DocBloqueContract
                 'modulo'        => $modulo['modulo']['nombre'],
                 'grupo'         => $modulo['grupo']['nombre'],
                 'esquema'       => $modulo['esquema_calificacion']['nombre_esquema'],
-                'detalle_notas' => $this->detalle($modulo['tipos_nota']),
-                'nota_final'    => $modulo['nota_final'],
-                'estado'        => $modulo['completo'] ? 'Completo' : 'Pendiente',
+                'detalle_notas' => $this->detalle($modulo['tipos_nota'], $modulo['recuperacion']),
+                'nota_final'    => $modulo['nota_definitiva'] ?? $modulo['nota_final'],
+                'estado'        => self::ESTADOS[$modulo['estado']],
             ];
         }
 
@@ -82,18 +92,23 @@ class DocBloqueSabanaNotas implements DocBloqueContract
     }
 
     /**
-     * Consolida los tipos de nota de un módulo en una sola celda.
+     * Consolida los tipos de nota de un módulo (y su recuperación, si la hay) en una sola celda.
      *
      * @param iterable<array<string, mixed>> $tiposNota
+     * @param array<string, mixed>|null      $recuperacion
      * @return string
      */
-    private function detalle(iterable $tiposNota): string
+    private function detalle(iterable $tiposNota, ?array $recuperacion): string
     {
         $partes = [];
 
         foreach ($tiposNota as $tipo) {
             $valor     = $tipo['nota'] === null ? 'pendiente' : number_format((float) $tipo['nota'], 2, ',', '.');
             $partes[]  = $tipo['nombre_tipo'] . ': ' . $valor;
+        }
+
+        if ($recuperacion) {
+            $partes[] = 'Recuperación: ' . number_format((float) $recuperacion['nota'], 2, ',', '.');
         }
 
         return implode(' · ', $partes);

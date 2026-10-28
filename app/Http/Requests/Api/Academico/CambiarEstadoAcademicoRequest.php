@@ -71,8 +71,8 @@ class CambiarEstadoAcademicoRequest extends FormRequest
      *
      * Graduado y Reprobado cierran el ciclo cursado: solo se llega a ellos desde Activo y
      * solo se sale de ellos a Activo (corrección). Graduar exige aprobar la evaluación de
-     * cierre (ciclo terminado, notas completas y aprobadas, asistencia) y reprobar exige
-     * el ciclo terminado sin haberla aprobado (N20), o la pérdida definitiva por fallas (N24).
+     * cierre (ciclo terminado, notas completas y aprobadas) y reprobar exige el ciclo
+     * terminado sin haberla aprobado (N20). La asistencia no decide: solo la nota del profesor.
      *
      * @param \Illuminate\Validation\Validator $validator
      * @return void
@@ -151,12 +151,11 @@ class CambiarEstadoAcademicoRequest extends FormRequest
             return;
         }
 
-        // Quien ya perdió por fallas sin posibilidad de recuperarse se reprueba de una vez:
-        // la matrícula finaliza y el estudiante queda libre para matricularse de nuevo (N24).
-        if (! $evaluacion['ciclo_terminado'] && ! $evaluacion['asistencia']['perdida_definitiva']) {
-            $validator->errors()->add('estado_academico', 'No se puede reprobar antes de que termine el ciclo, salvo que ya haya perdido por fallas.');
+        // Las fallas no reprueban por sí solas: solo la nota del profesor, al terminar el ciclo.
+        if (! $evaluacion['ciclo_terminado']) {
+            $validator->errors()->add('estado_academico', 'No se puede reprobar antes de que termine el ciclo: la aprobación la define la nota del profesor.');
         } elseif ($evaluacion['aprueba']) {
-            $validator->errors()->add('estado_academico', 'El estudiante cumple las notas y la asistencia: corresponde graduarlo.');
+            $validator->errors()->add('estado_academico', 'El estudiante aprueba con las notas del profesor: corresponde graduarlo.');
         }
     }
 }

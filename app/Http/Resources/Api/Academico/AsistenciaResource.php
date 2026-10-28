@@ -24,6 +24,8 @@ class AsistenciaResource extends JsonResource
             'curso_id' => $this->curso_id,
             'estado' => $this->estado,
             'estado_text' => $this->getEstadoText(),
+            'justificada' => (bool) $this->justificada,
+            'justificacion' => $this->justificacion,
             'hora_registro' => $this->hora_registro,
             'observaciones' => $this->observaciones,
             'registrado_por_id' => $this->registrado_por_id,
@@ -31,6 +33,12 @@ class AsistenciaResource extends JsonResource
             'created_at' => $this->created_at?->format('Y-m-d H:i:s'),
             'updated_at' => $this->updated_at?->format('Y-m-d H:i:s'),
             'deleted_at' => $this->deleted_at?->format('Y-m-d H:i:s'),
+
+            // Mora del estudiante: solo cuando el listado la calculó (Asistencia::cargarMora)
+            $this->mergeWhen(array_key_exists('saldo_vencido', $this->resource->getAttributes()), fn () => [
+                'saldo_vencido' => (float) $this->saldo_vencido,
+                'en_mora' => $this->saldo_vencido > 0,
+            ]),
 
             // Relaciones cargadas
             'estudiante' => $this->whenLoaded('estudiante', [
@@ -51,9 +59,12 @@ class AsistenciaResource extends JsonResource
                 ];
             }),
 
-            'grupo' => $this->whenLoaded('grupo', [
+            'grupo' => $this->whenLoaded('grupo', fn () => [
                 'id' => $this->grupo->id,
                 'nombre' => $this->grupo->nombre,
+                'sede' => $this->grupo->relationLoaded('sede') && $this->grupo->sede
+                    ? ['id' => $this->grupo->sede->id, 'nombre' => $this->grupo->sede->nombre]
+                    : null,
             ]),
 
             'ciclo' => $this->whenLoaded('ciclo', [
@@ -91,7 +102,6 @@ class AsistenciaResource extends JsonResource
         return match($this->estado) {
             'presente' => 'Presente',
             'ausente' => 'Ausente',
-            'justificado' => 'Justificado',
             'tardanza' => 'Tardanza',
             default => $this->estado,
         };

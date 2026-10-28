@@ -178,6 +178,20 @@ class EsquemaCalificacion extends Model
     }
 
     /**
+     * Escala de notas del esquema: la menor nota mínima y la mayor nota máxima de sus
+     * tipos de nota. Es el rango válido para la nota de recuperación del módulo.
+     *
+     * @return array{min: float, max: float}
+     */
+    public function rangoNotas(): array
+    {
+        return [
+            'min' => (float) ($this->tiposNota->min('nota_minima') ?? 0),
+            'max' => (float) ($this->tiposNota->max('nota_maxima') ?? 5),
+        ];
+    }
+
+    /**
      * Obtiene los campos permitidos para ordenamiento.
      *
      * @return array

@@ -2,6 +2,7 @@
 
 namespace App\Models\Academico;
 
+use App\Models\Financiero\Cartera\Cartera;
 use App\Models\User;
 use App\Traits\HasFilterScopes;
 use App\Traits\HasGenericScopes;
@@ -25,7 +26,9 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property int $ciclo_id ID del ciclo
  * @property int $modulo_id ID del módulo
  * @property int $curso_id ID del curso
- * @property string $estado Estado de la asistencia (presente, ausente, justificado, tardanza)
+ * @property string $estado Estado de la asistencia (presente, ausente, tardanza)
+ * @property bool $justificada Si la falla o la tardanza tiene justificación (no la borra: sigue contando como falla)
+ * @property string|null $justificacion Motivo de la justificación
  * @property string|null $hora_registro Hora de registro de la asistencia
  * @property string|null $observaciones Observaciones adicionales
  * @property int $registrado_por_id ID del usuario que registró la asistencia
@@ -46,6 +49,9 @@ class Asistencia extends Model
 {
     use HasFactory, SoftDeletes, HasFilterScopes, HasGenericScopes, HasSortingScopes, HasRelationScopes;
 
+    /** Estados de asistencia (enum de la tabla). La justificación va aparte, en `justificada`. */
+    public const ESTADOS = ['presente', 'ausente', 'tardanza'];
+
     protected $guarded = ['id', 'created_at', 'updated_at'];
 
     protected $dates = ['deleted_at'];
@@ -57,6 +63,7 @@ class Asistencia extends Model
      */
     protected $casts = [
         'estado' => 'string',
+        'justificada' => 'boolean',
         'hora_registro' => 'string',
         'fecha_registro' => 'datetime',
     ];
@@ -209,14 +216,60 @@ class Asistencia extends Model
     }
 
     /**
-     * Scope para filtrar asistencias justificadas.
+     * Scope para filtrar asistencias con justificación (ausencias o tardanzas justificadas).
      *
      * @param \Illuminate\Database\Eloquent\Builder $query
      * @return \Illuminate\Database\Eloquent\Builder
      */
     public function scopeJustificadas($query)
     {
-        return $query->where('estado', 'justificado');
+        return $query->where('justificada', true);
+    }
+
+    /**
+     * Scope para filtrar por la sede del grupo.
+     *
+     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @param int $sedeId
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    public function scopeBySede($query, $sedeId)
+    {
+        return $query->whereHas('grupo', fn ($q) => $q->where('sede_id', $sedeId));
+    }
+
+    /**
+     * Scope para filtrar por la fecha de la clase (no la del registro): desde y/o hasta, inclusive.
+     *
+     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @param string|null $desde Fecha inicial (Y-m-d)
+     * @param string|null $hasta Fecha final (Y-m-d)
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    public function scopeByFechaClase($query, ?string $desde, ?string $hasta)
+    {
+        return $query->whereHas('claseProgramada', fn ($q) => $q
+            ->when($desde, fn ($q) => $q->whereDate('fecha_clase', '>=', $desde))
+            ->when($hasta, fn ($q) => $q->whereDate('fecha_clase', '<=', $hasta)));
+    }
+
+    /**
+     * Ordena por la fecha y hora de la clase, la más reciente primero, y luego por estudiante.
+     *
+     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    public function scopeOrdenadoPorClase($query)
+    {
+        $clase = fn (string $columna) => AsistenciaClaseProgramada::select($columna)
+            ->whereColumn('asistencia_clases_programadas.id', 'asistencias.clase_programada_id');
+        $estudiante = fn (string $columna) => User::select($columna)
+            ->whereColumn('users.id', 'asistencias.estudiante_id');
+
+        return $query->orderByDesc($clase('fecha_clase'))
+            ->orderByDesc($clase('hora_inicio'))
+            ->orderBy($estudiante('primer_nombre'))
+            ->orderBy($estudiante('primer_apellido'));
     }
 
     /**
@@ -230,13 +283,31 @@ class Asistencia extends Model
     }
 
     /**
-     * Verifica si la asistencia está justificada.
+     * Verifica si la asistencia tiene justificación. Una ausencia justificada sigue siendo falla.
      *
      * @return bool
      */
     public function esJustificada(): bool
     {
-        return $this->estado === 'justificado';
+        return (bool) $this->justificada;
+    }
+
+    /**
+     * Deja en cada asistencia el saldo vencido de su estudiante (`saldo_vencido`, 0 si está
+     * al día), para mostrar en el listado quién está en mora.
+     *
+     * @param iterable<Asistencia> $asistencias
+     * @return void
+     */
+    public static function cargarMora(iterable $asistencias): void
+    {
+        $asistencias = collect($asistencias);
+        $saldos      = Cartera::saldosVencidosPorEstudiante($asistencias->pluck('estudiante_id')->unique()->values()->all());
+
+        $asistencias->each(fn (Asistencia $asistencia) => $asistencia->setAttribute(
+            'saldo_vencido',
+            $saldos->get($asistencia->estudiante_id, 0.0)
+        ));
     }
 
     /**
@@ -271,6 +342,7 @@ class Asistencia extends Model
             'estudiante',
             'claseProgramada',
             'grupo',
+            'grupo.sede',
             'ciclo',
             'modulo',
             'curso',
@@ -311,6 +383,9 @@ class Asistencia extends Model
             ->when(isset($filters['estudiante_id']) && $filters['estudiante_id'], function ($q) use ($filters) {
                 return $q->byEstudiante($filters['estudiante_id']);
             })
+            ->when(! empty($filters['estudiante']), function ($q) use ($filters) {
+                return $q->whereHas('estudiante', fn ($e) => $e->buscar($filters['estudiante']));
+            })
             ->when(isset($filters['grupo_id']) && $filters['grupo_id'], function ($q) use ($filters) {
                 return $q->byGrupo($filters['grupo_id']);
             })
@@ -328,6 +403,18 @@ class Asistencia extends Model
             })
             ->when(isset($filters['estado']) && $filters['estado'], function ($q) use ($filters) {
                 return $q->where('estado', $filters['estado']);
+            })
+            ->when(isset($filters['justificada']) && $filters['justificada'] !== '', function ($q) use ($filters) {
+                return $q->where('justificada', filter_var($filters['justificada'], FILTER_VALIDATE_BOOLEAN));
+            })
+            ->when(isset($filters['sede_id']) && $filters['sede_id'], function ($q) use ($filters) {
+                return $q->bySede($filters['sede_id']);
+            })
+            ->when(! empty($filters['fecha']), function ($q) use ($filters) {
+                return $q->byFechaClase($filters['fecha'], $filters['fecha']);
+            })
+            ->when(! empty($filters['fecha_desde']) || ! empty($filters['fecha_hasta']), function ($q) use ($filters) {
+                return $q->byFechaClase($filters['fecha_desde'] ?? null, $filters['fecha_hasta'] ?? null);
             })
             ->when(isset($filters['include_trashed']) && $filters['include_trashed'], function ($q) {
                 return $q->withTrashed();

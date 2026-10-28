@@ -11,6 +11,7 @@ use App\Models\Academico\EsquemaCalificacion;
 use App\Models\Academico\Grupo;
 use App\Models\Academico\Matricula;
 use App\Models\Academico\NotaEstudiante;
+use App\Models\Academico\RecuperacionNota;
 use App\Models\Academico\TipoNotaEsquema;
 use App\Models\Configuracion\Sede;
 use App\Models\User;
@@ -84,7 +85,6 @@ class EvaluacionCierreTest extends TestCase
         AsistenciaConfiguracion::create([
             'curso_id'                => $curso->id,
             'porcentaje_minimo'       => 75,
-            'aplicar_justificaciones' => false,
             'perder_por_fallas'       => true,
             'fecha_inicio_vigencia'   => now()->subYear()->toDateString(),
         ]);
@@ -110,7 +110,7 @@ class EvaluacionCierreTest extends TestCase
     }
 
     /**
-     * Registra una clase de 3 h por cada estado indicado.
+     * Registra una clase de 3 h por cada estado indicado ('justificada' = ausencia justificada).
      *
      * @param array<int, string> $estados
      */
@@ -131,7 +131,8 @@ class EvaluacionCierreTest extends TestCase
                 'ciclo_id'            => $this->ciclo->id,
                 'modulo_id'           => $this->grupo->modulo_id,
                 'curso_id'            => $this->ciclo->curso_id,
-                'estado'              => $estado,
+                'estado'              => $estado === 'justificada' ? 'ausente' : $estado,
+                'justificada'         => $estado === 'justificada',
             ]);
         }
     }
@@ -182,19 +183,57 @@ class EvaluacionCierreTest extends TestCase
     }
 
     /** @test */
-    public function no_gradua_si_pierde_por_fallas_y_las_justificadas_no_cuentan_si_la_regla_lo_dice(): void
+    public function la_recuperacion_aprobada_permite_graduar_y_la_reprobada_no(): void
     {
-        $this->ponerNota(4.5);
-        $this->registrarAsistencias(['presente', 'justificado', 'justificado', 'ausente']);
+        $this->ponerNota(2.5);
+        $this->registrarAsistencias(['presente', 'presente']);
+        $recuperacion = RecuperacionNota::create([
+            'estudiante_id'     => $this->matricula->estudiante_id,
+            'grupo_id'          => $this->grupo->id,
+            'modulo_id'         => $this->grupo->modulo_id,
+            'nota'              => 2.8,
+            'fecha_registro'    => now()->toDateString(),
+            'registrado_por_id' => $this->coordinador->id,
+        ]);
 
         $this->actingAs($this->coordinador)
             ->getJson(route('matriculas.evaluacion-cierre', $this->matricula))
             ->assertOk()
             ->assertJsonPath('data.aprueba', false)
-            ->assertJsonPath('data.asistencia.porcentaje', 25)
-            ->assertJsonPath('data.asistencia.pierde_por_fallas', true);
+            ->assertJsonPath('data.modulos.0.nota_definitiva', 2.8)
+            ->assertJsonFragment(['El módulo ' . $this->grupo->modulo->nombre . ' se reprobó en la recuperación con 2.8 (mínimo 3).']);
 
-        $this->cambiar(Matricula::ESTADO_GRADUADO)->assertUnprocessable();
+        $recuperacion->update(['nota' => 3.6]);
+
+        $this->actingAs($this->coordinador)
+            ->getJson(route('matriculas.evaluacion-cierre', $this->matricula))
+            ->assertOk()
+            ->assertJsonPath('data.aprueba', true)
+            ->assertJsonPath('data.modulos.0.aprobado', true)
+            ->assertJsonPath('data.modulos.0.recuperacion.nota', 3.6);
+
+        $this->cambiar(Matricula::ESTADO_GRADUADO)->assertOk();
+    }
+
+    /** @test */
+    public function las_fallas_no_impiden_graduar_porque_decide_la_nota_del_profesor(): void
+    {
+        // Las ausencias justificadas siguen siendo falla: 25 % de asistencia
+        $this->ponerNota(4.5);
+        $this->registrarAsistencias(['presente', 'justificada', 'justificada', 'ausente']);
+
+        $this->actingAs($this->coordinador)
+            ->getJson(route('matriculas.evaluacion-cierre', $this->matricula))
+            ->assertOk()
+            ->assertJsonPath('data.aprueba', true)
+            ->assertJsonPath('data.motivos', [])
+            ->assertJsonPath('data.asistencia.porcentaje', 25)
+            ->assertJsonPath('data.asistencia.pierde_por_fallas', true)
+            ->assertJsonCount(1, 'data.advertencias');
+
+        // Con la nota aprobada no se reprueba por fallas
+        $this->cambiar(Matricula::ESTADO_REPROBADO)->assertUnprocessable()->assertJsonValidationErrors('estado_academico');
+        $this->cambiar(Matricula::ESTADO_GRADUADO)->assertOk()->assertJsonPath('data.estado_academico_texto', 'Graduado');
     }
 
     /** @test */
@@ -209,31 +248,19 @@ class EvaluacionCierreTest extends TestCase
     }
 
     /** @test */
-    public function reprueba_antes_de_terminar_el_ciclo_si_ya_perdio_por_fallas(): void
+    public function la_perdida_definitiva_por_fallas_es_informativa_y_no_permite_reprobar_antes_del_cierre(): void
     {
-        // N24: el módulo tiene 12 h y el mínimo es 75 %: se pueden faltar 3 h como máximo
+        // N24: el módulo tiene 12 h y el mínimo es 75 %; con 6 h faltadas ya no alcanza el mínimo
         $this->ciclo->update(['fecha_fin' => now()->addMonth()->toDateString()]);
         $this->grupo->modulo->update(['duracion' => 12]);
-
-        $this->registrarAsistencias(['ausente']);
-        $this->actingAs($this->coordinador)->getJson(route('matriculas.evaluacion-cierre', $this->matricula))
-            ->assertOk()->assertJsonPath('data.asistencia.perdida_definitiva', false);
-        $this->cambiar(Matricula::ESTADO_REPROBADO)->assertUnprocessable();
-
-        // 6 h faltadas: aunque asista al resto, llega como máximo al 50 %
-        Asistencia::query()->forceDelete();
-        AsistenciaClaseProgramada::query()->forceDelete();
         $this->registrarAsistencias(['ausente', 'ausente']);
+
         $this->actingAs($this->coordinador)->getJson(route('matriculas.evaluacion-cierre', $this->matricula))
             ->assertOk()->assertJsonPath('data.asistencia.perdida_definitiva', true);
 
         $this->cambiar(Matricula::ESTADO_REPROBADO)
-            ->assertOk()
-            ->assertJsonPath('data.estado_academico_texto', 'Reprobado')
-            ->assertJsonPath('data.status', 0);
-
-        // La matrícula finalizó: ya no cuenta como vigente y el estudiante puede volver a matricularse
-        $this->assertFalse(Matricula::byEstudiante($this->matricula->estudiante_id)->byCurso($this->matricula->curso_id)->vigentes()->exists());
+            ->assertUnprocessable()
+            ->assertJsonFragment(['No se puede reprobar antes de que termine el ciclo: la aprobación la define la nota del profesor.']);
     }
 
     /** @test */

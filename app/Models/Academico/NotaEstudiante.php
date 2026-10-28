@@ -198,6 +198,32 @@ class NotaEstudiante extends Model
     }
 
     /**
+     * Scope de notas de los estudiantes matriculados en el ciclo, en los grupos del ciclo.
+     *
+     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @param int $cicloId
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    public function scopeByCiclo($query, $cicloId)
+    {
+        return $query
+            ->whereIn('grupo_id', fn ($q) => $q->select('grupo_id')->from('ciclo_grupo')->where('ciclo_id', $cicloId))
+            ->whereIn('estudiante_id', Matricula::where('ciclo_id', $cicloId)->select('estudiante_id'));
+    }
+
+    /**
+     * Scope de notas de los grupos que dicta el profesor.
+     *
+     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @param int $profesorId
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    public function scopeByProfesor($query, $profesorId)
+    {
+        return $query->whereIn('grupo_id', Grupo::where('profesor_id', $profesorId)->select('id'));
+    }
+
+    /**
      * Scope para filtrar por estado.
      *
      * @param \Illuminate\Database\Eloquent\Builder $query
@@ -281,6 +307,12 @@ class NotaEstudiante extends Model
             })
             ->when(isset($filters['modulo_id']) && $filters['modulo_id'], function ($q) use ($filters) {
                 return $q->byModulo($filters['modulo_id']);
+            })
+            ->when(isset($filters['ciclo_id']) && $filters['ciclo_id'], function ($q) use ($filters) {
+                return $q->byCiclo($filters['ciclo_id']);
+            })
+            ->when(isset($filters['profesor_id']) && $filters['profesor_id'], function ($q) use ($filters) {
+                return $q->byProfesor($filters['profesor_id']);
             })
             ->when(isset($filters['esquema_calificacion_id']) && $filters['esquema_calificacion_id'], function ($q) use ($filters) {
                 return $q->where('esquema_calificacion_id', $filters['esquema_calificacion_id']);

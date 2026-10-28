@@ -270,6 +270,29 @@ class Cartera extends Model
             : $query->where('numero_cuota', '>', 0);
     }
 
+    /**
+     * Saldo vencido de cada estudiante (cuotas pendientes con saldo y fecha de vencimiento
+     * pasada), solo de los que están en mora. Lo usan las listas de asistencia para que el
+     * profesor sepa quién está en mora antes de dejarlo entrar a clase.
+     *
+     * @param array<int> $estudianteIds
+     * @return \Illuminate\Support\Collection<int, float> estudiante_id => saldo vencido
+     */
+    public static function saldosVencidosPorEstudiante(array $estudianteIds): \Illuminate\Support\Collection
+    {
+        if ($estudianteIds === []) {
+            return collect();
+        }
+
+        return static::vencidas()
+            ->where('saldo', '>', 0)
+            ->whereIn('estudiante_id', $estudianteIds)
+            ->groupBy('estudiante_id')
+            ->selectRaw('estudiante_id, SUM(saldo) as saldo_vencido')
+            ->pluck('saldo_vencido', 'estudiante_id')
+            ->map(fn ($saldo) => round((float) $saldo, 2));
+    }
+
     // -------------------------------------------------------------------------
     // HasRelationScopes / HasSortingScopes / HasFilterScopes — configuración
     // -------------------------------------------------------------------------

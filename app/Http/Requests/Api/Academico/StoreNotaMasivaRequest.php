@@ -5,11 +5,12 @@ namespace App\Http\Requests\Api\Academico;
 use App\Models\Academico\EsquemaCalificacion;
 use App\Models\Academico\Grupo;
 use App\Http\Requests\Api\Academico\Concerns\ValidaEstudiantesDelGrupo;
+use App\Http\Requests\Api\Academico\Concerns\ValidaNotasAbiertas;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreNotaMasivaRequest extends FormRequest
 {
-    use ValidaEstudiantesDelGrupo;
+    use ValidaEstudiantesDelGrupo, ValidaNotasAbiertas;
 
     /**
      * Determina si el usuario está autorizado para hacer esta solicitud.
@@ -97,7 +98,8 @@ class StoreNotaMasivaRequest extends FormRequest
     }
 
     /**
-     * El tipo de nota debe pertenecer al esquema, y el esquema aplicar al grupo y a su módulo.
+     * El tipo de nota debe pertenecer al esquema, el esquema aplicar al grupo y a su módulo,
+     * y cada estudiante estar en el grupo con las notas del ciclo abiertas.
      *
      * @param \Illuminate\Validation\Validator $validator
      * @return void
@@ -125,7 +127,9 @@ class StoreNotaMasivaRequest extends FormRequest
                 $validator->errors()->add('tipo_nota_esquema_id', 'El tipo de nota no pertenece al esquema de calificación.');
             }
 
-            $this->validarEstudiantesDelGrupo($validator, $grupo, array_column((array) $this->input('notas', []), 'estudiante_id'), 'notas');
+            $estudianteIds = array_column((array) $this->input('notas', []), 'estudiante_id');
+            $this->validarEstudiantesDelGrupo($validator, $grupo, $estudianteIds, 'notas');
+            $this->validarNotasAbiertas($validator, $grupo, $estudianteIds, 'notas');
         });
     }
 }

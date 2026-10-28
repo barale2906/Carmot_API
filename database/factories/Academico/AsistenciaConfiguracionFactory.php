@@ -23,7 +23,6 @@ class AsistenciaConfiguracionFactory extends Factory
             'modulo_id' => fake()->optional(0.3)->randomElement([null, Modulo::inRandomOrder()->first()?->id ?? Modulo::factory()]),
             'porcentaje_minimo' => fake()->randomFloat(2, 70, 95),
             'horas_minimas' => fake()->optional(0.3)->numberBetween(20, 120),
-            'aplicar_justificaciones' => fake()->boolean(80),
             'perder_por_fallas' => fake()->boolean(90),
             'fecha_inicio_vigencia' => fake()->optional(0.5)->dateTimeBetween('-1 year', 'now'),
             'fecha_fin_vigencia' => fake()->optional(0.3)->dateTimeBetween('now', '+1 year'),

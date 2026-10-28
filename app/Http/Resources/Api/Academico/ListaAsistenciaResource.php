@@ -12,7 +12,7 @@ class ListaAsistenciaResource extends JsonResource
      *
      * Este resource se usa para la respuesta de lista de asistencia que incluye:
      * - Información del grupo
-     * - Estudiantes del grupo (de ciclos activos)
+     * - Estudiantes del grupo (de ciclos activos), con su saldo vencido y si están en mora
      * - Clases programadas del grupo
      *
      * @return array<string, mixed>
@@ -46,6 +46,8 @@ class ListaAsistenciaResource extends JsonResource
                         'documento' => $estudiante->documento,
                         'ciclo_id' => $estudiante->ciclo_id ?? null,
                         'ciclo_nombre' => $estudiante->ciclo_nombre ?? null,
+                        'saldo_vencido' => (float) ($estudiante->saldo_vencido ?? 0),
+                        'en_mora' => ($estudiante->saldo_vencido ?? 0) > 0,
                     ];
                 });
             }),

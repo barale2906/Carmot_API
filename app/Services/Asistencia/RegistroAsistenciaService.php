@@ -13,12 +13,13 @@ use Illuminate\Support\Facades\DB;
  * Un estudiante tiene una sola asistencia por clase (índice único), así que volver a
  * guardar la lista actualiza los registros existentes —incluidos los eliminados, que
  * se restauran— en lugar de duplicarlos. Al registrarla, la clase pasa a "dictada".
+ * La justificación va aparte del estado: una ausencia justificada sigue siendo falla.
  */
 class RegistroAsistenciaService
 {
     /**
      * @param AsistenciaClaseProgramada $clase
-     * @param array<int, array{estudiante_id: int, estado: string, observaciones?: string|null}> $registros
+     * @param array<int, array{estudiante_id: int, estado: string, justificada?: bool, justificacion?: string|null, observaciones?: string|null}> $registros
      * @param int $usuarioId Usuario que toma la asistencia
      * @return array{creadas: int, actualizadas: int, asistencias: EloquentCollection}
      */
@@ -38,8 +39,11 @@ class RegistroAsistenciaService
             $asistencias  = new EloquentCollection();
 
             foreach ($registros as $registro) {
+                $justificada = filter_var($registro['justificada'] ?? false, FILTER_VALIDATE_BOOLEAN);
                 $datos = [
                     'estado'            => $registro['estado'],
+                    'justificada'       => $justificada,
+                    'justificacion'     => $justificada ? ($registro['justificacion'] ?? null) : null,
                     'observaciones'     => $registro['observaciones'] ?? null,
                     'registrado_por_id' => $usuarioId,
                     'hora_registro'     => now()->format('H:i:s'),

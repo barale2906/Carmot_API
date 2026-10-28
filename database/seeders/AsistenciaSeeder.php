@@ -40,17 +40,16 @@ class AsistenciaSeeder extends Seeder
                 ->take(rand(5, 15)); // Entre 5 y 15 estudiantes por clase
 
             foreach ($estudiantesDelCiclo as $estudianteId) {
-                // 80% presente, 10% ausente, 5% justificado, 5% tardanza
+                // 80% presente, 15% ausente (un tercio justificadas), 5% tardanza
                 $random = fake()->numberBetween(1, 100);
                 if ($random <= 80) {
                     $estado = 'presente';
-                } elseif ($random <= 90) {
-                    $estado = 'ausente';
                 } elseif ($random <= 95) {
-                    $estado = 'justificado';
+                    $estado = 'ausente';
                 } else {
                     $estado = 'tardanza';
                 }
+                $justificada = $estado === 'ausente' && $random > 90;
 
                 Asistencia::create([
                     'estudiante_id' => $estudianteId,
@@ -61,7 +60,8 @@ class AsistenciaSeeder extends Seeder
                     'curso_id' => $claseProgramada->ciclo->curso_id,
                     'estado' => $estado,
                     'hora_registro' => fake()->time('H:i:s'),
-                    'observaciones' => $estado === 'justificado' ? fake()->sentence() : null,
+                    'justificada' => $justificada,
+                    'justificacion' => $justificada ? fake()->sentence() : null,
                     'registrado_por_id' => 1, // Usuario por defecto
                     'fecha_registro' => $claseProgramada->fecha_clase,
                 ]);

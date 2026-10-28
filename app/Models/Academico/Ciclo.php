@@ -36,6 +36,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property bool $fecha_fin_automatica true: la fecha fin se calcula; false: fecha fin fija y el contenido se ajusta
  * @property float|null $factor_ajuste Proporción de horas dictadas en modo fijo (1 = completo; null = no aplica o no cabe)
  * @property string|null $advertencia_ajuste Advertencia del último cálculo (factor bajo el umbral, fecha insuficiente...)
+ * @property \Carbon\Carbon|null $notas_cerradas_at Fecha de cierre de notas (null = registro de notas abierto)
+ * @property int|null $notas_cerradas_por_id Usuario que cerró las notas
  * @property int $status Estado del ciclo (1: Activo, 0: Inactivo)
  * @property \Carbon\Carbon $created_at Fecha de creación
  * @property \Carbon\Carbon $updated_at Fecha de última actualización
@@ -44,6 +46,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property-read \App\Models\Configuracion\Sede $sede Sede a la que pertenece
  * @property-read \App\Models\Academico\Curso $curso Curso al que pertenece
  * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\Academico\Grupo[] $grupos Grupos asociados al ciclo
+ * @property-read \App\Models\User|null $notasCerradasPor Usuario que cerró las notas
+ * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\Academico\CicloCierreNota[] $cierresNotas Historial de cierres y reaperturas de notas
  */
 class Ciclo extends Model
 {
@@ -69,6 +73,7 @@ class Ciclo extends Model
         'fecha_fin_automatica' => 'boolean',
         'factor_ajuste' => 'float',
         'inscritos' => 'integer',
+        'notas_cerradas_at' => 'datetime',
     ];
 
     /**
@@ -127,6 +132,57 @@ class Ciclo extends Model
     public function asistencias(): HasMany
     {
         return $this->hasMany(Asistencia::class);
+    }
+
+    /**
+     * Matrículas del ciclo (uno a muchos).
+     *
+     * @return HasMany
+     */
+    public function matriculas(): HasMany
+    {
+        return $this->hasMany(Matricula::class);
+    }
+
+    /**
+     * Usuario que cerró las notas del ciclo.
+     *
+     * @return BelongsTo
+     */
+    public function notasCerradasPor(): BelongsTo
+    {
+        return $this->belongsTo(\App\Models\User::class, 'notas_cerradas_por_id');
+    }
+
+    /**
+     * Historial de cierres y reaperturas de notas, del más reciente al más antiguo.
+     *
+     * @return HasMany
+     */
+    public function cierresNotas(): HasMany
+    {
+        return $this->hasMany(CicloCierreNota::class)->latest('id');
+    }
+
+    /**
+     * Indica si las notas del ciclo están cerradas.
+     *
+     * @return bool
+     */
+    public function notasCerradas(): bool
+    {
+        return $this->notas_cerradas_at !== null;
+    }
+
+    /**
+     * Scope de ciclos con las notas cerradas.
+     *
+     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    public function scopeConNotasCerradas($query)
+    {
+        return $query->whereNotNull('notas_cerradas_at');
     }
 
     /**

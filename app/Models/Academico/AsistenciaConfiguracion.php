@@ -22,8 +22,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property int|null $modulo_id ID del módulo (null para configuración general o por curso)
  * @property float $porcentaje_minimo Porcentaje mínimo de asistencia requerido
  * @property int|null $horas_minimas Horas mínimas de asistencia requeridas
- * @property bool $aplicar_justificaciones Si las justificaciones cuentan para el mínimo
- * @property bool $perder_por_fallas Si se pierde el curso por faltas
+ * @property bool $perder_por_fallas Si se marca la alerta "pierde por fallas" al no cumplir el mínimo (informativa: la aprobación la define la nota del profesor)
  * @property \Carbon\Carbon|null $fecha_inicio_vigencia Fecha de inicio de vigencia
  * @property \Carbon\Carbon|null $fecha_fin_vigencia Fecha de fin de vigencia
  * @property string|null $observaciones Observaciones adicionales
@@ -57,7 +56,6 @@ class AsistenciaConfiguracion extends Model
     protected $casts = [
         'porcentaje_minimo' => 'decimal:2',
         'horas_minimas' => 'integer',
-        'aplicar_justificaciones' => 'boolean',
         'perder_por_fallas' => 'boolean',
         'fecha_inicio_vigencia' => 'date',
         'fecha_fin_vigencia' => 'date',

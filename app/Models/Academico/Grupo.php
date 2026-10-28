@@ -156,6 +156,33 @@ class Grupo extends Model
     }
 
     /**
+     * IDs de los estudiantes cuyas notas en este grupo están cerradas: los matriculados
+     * (sin anular) en un ciclo del grupo con el registro de notas cerrado.
+     *
+     * @return \Illuminate\Support\Collection<int, int>
+     */
+    public function idsEstudiantesConNotasCerradas(): \Illuminate\Support\Collection
+    {
+        return Matricula::whereIn('ciclo_id', $this->ciclos()->conNotasCerradas()->select('ciclos.id'))
+            ->where('status', '!=', 2) // las anuladas no cuentan
+            ->pluck('estudiante_id')
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values();
+    }
+
+    /**
+     * Indica si las notas del estudiante en este grupo están cerradas.
+     *
+     * @param int $estudianteId
+     * @return bool
+     */
+    public function notasCerradasPara(int $estudianteId): bool
+    {
+        return $this->idsEstudiantesConNotasCerradas()->contains($estudianteId);
+    }
+
+    /**
      * Relación con Programacion (muchos a muchos).
      * Un grupo puede pertenecer a múltiples programaciones.
      * La tabla pivot incluye las fechas de inicio y fin específicas del grupo en cada programación.

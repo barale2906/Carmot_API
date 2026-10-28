@@ -3,23 +3,25 @@
 namespace App\Http\Controllers\Api\Academico;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\Academico\FiltrarConsolidadoNotasRequest;
 use App\Http\Requests\Api\Academico\StoreNotaEstudianteRequest;
 use App\Http\Requests\Api\Academico\StoreNotaMasivaRequest;
 use App\Http\Requests\Api\Academico\UpdateNotaEstudianteRequest;
 use App\Http\Resources\Api\Academico\NotaEstudianteResource;
+use App\Http\Resources\Api\Academico\ResultadoModuloResource;
 use App\Http\Resources\Api\Academico\SabanaNotasEstudianteResource;
 use App\Http\Resources\Api\Academico\SabanaNotasGrupalResource;
 use App\Models\Academico\Ciclo;
 use App\Models\Academico\EsquemaCalificacion;
 use App\Models\Academico\Grupo;
-use App\Models\Academico\Matricula;
-use App\Models\Academico\Modulo;
 use App\Models\Academico\NotaEstudiante;
 use App\Models\Academico\TipoNotaEsquema;
+use App\Models\User;
+use App\Services\Academico\ConsolidadoNotasService;
 use App\Services\Academico\SabanaNotasService;
 use Illuminate\Http\JsonResponse;
-use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 
 class NotaEstudianteController extends Controller
@@ -27,11 +29,14 @@ class NotaEstudianteController extends Controller
     /**
      * Constructor del controlador.
      *
-     * @param SabanaNotasService $sabanaNotas Cálculo de la sábana de notas por estudiante.
+     * @param SabanaNotasService      $sabanaNotas  Cálculo de las sábanas de notas (por estudiante y grupal).
+     * @param ConsolidadoNotasService $consolidado  Consulta de resultados por estudiante, grupo, ciclo o profesor.
      */
-    public function __construct(private SabanaNotasService $sabanaNotas)
-    {
-        $this->middleware('permission:aca_notas')->only(['index', 'show', 'sabanaEstudiante', 'sabanaGrupal', 'calcularNotaFinal']);
+    public function __construct(
+        private SabanaNotasService $sabanaNotas,
+        private ConsolidadoNotasService $consolidado
+    ) {
+        $this->middleware('permission:aca_notas')->only(['index', 'show', 'sabanaEstudiante', 'sabanaGrupal', 'calcularNotaFinal', 'consolidado', 'filters']);
         $this->middleware('permission:aca_notaCrear')->only(['store', 'storeMasivo']);
         $this->middleware('permission:aca_notaEditar')->only(['update']);
         $this->middleware('permission:aca_notaInactivar')->only(['destroy', 'restore']);
@@ -46,7 +51,7 @@ class NotaEstudianteController extends Controller
     public function index(Request $request): JsonResponse
     {
         $filters = $request->only([
-            'estudiante_id', 'grupo_id', 'modulo_id', 'esquema_calificacion_id',
+            'estudiante_id', 'grupo_id', 'modulo_id', 'ciclo_id', 'profesor_id', 'esquema_calificacion_id',
             'tipo_nota_esquema_id', 'status', 'include_trashed', 'only_trashed'
         ]);
 
@@ -337,13 +342,17 @@ class NotaEstudianteController extends Controller
     }
 
     /**
-     * Elimina la nota especificada (soft delete).
+     * Elimina la nota especificada (soft delete). No se permite si las notas del ciclo están cerradas.
      *
      * @param NotaEstudiante $notaEstudiante
      * @return JsonResponse
      */
     public function destroy(NotaEstudiante $notaEstudiante): JsonResponse
     {
+        if ($notaEstudiante->grupo->notasCerradasPara($notaEstudiante->estudiante_id)) {
+            return $this->respuestaNotasCerradas();
+        }
+
         $notaEstudiante->delete();
 
         return response()->json([
@@ -352,7 +361,7 @@ class NotaEstudianteController extends Controller
     }
 
     /**
-     * Restaura una nota eliminada (soft delete).
+     * Restaura una nota eliminada (soft delete). No se permite si las notas del ciclo están cerradas.
      *
      * @param int $id
      * @return JsonResponse
@@ -360,6 +369,11 @@ class NotaEstudianteController extends Controller
     public function restore(int $id): JsonResponse
     {
         $nota = NotaEstudiante::onlyTrashed()->findOrFail($id);
+
+        if ($nota->grupo->notasCerradasPara($nota->estudiante_id)) {
+            return $this->respuestaNotasCerradas();
+        }
+
         $nota->restore();
 
         return response()->json([
@@ -480,6 +494,7 @@ class NotaEstudianteController extends Controller
 
     /**
      * Obtiene la sabana de notas grupal (todos los estudiantes de un grupo en un módulo). Prohibida para alumnos.
+     * Cada estudiante trae su resultado: nota final, recuperación, nota definitiva, estado y si sus notas están cerradas.
      *
      * @param Request $request
      * @param int $grupoId
@@ -490,112 +505,116 @@ class NotaEstudianteController extends Controller
     {
         abort_if($request->user()->esSoloEstudiante(), 403, 'Un estudiante no puede consultar la información de un grupo completo.');
 
-        try {
-            $grupo = Grupo::with('modulo')->findOrFail($grupoId);
-            $modulo = Modulo::findOrFail($moduloId);
+        $grupo = Grupo::findOrFail($grupoId);
 
-            // Verificar que el módulo pertenezca al grupo
-            if ($grupo->modulo_id !== $moduloId) {
-                return response()->json([
-                    'message' => 'El módulo no pertenece al grupo especificado.',
-                ], 422);
-            }
-
-            // Obtener esquema activo. activoParaModuloGrupo es un scope: sin ->first()
-            // devolvería el Builder y no el esquema, y el chequeo siguiente nunca aplicaría.
-            $esquema = EsquemaCalificacion::activoParaModuloGrupo($moduloId, $grupoId)->first();
-
-            if (!$esquema) {
-                return response()->json([
-                    'message' => 'No se encontró un esquema activo para este módulo y grupo.',
-                ], 404);
-            }
-
-            // Obtener estudiantes del grupo (a través de matrículas del ciclo)
-            // Primero obtener los ciclos del grupo
-            $ciclos = $grupo->ciclos()->pluck('ciclos.id');
-
-            // Obtener matrículas activas de esos ciclos
-            $matriculas = Matricula::whereIn('ciclo_id', $ciclos)
-                ->where('status', 1)
-                ->with('estudiante')
-                ->get();
-
-            $estudiantesIds = $matriculas->pluck('estudiante_id')->unique();
-
-            // Obtener todas las notas de estos estudiantes en este módulo/grupo
-            $notas = NotaEstudiante::whereIn('estudiante_id', $estudiantesIds)
-                ->where('grupo_id', $grupoId)
-                ->where('modulo_id', $moduloId)
-                ->where('esquema_calificacion_id', $esquema->id)
-                ->where('status', 1)
-                ->with(['estudiante', 'tipoNotaEsquema'])
-                ->get();
-
-            // Obtener tipos de nota del esquema
-            $tiposNota = $esquema->tiposNota->sortBy('orden');
-
-            // Construir datos de estudiantes
-            $estudiantesData = [];
-
-            foreach ($estudiantesIds as $estudianteId) {
-                $estudiante = $matriculas->firstWhere('estudiante_id', $estudianteId)->estudiante;
-                $notasEstudiante = $notas->where('estudiante_id', $estudianteId);
-
-                // Construir datos de tipos de nota para este estudiante
-                $tiposNotaData = $tiposNota->map(function ($tipo) use ($notasEstudiante) {
-                    $nota = $notasEstudiante->firstWhere('tipo_nota_esquema_id', $tipo->id);
-                    return [
-                        'id' => $tipo->id,
-                        'nombre_tipo' => $tipo->nombre_tipo,
-                        'peso' => (float) $tipo->peso,
-                        'nota' => $nota ? (float) $nota->nota : null,
-                        'nota_ponderada' => $nota ? (float) $nota->nota_ponderada : null,
-                        'pendiente' => !$nota,
-                    ];
-                });
-
-                // Calcular nota final
-                $notaFinal = $notasEstudiante->sum('nota_ponderada');
-
-                $estudiantesData[] = [
-                    'estudiante' => [
-                        'id' => $estudiante->id,
-                        'name' => $estudiante->name,
-                        'email' => $estudiante->email,
-                        'documento' => $estudiante->documento,
-                    ],
-                    'tipos_nota' => $tiposNotaData,
-                    'nota_final' => round($notaFinal, 2),
-                    'completo' => $notasEstudiante->count() === $tiposNota->count(),
-                ];
-            }
-
-            $data = [
-                'grupo' => [
-                    'id' => $grupo->id,
-                    'nombre' => $grupo->nombre,
-                ],
-                'modulo' => [
-                    'id' => $modulo->id,
-                    'nombre' => $modulo->nombre,
-                ],
-                'esquema_calificacion' => $esquema->load(['modulo', 'grupo', 'profesor', 'tiposNota']),
-                'estudiantes' => $estudiantesData,
-                'total_estudiantes' => count($estudiantesData),
-                'estudiantes_con_notas' => collect($estudiantesData)->filter(fn($e) => $e['completo'])->count(),
-            ];
-
+        if ((int) $grupo->modulo_id !== $moduloId) {
             return response()->json([
-                'data' => new SabanaNotasGrupalResource($data),
-            ]);
-
-        } catch (\Exception $e) {
-            return response()->json([
-                'message' => 'Error al generar la sabana de notas grupal.',
-                'error' => $e->getMessage(),
-            ], 500);
+                'message' => 'El módulo no pertenece al grupo especificado.',
+            ], 422);
         }
+
+        $data = $this->sabanaNotas->porGrupo($grupo);
+
+        if (!$data) {
+            return response()->json([
+                'message' => 'No se encontró un esquema activo para este módulo y grupo.',
+            ], 404);
+        }
+
+        return response()->json([
+            'data' => new SabanaNotasGrupalResource($data),
+        ]);
+    }
+
+    /**
+     * Consolidado de resultados por módulo: una fila por estudiante y grupo con nota final,
+     * recuperación, nota definitiva y estado (pendiente, aprobado, reprobado).
+     *
+     * Se filtra por ciclo, grupo, profesor, estudiante o búsqueda (combinables; al menos uno).
+     * El alumno solo ve lo suyo, el profesor solo sus grupos y el resto del personal los
+     * grupos de sus sedes. `meta` agrega el `resumen` del total filtrado (no solo de la
+     * página) y `sin_esquema`, los grupos cuyo módulo no tiene esquema activo.
+     *
+     * @param FiltrarConsolidadoNotasRequest $request
+     * @return JsonResponse
+     */
+    public function consolidado(FiltrarConsolidadoNotasRequest $request): JsonResponse
+    {
+        $resultado = $this->consolidado->consultar($request->filtros());
+        $filas     = $resultado['filas'];
+        $perPage   = (int) $request->get('per_page', 50);
+        $page      = (int) $request->get('page', 1);
+        $pagina    = new LengthAwarePaginator($filas->forPage($page, $perPage)->values(), $filas->count(), $perPage, $page);
+
+        return response()->json([
+            'data' => ResultadoModuloResource::collection($pagina->getCollection()),
+            'meta' => [
+                'current_page' => $pagina->currentPage(),
+                'last_page'    => $pagina->lastPage(),
+                'per_page'     => $pagina->perPage(),
+                'total'        => $pagina->total(),
+                'from'         => $pagina->firstItem(),
+                'to'           => $pagina->lastItem(),
+                'resumen'      => $this->consolidado->resumen($filas),
+                'sin_esquema'  => $resultado['sin_esquema'],
+            ],
+        ]);
+    }
+
+    /**
+     * Opciones de filtro de la consulta de notas: ciclos (con su estado de cierre), grupos
+     * y profesores que el usuario puede consultar, y los estados de resultado.
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function filters(Request $request): JsonResponse
+    {
+        $usuario = $request->user();
+        abort_if($usuario->esSoloEstudiante(), 403, 'Un estudiante no puede consultar las notas de otros estudiantes.');
+
+        $grupos = Grupo::with('modulo')
+            ->whereHas('ciclos')
+            ->when(
+                $usuario->esSoloProfesor(),
+                fn ($q) => $q->where('profesor_id', $usuario->id),
+                fn ($q) => $q->whereIn('sede_id', $usuario->idsSedesAccesibles())
+            )
+            ->orderBy('nombre')
+            ->get();
+
+        $ciclos = Ciclo::whereHas('grupos', fn ($q) => $q->whereIn('grupos.id', $grupos->modelKeys()))
+            ->orderByDesc('fecha_inicio')
+            ->get();
+
+        $profesores = User::whereIn('id', $grupos->pluck('profesor_id')->filter()->unique())
+            ->get()
+            ->sortBy('name')
+            ->values();
+
+        return response()->json([
+            'data' => [
+                'ciclos' => $ciclos->map(fn (Ciclo $ciclo) => [
+                    'id'             => $ciclo->id,
+                    'nombre'         => $ciclo->nombre,
+                    'fecha_inicio'   => $ciclo->fecha_inicio?->format('Y-m-d'),
+                    'fecha_fin'      => $ciclo->fecha_fin?->format('Y-m-d'),
+                    'notas_cerradas' => $ciclo->notasCerradas(),
+                ]),
+                'grupos' => $grupos->map(fn (Grupo $grupo) => [
+                    'id'          => $grupo->id,
+                    'nombre'      => $grupo->nombre,
+                    'profesor_id' => $grupo->profesor_id,
+                    'modulo'      => ['id' => $grupo->modulo->id, 'nombre' => $grupo->modulo->nombre],
+                ]),
+                'profesores' => $profesores->map(fn (User $profesor) => ['id' => $profesor->id, 'name' => $profesor->name]),
+                'estados' => [
+                    ['value' => SabanaNotasService::ESTADO_PENDIENTE, 'label' => 'Pendiente'],
+                    ['value' => SabanaNotasService::ESTADO_APROBADO,  'label' => 'Aprobado'],
+                    ['value' => SabanaNotasService::ESTADO_REPROBADO, 'label' => 'Reprobado'],
+                ],
+            ],
+        ]);
     }
 
     /**
@@ -609,5 +628,17 @@ class NotaEstudianteController extends Controller
     private function autorizarGrupo(Request $request, ?Grupo $grupo): void
     {
         abort_unless($grupo && $request->user()->puedeGestionarGrupo($grupo), 403, 'Solo el profesor del grupo o el personal de su sede puede registrar en este grupo.');
+    }
+
+    /**
+     * Respuesta 422 cuando las notas del ciclo del estudiante están cerradas.
+     *
+     * @return JsonResponse
+     */
+    private function respuestaNotasCerradas(): JsonResponse
+    {
+        return response()->json([
+            'message' => 'Las notas del ciclo están cerradas. Para modificarlas, primero deben reabrirse.',
+        ], 422);
     }
 }

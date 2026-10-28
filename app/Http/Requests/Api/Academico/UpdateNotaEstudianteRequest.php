@@ -2,10 +2,13 @@
 
 namespace App\Http\Requests\Api\Academico;
 
+use App\Http\Requests\Api\Academico\Concerns\ValidaNotasAbiertas;
 use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateNotaEstudianteRequest extends FormRequest
 {
+    use ValidaNotasAbiertas;
+
     /**
      * Determina si el usuario está autorizado para hacer esta solicitud.
      */
@@ -43,5 +46,21 @@ class UpdateNotaEstudianteRequest extends FormRequest
             'fecha_registro.date' => 'La fecha de registro debe ser una fecha válida.',
             'status.in' => 'El estado debe ser 0 (pendiente), 1 (registrada) o 2 (cerrada).',
         ];
+    }
+
+    /**
+     * No se modifica una nota si las notas del ciclo del estudiante están cerradas.
+     *
+     * @param \Illuminate\Validation\Validator $validator
+     * @return void
+     */
+    public function withValidator($validator): void
+    {
+        $validator->after(function ($validator) {
+            /** @var \App\Models\Academico\NotaEstudiante $nota */
+            $nota = $this->route('nota_estudiante');
+
+            $this->validarNotasAbiertas($validator, $nota->grupo, [$nota->estudiante_id]);
+        });
     }
 }

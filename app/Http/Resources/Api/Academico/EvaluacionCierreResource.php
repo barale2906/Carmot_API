@@ -9,7 +9,8 @@ class EvaluacionCierreResource extends JsonResource
 {
     /**
      * Transforma el recurso en un array.
-     * Representa la evaluación de cierre de una matrícula (EvaluacionCierreService).
+     * Representa la evaluación de cierre de una matrícula (EvaluacionCierreService):
+     * `motivos` impiden graduar; `advertencias` son informativas (asistencia).
      *
      * @return array<string, mixed>
      */
@@ -23,6 +24,7 @@ class EvaluacionCierreResource extends JsonResource
             'saldo_pendiente'  => $this->resource['saldo_pendiente'],
             'aprueba'          => $this->resource['aprueba'],
             'motivos'          => $this->resource['motivos'],
+            'advertencias'     => $this->resource['advertencias'],
         ];
     }
 }

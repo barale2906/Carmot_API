@@ -8,8 +8,12 @@ use App\Models\Academico\Matricula;
 use Illuminate\Support\Collection;
 
 /**
- * Aplica la regla de asistencia vigente (porcentaje mínimo, horas mínimas, si cuentan
- * las justificadas y si se pierde por fallas) a las asistencias de un estudiante.
+ * Aplica la regla de asistencia vigente (porcentaje mínimo, horas mínimas y alerta de
+ * pérdida por fallas) a las asistencias de un estudiante.
+ *
+ * Solo cuentan como asistidas las horas en que estuvo presente o llegó tarde: una ausencia
+ * justificada sigue siendo falla. El resultado es informativo: si el estudiante aprueba o no
+ * lo define la nota del profesor, no el porcentaje de fallas.
  *
  * Lo usan el reporte de asistencia por grupo y la evaluación de cierre de la matrícula
  * (N19), para que ambos digan lo mismo.
@@ -19,9 +23,9 @@ class VerificarCumplimientoService
     /**
      * Cumplimiento de la matrícula en su ciclo, con la regla del curso (incluye horas mínimas).
      *
-     * Agrega `perdida_definitiva` (N24): con la regla "pierde por fallas", las horas faltadas
-     * ya superan lo que el mínimo permite sobre el total de horas del ciclo (o ya no alcanzan
-     * las horas mínimas), así que el estudiante no puede recuperarse aunque asista al resto.
+     * Agrega `perdida_definitiva` (N24, informativa): con la regla "pierde por fallas", las
+     * horas faltadas ya superan lo que el mínimo permite sobre el total de horas del ciclo (o ya
+     * no alcanzan las horas mínimas), así que no alcanzará el mínimo aunque asista al resto.
      *
      * @param Matricula $matricula
      * @return array<string, mixed>
@@ -61,13 +65,10 @@ class VerificarCumplimientoService
      */
     public function evaluar(Collection $asistencias, ?AsistenciaConfiguracion $configuracion, bool $conHorasMinimas = false): array
     {
-        $cuentaJustificadas = ! $configuracion || $configuracion->aplicar_justificaciones;
-        $horas              = fn (Asistencia $a) => (float) ($a->claseProgramada->duracion_horas ?? 0);
+        $horas = fn (Asistencia $a) => (float) ($a->claseProgramada->duracion_horas ?? 0);
 
         $horasTotales   = $asistencias->sum($horas);
-        $horasAsistidas = $asistencias
-            ->filter(fn (Asistencia $a) => $a->esPresente() || ($cuentaJustificadas && $a->esJustificada()))
-            ->sum($horas);
+        $horasAsistidas = $asistencias->filter(fn (Asistencia $a) => $a->esPresente())->sum($horas);
         $porcentaje = $horasTotales > 0 ? round($horasAsistidas / $horasTotales * 100, 2) : 0.0;
 
         $minimo       = $configuracion ? (float) $configuracion->porcentaje_minimo : null;

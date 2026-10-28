@@ -10,6 +10,8 @@ class SabanaNotasGrupalResource extends JsonResource
     /**
      * Transforma el recurso en un array.
      * Este resource representa la sabana de notas de un grupo en un módulo específico.
+     * Cada estudiante trae el resultado de {@see \App\Services\Academico\SabanaNotasService}
+     * (incluye recuperación, nota definitiva, estado y si sus notas están cerradas).
      *
      * @return array<string, mixed>
      */
