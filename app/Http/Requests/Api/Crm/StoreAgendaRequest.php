@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Api\Crm;
 
+use App\Models\Crm\Agenda;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -49,6 +50,18 @@ class StoreAgendaRequest extends FormRequest
                 'string',
                 Rule::in(['am', 'pm'])
             ],
+            // Sin tipo, la agenda es una visita (cita presencial)
+            'tipo' => [
+                'sometimes',
+                'string',
+                Rule::in(array_keys(Agenda::TIPOS))
+            ],
+            'nota' => [
+                'sometimes',
+                'nullable',
+                'string',
+                'max:1000'
+            ],
             'status' => [
                 'sometimes',
                 'integer',
@@ -75,7 +88,9 @@ class StoreAgendaRequest extends FormRequest
             'hora.date_format' => 'La hora debe tener el formato HH:MM.',
             'jornada.required' => 'La jornada es obligatoria.',
             'jornada.in' => 'La jornada debe ser "am" o "pm".',
-            'status.in' => 'El estado debe ser: 0 (Agendado), 1 (Asistió), 2 (No asistió), 3 (Reprogramó) o 4 (Canceló).'
+            'tipo.in' => 'El tipo debe ser: ' . implode(', ', Agenda::TIPOS) . '.',
+            'nota.max' => 'La nota no puede exceder los 1000 caracteres.',
+            'status.in' => 'El estado debe ser: 0 (Agendado), 1 (Realizada: asistió, contestó o respondió), 2 (No realizada), 3 (Reprogramó) o 4 (Canceló).'
         ];
     }
 
@@ -94,8 +109,8 @@ class StoreAgendaRequest extends FormRequest
         ];
 
         // La jornada se deriva de la hora para que no se contradigan (15:00 nunca es "am", B12)
-        if (is_string($this->hora) && preg_match('/^(\d{2}):\d{2}$/', $this->hora, $m)) {
-            $datos['jornada'] = (int) $m[1] < 12 ? 'am' : 'pm';
+        if (is_string($this->hora) && preg_match('/^\d{2}:\d{2}$/', $this->hora)) {
+            $datos['jornada'] = Agenda::jornadaDeHora($this->hora);
         }
 
         $this->merge($datos);

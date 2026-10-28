@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Activos;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\Activos\CambiarEstadoActActivoRequest;
+use App\Http\Requests\Api\Activos\ImagenActActivoRequest;
 use App\Http\Requests\Api\Activos\StoreActActivoRequest;
 use App\Http\Requests\Api\Activos\TrasladarActActivoRequest;
 use App\Http\Requests\Api\Activos\UpdateActActivoRequest;
@@ -11,6 +12,7 @@ use App\Http\Resources\Api\Activos\ActActivoResource;
 use App\Http\Resources\Api\Activos\ActMovimientoResource;
 use App\Models\Activos\ActActivo;
 use App\Models\Activos\ActCategoria;
+use App\Models\Activos\ActMovimiento;
 use App\Models\Configuracion\Sede;
 use App\Models\User;
 use App\Services\Activos\ActActivoService;
@@ -18,12 +20,13 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 /**
- * Activos fijos por sede y área: registro, edición, traslados, cambios de estado e historial.
- * Cada usuario solo ve y opera los activos de sus sedes asignadas.
+ * Activos fijos por sede y área: registro, edición, imagen, envío de traslados, cambios de
+ * estado e historial. Cada usuario solo ve y opera los activos de sus sedes asignadas. La
+ * recepción y cancelación de traslados están en ActTrasladoController.
  */
 class ActActivoController extends Controller
 {
-    private const RELACIONES = ['categoria', 'sede', 'area', 'responsable'];
+    private const RELACIONES = ['categoria', 'sede', 'area', 'responsable', 'trasladoPendiente.sedeDestino', 'trasladoPendiente.areaDestino'];
 
     /**
      * Registra los middlewares de permisos del módulo.
@@ -32,9 +35,12 @@ class ActActivoController extends Controller
      */
     public function __construct(private readonly ActActivoService $activos)
     {
-        $this->middleware('permission:act_activos')->only(['index', 'show', 'filters', 'statistics', 'movimientos']);
+        $this->middleware('permission:act_activos')->only(['index', 'show', 'statistics', 'movimientos']);
+        // Quien solo recibe traslados también necesita el catálogo (sus sedes y los responsables).
+        $this->middleware('permission:act_activos|act_activoRecibir')->only(['filters']);
         $this->middleware('permission:act_activoCrear')->only(['store']);
         $this->middleware('permission:act_activoEditar')->only(['update', 'cambiarEstado']);
+        $this->middleware('permission:act_activoCrear|act_activoEditar')->only(['subirImagen', 'eliminarImagen']);
         $this->middleware('permission:act_activoTrasladar')->only(['trasladar']);
         $this->middleware('permission:act_activoInactivar')->only(['destroy', 'restore', 'forceDelete', 'trashed']);
     }
@@ -50,7 +56,7 @@ class ActActivoController extends Controller
         $activos = ActActivo::deSedes($request->user()->idsSedesAccesibles())
             ->withFilters($request->only(['search', 'sede_id', 'area_id', 'categoria_id', 'responsable_id', 'estado']))
             ->with(self::RELACIONES)
-            ->withSorting($request->get('sort_by', 'codigo'), $request->get('sort_direction', 'asc'))
+            ->withSorting($request->get('sort_by', 'id'), $request->get('sort_direction', 'asc'))
             ->paginate($request->get('per_page', 15));
 
         return response()->json([
@@ -93,7 +99,7 @@ class ActActivoController extends Controller
     {
         $this->autorizarSede($request, $activo);
 
-        $activo->load([...self::RELACIONES, 'movimientos.sedeOrigen', 'movimientos.areaOrigen', 'movimientos.sedeDestino', 'movimientos.areaDestino', 'movimientos.usuario']);
+        $activo->load([...self::RELACIONES, 'movimientos' => fn ($q) => $q->with(ActMovimiento::RELACIONES)]);
 
         return response()->json([
             'data' => new ActActivoResource($activo),
@@ -120,7 +126,46 @@ class ActActivoController extends Controller
     }
 
     /**
-     * Traslada el activo a otra sede o área.
+     * Carga o reemplaza la imagen del activo (multipart, campo `imagen`). La anterior se borra.
+     *
+     * @param ImagenActActivoRequest $request
+     * @param ActActivo $activo
+     * @return JsonResponse
+     */
+    public function subirImagen(ImagenActActivoRequest $request, ActActivo $activo): JsonResponse
+    {
+        $this->autorizarSede($request, $activo);
+
+        $this->activos->guardarImagen($activo, $request->file('imagen'), $request->user()->id);
+
+        return response()->json([
+            'message' => 'Imagen del activo actualizada.',
+            'data'    => new ActActivoResource($activo->load(self::RELACIONES)),
+        ]);
+    }
+
+    /**
+     * Quita la imagen del activo.
+     *
+     * @param Request $request
+     * @param ActActivo $activo
+     * @return JsonResponse
+     */
+    public function eliminarImagen(Request $request, ActActivo $activo): JsonResponse
+    {
+        $this->autorizarSede($request, $activo);
+
+        $this->activos->eliminarImagen($activo);
+
+        return response()->json([
+            'message' => 'Imagen del activo eliminada.',
+            'data'    => new ActActivoResource($activo->load(self::RELACIONES)),
+        ]);
+    }
+
+    /**
+     * Envía el activo a otra sede o área. El traslado queda pendiente y el activo sigue en su
+     * ubicación actual hasta que en el destino se registre la recepción.
      *
      * @param TrasladarActActivoRequest $request
      * @param ActActivo $activo
@@ -133,7 +178,7 @@ class ActActivoController extends Controller
         $this->activos->trasladar($activo, $request->validated(), $request->user()->id);
 
         return response()->json([
-            'message' => 'Activo trasladado exitosamente.',
+            'message' => 'Traslado enviado: queda pendiente de recepción en el destino.',
             'data'    => new ActActivoResource($activo->fresh(self::RELACIONES)),
         ]);
     }
@@ -169,7 +214,7 @@ class ActActivoController extends Controller
         $this->autorizarSede($request, $activo);
 
         $movimientos = $activo->movimientos()
-            ->with(['sedeOrigen', 'areaOrigen', 'sedeDestino', 'areaDestino', 'usuario'])
+            ->with(ActMovimiento::RELACIONES)
             ->get();
 
         return response()->json([
@@ -240,7 +285,7 @@ class ActActivoController extends Controller
         $activos = ActActivo::onlyTrashed()
             ->deSedes($request->user()->idsSedesAccesibles())
             ->with(self::RELACIONES)
-            ->orderBy('codigo')
+            ->orderBy('id')
             ->paginate($request->get('per_page', 15));
 
         return response()->json([
@@ -292,7 +337,8 @@ class ActActivoController extends Controller
 
     /**
      * Totales del inventario de activos (sin los de baja) de las sedes del usuario,
-     * opcionalmente de una sola sede: cantidad, valor, distribución por estado, área y categoría.
+     * opcionalmente de una sola sede: cantidad, valor, en tránsito (traslado sin recibir),
+     * distribución por estado, área y categoría.
      *
      * @param Request $request
      * @return JsonResponse
@@ -311,6 +357,7 @@ class ActActivoController extends Controller
                     ->when($request->filled('sede_id'), fn ($q) => $q->where('sede_id', $request->sede_id))
                     ->where('estado', ActActivo::ESTADO_BAJA)
                     ->count(),
+                'en_transito'   => $base()->has('trasladoPendiente')->count(),
                 'por_estado'    => $base()->selectRaw('estado, COUNT(*) as total')->groupBy('estado')->pluck('total', 'estado'),
                 'por_area'      => $base()->with('area')
                     ->selectRaw('area_id, COUNT(*) as total')

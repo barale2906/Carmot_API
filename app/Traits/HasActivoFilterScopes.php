@@ -5,12 +5,12 @@ namespace App\Traits;
 trait HasActivoFilterScopes
 {
     /**
-     * Scope de búsqueda por código, nombre o serial.
+     * Scope de búsqueda por ID exacto (si el texto es numérico), nombre o serial.
      */
     public function scopeSearch($query, string $search)
     {
         return $query->where(function ($q) use ($search) {
-            $q->where('codigo', 'like', '%' . $search . '%')
+            $q->when(ctype_digit($search), fn ($q) => $q->orWhere('id', (int) $search))
               ->orWhere('nombre', 'like', '%' . $search . '%')
               ->orWhere('serial', 'like', '%' . $search . '%');
         });

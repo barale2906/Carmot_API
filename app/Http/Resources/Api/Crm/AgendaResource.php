@@ -22,8 +22,11 @@ class AgendaResource extends JsonResource
             'fecha' => $this->fecha?->format('Y-m-d'),
             'hora' => $this->hora,
             'jornada' => $this->jornada,
+            'tipo' => $this->tipo,
+            'tipo_text' => $this->tipo_text,
+            'nota' => $this->nota,
             'status' => $this->status,
-            'status_text' => $this->resource::getStatusText($this->status),
+            'status_text' => $this->status_text, // según el tipo: Asistió, Contestó, Respondió...
             'created_at' => $this->created_at?->format('Y-m-d H:i:s'),
             'updated_at' => $this->updated_at?->format('Y-m-d H:i:s'),
             'deleted_at' => $this->deleted_at?->format('Y-m-d H:i:s'),
@@ -48,22 +51,5 @@ class AgendaResource extends JsonResource
                 ];
             }),
         ];
-    }
-
-    /**
-     * Obtiene el texto descriptivo del status.
-     *
-     * @return string
-     */
-    private function getStatusText(): string
-    {
-        return match ($this->status) {
-            0 => 'Agendado',
-            1 => 'Asistió',
-            2 => 'No asistió',
-            3 => 'Reprogramó',
-            4 => 'Canceló',
-            default => 'Desconocido',
-        };
     }
 }

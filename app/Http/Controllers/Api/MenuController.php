@@ -166,7 +166,7 @@ class MenuController extends Controller
         }
 
         // Activos fijos - inventario de equipos, herramientas y mobiliario por sede y área
-        if ($this->hasAnyPermission($user, ['act_activos', 'act_categorias'])) {
+        if ($this->hasAnyPermission($user, ['act_activos', 'act_categorias', 'act_activoRecibir'])) {
             $activosChildren = [];
 
             if ($user->can('act_activos')) {
@@ -176,6 +176,16 @@ class MenuController extends Controller
                     'icon' => 'activos',
                     'route' => '/activos',
                     'permission' => 'act_activos',
+                ];
+            }
+
+            if ($this->hasAnyPermission($user, ['act_activos', 'act_activoRecibir'])) {
+                $activosChildren[] = [
+                    'id' => 'activos-traslados',
+                    'title' => 'Traslados',
+                    'icon' => 'swap_horiz',
+                    'route' => '/activos/traslados',
+                    'permission' => 'act_activos|act_activoRecibir',
                 ];
             }
 

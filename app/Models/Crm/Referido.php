@@ -14,12 +14,19 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\DB;
 use Spatie\Translatable\HasTranslations;
 
 class Referido extends Model
 {
     use HasFactory, HasTranslations, SoftDeletes;
     use HasFilterScopes, HasSortingScopes, HasRelationScopes, HasStatus;
+
+    /** Estado que solo asigna la conversión del lead en matrícula ({@see marcarMatriculado}). */
+    public const ESTADO_MATRICULADO = 3;
+
+    /** Estados que el asesor puede asignar a mano: todos menos Matriculado. */
+    public const ESTADOS_ASIGNABLES = [0, 1, 2, 4];
 
     protected $guarded = ['id', 'created_at', 'updated_at', 'deleted_at'];
 
@@ -90,13 +97,97 @@ class Referido extends Model
      */
     public function marcarMatriculado(Matricula $matricula): void
     {
-        $this->update(['status' => 3]);
+        $this->update(['status' => self::ESTADO_MATRICULADO]);
 
         $this->seguimientos()->create([
             'seguidor_id' => $matricula->matriculado_por_id,
             'fecha'       => now()->toDateString(),
             'seguimiento' => "MATRÍCULA: Convertido en la matrícula #{$matricula->id}.",
         ]);
+    }
+
+    /**
+     * Registra un seguimiento en la bitácora del lead y, si se indica, actualiza su estado y
+     * deja programada la próxima acción, todo en la misma transacción: la gestión del asesor,
+     * el estado resultante y lo que sigue van juntos.
+     *
+     * @param int $seguidorId Usuario que hace el seguimiento
+     * @param string $fecha Fecha del seguimiento (Y-m-d)
+     * @param string $texto Detalle del seguimiento
+     * @param int|null $estado Nuevo estado del lead (uno de ESTADOS_ASIGNABLES); null lo deja igual
+     * @param array{tipo: string, fecha: string, hora: string, nota?: string|null}|null $proximaAccion
+     * @return Seguimiento
+     */
+    public function registrarSeguimiento(int $seguidorId, string $fecha, string $texto, ?int $estado = null, ?array $proximaAccion = null): Seguimiento
+    {
+        return DB::transaction(function () use ($seguidorId, $fecha, $texto, $estado, $proximaAccion) {
+            if ($estado !== null) {
+                $this->update(['status' => $estado]);
+            }
+
+            $seguimiento = $this->seguimientos()->create([
+                'seguidor_id' => $seguidorId,
+                'fecha'       => $fecha,
+                'seguimiento' => $texto,
+            ]);
+
+            if ($proximaAccion) {
+                $this->programarAccion($seguidorId, $proximaAccion);
+            }
+
+            return $seguimiento;
+        });
+    }
+
+    /**
+     * Programa en la agenda la próxima acción con el lead (llamada, visita, mensaje...).
+     * La agenda deja su propia entrada en la bitácora ({@see Agenda::crearSeguimientoAutomatico}).
+     *
+     * @param int $agendadorId Usuario que programa la acción
+     * @param array{tipo: string, fecha: string, hora: string, nota?: string|null} $accion
+     * @return Agenda
+     */
+    public function programarAccion(int $agendadorId, array $accion): Agenda
+    {
+        return $this->agendamientos()->create([
+            'agendador_id' => $agendadorId,
+            'tipo'         => $accion['tipo'],
+            'fecha'        => $accion['fecha'],
+            'hora'         => $accion['hora'],
+            'jornada'      => Agenda::jornadaDeHora($accion['hora']),
+            'nota'         => $accion['nota'] ?? null,
+        ]);
+    }
+
+    /**
+     * Leads con al menos un seguimiento en el rango de fechas indicado (extremos opcionales).
+     *
+     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @param string|null $desde
+     * @param string|null $hasta
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    public function scopeConSeguimientoEntre($query, ?string $desde, ?string $hasta)
+    {
+        return $query->when($desde || $hasta, fn ($q) => $q->whereHas('seguimientos', function ($s) use ($desde, $hasta) {
+            $s->when($desde, fn ($s) => $s->whereDate('fecha', '>=', $desde))
+                ->when($hasta, fn ($s) => $s->whereDate('fecha', '<=', $hasta));
+        }));
+    }
+
+    /**
+     * Ordena los leads por la fecha de su seguimiento más reciente y, en la misma fecha, por
+     * nombre; los que no tienen seguimientos van al final.
+     *
+     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    public function scopeOrdenadoPorUltimoSeguimiento($query)
+    {
+        return $query->withMax('seguimientos', 'fecha')
+            ->orderByDesc('seguimientos_max_fecha')
+            ->orderBy('nombre')
+            ->orderByDesc('id');
     }
 
     /**
@@ -125,7 +216,7 @@ class Referido extends Model
      */
     public function isMatriculado(): bool
     {
-        return $this->status === 3;
+        return $this->status === self::ESTADO_MATRICULADO;
     }
 
     /**

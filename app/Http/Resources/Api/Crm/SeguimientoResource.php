@@ -21,6 +21,8 @@ class SeguimientoResource extends JsonResource
             'seguidor_id' => $this->seguidor_id,
             'fecha' => $this->fecha?->format('Y-m-d'),
             'seguimiento' => $this->seguimiento,
+            'estado_referido' => $this->estado_referido,
+            'estado_referido_text' => $this->estado_referido_text,
             'created_at' => $this->created_at?->format('Y-m-d H:i:s'),
             'updated_at' => $this->updated_at?->format('Y-m-d H:i:s'),
             'deleted_at' => $this->deleted_at?->format('Y-m-d H:i:s'),

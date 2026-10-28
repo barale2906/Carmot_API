@@ -3,21 +3,27 @@
 namespace App\Http\Controllers\Api\Crm;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\Crm\ExportarSeguimientosRequest;
 use App\Http\Requests\Api\Crm\StoreSeguimientoRequest;
 use App\Http\Requests\Api\Crm\UpdateSeguimientoRequest;
+use App\Http\Resources\Api\Crm\ReferidoResource;
 use App\Http\Resources\Api\Crm\SeguimientoResource;
+use App\Models\Crm\Referido;
 use App\Models\Crm\Seguimiento;
+use App\Services\Crm\SeguimientosExcelService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class SeguimientoController extends Controller
 {
     /**
      * Constructor del controlador.
      */
-    public function __construct()
+    public function __construct(private readonly SeguimientosExcelService $seguimientosExcel)
     {
-        $this->middleware('permission:crm_seguimientos')->only(['index', 'show', 'byReferido', 'bySeguidor']);
+        $this->middleware('permission:crm_seguimientos')->only(['index', 'show', 'byReferido', 'bySeguidor', 'porLead', 'excel']);
         $this->middleware('permission:crm_seguimientoCrear')->only(['store']);
         $this->middleware('permission:crm_seguimientoEditar')->only(['update', 'restore']);
         $this->middleware('permission:crm_seguimientoInactivar')->only(['destroy', 'forceDelete']);
@@ -59,14 +65,22 @@ class SeguimientoController extends Controller
     }
 
     /**
-     * Crea un nuevo seguimiento en el sistema.
+     * Crea un nuevo seguimiento en el sistema. Si llega `estado_referido`, el lead queda en ese
+     * estado junto con el seguimiento (Matriculado no: lo asigna la conversión en matrícula);
+     * si llega `proxima_accion`, queda programada en la agenda.
      *
      * @param StoreSeguimientoRequest $request
      * @return JsonResponse
      */
     public function store(StoreSeguimientoRequest $request): JsonResponse
     {
-        $seguimiento = Seguimiento::create($request->validated());
+        $seguimiento = Referido::findOrFail($request->referido_id)->registrarSeguimiento(
+            $request->seguidor_id,
+            $request->fecha,
+            $request->seguimiento,
+            $request->validated('estado_referido'),
+            $request->validated('proxima_accion'),
+        );
 
         $seguimiento->load(['referido', 'seguidor']);
 
@@ -163,6 +177,62 @@ class SeguimientoController extends Controller
         return response()->json([
             'message' => 'Seguimiento eliminado permanentemente.',
         ]);
+    }
+
+    /**
+     * Bitácora agrupada por lead: cada lead con todos sus seguimientos (del más reciente al más
+     * antiguo) y el estado en que quedó en cada uno. Incluye los leads sin seguimientos para
+     * poder registrarles el primero; `search` busca por nombre o celular del lead y
+     * `fecha_desde`/`fecha_hasta` dejan solo los leads con seguimientos en ese rango.
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function porLead(Request $request): JsonResponse
+    {
+        $referidos = Referido::withFilters($request->only(['search', 'status', 'gestor_id']))
+            ->conSeguimientoEntre($request->get('fecha_desde'), $request->get('fecha_hasta'))
+            ->with([
+                'curso',
+                'gestor',
+                'seguimientos' => fn ($q) => $q->with('seguidor')->latest('fecha')->latest('id'),
+            ])
+            ->withCount(['seguimientos', 'agendamientos'])
+            ->ordenadoPorUltimoSeguimiento()
+            ->paginate($request->get('per_page', 15));
+
+        return response()->json([
+            'data' => ReferidoResource::collection($referidos),
+            'meta' => [
+                'current_page' => $referidos->currentPage(),
+                'last_page' => $referidos->lastPage(),
+                'per_page' => $referidos->perPage(),
+                'total' => $referidos->total(),
+                'from' => $referidos->firstItem(),
+                'to' => $referidos->lastItem(),
+            ],
+        ]);
+    }
+
+    /**
+     * Descarga en Excel los seguimientos de un lapso de fechas (una fila por seguimiento),
+     * con los mismos filtros de lead y el mismo orden de la bitácora por lead.
+     *
+     * @param ExportarSeguimientosRequest $request
+     * @return StreamedResponse
+     */
+    public function excel(ExportarSeguimientosRequest $request): StreamedResponse
+    {
+        $spreadsheet = $this->seguimientosExcel->generar(
+            $request->fecha_desde,
+            $request->fecha_hasta,
+            $request->only(['search', 'status']),
+        );
+        $nombre = "seguimientos-{$request->fecha_desde}-a-{$request->fecha_hasta}.xlsx";
+
+        return response()->streamDownload(function () use ($spreadsheet) {
+            (new Xlsx($spreadsheet))->save('php://output');
+        }, $nombre, ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']);
     }
 
     /**

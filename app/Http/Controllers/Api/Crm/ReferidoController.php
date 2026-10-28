@@ -11,6 +11,7 @@ use App\Models\Academico\Curso;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 
 class ReferidoController extends Controller
@@ -65,25 +66,37 @@ class ReferidoController extends Controller
     }
 
     /**
-     * Almacena un nuevo referido en la base de datos.
+     * Almacena un nuevo referido en la base de datos. Si llega `seguimiento`, queda como la
+     * primera entrada de su bitácora, a nombre de quien registra el lead y con fecha de hoy;
+     * si llega `proxima_accion`, queda programada en la agenda.
      *
      * @param StoreReferidoRequest $request
      * @return JsonResponse
      */
     public function store(StoreReferidoRequest $request): JsonResponse
     {
-        $referido = Referido::create([
-            'curso_id' => $request->curso_id,
-            'gestor_id' => $request->gestor_id,
-            'nombre' => $request->nombre,
-            'celular' => $request->celular,
-            'ciudad' => $request->ciudad,
-            'talla_overol' => $request->talla_overol,
-            'talla_botas' => $request->talla_botas,
-            'status' => $request->status ?? 0, // Por defecto estado "Creado"
-        ]);
+        $referido = DB::transaction(function () use ($request) {
+            $referido = Referido::create([
+                'curso_id' => $request->curso_id,
+                'gestor_id' => $request->gestor_id,
+                'nombre' => $request->nombre,
+                'celular' => $request->celular,
+                'ciudad' => $request->ciudad,
+                'status' => $request->status ?? 0, // Por defecto estado "Creado"
+            ]);
 
-        $referido->load(['curso', 'gestor']);
+            $proximaAccion = $request->validated('proxima_accion');
+
+            if ($request->filled('seguimiento')) {
+                $referido->registrarSeguimiento($request->user()->id, now()->toDateString(), $request->seguimiento, null, $proximaAccion);
+            } elseif ($proximaAccion) {
+                $referido->programarAccion($request->user()->id, $proximaAccion);
+            }
+
+            return $referido;
+        });
+
+        $referido->load(['curso', 'gestor'])->loadCount(['seguimientos', 'agendamientos']);
 
         return response()->json([
             'message' => 'Referido creado exitosamente.',
@@ -132,8 +145,6 @@ class ReferidoController extends Controller
             'nombre',
             'celular',
             'ciudad',
-            'talla_overol',
-            'talla_botas',
             'status',
         ]));
 

@@ -64,8 +64,9 @@ class TrasladarActActivoRequest extends FormRequest
     }
 
     /**
-     * No se traslada un activo de baja ni a la misma ubicación; el destino debe ser una
-     * sede asignada al usuario y el área debe pertenecer a ella.
+     * No se traslada un activo de baja, ni uno que ya va en camino (traslado pendiente de
+     * recepción), ni a la misma ubicación; el destino debe ser una sede asignada al usuario
+     * y el área debe pertenecer a ella.
      *
      * @param \Illuminate\Validation\Validator $validator
      * @return void
@@ -82,6 +83,11 @@ class TrasladarActActivoRequest extends FormRequest
 
             if ($activo->estaDeBaja()) {
                 $validator->errors()->add('sede_id', 'El activo está dado de baja: no se puede trasladar.');
+                return;
+            }
+
+            if ($activo->estaEnTransito()) {
+                $validator->errors()->add('sede_id', 'El activo ya tiene un traslado pendiente de recepción.');
                 return;
             }
 

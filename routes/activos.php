@@ -2,6 +2,8 @@
 
 use App\Http\Controllers\Api\Activos\ActActivoController;
 use App\Http\Controllers\Api\Activos\ActCategoriaController;
+use App\Http\Controllers\Api\Activos\ActTrasladoController;
+use App\Models\Activos\ActMovimiento;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -14,6 +16,9 @@ use Illuminate\Support\Facades\Route;
 | Todas las rutas quedan bajo el nombre base act- (ej. act-activos.index).
 |
 */
+
+// {traslado} solo resuelve movimientos de tipo traslado (los demás responden 404).
+Route::bind('traslado', fn (string $id) => ActMovimiento::where('tipo', ActMovimiento::TIPO_TRASLADO)->findOrFail($id));
 
 Route::middleware('auth:sanctum')
     ->name('act-')
@@ -43,9 +48,20 @@ Route::middleware('auth:sanctum')
             Route::post('{id}/restore', [ActActivoController::class, 'restore'])->name('activos.restore');
             Route::delete('{id}/force-delete', [ActActivoController::class, 'forceDelete'])->name('activos.force-delete');
             Route::post('{activo}/trasladar', [ActActivoController::class, 'trasladar'])->name('activos.trasladar');
+            Route::post('{activo}/imagen', [ActActivoController::class, 'subirImagen'])->name('activos.imagen');
+            Route::delete('{activo}/imagen', [ActActivoController::class, 'eliminarImagen'])->name('activos.imagen.eliminar');
             Route::post('{activo}/estado', [ActActivoController::class, 'cambiarEstado'])->name('activos.estado');
             Route::get('{activo}/movimientos', [ActActivoController::class, 'movimientos'])->name('activos.movimientos');
         });
         Route::apiResource('activos', ActActivoController::class)
             ->parameters(['activos' => 'activo']);
+
+        // ──────────────────────────────────────────────────────────────────────
+        // Traslados: se envían desde el activo y se reciben (o cancelan) aquí
+        // ──────────────────────────────────────────────────────────────────────
+        Route::prefix('traslados')->group(function () {
+            Route::get('/', [ActTrasladoController::class, 'index'])->name('traslados.index');
+            Route::post('{traslado}/recibir', [ActTrasladoController::class, 'recibir'])->name('traslados.recibir');
+            Route::post('{traslado}/cancelar', [ActTrasladoController::class, 'cancelar'])->name('traslados.cancelar');
+        });
     });

@@ -20,7 +20,7 @@ class MenuCrmAcademicoTest extends TestCase
         parent::setUp();
 
         app()[PermissionRegistrar::class]->forgetCachedPermissions();
-        foreach (['crm_referidos', 'aca_asistencias', 'aca_notas', 'act_activos', 'act_categorias', 'ac_biblioteca', 'co_roles'] as $nombre) {
+        foreach (['crm_referidos', 'aca_asistencias', 'aca_notas', 'act_activos', 'act_categorias', 'act_activoRecibir', 'ac_biblioteca', 'co_roles'] as $nombre) {
             Permission::create(['name' => $nombre, 'descripcion' => $nombre]);
         }
     }
@@ -92,9 +92,14 @@ class MenuCrmAcademicoTest extends TestCase
     {
         $user = User::factory()->create();
         $user->givePermissionTo('act_activos');
-        $this->assertSame(['activos-inventario'], $this->opciones($user, 'activos'));
+        $this->assertSame(['activos-inventario', 'activos-traslados'], $this->opciones($user, 'activos'));
 
         $user->givePermissionTo('act_categorias');
-        $this->assertSame(['activos-inventario', 'activos-categorias'], $this->opciones($user, 'activos'));
+        $this->assertSame(['activos-inventario', 'activos-traslados', 'activos-categorias'], $this->opciones($user, 'activos'));
+
+        // Quien solo recibe traslados ve únicamente Traslados
+        $receptor = User::factory()->create();
+        $receptor->givePermissionTo('act_activoRecibir');
+        $this->assertSame(['activos-traslados'], $this->opciones($receptor, 'activos'));
     }
 }

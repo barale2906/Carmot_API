@@ -25,7 +25,32 @@ class Seguimiento extends Model
      */
     protected $casts = [
         'fecha' => 'date',
+        'estado_referido' => 'integer',
     ];
+
+    /**
+     * Cada seguimiento guarda el estado en que quedó el lead, para leer su evolución en la
+     * bitácora. Si no se indica, toma el estado vigente del lead (ya actualizado por quien
+     * registra el seguimiento: {@see Referido::registrarSeguimiento}, marcarMatriculado...).
+     *
+     * @return void
+     */
+    protected static function booted(): void
+    {
+        static::creating(function (Seguimiento $seguimiento) {
+            $seguimiento->estado_referido ??= Referido::whereKey($seguimiento->referido_id)->value('status');
+        });
+    }
+
+    /**
+     * Texto del estado del lead registrado en el seguimiento; null en seguimientos anteriores a este registro.
+     *
+     * @return string|null
+     */
+    public function getEstadoReferidoTextAttribute(): ?string
+    {
+        return $this->estado_referido === null ? null : Referido::getStatusText($this->estado_referido);
+    }
 
     /**
      * Obtiene los campos permitidos para ordenamiento específicos de seguimientos.

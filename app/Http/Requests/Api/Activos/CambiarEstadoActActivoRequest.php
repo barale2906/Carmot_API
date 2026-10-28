@@ -47,7 +47,8 @@ class CambiarEstadoActActivoRequest extends FormRequest
     }
 
     /**
-     * La baja es definitiva y el estado nuevo debe ser distinto del actual.
+     * La baja es definitiva, el estado nuevo debe ser distinto del actual y un activo
+     * en tránsito no cambia de estado hasta que se reciba o se cancele el traslado.
      *
      * @param \Illuminate\Validation\Validator $validator
      * @return void
@@ -60,6 +61,8 @@ class CambiarEstadoActActivoRequest extends FormRequest
 
             if ($activo->estaDeBaja()) {
                 $validator->errors()->add('estado', 'El activo está dado de baja: la baja es definitiva.');
+            } elseif ($activo->estaEnTransito()) {
+                $validator->errors()->add('estado', 'El activo tiene un traslado pendiente de recepción: recíbelo o cancélalo antes de cambiar su estado.');
             } elseif ($activo->estado === $this->estado) {
                 $validator->errors()->add('estado', 'El activo ya tiene ese estado.');
             }

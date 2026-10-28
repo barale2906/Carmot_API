@@ -43,6 +43,10 @@ Route::middleware('auth:sanctum')->group(function () {
             ->name('seguimientos.by-referido');
         Route::get('by-seguidor/{seguidorId}', [SeguimientoController::class, 'bySeguidor'])
             ->name('seguimientos.by-seguidor');
+        Route::get('por-lead', [SeguimientoController::class, 'porLead'])
+            ->name('seguimientos.por-lead');
+        Route::get('excel', [SeguimientoController::class, 'excel'])
+            ->name('seguimientos.excel');
     });
     Route::apiResource('seguimientos', SeguimientoController::class);
 

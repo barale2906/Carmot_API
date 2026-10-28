@@ -75,6 +75,8 @@ class MatriculaReferidoTest extends TestCase
             'referido_id' => $referido->id,
             'seguidor_id' => $this->usuario->id,
             'seguimiento' => "MATRÍCULA: Convertido en la matrícula #{$matriculaId}.",
+            // La bitácora registra que el lead quedó matriculado
+            'estado_referido' => 3,
         ]);
     }
 

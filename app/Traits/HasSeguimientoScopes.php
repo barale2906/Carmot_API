@@ -42,7 +42,7 @@ trait HasSeguimientoScopes
     }
 
     /**
-     * Busca en el contenido del seguimiento.
+     * Busca en el contenido del seguimiento o en el nombre/celular del lead.
      *
      * @param \Illuminate\Database\Eloquent\Builder $query
      * @param string $search Término de búsqueda
@@ -50,7 +50,39 @@ trait HasSeguimientoScopes
      */
     public function scopeSearchInContent($query, $search)
     {
-        return $query->where('seguimiento', 'like', '%' . $search . '%');
+        return $query->where(function ($q) use ($search) {
+            $q->where('seguimiento', 'like', '%' . $search . '%')
+                ->orWhereHas('referido', fn ($r) => $r->search($search));
+        });
+    }
+
+    /**
+     * Seguimientos de leads vigentes (no eliminados) que cumplen los filtros del listado de
+     * leads (search, status, gestor_id).
+     *
+     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @param array $filtros
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    public function scopeDeLeads($query, array $filtros)
+    {
+        return $query->whereHas('referido', fn ($r) => $r->withFilters($filtros));
+    }
+
+    /**
+     * Ordena por fecha (más reciente primero) y, en la misma fecha, por nombre del lead:
+     * el mismo orden de la bitácora agrupada por lead.
+     *
+     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    public function scopeOrdenadoPorFechaYLead($query)
+    {
+        return $query->select('seguimientos.*')
+            ->join('referidos', 'referidos.id', '=', 'seguimientos.referido_id')
+            ->orderByDesc('seguimientos.fecha')
+            ->orderBy('referidos.nombre')
+            ->orderByDesc('seguimientos.id');
     }
 
     /**

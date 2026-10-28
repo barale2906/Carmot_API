@@ -32,6 +32,8 @@ class ArchivoService
 
     public const CARPETA_PRODUCTOS = 'productos';
 
+    public const CARPETA_ACTIVOS = 'activos';
+
     /** Tamaño máximo, en kilobytes, de documentos e imágenes que suben los usuarios (10 MB). */
     public const MAX_KB = 10240;
 

@@ -213,6 +213,7 @@ trait HasAgendaScopes
             ->when(! empty($filters['referido_id']), fn ($q) => $q->byReferido($filters['referido_id']))
             ->when(! empty($filters['agendador_id']), fn ($q) => $q->byAgendador($filters['agendador_id']))
             ->when(! empty($filters['jornada']), fn ($q) => $q->byJornada($filters['jornada']))
+            ->when(! empty($filters['tipo']), fn ($q) => $q->where('tipo', $filters['tipo']))
             ->when(isset($filters['status']) && $filters['status'] !== '', fn ($q) => $q->where('status', $filters['status']))
             ->when(! empty($filters['fecha_desde']), fn ($q) => $q->byFechaDesde($filters['fecha_desde']))
             ->when(! empty($filters['fecha_hasta']), fn ($q) => $q->byFechaHasta($filters['fecha_hasta']));

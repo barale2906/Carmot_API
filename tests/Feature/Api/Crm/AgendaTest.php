@@ -102,13 +102,60 @@ class AgendaTest extends TestCase
             ])
             ->assertCreated()
             ->assertJsonPath('data.agendador_id', $this->usuario->id)
-            ->assertJsonPath('data.status', 0);
+            ->assertJsonPath('data.status', 0)
+            ->assertJsonPath('data.tipo', 'visita');
 
         $this->assertDatabaseHas('seguimientos', [
             'referido_id' => $this->referido->id,
             'seguidor_id' => $this->usuario->id,
-            'seguimiento' => "AGENDA: Cita agendada para el {$fecha} a las 09:30 (am)",
+            'seguimiento' => "AGENDA: Visita para el {$fecha} a las 09:30 (am)",
         ]);
+    }
+
+    /** @test */
+    public function store_programa_una_llamada_con_nota_y_se_filtra_por_tipo(): void
+    {
+        $fecha = now()->addDays(2)->toDateString();
+
+        $this->actingAs($this->usuario)
+            ->postJson(route('agendas.store'), [
+                'referido_id' => $this->referido->id,
+                'fecha'       => $fecha,
+                'hora'        => '15:00',
+                'tipo'        => 'llamada',
+                'nota'        => 'Confirmar si le sirve la jornada sábado.',
+            ])
+            ->assertCreated()
+            ->assertJsonPath('data.tipo_text', 'Llamada')
+            ->assertJsonPath('data.jornada', 'pm')
+            ->assertJsonPath('data.nota', 'Confirmar si le sirve la jornada sábado.');
+
+        $this->assertDatabaseHas('seguimientos', [
+            'referido_id' => $this->referido->id,
+            'seguimiento' => "AGENDA: Llamada para el {$fecha} a las 15:00 (pm). Confirmar si le sirve la jornada sábado.",
+        ]);
+
+        $this->crearAgenda(['tipo' => 'visita']);
+
+        $this->actingAs($this->usuario)
+            ->getJson(route('agendas.index', ['tipo' => 'llamada']))
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.tipo', 'llamada');
+    }
+
+    /** @test */
+    public function store_rechaza_tipo_invalido(): void
+    {
+        $this->actingAs($this->usuario)
+            ->postJson(route('agendas.store'), [
+                'referido_id' => $this->referido->id,
+                'fecha'       => now()->addDay()->toDateString(),
+                'hora'        => '10:00',
+                'tipo'        => 'correo',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('tipo');
     }
 
     /** @test */
@@ -135,6 +182,49 @@ class AgendaTest extends TestCase
             ->putJson(route('agendas.update', $agenda), ['status' => 1])
             ->assertOk()
             ->assertJsonPath('data.status_text', 'Asistió');
+    }
+
+    /** @test */
+    public function el_texto_del_resultado_depende_del_tipo_de_accion(): void
+    {
+        Permission::create(['name' => 'crm_referidos', 'descripcion' => 'crm_referidos']);
+        $this->usuario->givePermissionTo('crm_referidos');
+
+        $esperados = [
+            'visita'  => ['Asistió', 'No asistió'],
+            'llamada' => ['Contestó', 'No contestó'],
+            'mensaje' => ['Respondió', 'Sin respuesta'],
+            'otro'    => ['Realizada', 'No realizada'],
+        ];
+
+        foreach ($esperados as $tipo => [$realizada, $noRealizada]) {
+            $agenda = $this->crearAgenda(['tipo' => $tipo]);
+
+            $this->actingAs($this->usuario)
+                ->putJson(route('agendas.update', $agenda), ['status' => 1])
+                ->assertJsonPath('data.status_text', $realizada);
+            $this->actingAs($this->usuario)
+                ->putJson(route('agendas.update', $agenda), ['status' => 2])
+                ->assertJsonPath('data.status_text', $noRealizada);
+        }
+
+        // La ficha del lead muestra el mismo texto
+        $this->actingAs($this->usuario)
+            ->getJson(route('referidos.show', ['referido' => $this->referido->id, 'with' => 'agendamientos']))
+            ->assertOk()
+            ->assertJsonFragment(['tipo' => 'llamada', 'status_text' => 'No contestó']);
+    }
+
+    /** @test */
+    public function filters_entrega_los_estados_segun_el_tipo(): void
+    {
+        $this->actingAs($this->usuario)
+            ->getJson(route('agendas.filters'))
+            ->assertOk()
+            ->assertJsonPath('data.status_options.1', 'Realizada')
+            ->assertJsonPath('data.status_options_por_tipo.llamada.1', 'Contestó')
+            ->assertJsonPath('data.status_options_por_tipo.visita.2', 'No asistió')
+            ->assertJsonPath('data.status_options_por_tipo.mensaje.4', 'Canceló');
     }
 
     /** @test */

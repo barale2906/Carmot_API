@@ -29,7 +29,6 @@ class StoreActActivoRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'codigo'         => ['required', 'string', 'max:40', Rule::unique('act_activos', 'codigo')],
             'nombre'         => ['required', 'string', 'max:200'],
             'descripcion'    => ['nullable', 'string', 'max:2000'],
             'categoria_id'   => ['required', 'integer', Rule::exists('act_categorias', 'id')->where('status', 1)->whereNull('deleted_at')],
@@ -55,7 +54,6 @@ class StoreActActivoRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'codigo.unique'                => 'Ya existe un activo con este código.',
             'categoria_id.exists'          => 'La categoría no existe o está inactiva.',
             'fecha_ingreso.before_or_equal' => 'La fecha de ingreso no puede ser futura.',
             'estado.in'                    => 'Estado inválido: un activo nuevo no puede registrarse de baja.',
@@ -70,7 +68,6 @@ class StoreActActivoRequest extends FormRequest
     public function attributes(): array
     {
         return [
-            'codigo'         => 'código',
             'categoria_id'   => 'categoría',
             'sede_id'        => 'sede',
             'area_id'        => 'área',

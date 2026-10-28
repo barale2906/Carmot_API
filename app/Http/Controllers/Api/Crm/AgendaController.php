@@ -34,7 +34,7 @@ class AgendaController extends Controller
     public function index(Request $request): JsonResponse
     {
         // Preparar filtros
-        $filters = $request->only(['search', 'referido_id', 'agendador_id', 'jornada', 'status', 'fecha_desde', 'fecha_hasta']);
+        $filters = $request->only(['search', 'referido_id', 'agendador_id', 'jornada', 'tipo', 'status', 'fecha_desde', 'fecha_hasta']);
 
         // Preparar relaciones
         $relations = $request->has('with')
@@ -77,6 +77,8 @@ class AgendaController extends Controller
             'fecha' => $request->fecha,
             'hora' => $request->hora,
             'jornada' => $request->jornada,
+            'tipo' => $request->tipo ?? 'visita',
+            'nota' => $request->nota,
             'status' => $request->status ?? 0, // Por defecto estado "Agendado"
         ]);
 
@@ -125,6 +127,8 @@ class AgendaController extends Controller
             'fecha',
             'hora',
             'jornada',
+            'tipo',
+            'nota',
             'status',
         ]));
 
@@ -239,17 +243,15 @@ class AgendaController extends Controller
 
         return response()->json([
             'data' => [
-                'status_options' => [
-                    0 => 'Agendado',
-                    1 => 'Asistió',
-                    2 => 'No asistió',
-                    3 => 'Reprogramó',
-                    4 => 'Canceló',
-                ],
+                'status_options' => Agenda::getStatusOptions(),
+                // Texto de los estados según el tipo de acción (Asistió, Contestó, Respondió...)
+                'status_options_por_tipo' => collect(array_keys(Agenda::TIPOS))
+                    ->mapWithKeys(fn (string $tipo) => [$tipo => Agenda::getStatusOptions($tipo)]),
                 'jornada_options' => [
                     'am' => 'AM',
                     'pm' => 'PM',
                 ],
+                'tipo_options' => Agenda::TIPOS,
                 'referidos' => $referidos,
                 'agendadores' => $agendadores,
             ],

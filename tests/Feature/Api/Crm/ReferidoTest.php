@@ -57,7 +57,7 @@ class ReferidoTest extends TestCase
             ->getJson(route('referidos.index'))
             ->assertOk()
             ->assertJsonStructure([
-                'data' => [['id', 'nombre', 'celular', 'ciudad', 'talla_overol', 'talla_botas', 'status', 'status_text', 'curso', 'gestor']],
+                'data' => [['id', 'nombre', 'celular', 'ciudad', 'status', 'status_text', 'curso', 'gestor']],
                 'meta' => ['current_page', 'last_page', 'per_page', 'total', 'from', 'to'],
             ]);
     }
@@ -92,24 +92,103 @@ class ReferidoTest extends TestCase
     }
 
     /** @test */
-    public function store_crea_referido_con_tallas_y_estado_creado_por_defecto(): void
+    public function store_crea_referido_con_estado_creado_por_defecto_y_sin_bitacora(): void
     {
         $this->actingAs($this->usuario)
             ->postJson(route('referidos.store'), [
-                'curso_id'     => $this->curso->id,
-                'gestor_id'    => $this->usuario->id,
-                'nombre'       => 'Pedro Ruiz',
-                'celular'      => '3205556677',
-                'ciudad'       => 'Tunja',
-                'talla_overol' => 'M',
-                'talla_botas'  => '40',
+                'curso_id'  => $this->curso->id,
+                'gestor_id' => $this->usuario->id,
+                'nombre'    => 'Pedro Ruiz',
+                'celular'   => '3205556677',
+                'ciudad'    => 'Tunja',
             ])
             ->assertCreated()
             ->assertJsonPath('data.status', 0)
-            ->assertJsonPath('data.talla_overol', 'M')
-            ->assertJsonPath('data.talla_botas', '40');
+            ->assertJsonPath('data.seguimientos_count', 0)
+            ->assertJsonMissingPath('data.talla_overol');
 
-        $this->assertDatabaseHas('referidos', ['celular' => '3205556677', 'talla_botas' => '40']);
+        $this->assertDatabaseHas('referidos', ['celular' => '3205556677']);
+    }
+
+    /** @test */
+    public function store_registra_el_primer_seguimiento_y_el_estado_del_lead(): void
+    {
+        Permission::create(['name' => 'crm_seguimientoCrear', 'descripcion' => 'crm_seguimientoCrear']);
+        $this->usuario->givePermissionTo('crm_seguimientoCrear');
+
+        $id = $this->actingAs($this->usuario)
+            ->postJson(route('referidos.store'), [
+                'curso_id'    => $this->curso->id,
+                'gestor_id'   => $this->usuario->id,
+                'celular'     => '3205556677',
+                'ciudad'      => 'Tunja',
+                'status'      => 1,
+                'seguimiento' => 'Llamada: pide información de jornada sábado.',
+            ])
+            ->assertCreated()
+            ->assertJsonPath('data.status_text', 'Interesado')
+            ->assertJsonPath('data.seguimientos_count', 1)
+            ->json('data.id');
+
+        $this->assertDatabaseHas('seguimientos', [
+            'referido_id' => $id,
+            'seguidor_id' => $this->usuario->id,
+            'fecha'       => now()->toDateString(),
+            'seguimiento' => 'Llamada: pide información de jornada sábado.',
+        ]);
+    }
+
+    /** @test */
+    public function store_programa_la_proxima_accion_aunque_no_haya_seguimiento(): void
+    {
+        Permission::create(['name' => 'crm_agendaCrear', 'descripcion' => 'crm_agendaCrear']);
+        $this->usuario->givePermissionTo('crm_agendaCrear');
+
+        $id = $this->actingAs($this->usuario)
+            ->postJson(route('referidos.store'), [
+                'curso_id'       => $this->curso->id,
+                'gestor_id'      => $this->usuario->id,
+                'celular'        => '3205556677',
+                'ciudad'         => 'Tunja',
+                'proxima_accion' => ['tipo' => 'visita', 'fecha' => now()->addDay()->toDateString(), 'hora' => '10:00'],
+            ])
+            ->assertCreated()
+            ->assertJsonPath('data.agendamientos_count', 1)
+            ->json('data.id');
+
+        $this->assertDatabaseHas('agendas', ['referido_id' => $id, 'tipo' => 'visita', 'jornada' => 'am']);
+    }
+
+    /** @test */
+    public function store_sin_permiso_de_seguimientos_no_registra_bitacora(): void
+    {
+        $this->actingAs($this->usuario)
+            ->postJson(route('referidos.store'), [
+                'curso_id'    => $this->curso->id,
+                'gestor_id'   => $this->usuario->id,
+                'celular'     => '3205556677',
+                'ciudad'      => 'Tunja',
+                'seguimiento' => 'Nota inicial',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('seguimiento');
+
+        $this->assertDatabaseMissing('referidos', ['celular' => '3205556677']);
+    }
+
+    /** @test */
+    public function store_no_permite_crear_un_lead_matriculado(): void
+    {
+        $this->actingAs($this->usuario)
+            ->postJson(route('referidos.store'), [
+                'curso_id'  => $this->curso->id,
+                'gestor_id' => $this->usuario->id,
+                'celular'   => '3205556677',
+                'ciudad'    => 'Tunja',
+                'status'    => Referido::ESTADO_MATRICULADO,
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('status');
     }
 
     /** @test */
@@ -163,15 +242,14 @@ class ReferidoTest extends TestCase
     }
 
     /** @test */
-    public function update_cambia_estado_y_tallas(): void
+    public function update_cambia_estado(): void
     {
         $referido = $this->crearReferido();
 
         $this->actingAs($this->usuario)
-            ->putJson(route('referidos.update', $referido), ['status' => 1, 'talla_overol' => 'L'])
+            ->putJson(route('referidos.update', $referido), ['status' => 1])
             ->assertOk()
-            ->assertJsonPath('data.status_text', 'Interesado')
-            ->assertJsonPath('data.talla_overol', 'L');
+            ->assertJsonPath('data.status_text', 'Interesado');
     }
 
     /** @test */

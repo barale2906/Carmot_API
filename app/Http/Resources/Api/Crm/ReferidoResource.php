@@ -21,8 +21,6 @@ class ReferidoResource extends JsonResource
             'nombre' => $this->nombre,
             'celular' => $this->celular,
             'ciudad' => $this->ciudad,
-            'talla_overol' => $this->talla_overol,
-            'talla_botas' => $this->talla_botas,
             'curso_id' => $this->curso_id,
             'gestor_id' => $this->gestor_id,
             'status' => $this->status,
@@ -46,6 +44,11 @@ class ReferidoResource extends JsonResource
                         'id' => $seguimiento->id,
                         'fecha' => $seguimiento->fecha?->format('Y-m-d'),
                         'seguimiento' => $seguimiento->seguimiento,
+                        'estado_referido' => $seguimiento->estado_referido,
+                        'estado_referido_text' => $seguimiento->estado_referido_text,
+                        'seguidor' => $seguimiento->relationLoaded('seguidor') && $seguimiento->seguidor
+                            ? ['id' => $seguimiento->seguidor->id, 'name' => $seguimiento->seguidor->name]
+                            : null,
                         'created_at' => $seguimiento->created_at?->format('Y-m-d H:i:s'),
                     ];
                 });
@@ -57,8 +60,11 @@ class ReferidoResource extends JsonResource
                         'fecha' => $agendamiento->fecha?->format('Y-m-d'),
                         'hora' => $agendamiento->hora,
                         'jornada' => $agendamiento->jornada,
+                        'tipo' => $agendamiento->tipo,
+                        'tipo_text' => $agendamiento->tipo_text,
+                        'nota' => $agendamiento->nota,
                         'status' => $agendamiento->status,
-                        'status_text' => \App\Models\Crm\Agenda::getStatusText($agendamiento->status),
+                        'status_text' => $agendamiento->status_text,
                         'created_at' => $agendamiento->created_at?->format('Y-m-d H:i:s'),
                     ];
                 });

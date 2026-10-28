@@ -17,9 +17,10 @@ class ActActivoResource extends JsonResource
     {
         return [
             'id'             => $this->id,
-            'codigo'         => $this->codigo,
             'nombre'         => $this->nombre,
             'descripcion'    => $this->descripcion,
+            'imagen'         => $this->imagen,
+            'imagen_url'     => $this->imagen_url,
             'categoria_id'   => $this->categoria_id,
             'sede_id'        => $this->sede_id,
             'area_id'        => $this->area_id,
@@ -40,6 +41,8 @@ class ActActivoResource extends JsonResource
             'area'        => $this->whenLoaded('area', fn () => $this->area ? ['id' => $this->area->id, 'nombre' => $this->area->nombre] : null),
             'responsable' => $this->whenLoaded('responsable', fn () => $this->responsable ? ['id' => $this->responsable->id, 'name' => $this->responsable->name] : null),
             'movimientos' => ActMovimientoResource::collection($this->whenLoaded('movimientos')),
+            // Traslado enviado sin recibir: el activo sigue en el origen hasta la recepción.
+            'traslado_pendiente' => $this->whenLoaded('trasladoPendiente', fn () => $this->trasladoPendiente ? new ActMovimientoResource($this->trasladoPendiente) : null),
         ];
     }
 }

@@ -22,7 +22,6 @@ class ActActivoFactory extends Factory
     public function definition(): array
     {
         return [
-            'codigo'        => 'ACT-' . fake()->unique()->numerify('######'),
             'nombre'        => fake()->randomElement(['Taladro', 'Compresor', 'Computador portátil', 'Escritorio', 'Soldador MIG', 'Elevador hidráulico']),
             'categoria_id'  => ActCategoria::factory(),
             'sede_id'       => Sede::factory(),
