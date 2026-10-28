@@ -525,7 +525,9 @@ class DocDocumentoTest extends TestCase
 
         $this->assertStringContainsString('Hoja de matrícula', $html);
         $this->assertStringContainsString(e($matricula->curso->nombre), $html);
-        $this->assertStringContainsString('$ 1.250.000', $html);
+        // La hoja no muestra el valor de la matrícula (precio del curso).
+        $this->assertStringNotContainsString('Valor matrícula', $html);
+        $this->assertStringNotContainsString('1.250.000', $html);
         $this->assertStringContainsString('Firma del estudiante', $html);
         $this->assertStringContainsString('Texto del contrato', $html);
         $this->assertStringContainsString('Texto del pagaré', $html);

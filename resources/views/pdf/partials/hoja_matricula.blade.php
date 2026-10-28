@@ -98,10 +98,9 @@
     <div class="hoja-seccion">Información del curso</div>
     <table class="hoja-campos resaltado">
         <tr>
-            <td><span>Técnico</span><br>{{ $texto($matricula->curso?->nombre) }}</td>
+            <td colspan="2"><span>Técnico</span><br>{{ $texto($matricula->curso?->nombre) }}</td>
             <td><span>Ciclo</span><br>{{ $texto($matricula->ciclo?->nombre) }}</td>
             <td><span>Fecha de inicio</span><br>{{ $fecha($matricula->fecha_inicio) }}</td>
-            <td><span>Valor matrícula</span><br><strong>$ {{ number_format((float) $matricula->monto, 0, ',', '.') }}</strong></td>
         </tr>
     </table>
 
