@@ -261,18 +261,29 @@ class ReciboPagoTest extends TestCase
     }
 
     /** @test */
-    public function crear_recibo_acepta_turno_abierto_en_otra_sede(): void
+    public function crear_recibo_con_turno_en_otra_sede_usa_sede_y_consecutivo_del_turno(): void
     {
         $concepto = ConceptoPago::factory()->create(['nombre' => 'Copia Certificado', 'tipo' => 1, 'valor' => 25000]);
+        $sedeTurno = Sede::factory()->create(['codigo_academico' => 'CAJA', 'codigo_inventario' => 'CINV']);
         $turno = LdTurnoCaja::where('cajero_id', $this->usuario->id)->first();
-        $turno->update(['sede_id' => Sede::factory()->create()->id]);
+        $turno->update(['sede_id' => $sedeTurno->id]);
+
+        // Recibo previo de la sede de la matrícula: no debe afectar el consecutivo de la sede del turno
+        ReciboPago::factory()->create([
+            'sede_id' => $this->sede->id, 'origen' => ReciboPago::ORIGEN_ACADEMICO, 'cajero_id' => $this->usuario->id,
+        ]);
 
         $id = $this->actingAs($this->usuario)
             ->postJson(route('recibos-pago.store'), $this->payloadSoloAdicionales($concepto))
             ->assertCreated()
             ->json('data.id');
 
-        $this->assertSame($turno->id, ReciboPago::find($id)->turno_caja_id);
+        $recibo = ReciboPago::find($id);
+        $this->assertSame($turno->id, $recibo->turno_caja_id);
+        $this->assertSame($sedeTurno->id, $recibo->sede_id);
+        $this->assertSame('CAJA', $recibo->prefijo);
+        $this->assertSame(1, $recibo->consecutivo);
+        $this->assertSame('CAJA-0001', $recibo->numero_recibo);
     }
 
     /** @test */

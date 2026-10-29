@@ -8,6 +8,7 @@ use App\Models\Inventarios\ReciboPagoInvPedido;
 use App\Models\Configuracion\Sede;
 use App\Models\Financiero\ConceptoPago\ConceptoPago;
 use App\Models\Financiero\Descuento\Descuento;
+use App\Models\Financiero\LibroDiario\LdTurnoCaja;
 use App\Models\Financiero\Lp\LpListaPrecio;
 use App\Models\Financiero\Lp\LpProducto;
 use App\Models\User;
@@ -148,12 +149,20 @@ class ReciboPago extends Model
      * Genera automáticamente el número de recibo si no existe antes de crear el registro.
      * Esto asegura que la generación del número ocurra dentro de la misma transacción de inserción,
      * evitando condiciones de carrera cuando se crean múltiples recibos simultáneamente.
+     *
+     * El recibo pertenece a la sede del turno de caja donde se recibe el dinero (no a la sede
+     * de la matrícula o del pedido): un pago se puede recibir desde cualquier sede y el
+     * consecutivo debe ser el de la caja que lo emite.
      */
     protected static function boot()
     {
         parent::boot();
 
         static::creating(function ($reciboPago) {
+            if ($reciboPago->turno_caja_id) {
+                $reciboPago->sede_id = LdTurnoCaja::whereKey($reciboPago->turno_caja_id)->value('sede_id');
+            }
+
             // Los recibos pendientes de aprobación (transferencia) reciben su número al ser aprobados.
             if (empty($reciboPago->numero_recibo) && $reciboPago->sede_id && isset($reciboPago->origen)
                 && $reciboPago->status !== self::STATUS_PENDIENTE_APROBACION) {
@@ -204,7 +213,7 @@ class ReciboPago extends Model
      */
     public function turnoCaja(): BelongsTo
     {
-        return $this->belongsTo(\App\Models\Financiero\LibroDiario\LdTurnoCaja::class, 'turno_caja_id');
+        return $this->belongsTo(LdTurnoCaja::class, 'turno_caja_id');
     }
 
     /**

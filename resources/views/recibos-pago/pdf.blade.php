@@ -34,7 +34,6 @@
             display: inline-block;
         }
         .recibo-date   { font-size: 9px;  color: #666;  margin-top: 4px; }
-        .recibo-status { font-size: 9px;  color: #333;  margin-top: 2px; }
 
         /* ── Divisor y banner ─────────────────────────────────────────────── */
         .divider { border-top: 2px solid #213360; margin: 8px 0; }
@@ -56,12 +55,13 @@
             width: 100%;
             border-collapse: collapse;
             border: 1px solid #e2e8f0;
-            margin-bottom: 14px;
+            margin-bottom: 10px;
             border-radius: 6px;
         }
-        .data-grid td { padding: 5px 10px; }
+        .data-grid td { padding: 4px 10px; vertical-align: top; }
         .data-label { font-size: 9px;  color: #94a3b8; display: block; }
         .data-value { font-size: 11px; color: #1e293b; font-weight: 500; }
+        .data-doc   { font-size: 9px;  color: #64748b; }
 
         /* ── Tablas de conceptos y medios ─────────────────────────────────── */
         .section-title {
@@ -118,12 +118,8 @@
         .total-descuento { color: #059669; font-weight: 600; }
         .total-grand { font-size: 13px; font-weight: bold; color: #213360; }
 
-        /* ── Firmas ───────────────────────────────────────────────────────── */
-        .sig-table { width: 100%; border-collapse: collapse; margin-top: 32px; margin-bottom: 14px; }
-        .sig-table td { width: 50%; padding: 0 12px; vertical-align: top; }
-        .sig-line { border-top: 1px solid #94a3b8; padding-top: 4px; }
-        .sig-name { font-size: 10px; font-weight: 500; color: #334155; }
-        .sig-sub  { font-size: 9px;  color: #94a3b8; margin-top: 1px; }
+        /* ── Responsable ──────────────────────────────────────────────────── */
+        .responsable { font-size: 10px; color: #475569; margin-top: 4px; margin-bottom: 10px; }
 
         /* ── Pie de página ────────────────────────────────────────────────── */
         .footer {
@@ -159,7 +155,6 @@
             <td class="badge-cell">
                 <div class="recibo-badge">{{ $recibo->numero_recibo }}</div>
                 <div class="recibo-date">Fecha: {{ $recibo->fecha_recibo->format('d/m/Y') }}</div>
-                <div class="recibo-status">Estado: <strong>{{ $recibo->status_text }}</strong></div>
             </td>
         </tr>
     </table>
@@ -168,33 +163,24 @@
 
     <div class="banner">Recibo de pago</div>
 
-    {{-- ── Datos generales ─────────────────────────────────────────────────── --}}
+    {{-- ── Datos generales: una sola fila (estudiante + documento | curso o almacén) ── --}}
     <table class="data-grid">
         <tr>
             <td style="width:50%; border-right:1px solid #e2e8f0;">
                 <span class="data-label">Estudiante</span>
                 <span class="data-value">{{ $recibo->estudiante->name ?? 'ID ' . $recibo->estudiante_id }}</span>
+                @if($recibo->estudiante?->documento)
+                    <span class="data-doc">&nbsp;· Doc. {{ $recibo->estudiante->documento }}</span>
+                @endif
             </td>
             <td style="width:50%;">
                 @if($recibo->origen === 0)
                     <span class="data-label">Almacén</span>
                     <span class="data-value">{{ $recibo->pedidoLinks->first()?->pedido?->almacen?->nombre ?? '—' }}</span>
                 @else
-                    <span class="data-label">Programa</span>
+                    <span class="data-label">Curso</span>
                     <span class="data-value">{{ $recibo->matricula?->curso?->nombre ?? '—' }}</span>
                 @endif
-            </td>
-        </tr>
-        <tr style="border-top:1px solid #e2e8f0;">
-            <td style="border-right:1px solid #e2e8f0;">
-                <span class="data-label">Responsable</span>
-                <span class="data-value">{{ $recibo->cajero->name ?? 'ID ' . $recibo->cajero_id }}</span>
-            </td>
-            <td>
-                <span class="data-label">Fecha de transacción</span>
-                <span class="data-value">
-                    {{ ($recibo->fecha_transaccion ?? $recibo->fecha_recibo)?->format('d/m/Y') }}
-                </span>
             </td>
         </tr>
     </table>
@@ -327,23 +313,10 @@
         </tbody>
     </table>
 
-    {{-- ── Firmas ───────────────────────────────────────────────────────────── --}}
-    <table class="sig-table">
-        <tr>
-            <td>
-                <div class="sig-line">
-                    <div class="sig-name">Firma del estudiante</div>
-                    <div class="sig-sub">{{ $recibo->estudiante->name ?? '' }}</div>
-                </div>
-            </td>
-            <td>
-                <div class="sig-line">
-                    <div class="sig-name">Responsable de caja</div>
-                    <div class="sig-sub">{{ $recibo->cajero->name ?? '' }}</div>
-                </div>
-            </td>
-        </tr>
-    </table>
+    {{-- ── Responsable de caja ─────────────────────────────────────────────── --}}
+    <div class="responsable">
+        Responsable: <strong>{{ $recibo->cajero->name ?? 'ID ' . $recibo->cajero_id }}</strong>
+    </div>
 
     {{-- ── Pie de página ───────────────────────────────────────────────────── --}}
     <div class="footer">

@@ -319,6 +319,24 @@ class InvVentaTest extends TestCase
     }
 
     /** @test */
+    public function venta_con_turno_en_otra_sede_numera_con_la_sede_del_turno(): void
+    {
+        $sedeTurno = Sede::factory()->create(['codigo_academico' => 'CAJA', 'codigo_inventario' => 'CINV']);
+        LdTurnoCaja::where('cajero_id', $this->cajero->id)->update(['sede_id' => $sedeTurno->id]);
+
+        $this->actingAs($this->cajero)
+            ->postJson(route('inv-ventas.store'), $this->payloadPedido())
+            ->assertCreated();
+
+        $this->assertDatabaseHas('recibos_pago', [
+            'origen'        => ReciboPago::ORIGEN_INVENTARIOS,
+            'sede_id'       => $sedeTurno->id,
+            'prefijo'       => 'CINV',
+            'numero_recibo' => 'CINV-0001',
+        ]);
+    }
+
+    /** @test */
     public function venta_y_abono_exigen_turno_de_caja_abierto(): void
     {
         $pedidoId = $this->actingAs($this->cajero)

@@ -46,7 +46,8 @@ class StoreReciboPagoRequest extends FormRequest
     public function rules(): array
     {
         return [
-            // Encabezado del recibo
+            // Encabezado del recibo. El recibo queda en la sede del turno de caja abierto del
+            // cajero (de ahí sale su consecutivo), no necesariamente en la sede enviada aquí.
             'sede_id'                                   => 'required|exists:sedes,id',
             'cajero_id'                                 => 'required|exists:users,id',
             'matricula_id'                              => 'required|exists:matriculas,id',
