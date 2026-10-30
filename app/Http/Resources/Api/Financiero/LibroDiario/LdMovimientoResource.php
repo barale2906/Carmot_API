@@ -31,6 +31,8 @@ class LdMovimientoResource extends JsonResource
             'clase' => $this->clase,
             'clase_text' => LdTipoMovimiento::getClaseOptions()[$this->clase] ?? null,
             'fecha' => $this->fecha?->format('Y-m-d'),
+            'tercero_id' => $this->tercero_id,
+            'tercero' => new LdTerceroResource($this->whenLoaded('tercero')),
             'tercero_tipo_identificacion' => $this->tercero_tipo_identificacion,
             'tercero_identificacion' => $this->tercero_identificacion,
             'tercero_nombre' => $this->tercero_nombre,

@@ -30,7 +30,8 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
  * @property int $tipo_movimiento_id
  * @property int $clase 1=Egreso, 2=Otro ingreso
  * @property \Carbon\Carbon $fecha
- * @property string $tercero_tipo_identificacion
+ * @property int|null $tercero_id Tercero del catálogo (null solo en datos anteriores a él)
+ * @property string $tercero_tipo_identificacion Copia histórica del tercero al registrar
  * @property string $tercero_identificacion
  * @property string $tercero_nombre
  * @property string $documento_tipo
@@ -44,6 +45,7 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
  * @property string|null $observaciones
  * @property int $status 1=Registrado, 2=Anulado
  * @property-read LdTurnoCaja $turnoCaja
+ * @property-read LdTercero|null $tercero
  * @property-read \Illuminate\Database\Eloquent\Collection|LdMovimientoImpuesto[] $impuestos
  * @property-read \Illuminate\Database\Eloquent\Collection|LdSoporte[] $soportes
  */
@@ -58,14 +60,8 @@ class LdMovimiento extends Model
     /** Columnas en que busca el scope search. */
     public const CAMPOS_BUSQUEDA = ['tercero_nombre', 'tercero_identificacion', 'documento_numero'];
 
-    /** Tipos de identificación del tercero. */
-    public const TIPOS_IDENTIFICACION = [
-        'CC' => 'Cédula de ciudadanía',
-        'NIT' => 'NIT',
-        'CE' => 'Cédula de extranjería',
-        'PA' => 'Pasaporte',
-        'TI' => 'Tarjeta de identidad',
-    ];
+    /** Tipos de identificación del tercero (los define el catálogo de terceros). */
+    public const TIPOS_IDENTIFICACION = LdTercero::TIPOS_IDENTIFICACION;
 
     /** Tipos de documento soporte del movimiento. */
     public const TIPOS_DOCUMENTO = [
@@ -109,6 +105,14 @@ class LdMovimiento extends Model
     public function tipoMovimiento(): BelongsTo
     {
         return $this->belongsTo(LdTipoMovimiento::class, 'tipo_movimiento_id')->withTrashed();
+    }
+
+    /**
+     * Tercero del catálogo; el nombre e identificación del movimiento son la copia al registrar.
+     */
+    public function tercero(): BelongsTo
+    {
+        return $this->belongsTo(LdTercero::class, 'tercero_id');
     }
 
     public function banco(): BelongsTo

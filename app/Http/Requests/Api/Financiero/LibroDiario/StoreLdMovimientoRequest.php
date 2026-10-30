@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Api\Financiero\LibroDiario;
 
 use App\Models\Financiero\LibroDiario\LdMovimiento;
+use App\Models\Financiero\LibroDiario\LdTercero;
 use App\Models\Financiero\ReciboPago\ReciboPagoMedioPago;
 use App\Services\Financiero\LibroDiario\LdMovimientoService;
 use App\Services\Financiero\LibroDiario\LdTurnoCajaService;
@@ -16,6 +17,11 @@ use Illuminate\Validation\Validator;
  * El cliente envía subtotal, impuestos aplicados (con su valor) y valor_total; el
  * total debe cuadrar con subtotal + impuestos - retenciones (tolerancia de $1).
  * Para registrar se exige un turno de caja abierto de quien registra.
+ *
+ * El tercero se envía seleccionado del catálogo (`tercero_id`) o con sus datos
+ * (`tercero_tipo_identificacion`, `tercero_identificacion`, `tercero_nombre` y contacto
+ * opcional): si esa identificación no existe se crea en el mismo registro, y si ya
+ * existe se usa la registrada. Un tercero inactivo no admite movimientos nuevos.
  *
  * El medio de pago es efectivo por defecto; solo quien tiene `fin_ldMedioPagoOtros`
  * puede registrar otro medio (los encargados de caja operan únicamente en efectivo).
@@ -51,9 +57,13 @@ class StoreLdMovimientoRequest extends FormRequest
 
         return [
             'tipo_movimiento_id' => ['required', 'integer', $catalogoActivo('ld_tipos_movimiento')],
-            'tercero_tipo_identificacion' => ['required', 'string', Rule::in(array_keys(LdMovimiento::TIPOS_IDENTIFICACION))],
-            'tercero_identificacion' => ['required', 'string', 'max:30'],
-            'tercero_nombre' => ['required', 'string', 'max:200'],
+            'tercero_id' => ['nullable', 'integer', Rule::exists('ld_terceros', 'id')->where('status', 1)],
+            'tercero_tipo_identificacion' => ['required_without:tercero_id', 'nullable', 'string', Rule::in(array_keys(LdTercero::TIPOS_IDENTIFICACION))],
+            'tercero_identificacion' => ['required_without:tercero_id', 'nullable', 'string', 'max:30'],
+            'tercero_nombre' => ['required_without:tercero_id', 'nullable', 'string', 'max:200'],
+            'tercero_telefono' => ['nullable', 'string', 'max:30'],
+            'tercero_email' => ['nullable', 'email', 'max:150'],
+            'tercero_direccion' => ['nullable', 'string', 'max:255'],
             'documento_tipo' => ['required', 'string', Rule::in(array_keys(LdMovimiento::TIPOS_DOCUMENTO))],
             'documento_numero' => ['nullable', 'string', 'max:60'],
             'subtotal' => ['required', 'numeric', 'min:0'],
@@ -78,6 +88,10 @@ class StoreLdMovimientoRequest extends FormRequest
                 $v->errors()->add('turno', 'Debe abrir un turno de caja antes de registrar movimientos.');
             }
 
+            if (! $this->filled('tercero_id') && ($error = self::errorTerceroInactivo($this->tercero_tipo_identificacion, $this->tercero_identificacion))) {
+                $v->errors()->add('tercero_identificacion', $error);
+            }
+
             if ($this->medio_pago !== 'efectivo' && ! $this->user()->can('fin_ldMedioPagoOtros')) {
                 $v->errors()->add('medio_pago', 'Solo puede registrar movimientos en efectivo.');
             }
@@ -99,6 +113,21 @@ class StoreLdMovimientoRequest extends FormRequest
     }
 
     /**
+     * Mensaje si la identificación corresponde a un tercero inactivo; null si no existe o está activo.
+     */
+    public static function errorTerceroInactivo(?string $tipo, ?string $identificacion): ?string
+    {
+        if (! $tipo || ! $identificacion) {
+            return null;
+        }
+        $tercero = LdTercero::porIdentificacion($tipo, $identificacion);
+
+        return $tercero && $tercero->status !== 1
+            ? "El tercero {$tercero->nombre} ({$tipo} {$identificacion}) está inactivo."
+            : null;
+    }
+
+    /**
      * Solo la creación exige un turno abierto; la edición la controla el turno del registro.
      */
     protected function exigeTurnoAbierto(): bool
@@ -116,10 +145,12 @@ class StoreLdMovimientoRequest extends FormRequest
         return [
             'tipo_movimiento_id.required' => 'El tipo de movimiento es obligatorio.',
             'tipo_movimiento_id.exists' => 'El tipo de movimiento no existe o está inactivo.',
-            'tercero_tipo_identificacion.required' => 'El tipo de identificación del tercero es obligatorio.',
+            'tercero_id.exists' => 'El tercero no existe o está inactivo.',
+            'tercero_tipo_identificacion.required_without' => 'El tipo de identificación del tercero es obligatorio.',
             'tercero_tipo_identificacion.in' => 'El tipo de identificación no es válido.',
-            'tercero_identificacion.required' => 'El número de identificación del tercero es obligatorio.',
-            'tercero_nombre.required' => 'El nombre del tercero es obligatorio.',
+            'tercero_identificacion.required_without' => 'El número de identificación del tercero es obligatorio.',
+            'tercero_nombre.required_without' => 'El nombre del tercero es obligatorio.',
+            'tercero_email.email' => 'El correo electrónico del tercero no es válido.',
             'documento_tipo.required' => 'El tipo de documento soporte es obligatorio.',
             'documento_tipo.in' => 'El tipo de documento no es válido.',
             'subtotal.required' => 'El subtotal es obligatorio.',
@@ -143,7 +174,11 @@ class StoreLdMovimientoRequest extends FormRequest
             'tipo_movimiento_id' => 'tipo de movimiento',
             'tercero_tipo_identificacion' => 'tipo de identificación',
             'tercero_identificacion' => 'identificación del tercero',
+            'tercero_id' => 'tercero',
             'tercero_nombre' => 'nombre del tercero',
+            'tercero_telefono' => 'teléfono del tercero',
+            'tercero_email' => 'correo del tercero',
+            'tercero_direccion' => 'dirección del tercero',
             'documento_tipo' => 'tipo de documento',
             'documento_numero' => 'número de documento',
             'subtotal' => 'subtotal',

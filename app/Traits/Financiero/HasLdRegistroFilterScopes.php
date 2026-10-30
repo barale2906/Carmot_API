@@ -34,7 +34,7 @@ trait HasLdRegistroFilterScopes
 
     /**
      * Scope compuesto: search, sede_id, turno_caja_id, status, fecha_desde, fecha_hasta,
-     * y en movimientos clase y tipo_movimiento_id.
+     * y en movimientos clase, tipo_movimiento_id y tercero_id.
      */
     public function scopeWithFilters($query, array $filters)
     {
@@ -46,6 +46,7 @@ trait HasLdRegistroFilterScopes
             ->when(! empty($filters['fecha_desde']), fn ($q) => $q->whereDate('fecha', '>=', $filters['fecha_desde']))
             ->when(! empty($filters['fecha_hasta']), fn ($q) => $q->whereDate('fecha', '<=', $filters['fecha_hasta']))
             ->when(! empty($filters['clase']), fn ($q) => $q->where('clase', (int) $filters['clase']))
-            ->when(! empty($filters['tipo_movimiento_id']), fn ($q) => $q->where('tipo_movimiento_id', (int) $filters['tipo_movimiento_id']));
+            ->when(! empty($filters['tipo_movimiento_id']), fn ($q) => $q->where('tipo_movimiento_id', (int) $filters['tipo_movimiento_id']))
+            ->when(! empty($filters['tercero_id']), fn ($q) => $q->where('tercero_id', (int) $filters['tercero_id']));
     }
 }

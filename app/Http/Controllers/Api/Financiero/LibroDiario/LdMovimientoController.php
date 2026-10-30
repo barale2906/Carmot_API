@@ -3,15 +3,19 @@
 namespace App\Http\Controllers\Api\Financiero\LibroDiario;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\Financiero\LibroDiario\ImportarLdMovimientosRequest;
 use App\Http\Requests\Api\Financiero\LibroDiario\MotivoLibroDiarioRequest;
 use App\Http\Requests\Api\Financiero\LibroDiario\StoreLdMovimientoRequest;
 use App\Http\Requests\Api\Financiero\LibroDiario\UpdateLdMovimientoRequest;
 use App\Http\Resources\Api\Financiero\LibroDiario\LdMovimientoResource;
 use App\Models\Financiero\LibroDiario\LdMovimiento;
+use App\Services\Financiero\LibroDiario\LdMovimientoImportacionService;
 use App\Services\Financiero\LibroDiario\LdMovimientoService;
 use App\Services\Financiero\LibroDiario\LdTurnoCajaService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * Controlador de movimientos manuales del libro diario (egresos y otros ingresos).
@@ -23,7 +27,7 @@ use Illuminate\Http\Request;
 class LdMovimientoController extends Controller
 {
     /** Relaciones que acompañan al movimiento en el detalle. */
-    private const RELACIONES_DETALLE = ['sede', 'usuario', 'tipoMovimiento', 'banco', 'impuestos', 'soportes.usuario', 'anuladoPor', 'turnoCaja'];
+    private const RELACIONES_DETALLE = ['sede', 'usuario', 'tipoMovimiento', 'tercero', 'banco', 'impuestos', 'soportes.usuario', 'anuladoPor', 'turnoCaja'];
 
     /**
      * Registra los middlewares de autenticación y permisos.
@@ -31,24 +35,25 @@ class LdMovimientoController extends Controller
     public function __construct(
         private readonly LdMovimientoService $movimientoService,
         private readonly LdTurnoCajaService $turnoService,
+        private readonly LdMovimientoImportacionService $importacionService,
     ) {
         $this->middleware('auth:sanctum');
         $this->middleware('permission:fin_libroDiario')->only(['index', 'show']);
-        $this->middleware('permission:fin_ldRegistroCrear')->only(['store']);
+        $this->middleware('permission:fin_ldRegistroCrear')->only(['store', 'plantilla', 'importar']);
         $this->middleware('permission:fin_ldRegistroEditar')->only(['update']);
         $this->middleware('permission:fin_ldRegistroAnular')->only(['anular']);
     }
 
     /**
      * Lista paginada de movimientos de las sedes del usuario. Filtros: search,
-     * sede_id, turno_caja_id, status, clase, tipo_movimiento_id, fecha_desde, fecha_hasta.
+     * sede_id, turno_caja_id, status, clase, tipo_movimiento_id, tercero_id, fecha_desde, fecha_hasta.
      */
     public function index(Request $request): JsonResponse
     {
         $movimientos = LdMovimiento::deSedes($request->user()->idsSedesAccesibles())
             ->withFilters($request->only([
                 'search', 'sede_id', 'turno_caja_id', 'status', 'clase',
-                'tipo_movimiento_id', 'fecha_desde', 'fecha_hasta',
+                'tipo_movimiento_id', 'tercero_id', 'fecha_desde', 'fecha_hasta',
             ]))
             ->with(['sede', 'usuario', 'tipoMovimiento'])
             ->withCount('soportes')
@@ -80,6 +85,49 @@ class LdMovimientoController extends Controller
         return response()->json([
             'message' => 'Movimiento registrado exitosamente.',
             'data' => new LdMovimientoResource($movimiento->load(self::RELACIONES_DETALLE)),
+        ], 201);
+    }
+
+    /**
+     * Descarga la plantilla Excel para la carga masiva, con los catálogos vigentes
+     * como listas desplegables y una hoja de instrucciones.
+     */
+    public function plantilla(): StreamedResponse
+    {
+        $spreadsheet = $this->importacionService->plantilla();
+
+        return response()->streamDownload(function () use ($spreadsheet) {
+            (new Xlsx($spreadsheet))->save('php://output');
+        }, 'plantilla-movimientos-libro-diario.xlsx', ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']);
+    }
+
+    /**
+     * Carga masiva de movimientos desde la plantilla al turno abierto del usuario.
+     *
+     * Todo o nada: si alguna fila tiene errores no se registra ninguna y se responde
+     * 422 con `errores` (número de fila del archivo y sus mensajes).
+     */
+    public function importar(ImportarLdMovimientosRequest $request): JsonResponse
+    {
+        $resultado = $this->importacionService->importar(
+            $request->file('archivo')->getRealPath(),
+            $request->user(),
+            $this->turnoService->turnoAbiertoDe($request->user()->id),
+        );
+
+        if ($resultado['errores']) {
+            return response()->json([
+                'message' => 'El archivo tiene errores; no se registró ningún movimiento.',
+                'errores' => $resultado['errores'],
+            ], 422);
+        }
+
+        $movimientos = $resultado['movimientos'];
+
+        return response()->json([
+            'message' => "Se registraron {$movimientos->count()} movimientos.",
+            'data' => LdMovimientoResource::collection($movimientos->each->load(['sede', 'usuario', 'tipoMovimiento'])),
+            'meta' => ['total' => $movimientos->count()],
         ], 201);
     }
 

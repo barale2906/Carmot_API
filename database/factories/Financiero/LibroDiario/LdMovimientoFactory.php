@@ -3,12 +3,14 @@
 namespace Database\Factories\Financiero\LibroDiario;
 
 use App\Models\Financiero\LibroDiario\LdMovimiento;
+use App\Models\Financiero\LibroDiario\LdTercero;
 use App\Models\Financiero\LibroDiario\LdTipoMovimiento;
 use App\Models\Financiero\LibroDiario\LdTurnoCaja;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * Egreso en efectivo sin impuestos; sede y usuario se toman del turno.
+ * Egreso en efectivo sin impuestos; sede y usuario se toman del turno y la copia
+ * del tercero, del tercero asociado.
  *
  * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\Financiero\LibroDiario\LdMovimiento>
  */
@@ -25,9 +27,10 @@ class LdMovimientoFactory extends Factory
             'tipo_movimiento_id' => LdTipoMovimiento::factory(),
             'clase' => fn (array $a) => LdTipoMovimiento::find($a['tipo_movimiento_id'])->clase,
             'fecha' => today(),
-            'tercero_tipo_identificacion' => 'NIT',
-            'tercero_identificacion' => fake()->numerify('#########'),
-            'tercero_nombre' => fake()->company(),
+            'tercero_id' => LdTercero::factory(),
+            'tercero_tipo_identificacion' => fn (array $a) => LdTercero::find($a['tercero_id'])->tipo_identificacion,
+            'tercero_identificacion' => fn (array $a) => LdTercero::find($a['tercero_id'])->identificacion,
+            'tercero_nombre' => fn (array $a) => LdTercero::find($a['tercero_id'])->nombre,
             'documento_tipo' => 'factura',
             'documento_numero' => fake()->bothify('FE-####'),
             'subtotal' => 50000,

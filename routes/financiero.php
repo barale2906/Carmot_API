@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\Financiero\LibroDiario\LdConsignacionController;
 use App\Http\Controllers\Api\Financiero\LibroDiario\LdImpuestoController;
 use App\Http\Controllers\Api\Financiero\LibroDiario\LdMovimientoController;
 use App\Http\Controllers\Api\Financiero\LibroDiario\LdSoporteController;
+use App\Http\Controllers\Api\Financiero\LibroDiario\LdTerceroController;
 use App\Http\Controllers\Api\Financiero\LibroDiario\LdTipoMovimientoController;
 use App\Http\Controllers\Api\Financiero\LibroDiario\LdTurnoCajaController;
 use App\Http\Controllers\Api\Financiero\LibroDiario\LibroDiarioController;
@@ -152,11 +153,11 @@ Route::middleware('auth:sanctum')->group(function () {
     // ─── Cartera (cuentas por cobrar) ────────────────────────────────────────
     // IMPORTANTE: rutas GET estáticas ANTES del apiResource.
     Route::prefix('carteras')->group(function () {
-        Route::get('deudas-estudiante',  [CarteraController::class, 'deudasEstudiante'])->name('carteras.deudas-estudiante');
-        Route::get('detalle-matricula',  [CarteraController::class, 'detalleMatricula'])->name('carteras.detalle-matricula');
-        Route::get('reportes',           [CarteraController::class, 'reportes'])->name('carteras.reportes');
-        Route::post('{cartera}/anular',  [CarteraController::class, 'anular'])->name('carteras.anular');
-        Route::post('acuerdo-pago',      [CarteraController::class, 'acuerdoPago'])->name('carteras.acuerdo-pago');
+        Route::get('deudas-estudiante', [CarteraController::class, 'deudasEstudiante'])->name('carteras.deudas-estudiante');
+        Route::get('detalle-matricula', [CarteraController::class, 'detalleMatricula'])->name('carteras.detalle-matricula');
+        Route::get('reportes', [CarteraController::class, 'reportes'])->name('carteras.reportes');
+        Route::post('{cartera}/anular', [CarteraController::class, 'anular'])->name('carteras.anular');
+        Route::post('acuerdo-pago', [CarteraController::class, 'acuerdoPago'])->name('carteras.acuerdo-pago');
     });
     Route::apiResource('carteras', CarteraController::class)->only(['index', 'show']);
 
@@ -266,7 +267,14 @@ Route::middleware('auth:sanctum')->group(function () {
         // Autorizaciones para abrir un nuevo turno el mismo día del cierre
         Route::apiResource('autorizaciones', LdAutorizacionTurnoController::class)->only(['index', 'store']);
 
+        // Terceros de los movimientos: se crean desde el registro del movimiento; no se eliminan, se inactivan
+        Route::apiResource('terceros', LdTerceroController::class)
+            ->only(['index', 'show', 'update'])
+            ->parameters(['terceros' => 'ldTercero']);
+
         // Movimientos manuales (egresos / otros ingresos): no se eliminan, se anulan
+        Route::get('movimientos/importar/plantilla', [LdMovimientoController::class, 'plantilla'])->name('movimientos.plantilla');
+        Route::post('movimientos/importar', [LdMovimientoController::class, 'importar'])->name('movimientos.importar');
         Route::post('movimientos/{ldMovimiento}/anular', [LdMovimientoController::class, 'anular'])->name('movimientos.anular');
         Route::apiResource('movimientos', LdMovimientoController::class)
             ->except(['destroy'])
@@ -284,4 +292,3 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('soportes/{ldSoporte}', [LdSoporteController::class, 'destroy'])->name('soportes.destroy');
     });
 });
-
