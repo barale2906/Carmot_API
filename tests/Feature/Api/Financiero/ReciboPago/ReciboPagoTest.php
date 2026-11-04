@@ -257,7 +257,30 @@ class ReciboPagoTest extends TestCase
         $this->actingAs($this->usuario)
             ->postJson(route('recibos-pago.store'), $this->payloadSoloAdicionales($concepto))
             ->assertUnprocessable()
-            ->assertJsonValidationErrors('cajero_id');
+            ->assertJsonValidationErrors(['turno_caja_id' => LdTurnoCaja::MENSAJE_SIN_TURNO]);
+    }
+
+    /** @test */
+    public function con_caja_abierta_en_varias_sedes_el_recibo_sale_de_la_elegida(): void
+    {
+        $concepto = ConceptoPago::factory()->create(['nombre' => 'Copia Certificado', 'tipo' => 1, 'valor' => 25000]);
+        $otraSede = Sede::factory()->create(['codigo_academico' => 'OTRA', 'codigo_inventario' => 'OINV']);
+        $otroTurno = LdTurnoCaja::factory()->create(['cajero_id' => $this->usuario->id, 'sede_id' => $otraSede->id]);
+
+        $this->actingAs($this->usuario)
+            ->postJson(route('recibos-pago.store'), $this->payloadSoloAdicionales($concepto))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['turno_caja_id' => LdTurnoCaja::MENSAJE_ELEGIR_TURNO]);
+
+        $id = $this->actingAs($this->usuario)
+            ->postJson(route('recibos-pago.store'), $this->payloadSoloAdicionales($concepto) + ['turno_caja_id' => $otroTurno->id])
+            ->assertCreated()
+            ->json('data.id');
+
+        $recibo = ReciboPago::find($id);
+        $this->assertSame($otroTurno->id, $recibo->turno_caja_id);
+        $this->assertSame($otraSede->id, $recibo->sede_id);
+        $this->assertSame('OTRA-0001', $recibo->numero_recibo);
     }
 
     /** @test */

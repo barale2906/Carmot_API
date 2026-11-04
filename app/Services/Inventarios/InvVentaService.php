@@ -438,7 +438,7 @@ class InvVentaService
             'sede_id'           => $pedido->sede_id,
             'estudiante_id'     => $pedido->estudiante_id,
             'cajero_id'         => $datos['cajero_id'],
-            'turno_caja_id'     => LdTurnoCaja::abiertoDe((int) $datos['cajero_id'])->value('id'),
+            'turno_caja_id'     => LdTurnoCaja::paraFacturar((int) $datos['cajero_id'], $datos['turno_caja_id'] ?? null)?->id,
             'fecha_recibo'      => now()->toDateString(),
             'fecha_transaccion' => now(),
             'valor_total'       => $monto,

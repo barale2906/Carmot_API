@@ -50,6 +50,8 @@ class StoreReciboPagoRequest extends FormRequest
             // cajero (de ahí sale su consecutivo), no necesariamente en la sede enviada aquí.
             'sede_id'                                   => 'required|exists:sedes,id',
             'cajero_id'                                 => 'required|exists:users,id',
+            // Caja desde la que se factura; obligatoria solo si el cajero tiene turnos abiertos en varias sedes
+            'turno_caja_id'                             => 'nullable|integer',
             'matricula_id'                              => 'required|exists:matriculas,id',
             'origen'                                    => ['required', 'integer', Rule::in([ReciboPago::ORIGEN_INVENTARIOS, ReciboPago::ORIGEN_ACADEMICO])],
             'fecha_recibo'                              => 'required|date',
@@ -108,10 +110,11 @@ class StoreReciboPagoRequest extends FormRequest
     public function withValidator($validator): void
     {
         $validator->after(function ($validator) {
-            // El recibo solo se genera dentro de un turno de caja abierto del cajero (en cualquier sede)
+            // El recibo solo se genera dentro de un turno de caja abierto del cajero (en cualquier
+            // sede); con cajas abiertas en varias sedes debe indicar desde cuál factura
             if (! $validator->errors()->has('cajero_id')
-                && ! LdTurnoCaja::abiertoDe((int) $this->cajero_id)->exists()) {
-                $validator->errors()->add('cajero_id', LdTurnoCaja::MENSAJE_SIN_TURNO);
+                && ($error = LdTurnoCaja::errorParaFacturar((int) $this->cajero_id, $this->integer('turno_caja_id') ?: null))) {
+                $validator->errors()->add('turno_caja_id', $error);
             }
 
             $mediosPago = $this->input('medios_pago', []);

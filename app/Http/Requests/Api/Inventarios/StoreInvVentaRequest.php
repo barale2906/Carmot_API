@@ -34,6 +34,8 @@ class StoreInvVentaRequest extends FormRequest
         return [
             'estudiante_id'                   => ['required', 'integer', 'exists:users,id'],
             'sede_id'                         => ['required', 'integer', 'exists:sedes,id'],
+            // Caja desde la que se factura; obligatoria solo si el cajero tiene turnos abiertos en varias sedes
+            'turno_caja_id'                   => ['nullable', 'integer'],
             'almacen_id'                      => ['required', 'integer', 'exists:inv_almacenes,id'],
             'items'                           => ['required', 'array', 'min:1'],
             'items.*.producto_id'             => [
@@ -85,9 +87,10 @@ class StoreInvVentaRequest extends FormRequest
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $v) {
-            // La venta genera un recibo: exige el turno de caja abierto del cajero (en cualquier sede)
-            if (! LdTurnoCaja::abiertoDe((int) $this->user()->id)->exists()) {
-                $v->errors()->add('sede_id', LdTurnoCaja::MENSAJE_SIN_TURNO);
+            // La venta genera un recibo: exige el turno de caja abierto del cajero (en cualquier
+            // sede); con cajas abiertas en varias sedes debe indicar desde cuál factura
+            if ($error = LdTurnoCaja::errorParaFacturar((int) $this->user()->id, $this->integer('turno_caja_id') ?: null)) {
+                $v->errors()->add('turno_caja_id', $error);
 
                 return;
             }

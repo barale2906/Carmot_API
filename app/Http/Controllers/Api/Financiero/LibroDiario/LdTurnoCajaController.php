@@ -6,21 +6,26 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\Financiero\LibroDiario\AbrirLdTurnoCajaRequest;
 use App\Http\Requests\Api\Financiero\LibroDiario\AprobarCierreLdTurnoCajaRequest;
 use App\Http\Requests\Api\Financiero\LibroDiario\CerrarLdTurnoCajaRequest;
+use App\Http\Requests\Api\Financiero\LibroDiario\FiltrarLdTurnosCajaRequest;
 use App\Http\Requests\Api\Financiero\LibroDiario\MotivoLibroDiarioRequest;
 use App\Http\Resources\Api\Financiero\LibroDiario\LdTurnoCajaResource;
 use App\Models\Financiero\LibroDiario\LdTurnoCaja;
 use App\Models\Financiero\LibroDiario\LdTurnoEvento;
 use App\Services\Financiero\LibroDiario\LdTurnoCajaService;
+use App\Services\Financiero\LibroDiario\LdTurnosCajaExcelService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use RuntimeException;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * Controlador de turnos de caja (apertura, arqueo, cierre y reversión).
  *
  * El cajero abre su turno con la base inicial antes de generar cualquier recibo
- * o registro, y lo cierra con un conteo ciego (no ve el efectivo esperado). El
+ * o registro (uno por sede; quien factura para varias sedes abre una caja en cada
+ * una y cierra cada una por separado), y lo cierra con un conteo ciego (no ve el efectivo esperado). El
  * cierre queda Por aprobar hasta que alguien con `fin_ldCierreAprobar` lo aprueba
  * o lo rechaza. Quien supervisa cajas ve los turnos de sus sedes y el arqueo;
  * `fin_ldTurnoReversar` reabre un cierre aprobado para corregirlo.
@@ -30,10 +35,12 @@ class LdTurnoCajaController extends Controller
     /**
      * Registra los middlewares de autenticación y permisos.
      */
-    public function __construct(private readonly LdTurnoCajaService $turnoService)
-    {
+    public function __construct(
+        private readonly LdTurnoCajaService $turnoService,
+        private readonly LdTurnosCajaExcelService $turnosExcel,
+    ) {
         $this->middleware('auth:sanctum');
-        $this->middleware('permission:fin_ldTurnoCaja|fin_ldTurnos|fin_ldCierreAprobar')->only(['index', 'show', 'pdf']);
+        $this->middleware('permission:fin_ldTurnoCaja|fin_ldTurnos|fin_ldCierreAprobar')->only(['index', 'show', 'pdf', 'excel']);
         $this->middleware('permission:fin_ldTurnoCaja|fin_ldTurnos')->only(['cerrar']);
         $this->middleware('permission:fin_ldCierreAprobar')->only(['aprobar', 'rechazar']);
         $this->middleware('permission:fin_ldTurnoCaja')->only(['actual', 'store']);
@@ -46,10 +53,7 @@ class LdTurnoCajaController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $usuario = $request->user();
-
-        $turnos = LdTurnoCaja::deSedes($usuario->idsSedesAccesibles())
-            ->when(! LdTurnoCaja::supervisaCaja($usuario), fn ($q) => $q->where('cajero_id', $usuario->id))
+        $turnos = LdTurnoCaja::visiblesPara($request->user())
             ->withFilters($request->only(['sede_id', 'cajero_id', 'status', 'fecha_desde', 'fecha_hasta']))
             ->with(['sede', 'cajero', 'cerradoPor', 'aprobadoPor'])
             ->withSorting($request->get('sort_by', 'abierto_at'), $request->get('sort_direction', 'desc'))
@@ -69,42 +73,70 @@ class LdTurnoCajaController extends Controller
     }
 
     /**
-     * Turno abierto del usuario con su resumen en vivo. Si no tiene, indica si
-     * puede abrir uno y, si no, por qué (p. ej. ya cerró caja hoy sin autorización).
-     * Informa además si tiene un cierre por aprobar o si su último cierre fue rechazado.
+     * Turnos abiertos del usuario (uno por sede; puede tener varios si factura para
+     * otras sedes), cada uno con su resumen en vivo.
+     *
+     * `meta.sedes_disponibles` trae cada sede del usuario con su turno abierto
+     * (`turno_abierto_id`) y si puede abrir uno nuevo o por qué no (p. ej. ya cerró caja
+     * hoy en esa sede sin autorización); `puede_abrir` indica si hay alguna sede donde
+     * abrir y `motivo_no_puede`, cuando no hay ninguna, por qué. Informa además los cierres por aprobar y los turnos abiertos cuyo último
+     * cierre fue rechazado.
      */
     public function actual(Request $request): JsonResponse
     {
-        $turno = $this->turnoService->turnoAbiertoDe($request->user()->id);
+        $usuario = $request->user();
 
-        if ($turno) {
-            $turno->resumen = $this->turnoService->calcularResumen($turno);
-            $turno->load(['sede', 'cajero']);
-        }
+        $turnos = $this->turnoService->turnosAbiertosDe($usuario->id)
+            ->load(['sede', 'cajero', 'eventos'])
+            ->each(fn (LdTurnoCaja $turno) => $turno->resumen = $this->turnoService->calcularResumen($turno));
 
-        $motivo = $turno ? null : $this->turnoService->motivoNoPuedeAbrir($request->user()->id);
-        $ultimoEvento = $turno?->eventos()->first();
-        $porAprobar = LdTurnoCaja::where('cajero_id', $request->user()->id)
+        $sedes = $this->turnoService->sedesDeCaja($usuario);
+        $puedeAbrir = $sedes->contains('puede_abrir', true);
+        $sinTurno = $sedes->whereNull('turno_abierto_id');
+
+        $porAprobar = LdTurnoCaja::where('cajero_id', $usuario->id)
             ->where('status', LdTurnoCaja::STATUS_POR_APROBAR)
+            ->with('sede')
             ->latest('cerrado_at')
-            ->first();
+            ->get();
+
+        $rechazados = $turnos
+            ->filter(fn (LdTurnoCaja $turno) => $turno->eventos->first()?->accion === LdTurnoEvento::ACCION_RECHAZO)
+            ->map(fn (LdTurnoCaja $turno) => [
+                'turno_id' => $turno->id,
+                'sede' => $turno->sede?->nombre,
+                'motivo' => $turno->eventos->first()->motivo,
+                'fecha' => $turno->eventos->first()->created_at?->format('Y-m-d H:i:s'),
+            ])
+            ->values();
+
+        $turnos->each->unsetRelation('eventos');
 
         return response()->json([
-            'data' => $turno ? new LdTurnoCajaResource($turno) : null,
+            'data' => LdTurnoCajaResource::collection($turnos),
             'meta' => [
-                'puede_abrir' => ! $turno && ! $motivo,
-                'motivo_no_puede' => $motivo,
-                'cierre_por_aprobar' => $porAprobar?->only(['id', 'fecha', 'cerrado_at']),
-                'cierre_rechazado' => $ultimoEvento?->accion === LdTurnoEvento::ACCION_RECHAZO
-                    ? ['motivo' => $ultimoEvento->motivo, 'fecha' => $ultimoEvento->created_at?->format('Y-m-d H:i:s')]
-                    : null,
-                'sedes_disponibles' => $request->user()->sedesAccesibles()->map->only(['id', 'nombre'])->values(),
+                'puede_abrir' => $puedeAbrir,
+                'motivo_no_puede' => match (true) {
+                    $puedeAbrir, $sedes->isNotEmpty() && $sinTurno->isEmpty() => null,
+                    $sedes->isEmpty() => 'No tiene sedes asignadas para abrir caja.',
+                    default => $sinTurno->first()['motivo_no_puede'],
+                },
+                'cierres_por_aprobar' => $porAprobar->map(fn (LdTurnoCaja $turno) => [
+                    'id' => $turno->id,
+                    'fecha' => $turno->fecha?->format('Y-m-d'),
+                    'cerrado_at' => $turno->cerrado_at?->format('Y-m-d H:i:s'),
+                    'sede' => $turno->sede?->nombre,
+                ])->values(),
+                'cierres_rechazados' => $rechazados,
+                'sedes_disponibles' => $sedes,
             ],
         ]);
     }
 
     /**
-     * Abre el turno de caja del usuario con la base inicial.
+     * Abre el turno de caja del usuario en la sede con la base inicial. Si el usuario
+     * tiene una sola sede, `sede_id` es opcional. Puede tener turnos abiertos a la vez
+     * en varias sedes, pero solo uno por sede.
      */
     public function store(AbrirLdTurnoCajaRequest $request): JsonResponse
     {
@@ -227,6 +259,7 @@ class LdTurnoCajaController extends Controller
     /**
      * Descarga el PDF del cierre de caja (o del arqueo en vivo si el turno sigue abierto).
      * El efectivo esperado y la diferencia solo aparecen para quien supervisa cajas y no es el cajero.
+     * El archivo se nombra con la fecha del turno y su id: cierre-caja-{Y-m-d}-{id}.pdf.
      */
     public function pdf(Request $request, LdTurnoCaja $ldTurnoCaja): Response
     {
@@ -241,7 +274,21 @@ class LdTurnoCajaController extends Controller
             'verArqueo' => $ldTurnoCaja->arqueoVisiblePara($request->user()),
         ])
             ->setPaper('letter', 'portrait')
-            ->download("cierre-caja-{$ldTurnoCaja->id}.pdf");
+            ->download($ldTurnoCaja->nombreArchivoPdf());
+    }
+
+    /**
+     * Descarga en Excel los cierres de caja con los mismos filtros y alcance del listado
+     * (sedes del usuario; solo los propios si no supervisa cajas), detallados por turno y
+     * por medio de pago. Respeta el conteo ciego igual que el detalle y el PDF.
+     */
+    public function excel(FiltrarLdTurnosCajaRequest $request): StreamedResponse
+    {
+        $spreadsheet = $this->turnosExcel->generar($request->user(), $request->filtros());
+
+        return response()->streamDownload(function () use ($spreadsheet) {
+            (new Xlsx($spreadsheet))->save('php://output');
+        }, 'cierres-caja-'.now()->format('Y-m-d').'.xlsx', ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']);
     }
 
     /**

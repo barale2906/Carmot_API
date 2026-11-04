@@ -75,7 +75,7 @@ class InvVentaController extends Controller
             $data = $request->only([
                 'estudiante_id', 'sede_id', 'almacen_id', 'items',
                 'monto_abono', 'medios_pago', 'sobrecargos', 'observaciones',
-                'variantes_kit', 'entrega_inmediata',
+                'variantes_kit', 'entrega_inmediata', 'turno_caja_id',
             ]);
             $data['cajero_id'] = $request->user()->id;
 
@@ -157,7 +157,7 @@ class InvVentaController extends Controller
             $data = array_merge(
                 $request->only([
                     'monto_abono', 'medios_pago', 'sobrecargos', 'variantes_kit',
-                    'entrega_inmediata', 'items_a_entregar',
+                    'entrega_inmediata', 'items_a_entregar', 'turno_caja_id',
                 ]),
                 ['cajero_id' => $request->user()->id]
             );

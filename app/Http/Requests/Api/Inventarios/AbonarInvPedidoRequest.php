@@ -28,6 +28,8 @@ class AbonarInvPedidoRequest extends FormRequest
     public function rules(): array
     {
         return [
+            // Caja desde la que se factura; obligatoria solo si el cajero tiene turnos abiertos en varias sedes
+            'turno_caja_id'                 => ['nullable', 'integer'],
             'monto_abono'                   => ['required', 'numeric', 'min:0.01'],
             'medios_pago'                          => ['required', 'array', 'min:1'],
             'medios_pago.*.medio_pago'             => ['required', 'string', 'max:50'],
@@ -56,7 +58,7 @@ class AbonarInvPedidoRequest extends FormRequest
 
     /**
      * El abono genera un recibo: exige el turno de caja abierto del cajero (en
-     * cualquier sede). Además, la suma de medios de pago debe igualar el monto abonado.
+     * cualquier sede; con cajas abiertas en varias sedes, el elegido en `turno_caja_id`). Además, la suma de medios de pago debe igualar el monto abonado.
      *
      * @param Validator $validator
      * @return void
@@ -66,8 +68,8 @@ class AbonarInvPedidoRequest extends FormRequest
         $validator->after(function (Validator $v) {
             $pedido = $this->route('pedido');
 
-            if ($pedido && ! LdTurnoCaja::abiertoDe((int) $this->user()->id)->exists()) {
-                $v->errors()->add('monto_abono', LdTurnoCaja::MENSAJE_SIN_TURNO);
+            if ($pedido && ($error = LdTurnoCaja::errorParaFacturar((int) $this->user()->id, $this->integer('turno_caja_id') ?: null))) {
+                $v->errors()->add('turno_caja_id', $error);
             }
 
             $sumaMP = collect($this->medios_pago ?? [])

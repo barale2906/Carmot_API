@@ -79,7 +79,7 @@ class LdMovimientoController extends Controller
      */
     public function store(StoreLdMovimientoRequest $request): JsonResponse
     {
-        $turno = $this->turnoService->turnoAbiertoDe($request->user()->id);
+        $turno = $this->turnoService->turnoAbiertoDe($request->user()->id, $request->integer('turno_caja_id') ?: null);
         $movimiento = $this->movimientoService->crear($turno, $request->validated());
 
         return response()->json([
@@ -112,7 +112,7 @@ class LdMovimientoController extends Controller
         $resultado = $this->importacionService->importar(
             $request->file('archivo')->getRealPath(),
             $request->user(),
-            $this->turnoService->turnoAbiertoDe($request->user()->id),
+            $this->turnoService->turnoAbiertoDe($request->user()->id, $request->integer('turno_caja_id') ?: null),
         );
 
         if ($resultado['errores']) {

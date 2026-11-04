@@ -32,6 +32,8 @@ class StoreLdConsignacionRequest extends FormRequest
     public function rules(): array
     {
         return [
+            // Caja desde la que se factura; obligatoria solo si el cajero tiene turnos abiertos en varias sedes
+            'turno_caja_id' => ['nullable', 'integer'],
             'banco_id' => ['required', 'integer', Rule::exists('bancos', 'id')->whereNull('deleted_at')],
             'valor' => ['required', 'numeric', 'min:0.01'],
             'titular' => ['required', 'string', 'max:200'],
@@ -50,7 +52,7 @@ class StoreLdConsignacionRequest extends FormRequest
             $turno = $this->turnoDelRegistro();
 
             if (! $turno) {
-                $v->errors()->add('turno', 'Debe abrir un turno de caja antes de registrar consignaciones.');
+                $v->errors()->add('turno', $this->errorSinTurno());
 
                 return;
             }
@@ -69,11 +71,21 @@ class StoreLdConsignacionRequest extends FormRequest
     }
 
     /**
-     * Turno contra el que se valida el efectivo: el abierto de quien registra.
+     * Turno contra el que se valida el efectivo: el abierto de quien registra (el
+     * elegido en `turno_caja_id` si tiene cajas abiertas en varias sedes).
      */
     protected function turnoDelRegistro(): ?LdTurnoCaja
     {
-        return app(LdTurnoCajaService::class)->turnoAbiertoDe($this->user()->id);
+        return app(LdTurnoCajaService::class)->turnoAbiertoDe($this->user()->id, $this->integer('turno_caja_id') ?: null);
+    }
+
+    /**
+     * Mensaje cuando no hay turno contra el cual registrar.
+     */
+    protected function errorSinTurno(): string
+    {
+        return LdTurnoCaja::errorParaFacturar($this->user()->id, $this->integer('turno_caja_id') ?: null)
+            ?? LdTurnoCaja::MENSAJE_SIN_TURNO;
     }
 
     /**

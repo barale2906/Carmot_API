@@ -170,6 +170,36 @@ class LdMovimientoTest extends TestCase
     }
 
     /** @test */
+    public function con_caja_abierta_en_varias_sedes_registra_en_la_elegida(): void
+    {
+        $otraSede = Sede::factory()->create();
+        $this->cajero->sedes()->attach($otraSede->id);
+        $otroTurno = LdTurnoCaja::factory()->create(['cajero_id' => $this->cajero->id, 'sede_id' => $otraSede->id]);
+
+        $this->actingAs($this->cajero)
+            ->postJson(route('libro-diario.movimientos.store'), $this->payload())
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['turno' => LdTurnoCaja::MENSAJE_ELEGIR_TURNO]);
+
+        $this->actingAs($this->cajero)
+            ->postJson(route('libro-diario.movimientos.store'), $this->payload(['turno_caja_id' => $otroTurno->id]))
+            ->assertCreated()
+            ->assertJsonPath('data.turno_caja_id', $otroTurno->id)
+            ->assertJsonPath('data.sede_id', $otraSede->id);
+    }
+
+    /** @test */
+    public function no_registra_en_turno_ajeno(): void
+    {
+        $ajeno = LdTurnoCaja::factory()->create(['cajero_id' => $this->usuarioCon(['fin_ldTurnoCaja'])->id, 'sede_id' => $this->sede->id]);
+
+        $this->actingAs($this->cajero)
+            ->postJson(route('libro-diario.movimientos.store'), $this->payload(['turno_caja_id' => $ajeno->id]))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['turno' => LdTurnoCaja::MENSAJE_TURNO_INVALIDO]);
+    }
+
+    /** @test */
     public function sin_permiso_no_registra(): void
     {
         $this->actingAs($this->usuarioCon(['fin_libroDiario']))

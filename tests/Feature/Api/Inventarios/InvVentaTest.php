@@ -355,7 +355,7 @@ class InvVentaTest extends TestCase
         $this->actingAs($this->cajero)
             ->postJson(route('inv-ventas.store'), $this->payloadPedido())
             ->assertUnprocessable()
-            ->assertJsonValidationErrors('sede_id');
+            ->assertJsonValidationErrors(['turno_caja_id' => LdTurnoCaja::MENSAJE_SIN_TURNO]);
 
         $this->actingAs($this->cajero)
             ->postJson(route('inv-ventas.abonar', $pedidoId), [
@@ -363,7 +363,45 @@ class InvVentaTest extends TestCase
                 'medios_pago' => [['medio_pago' => 'efectivo', 'valor' => 1000]],
             ])
             ->assertUnprocessable()
-            ->assertJsonValidationErrors('monto_abono');
+            ->assertJsonValidationErrors(['turno_caja_id' => LdTurnoCaja::MENSAJE_SIN_TURNO]);
+    }
+
+    /** @test */
+    public function con_caja_abierta_en_varias_sedes_la_venta_y_el_abono_salen_de_la_elegida(): void
+    {
+        $otraSede = Sede::factory()->create(['codigo_academico' => 'OTRA', 'codigo_inventario' => 'OINV']);
+        $otroTurno = LdTurnoCaja::factory()->create(['cajero_id' => $this->cajero->id, 'sede_id' => $otraSede->id]);
+        $abono = ['monto_abono' => 10000, 'medios_pago' => [['medio_pago' => 'efectivo', 'valor' => 10000]]];
+
+        $this->actingAs($this->cajero)
+            ->postJson(route('inv-ventas.store'), $this->payloadPedido($abono))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['turno_caja_id' => LdTurnoCaja::MENSAJE_ELEGIR_TURNO]);
+
+        $pedidoId = $this->actingAs($this->cajero)
+            ->postJson(route('inv-ventas.store'), $this->payloadPedido($abono + ['turno_caja_id' => $otroTurno->id]))
+            ->assertCreated()
+            ->json('data.id');
+
+        $this->assertDatabaseHas('recibos_pago', ['turno_caja_id' => $otroTurno->id, 'sede_id' => $otraSede->id, 'numero_recibo' => 'OINV-0001']);
+
+        $this->actingAs($this->cajero)
+            ->postJson(route('inv-ventas.abonar', $pedidoId), [
+                'monto_abono' => 1000,
+                'medios_pago' => [['medio_pago' => 'efectivo', 'valor' => 1000]],
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['turno_caja_id' => LdTurnoCaja::MENSAJE_ELEGIR_TURNO]);
+
+        $this->actingAs($this->cajero)
+            ->postJson(route('inv-ventas.abonar', $pedidoId), [
+                'monto_abono' => 1000,
+                'medios_pago' => [['medio_pago' => 'efectivo', 'valor' => 1000]],
+                'turno_caja_id' => $otroTurno->id,
+            ])
+            ->assertOk();
+
+        $this->assertSame(2, ReciboPago::where('turno_caja_id', $otroTurno->id)->count());
     }
 
     // ─── precios vigentes ─────────────────────────────────────────────────────

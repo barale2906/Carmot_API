@@ -2,7 +2,7 @@
 
 namespace App\Http\Requests\Api\Financiero\LibroDiario;
 
-use App\Services\Financiero\LibroDiario\LdTurnoCajaService;
+use App\Models\Financiero\LibroDiario\LdTurnoCaja;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Validator;
 
@@ -30,18 +30,21 @@ class ImportarLdMovimientosRequest extends FormRequest
     public function rules(): array
     {
         return [
+            // Caja desde la que se factura; obligatoria solo si el cajero tiene turnos abiertos en varias sedes
+            'turno_caja_id' => ['nullable', 'integer'],
             'archivo' => ['required', 'file', 'mimes:xlsx,xls,csv,txt', 'max:5120'],
         ];
     }
 
     /**
-     * Exige un turno de caja abierto de quien carga.
+     * Exige un turno de caja abierto de quien carga (el elegido en `turno_caja_id` si
+     * tiene cajas abiertas en varias sedes).
      */
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $v) {
-            if (! app(LdTurnoCajaService::class)->turnoAbiertoDe($this->user()->id)) {
-                $v->errors()->add('turno', 'Debe abrir un turno de caja antes de registrar movimientos.');
+            if ($error = LdTurnoCaja::errorParaFacturar($this->user()->id, $this->integer('turno_caja_id') ?: null)) {
+                $v->errors()->add('turno', $error);
             }
         });
     }

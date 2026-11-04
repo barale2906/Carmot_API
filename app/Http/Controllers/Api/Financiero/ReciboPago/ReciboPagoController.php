@@ -278,7 +278,7 @@ class ReciboPagoController extends Controller
                 'sede_id'           => $data['sede_id'],
                 'estudiante_id'     => $matricula->estudiante_id,
                 'cajero_id'         => $data['cajero_id'],
-                'turno_caja_id'     => LdTurnoCaja::abiertoDe((int) $data['cajero_id'])->value('id'),
+                'turno_caja_id'     => LdTurnoCaja::paraFacturar((int) $data['cajero_id'], $data['turno_caja_id'] ?? null)?->id,
                 'fecha_recibo'      => $data['fecha_recibo'],
                 'fecha_transaccion' => $data['fecha_transaccion'],
                 'valor_total'       => $montoAPagar,

@@ -11,7 +11,9 @@ use App\Models\Financiero\LibroDiario\LdTurnoEvento;
 use App\Models\Financiero\ReciboPago\ReciboPago;
 use App\Models\Financiero\ReciboPago\ReciboPagoMedioPago;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Collection as SupportCollection;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
@@ -23,8 +25,9 @@ use RuntimeException;
  * ajuste del cierre cuando se anula un registro después de cerrado.
  *
  * Reglas:
- *  - Un cajero tiene a lo sumo un turno abierto.
- *  - Tras cerrar un turno, el cajero no abre otro ese día sin una autorización.
+ *  - Un cajero tiene a lo sumo un turno abierto por sede; puede tener turnos abiertos
+ *    a la vez en varias de sus sedes y elige desde cuál factura.
+ *  - Tras cerrar un turno, el cajero no abre otro en esa sede ese día sin una autorización.
  *  - El cierre queda Por aprobar; lo aprueba o rechaza alguien distinto del cajero.
  *  - Al cerrar, los recibos creados del turno pasan a Cerrado con cierre = id del turno;
  *    al reversar vuelven a Creado. Las transferencias por aprobar no se cierran.
@@ -33,46 +36,78 @@ use RuntimeException;
 class LdTurnoCajaService
 {
     /**
-     * Turno abierto del cajero, en cualquier sede.
+     * Turno abierto con el que el cajero registra: el indicado o, si no indica ninguno,
+     * el único que tenga abierto (ver LdTurnoCaja::paraFacturar).
      */
-    public function turnoAbiertoDe(int $cajeroId): ?LdTurnoCaja
+    public function turnoAbiertoDe(int $cajeroId, ?int $turnoId = null): ?LdTurnoCaja
     {
-        return LdTurnoCaja::where('cajero_id', $cajeroId)
-            ->where('status', LdTurnoCaja::STATUS_ABIERTO)
-            ->first();
+        return LdTurnoCaja::paraFacturar($cajeroId, $turnoId);
     }
 
     /**
-     * Motivo por el que el cajero no puede abrir un turno hoy, o null si puede.
+     * Turnos abiertos del cajero (uno por sede como máximo), por orden de apertura.
+     *
+     * @return Collection<int, LdTurnoCaja>
      */
-    public function motivoNoPuedeAbrir(int $cajeroId): ?string
+    public function turnosAbiertosDe(int $cajeroId): Collection
     {
-        if ($this->turnoAbiertoDe($cajeroId)) {
-            return 'Ya tiene un turno de caja abierto. Debe cerrarlo antes de abrir otro.';
+        return LdTurnoCaja::abiertoDe($cajeroId)->orderBy('abierto_at')->get();
+    }
+
+    /**
+     * Motivo por el que el cajero no puede abrir un turno hoy en la sede, o null si puede.
+     */
+    public function motivoNoPuedeAbrir(int $cajeroId, int $sedeId): ?string
+    {
+        if ($this->turnoAbiertoEnSede($cajeroId, $sedeId)) {
+            return 'Ya tiene un turno de caja abierto en esta sede. Debe cerrarlo antes de abrir otro.';
         }
 
-        if ($this->cerroTurnoHoy($cajeroId) && ! $this->autorizacionDisponible($cajeroId)) {
-            return 'Ya cerró caja hoy. Para abrir un nuevo turno necesita la autorización de un supervisor.';
+        if ($this->cerroTurnoHoy($cajeroId, $sedeId) && ! $this->autorizacionDisponible($cajeroId)) {
+            return 'Ya cerró caja hoy en esta sede. Para abrir un nuevo turno necesita la autorización de un supervisor.';
         }
 
         return null;
     }
 
     /**
-     * Abre el turno con la base inicial. Si el cajero ya cerró caja hoy,
-     * consume la autorización disponible.
+     * Sedes del usuario con el estado de su caja en cada una: turno abierto (id) y si
+     * puede abrir uno nuevo o por qué no.
      *
-     * @throws RuntimeException Si el cajero no puede abrir turno.
+     * @return SupportCollection<int, array{id: int, nombre: string, turno_abierto_id: int|null, puede_abrir: bool, motivo_no_puede: string|null}>
+     */
+    public function sedesDeCaja(User $usuario): SupportCollection
+    {
+        $abiertos = $this->turnosAbiertosDe($usuario->id)->pluck('id', 'sede_id');
+
+        return $usuario->sedesAccesibles()->map(function ($sede) use ($usuario, $abiertos) {
+            $motivo = $this->motivoNoPuedeAbrir($usuario->id, $sede->id);
+
+            return [
+                'id' => $sede->id,
+                'nombre' => $sede->nombre,
+                'turno_abierto_id' => $abiertos->get($sede->id),
+                'puede_abrir' => $motivo === null,
+                'motivo_no_puede' => $motivo,
+            ];
+        })->values();
+    }
+
+    /**
+     * Abre el turno de la sede con la base inicial. Si el cajero ya cerró caja hoy
+     * en esa sede, consume la autorización disponible.
+     *
+     * @throws RuntimeException Si el cajero no puede abrir turno en la sede.
      */
     public function abrir(User $cajero, int $sedeId, float $baseInicial): LdTurnoCaja
     {
         return DB::transaction(function () use ($cajero, $sedeId, $baseInicial) {
-            $motivo = $this->motivoNoPuedeAbrir($cajero->id);
+            $motivo = $this->motivoNoPuedeAbrir($cajero->id, $sedeId);
             if ($motivo) {
                 throw new RuntimeException($motivo);
             }
 
-            $autorizacion = $this->cerroTurnoHoy($cajero->id)
+            $autorizacion = $this->cerroTurnoHoy($cajero->id, $sedeId)
                 ? $this->autorizacionDisponible($cajero->id)
                 : null;
 
@@ -255,7 +290,7 @@ class LdTurnoCajaService
      * Rechaza el cierre: el turno vuelve a Abierto para que el cajero corrija o
      * vuelva a contar, y sus recibos vuelven a Creado.
      *
-     * @throws RuntimeException Si el cierre no está por aprobar, es propio o el cajero tiene otro turno abierto.
+     * @throws RuntimeException Si el cierre no está por aprobar, es propio o el cajero tiene otro turno abierto en la sede.
      */
     public function rechazar(LdTurnoCaja $turno, string $motivo, User $usuario): LdTurnoCaja
     {
@@ -268,7 +303,7 @@ class LdTurnoCajaService
      * Reabre un turno ya aprobado para corregirlo. Los recibos cerrados por este turno
      * vuelven a Creado y el cierre anterior queda en la bitácora.
      *
-     * @throws RuntimeException Si el turno no está cerrado o el cajero ya tiene otro turno abierto.
+     * @throws RuntimeException Si el turno no está cerrado o el cajero ya tiene otro turno abierto en la sede.
      */
     public function reversar(LdTurnoCaja $turno, string $motivo, User $usuario): LdTurnoCaja
     {
@@ -347,12 +382,12 @@ class LdTurnoCajaService
      * Devuelve el turno a Abierto: los recibos que cerró vuelven a Creado y el cierre
      * anterior queda en la bitácora con la acción indicada (rechazo o reversión).
      *
-     * @throws RuntimeException Si el cajero ya tiene otro turno abierto.
+     * @throws RuntimeException Si el cajero ya tiene otro turno abierto en la sede del turno.
      */
     private function reabrir(LdTurnoCaja $turno, string $accion, string $motivo, User $usuario): LdTurnoCaja
     {
-        if ($this->turnoAbiertoDe($turno->cajero_id)) {
-            throw new RuntimeException('El cajero tiene otro turno abierto. Debe cerrarlo antes de reabrir este.');
+        if ($this->turnoAbiertoEnSede($turno->cajero_id, $turno->sede_id)) {
+            throw new RuntimeException('El cajero tiene otro turno abierto en esta sede. Debe cerrarlo antes de reabrir este.');
         }
 
         return DB::transaction(function () use ($turno, $accion, $motivo, $usuario) {
@@ -387,11 +422,20 @@ class LdTurnoCajaService
     }
 
     /**
-     * Indica si el cajero ya cerró algún turno hoy (aprobado o por aprobar).
+     * Indica si el cajero tiene un turno abierto en la sede.
      */
-    private function cerroTurnoHoy(int $cajeroId): bool
+    private function turnoAbiertoEnSede(int $cajeroId, int $sedeId): bool
+    {
+        return LdTurnoCaja::abiertoDe($cajeroId)->where('sede_id', $sedeId)->exists();
+    }
+
+    /**
+     * Indica si el cajero ya cerró algún turno hoy en la sede (aprobado o por aprobar).
+     */
+    private function cerroTurnoHoy(int $cajeroId, int $sedeId): bool
     {
         return LdTurnoCaja::where('cajero_id', $cajeroId)
+            ->where('sede_id', $sedeId)
             ->whereIn('status', [LdTurnoCaja::STATUS_CERRADO, LdTurnoCaja::STATUS_POR_APROBAR])
             ->whereDate('fecha', today())
             ->exists();

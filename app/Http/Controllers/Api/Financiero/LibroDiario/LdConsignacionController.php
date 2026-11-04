@@ -69,7 +69,7 @@ class LdConsignacionController extends Controller
      */
     public function store(StoreLdConsignacionRequest $request): JsonResponse
     {
-        $turno = $this->turnoService->turnoAbiertoDe($request->user()->id);
+        $turno = $this->turnoService->turnoAbiertoDe($request->user()->id, $request->integer('turno_caja_id') ?: null);
 
         $consignacion = LdConsignacion::create(array_merge($request->only(self::CAMPOS), [
             'turno_caja_id' => $turno->id,

@@ -21,8 +21,11 @@ use Illuminate\Support\Arr;
  * esperado. El cierre queda Por aprobar hasta que alguien con `fin_ldCierreAprobar`
  * lo aprueba (Cerrado) o lo rechaza (vuelve a Abierto).
  *
- * Un cajero tiene a lo sumo un turno abierto. Tras cerrar un turno no puede
- * abrir otro el mismo día sin una autorización (LdAutorizacionTurno).
+ * Un cajero tiene a lo sumo un turno abierto por sede, y puede tener abiertos
+ * a la vez turnos en varias de sus sedes (factura para otras sedes). Al facturar
+ * con varios turnos abiertos elige desde cuál lo hace (`turno_caja_id`); con uno
+ * solo se usa ese. Tras cerrar un turno no puede abrir otro en la misma sede ese
+ * día sin una autorización (LdAutorizacionTurno).
  *
  * @property int $id
  * @property int $sede_id
@@ -60,6 +63,12 @@ class LdTurnoCaja extends Model
 
     /** Mensaje de validación cuando se intenta registrar un pago sin turno abierto. */
     public const MENSAJE_SIN_TURNO = 'No tiene un turno de caja abierto. Abra el turno registrando la base inicial antes de generar pagos.';
+
+    /** Mensaje cuando el cajero tiene caja abierta en varias sedes y no indicó desde cuál factura. */
+    public const MENSAJE_ELEGIR_TURNO = 'Tiene caja abierta en varias sedes. Elija desde cuál sede está facturando.';
+
+    /** Mensaje cuando el turno indicado no es un turno abierto del cajero. */
+    public const MENSAJE_TURNO_INVALIDO = 'El turno de caja elegido no está abierto o no le pertenece.';
 
     protected $table = 'ld_turnos_caja';
 
@@ -127,7 +136,7 @@ class LdTurnoCaja extends Model
      * distintos al efectivo y las transferencias por aprobar (N26). `restringido` le indica
      * a la interfaz que no hay totales que mostrar.
      *
-     * @param array<string, mixed> $resumen
+     * @param  array<string, mixed>  $resumen
      * @return array<string, mixed>
      */
     public static function resumenSinEfectivo(array $resumen): array
@@ -191,13 +200,45 @@ class LdTurnoCaja extends Model
     }
 
     /**
-     * Scope del turno abierto de un cajero, en cualquier sede: los pagos de cualquier
-     * sede se pueden recibir desde cualquier sede.
+     * Scope de los turnos abiertos de un cajero (uno por sede como máximo): los pagos
+     * de cualquier sede se pueden recibir desde cualquier caja abierta.
      */
     public function scopeAbiertoDe($query, int $cajeroId)
     {
         return $query->where('cajero_id', $cajeroId)
             ->where('status', self::STATUS_ABIERTO);
+    }
+
+    /**
+     * Turno abierto con el que el cajero factura: el indicado en `$turnoId` si es un
+     * turno abierto suyo o, sin indicarlo, el único que tenga abierto. Devuelve null si
+     * no tiene ninguno, si el indicado no es válido o si tiene varios y no eligió.
+     */
+    public static function paraFacturar(int $cajeroId, ?int $turnoId = null): ?self
+    {
+        $abiertos = self::abiertoDe($cajeroId)->get();
+
+        if ($turnoId) {
+            return $abiertos->firstWhere('id', $turnoId);
+        }
+
+        return $abiertos->count() === 1 ? $abiertos->first() : null;
+    }
+
+    /**
+     * Error de validación al facturar sin un turno resoluble (ver paraFacturar), o null si
+     * hay turno: sin caja abierta, turno indicado inválido o varias cajas sin elegir.
+     */
+    public static function errorParaFacturar(int $cajeroId, ?int $turnoId = null): ?string
+    {
+        $idsAbiertos = self::abiertoDe($cajeroId)->pluck('id');
+
+        return match (true) {
+            $idsAbiertos->isEmpty() => self::MENSAJE_SIN_TURNO,
+            (bool) $turnoId => $idsAbiertos->contains($turnoId) ? null : self::MENSAJE_TURNO_INVALIDO,
+            $idsAbiertos->count() > 1 => self::MENSAJE_ELEGIR_TURNO,
+            default => null,
+        };
     }
 
     /**
@@ -208,6 +249,16 @@ class LdTurnoCaja extends Model
     public function scopeDeSedes($query, array $sedeIds)
     {
         return $query->whereIn('sede_id', $sedeIds);
+    }
+
+    /**
+     * Scope de los turnos que el usuario puede consultar: los de sus sedes y, si no
+     * supervisa cajas, solo los propios.
+     */
+    public function scopeVisiblesPara($query, User $usuario)
+    {
+        return $query->deSedes($usuario->idsSedesAccesibles())
+            ->when(! self::supervisaCaja($usuario), fn ($q) => $q->where('cajero_id', $usuario->id));
     }
 
     /**
@@ -237,6 +288,14 @@ class LdTurnoCaja extends Model
     public function estaPorAprobar(): bool
     {
         return $this->status === self::STATUS_POR_APROBAR;
+    }
+
+    /**
+     * Nombre del PDF del cierre: fecha en que se abrió el turno + id, p. ej. cierre-caja-2026-11-03-7.pdf.
+     */
+    public function nombreArchivoPdf(): string
+    {
+        return "cierre-caja-{$this->fecha->format('Y-m-d')}-{$this->id}.pdf";
     }
 
     /**

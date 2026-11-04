@@ -8,7 +8,9 @@ use Illuminate\Validation\Validator;
 
 /**
  * Valida la apertura del turno de caja: sede asignada al cajero, base inicial
- * y que el cajero pueda abrir turno (sin otro abierto y, si ya cerró caja hoy, con autorización).
+ * y que el cajero pueda abrir turno en esa sede (sin otro abierto en ella y, si ya
+ * cerró caja hoy en ella, con autorización). Si el cajero tiene una sola sede no
+ * necesita indicarla: se toma esa.
  */
 class AbrirLdTurnoCajaRequest extends FormRequest
 {
@@ -18,6 +20,21 @@ class AbrirLdTurnoCajaRequest extends FormRequest
     public function authorize(): bool
     {
         return true;
+    }
+
+    /**
+     * Con una sola sede asignada, el cajero solo registra la base inicial.
+     */
+    protected function prepareForValidation(): void
+    {
+        if ($this->filled('sede_id')) {
+            return;
+        }
+
+        $sedes = $this->user()->idsSedesAccesibles();
+        if (count($sedes) === 1) {
+            $this->merge(['sede_id' => $sedes[0]]);
+        }
     }
 
     /**
@@ -34,7 +51,7 @@ class AbrirLdTurnoCajaRequest extends FormRequest
     }
 
     /**
-     * Valida el acceso a la sede y las reglas de apertura del turno.
+     * Valida el acceso a la sede y las reglas de apertura del turno en ella.
      */
     public function withValidator(Validator $validator): void
     {
@@ -49,7 +66,7 @@ class AbrirLdTurnoCajaRequest extends FormRequest
                 return;
             }
 
-            $motivo = app(LdTurnoCajaService::class)->motivoNoPuedeAbrir($this->user()->id);
+            $motivo = app(LdTurnoCajaService::class)->motivoNoPuedeAbrir($this->user()->id, (int) $this->sede_id);
             if ($motivo) {
                 $v->errors()->add('turno', $motivo);
             }

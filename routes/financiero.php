@@ -253,8 +253,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::apiResource('impuestos', LdImpuestoController::class)
             ->parameters(['impuestos' => 'ldImpuesto']);
 
-        // Turnos de caja: el turno actual del cajero va antes de {ldTurnoCaja}
+        // Turnos de caja: el turno actual y el Excel van antes de {ldTurnoCaja}
         Route::get('turnos/actual', [LdTurnoCajaController::class, 'actual'])->name('turnos.actual');
+        Route::get('turnos/excel', [LdTurnoCajaController::class, 'excel'])->name('turnos.excel');
         Route::post('turnos/{ldTurnoCaja}/cerrar', [LdTurnoCajaController::class, 'cerrar'])->name('turnos.cerrar');
         Route::post('turnos/{ldTurnoCaja}/aprobar', [LdTurnoCajaController::class, 'aprobar'])->name('turnos.aprobar');
         Route::post('turnos/{ldTurnoCaja}/rechazar', [LdTurnoCajaController::class, 'rechazar'])->name('turnos.rechazar');

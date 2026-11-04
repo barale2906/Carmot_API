@@ -3,6 +3,7 @@
 namespace Tests\Feature\Api\Financiero\LibroDiario;
 
 use App\Models\Configuracion\Banco;
+use App\Models\Configuracion\Sede;
 use App\Models\Financiero\LibroDiario\LdConsignacion;
 use App\Models\Financiero\LibroDiario\LdTurnoCaja;
 use App\Models\User;
@@ -87,6 +88,29 @@ class LdConsignacionTest extends TestCase
         $this->actingAs($this->cajero)
             ->postJson(route('libro-diario.consignaciones.store'), $this->payload(['valor' => 1000]))
             ->assertJsonValidationErrors('turno');
+    }
+
+    /** @test */
+    public function con_caja_abierta_en_varias_sedes_consigna_desde_la_elegida(): void
+    {
+        $otraSede = Sede::factory()->create(['codigo_academico' => 'OTRA', 'codigo_inventario' => 'OINV']);
+        $this->cajero->sedes()->attach($otraSede->id);
+        $otroTurno = LdTurnoCaja::factory()->create(['cajero_id' => $this->cajero->id, 'sede_id' => $otraSede->id, 'base_inicial' => 5000]);
+        $this->reciboPagado(100000, 'efectivo', ['turno_caja_id' => $this->turno->id]);
+
+        $this->actingAs($this->cajero)
+            ->postJson(route('libro-diario.consignaciones.store'), $this->payload(['valor' => 1000]))
+            ->assertJsonValidationErrors(['turno' => LdTurnoCaja::MENSAJE_ELEGIR_TURNO]);
+
+        // El tope es el efectivo de la caja elegida, no el de las demás
+        $this->actingAs($this->cajero)
+            ->postJson(route('libro-diario.consignaciones.store'), $this->payload(['valor' => 6000, 'turno_caja_id' => $otroTurno->id]))
+            ->assertJsonValidationErrors('valor');
+
+        $this->actingAs($this->cajero)
+            ->postJson(route('libro-diario.consignaciones.store'), $this->payload(['valor' => 5000, 'turno_caja_id' => $otroTurno->id]))
+            ->assertCreated()
+            ->assertJsonPath('data.turno_caja_id', $otroTurno->id);
     }
 
     /** @test */

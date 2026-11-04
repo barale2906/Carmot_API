@@ -4,9 +4,9 @@ namespace App\Http\Requests\Api\Financiero\LibroDiario;
 
 use App\Models\Financiero\LibroDiario\LdMovimiento;
 use App\Models\Financiero\LibroDiario\LdTercero;
+use App\Models\Financiero\LibroDiario\LdTurnoCaja;
 use App\Models\Financiero\ReciboPago\ReciboPagoMedioPago;
 use App\Services\Financiero\LibroDiario\LdMovimientoService;
-use App\Services\Financiero\LibroDiario\LdTurnoCajaService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
@@ -56,6 +56,8 @@ class StoreLdMovimientoRequest extends FormRequest
         $catalogoActivo = fn (string $tabla) => Rule::exists($tabla, 'id')->where('status', 1)->whereNull('deleted_at');
 
         return [
+            // Caja desde la que se factura; obligatoria solo si el cajero tiene turnos abiertos en varias sedes
+            'turno_caja_id' => ['nullable', 'integer'],
             'tipo_movimiento_id' => ['required', 'integer', $catalogoActivo('ld_tipos_movimiento')],
             'tercero_id' => ['nullable', 'integer', Rule::exists('ld_terceros', 'id')->where('status', 1)],
             'tercero_tipo_identificacion' => ['required_without:tercero_id', 'nullable', 'string', Rule::in(array_keys(LdTercero::TIPOS_IDENTIFICACION))],
@@ -84,8 +86,8 @@ class StoreLdMovimientoRequest extends FormRequest
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $v) {
-            if ($this->exigeTurnoAbierto() && ! app(LdTurnoCajaService::class)->turnoAbiertoDe($this->user()->id)) {
-                $v->errors()->add('turno', 'Debe abrir un turno de caja antes de registrar movimientos.');
+            if ($this->exigeTurnoAbierto() && ($error = LdTurnoCaja::errorParaFacturar($this->user()->id, $this->integer('turno_caja_id') ?: null))) {
+                $v->errors()->add('turno', $error);
             }
 
             if (! $this->filled('tercero_id') && ($error = self::errorTerceroInactivo($this->tercero_tipo_identificacion, $this->tercero_identificacion))) {
