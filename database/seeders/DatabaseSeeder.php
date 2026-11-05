@@ -58,6 +58,7 @@ class DatabaseSeeder extends Seeder
             AddEstadoAcademicoPermissionsSeeder::class,
             AddCierreNotasPermissionsSeeder::class,
             AddActivosPermissionsSeeder::class,
+            AddCuentasBancariasPermissionsSeeder::class,
         ]);
         // \App\Models\User::factory(10)->create();
 

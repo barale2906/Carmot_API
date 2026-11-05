@@ -8,6 +8,7 @@ use App\Http\Requests\Api\Financiero\ReciboPago\UpdateReciboPagoRequest;
 use App\Http\Resources\Api\Financiero\ReciboPago\ReciboPagoResource;
 use App\Mail\ReciboPagoMail;
 use App\Models\Academico\Matricula;
+use App\Models\Configuracion\CuentaBancaria;
 use App\Models\Financiero\Cartera\Cartera;
 use App\Models\Financiero\ConceptoPago\ConceptoPago;
 use App\Models\Financiero\LibroDiario\LdTurnoCaja;
@@ -234,14 +235,12 @@ class ReciboPagoController extends Controller
             $mediosPago      = $data['medios_pago'] ?? [];
             $esTransferencia = collect($mediosPago)->contains('medio_pago', 'transferencia');
 
-            // Resolver nombre del banco desde banco_id para poblar el campo texto legado
-            $bancoNombre = null;
-            if ($esTransferencia) {
-                $bancoId = collect($mediosPago)->firstWhere('medio_pago', 'transferencia')['banco_id'] ?? null;
-                if ($bancoId) {
-                    $bancoNombre = \App\Models\Configuracion\Banco::find($bancoId)?->nombre;
-                }
-            }
+            // La cuenta destino de la transferencia define el banco del medio de pago y
+            // el nombre del banco del campo texto legado del recibo
+            $datosCuenta = $esTransferencia
+                ? CuentaBancaria::datosParaMedioPago(collect($mediosPago)->firstWhere('medio_pago', 'transferencia')['cuenta_bancaria_id'] ?? null)
+                : [];
+            $bancoNombre = $datosCuenta['banco'] ?? null;
 
             // ── 3. Distribución automática entre cuotas de cartera ────────────
             // Para transferencias la distribución ocurre al aprobar el recibo; aquí solo se
@@ -383,16 +382,16 @@ class ReciboPagoController extends Controller
             // ── 7. Medios de pago ─────────────────────────────────────────────
             $mediosPagoCreados = [];
             foreach ($mediosPago as $medio) {
-                $mediosPagoCreados[] = ReciboPagoMedioPago::create([
+                $mediosPagoCreados[] = ReciboPagoMedioPago::create(array_merge([
                     'recibo_pago_id'     => $recibo->id,
                     'medio_pago'         => $medio['medio_pago'],
                     'tipo_tarjeta'       => $medio['tipo_tarjeta'] ?? null,
                     'valor'              => $medio['valor'],
                     'referencia'         => $medio['referencia'] ?? null,
-                    'banco'              => ($medio['medio_pago'] === 'transferencia') ? $bancoNombre : ($medio['banco'] ?? null),
+                    'banco'              => $medio['banco'] ?? null,
                     'banco_id'           => $medio['banco_id'] ?? null,
                     'numero_transaccion' => $medio['numero_transaccion'] ?? null,
-                ]);
+                ], $medio['medio_pago'] === 'transferencia' ? $datosCuenta : []));
             }
 
             // Guardar comprobante de transferencia — se mueve el archivo con move()
@@ -438,7 +437,7 @@ class ReciboPagoController extends Controller
                     ->update(['comprobante_path' => $comprobanteInfo['path'], 'updated_at' => now()]);
             }
 
-            $recibo->load(['sede', 'cajero', 'matricula', 'conceptosPago', 'listasPrecio', 'mediosPago.banco', 'sobrecargos.sobrecargo']);
+            $recibo->load(['sede', 'cajero', 'matricula', 'conceptosPago', 'listasPrecio', 'mediosPago.banco', 'mediosPago.cuentaBancaria.banco', 'sobrecargos.sobrecargo']);
 
             $mensaje = $esTransferencia
                 ? 'Recibo por transferencia creado. Notifique al validador cuando el comprobante esté listo.'
@@ -800,7 +799,7 @@ class ReciboPagoController extends Controller
     public function pendientesTransferencia(Request $request): JsonResponse
     {
         $query = ReciboPago::where('status', ReciboPago::STATUS_PENDIENTE_APROBACION)
-            ->with(['sede', 'cajero', 'estudiante', 'matricula', 'mediosPago.banco']);
+            ->with(['sede', 'cajero', 'estudiante', 'matricula', 'mediosPago.banco', 'mediosPago.cuentaBancaria.banco']);
 
         if ($request->filled('sede_id')) {
             $query->bySede($request->integer('sede_id'));
@@ -893,7 +892,7 @@ class ReciboPagoController extends Controller
 
         DB::beginTransaction();
         try {
-            $reciboPago->load(['matricula', 'conceptosPago', 'mediosPago.banco', 'cajero', 'estudiante', 'sede']);
+            $reciboPago->load(['matricula', 'conceptosPago', 'mediosPago.banco', 'mediosPago.cuentaBancaria.banco', 'cajero', 'estudiante', 'sede']);
             $matricula   = $reciboPago->matricula;
             $fechaRecibo = Carbon::parse($reciboPago->fecha_recibo);
 
@@ -993,7 +992,7 @@ class ReciboPagoController extends Controller
 
             DB::commit();
 
-            $reciboPago->load(['sede', 'cajero', 'estudiante', 'matricula', 'conceptosPago', 'mediosPago.banco', 'aprobadoPor']);
+            $reciboPago->load(['sede', 'cajero', 'estudiante', 'matricula', 'conceptosPago', 'mediosPago.banco', 'mediosPago.cuentaBancaria.banco', 'aprobadoPor']);
 
             // Notificar al cajero (confirmación interna)
             $reciboPago->cajero?->notify(new TransferenciaAprobadaNotification($reciboPago));
@@ -1072,16 +1071,18 @@ class ReciboPagoController extends Controller
     }
 
     /**
-     * El cajero corrige un recibo rechazado (nuevo número de transacción, banco o comprobante)
-     * y lo reenvía a aprobación notificando nuevamente al validador.
+     * El cajero corrige un recibo rechazado (nueva cuenta destino, número de transacción o
+     * comprobante) y lo reenvía a aprobación notificando nuevamente al validador. La cuenta
+     * debe estar activa y aplicar a la sede del recibo; banco_id se mantiene por compatibilidad.
      *
-     * @param Request    $request banco_id, numero_transaccion, comprobante (file)
+     * @param Request    $request cuenta_bancaria_id, banco_id, numero_transaccion, comprobante (file)
      * @param ReciboPago $reciboPago
      * @return JsonResponse
      */
     public function reenviarTransferencia(Request $request, ReciboPago $reciboPago): JsonResponse
     {
         $request->validate([
+            'cuenta_bancaria_id' => ['nullable', 'integer', CuentaBancaria::reglaActivaDeSede($reciboPago->sede_id)],
             'banco_id'           => 'nullable|exists:bancos,id',
             'numero_transaccion' => [
                 'nullable', 'string', 'max:100',
@@ -1090,6 +1091,7 @@ class ReciboPagoController extends Controller
             ],
             'comprobante'        => 'nullable|file|mimes:jpg,jpeg,png,pdf,webp|max:' . ArchivoService::MAX_KB,
         ], [
+            'cuenta_bancaria_id.in'      => 'La cuenta seleccionada no está activa o no aplica a la sede del recibo.',
             'banco_id.exists'                => 'El banco seleccionado no existe.',
             'numero_transaccion.unique'      => 'El número de transacción ya fue registrado en otro recibo.',
             'numero_transaccion.max'         => 'El número de transacción no puede exceder los 100 caracteres.',
@@ -1116,7 +1118,10 @@ class ReciboPagoController extends Controller
         $updateData  = [];
         $bancoNombre = null;
 
-        if ($request->filled('banco_id')) {
+        if ($request->filled('cuenta_bancaria_id')) {
+            $updateData  = CuentaBancaria::datosParaMedioPago($request->integer('cuenta_bancaria_id'));
+            $bancoNombre = $updateData['banco'];
+        } elseif ($request->filled('banco_id')) {
             $bancoNombre = \App\Models\Configuracion\Banco::find($request->integer('banco_id'))?->nombre;
             $updateData['banco_id'] = $request->integer('banco_id');
             $updateData['banco']    = $bancoNombre;
@@ -1176,7 +1181,7 @@ class ReciboPagoController extends Controller
 
         return response()->json([
             'message' => 'Recibo corregido y reenviado a aprobación.',
-            'data'    => new ReciboPagoResource($reciboPago->fresh(['mediosPago.banco'])),
+            'data'    => new ReciboPagoResource($reciboPago->fresh(['mediosPago.banco', 'mediosPago.cuentaBancaria.banco'])),
         ]);
     }
 

@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\Configuracion\AreaController;
 use App\Http\Controllers\Api\Configuracion\BancoController;
+use App\Http\Controllers\Api\Configuracion\CuentaBancariaController;
 use App\Http\Controllers\Api\Configuracion\DiaNoLaborableController;
 use App\Http\Controllers\Api\Configuracion\EpsController;
 use App\Http\Controllers\Api\Configuracion\PerfilController;
@@ -192,4 +193,24 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('bancos/force/{banco}', [BancoController::class, 'forceDelete'])
         ->name('bancos.force-delete');
     Route::apiResource('bancos', BancoController::class);
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Rutas de cuentas bancarias del instituto (destino de las transferencias)
+    // ──────────────────────────────────────────────────────────────────────────
+    Route::prefix('cuentas-bancarias')->group(function () {
+        Route::get('activas', [CuentaBancariaController::class, 'activas'])
+            ->name('cuentas-bancarias.activas');
+        Route::get('trashed', [CuentaBancariaController::class, 'trashed'])
+            ->name('cuentas-bancarias.trashed');
+        Route::get('filters/options', [CuentaBancariaController::class, 'filters'])
+            ->name('cuentas-bancarias.filters');
+        Route::get('statistics', [CuentaBancariaController::class, 'statistics'])
+            ->name('cuentas-bancarias.statistics');
+    });
+    Route::post('cuentas-bancarias/restore/{id}', [CuentaBancariaController::class, 'restore'])
+        ->name('cuentas-bancarias.restore');
+    Route::delete('cuentas-bancarias/force/{id}', [CuentaBancariaController::class, 'forceDelete'])
+        ->name('cuentas-bancarias.force-delete');
+    Route::apiResource('cuentas-bancarias', CuentaBancariaController::class)
+        ->parameters(['cuentas-bancarias' => 'cuenta_bancaria']);
 });

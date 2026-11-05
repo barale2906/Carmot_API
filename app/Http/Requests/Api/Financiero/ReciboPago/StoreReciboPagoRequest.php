@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Api\Financiero\ReciboPago;
 
+use App\Models\Configuracion\CuentaBancaria;
 use App\Models\Financiero\LibroDiario\LdTurnoCaja;
 use App\Models\Financiero\ReciboPago\ReciboPago;
 use App\Models\Financiero\ReciboPago\ReciboPagoMedioPago;
@@ -89,6 +90,11 @@ class StoreReciboPagoRequest extends FormRequest
             'medios_pago.*.banco'                       => 'nullable|string|max:100',
             // Campos exclusivos de transferencia
             'medios_pago.*.banco_id'                    => 'nullable|exists:bancos,id',
+            // Cuenta del instituto que recibió la transferencia: activa y aplicable a la sede
+            // donde se recibe el pago, que es la del turno de caja (el recibo queda en esa sede)
+            'medios_pago.*.cuenta_bancaria_id'          => ['nullable', 'integer', CuentaBancaria::reglaActivaDeSede(
+                LdTurnoCaja::sedeParaFacturar((int) $this->cajero_id, $this->integer('turno_caja_id') ?: null)
+            )],
             'medios_pago.*.numero_transaccion'          => 'nullable|string|max:100|unique:recibo_pago_medio_pago,numero_transaccion',
 
             // Comprobante de transferencia (foto del soporte) — campo de archivo a nivel raíz
@@ -128,11 +134,11 @@ class StoreReciboPagoRequest extends FormRequest
                 );
             }
 
-            // Transferencia requiere banco_id y numero_transaccion
+            // Transferencia requiere la cuenta destino del instituto y el numero_transaccion
             if ($esTransferencia) {
                 $transfer = collect($mediosPago)->firstWhere('medio_pago', 'transferencia');
-                if (empty($transfer['banco_id'])) {
-                    $validator->errors()->add('medios_pago.0.banco_id', 'El banco es obligatorio para pagos por transferencia.');
+                if (empty($transfer['cuenta_bancaria_id'])) {
+                    $validator->errors()->add('medios_pago.0.cuenta_bancaria_id', 'La cuenta a la que se hizo el pago es obligatoria para pagos por transferencia.');
                 }
                 if (empty($transfer['numero_transaccion'])) {
                     $validator->errors()->add('medios_pago.0.numero_transaccion', 'El número de transacción es obligatorio para pagos por transferencia.');
@@ -208,6 +214,7 @@ class StoreReciboPagoRequest extends FormRequest
             'medios_pago.*.valor.required'                       => 'El valor del medio de pago es obligatorio.',
             'medios_pago.*.valor.min'                            => 'El valor del medio de pago no puede ser negativo.',
             'medios_pago.*.banco_id.exists'                      => 'El banco seleccionado no existe.',
+            'medios_pago.*.cuenta_bancaria_id.in'                => 'La cuenta seleccionada no está activa o no aplica a la sede desde la que se factura.',
             'medios_pago.*.numero_transaccion.unique'            => 'El número de transacción ya fue registrado en otro recibo.',
             'medios_pago.*.numero_transaccion.max'               => 'El número de transacción no puede exceder los 100 caracteres.',
             'comprobante.file'                                   => 'El comprobante debe ser un archivo.',

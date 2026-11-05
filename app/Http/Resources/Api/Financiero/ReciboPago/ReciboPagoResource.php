@@ -143,6 +143,16 @@ class ReciboPagoResource extends JsonResource
                         'banco'               => $medio->relationLoaded('banco') ? $medio->getRelation('banco') : null,
                         'banco_id'            => $medio->banco_id,
                         'banco_nombre'        => $medio->relationLoaded('banco') ? $medio->getRelation('banco')?->nombre : null,
+                        'cuenta_bancaria_id'  => $medio->cuenta_bancaria_id,
+                        'cuenta_bancaria'     => $medio->relationLoaded('cuentaBancaria') && $medio->cuentaBancaria
+                            ? [
+                                'id'            => $medio->cuentaBancaria->id,
+                                'tipo_cuenta'   => $medio->cuentaBancaria->tipo_cuenta,
+                                'numero_cuenta' => $medio->cuentaBancaria->numero_cuenta,
+                                'titular'       => $medio->cuentaBancaria->titular,
+                                'etiqueta'      => $medio->cuentaBancaria->etiqueta,
+                            ]
+                            : null,
                         'numero_transaccion'  => $medio->numero_transaccion,
                         'comprobante_path'    => $medio->comprobante_path,
                         'comprobante_url'     => $medio->comprobante_url,

@@ -779,6 +779,7 @@ class ReciboPago extends Model
             'descuentos',
             'mediosPago',
             'mediosPago.banco',
+            'mediosPago.cuentaBancaria.banco',
             'sede.poblacion',
             'pedidoLinks',
         ];

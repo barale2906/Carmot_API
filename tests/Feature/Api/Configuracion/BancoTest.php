@@ -238,4 +238,17 @@ class BancoTest extends TestCase
             ->assertJsonPath('data.totales.activos', 2)
             ->assertJsonPath('data.totales.inactivos', 1);
     }
+
+    // ─── menú ─────────────────────────────────────────────────────────────────
+
+    /** @test */
+    public function menu_muestra_bancos_solo_con_permiso(): void
+    {
+        $opciones = fn (User $user) => collect($this->actingAs($user)->getJson('/api/menu')->assertOk()->json('data'))
+            ->flatMap(fn ($modulo) => $modulo['children'] ?? [])
+            ->pluck('id');
+
+        $this->assertContains('configuracion-bancos', $opciones($this->usuario));
+        $this->assertNotContains('configuracion-bancos', $opciones(User::factory()->create()));
+    }
 }

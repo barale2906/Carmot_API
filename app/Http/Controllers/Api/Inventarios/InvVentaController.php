@@ -11,6 +11,7 @@ use App\Http\Resources\Api\Inventarios\InvListaPrecioResource;
 use App\Http\Resources\Api\Inventarios\InvPedidoResource;
 use App\Http\Resources\Api\Inventarios\InvPrecioProductoResource;
 use App\Http\Resources\Api\Financiero\ReciboPago\ReciboPagoResource;
+use App\Models\Configuracion\CuentaBancaria;
 use App\Models\Configuracion\Sede;
 use App\Models\Financiero\Descuento\Descuento;
 use App\Models\Financiero\Lp\LpListaPrecio;
@@ -382,7 +383,7 @@ class InvVentaController extends Controller
 
             DB::commit();
 
-            $reciboPago->load(['sede', 'cajero', 'estudiante', 'mediosPago.banco']);
+            $reciboPago->load(['sede', 'cajero', 'estudiante', 'mediosPago.banco', 'mediosPago.cuentaBancaria.banco']);
 
             // Notificar al cajero
             $reciboPago->cajero?->notify(new TransferenciaAprobadaNotification($reciboPago));
@@ -450,17 +451,22 @@ class InvVentaController extends Controller
 
     /**
      * El cajero corrige un recibo de inventario rechazado y lo reenvía a aprobación.
+     * La cuenta destino debe estar activa y aplicar a la sede del recibo; banco_id se
+     * mantiene por compatibilidad.
      *
-     * @param Request    $request banco_id, numero_transaccion, comprobante (file)
+     * @param Request    $request cuenta_bancaria_id, banco_id, numero_transaccion, comprobante (file)
      * @param ReciboPago $reciboPago
      * @return JsonResponse
      */
     public function reenviarTransferencia(Request $request, ReciboPago $reciboPago): JsonResponse
     {
         $request->validate([
+            'cuenta_bancaria_id' => ['nullable', 'integer', CuentaBancaria::reglaActivaDeSede($reciboPago->sede_id)],
             'banco_id'           => 'nullable|exists:bancos,id',
             'numero_transaccion' => 'nullable|string|max:100',
             'comprobante'        => 'nullable|file|mimes:jpg,jpeg,png,pdf,webp|max:' . ArchivoService::MAX_KB,
+        ], [
+            'cuenta_bancaria_id.in' => 'La cuenta seleccionada no está activa o no aplica a la sede del recibo.',
         ]);
 
         if ($reciboPago->origen !== ReciboPago::ORIGEN_INVENTARIOS) {
@@ -480,7 +486,10 @@ class InvVentaController extends Controller
         $updateData  = [];
         $bancoNombre = null;
 
-        if ($request->filled('banco_id')) {
+        if ($request->filled('cuenta_bancaria_id')) {
+            $updateData  = CuentaBancaria::datosParaMedioPago($request->integer('cuenta_bancaria_id'));
+            $bancoNombre = $updateData['banco'];
+        } elseif ($request->filled('banco_id')) {
             $bancoNombre = \App\Models\Configuracion\Banco::find($request->integer('banco_id'))?->nombre;
             $updateData['banco_id'] = $request->integer('banco_id');
             $updateData['banco']    = $bancoNombre;
@@ -530,7 +539,7 @@ class InvVentaController extends Controller
 
         return response()->json([
             'message' => 'Recibo corregido y reenviado a aprobación.',
-            'data'    => new ReciboPagoResource($reciboPago->fresh(['mediosPago.banco'])),
+            'data'    => new ReciboPagoResource($reciboPago->fresh(['mediosPago.banco', 'mediosPago.cuentaBancaria.banco'])),
         ]);
     }
 }

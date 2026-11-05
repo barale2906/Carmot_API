@@ -38,6 +38,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\Configuracion\Area[] $areas Áreas asignadas a la sede
  * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\Configuracion\Horario[] $horarios Horarios de atención de la sede
  * @property-read \Illuminate\Database\Eloquent\Collection<int, Descuento> $descuentos Descuentos asociados a esta sede
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, CuentaBancaria> $cuentasBancarias Cuentas asociadas explícitamente a la sede
  * @property-read \Carbon\CarbonInterval|null $duracion Duración entre hora_inicio y hora_fin
  * @property-read float|null $duracion_en_horas Duración en horas
  * @property-read int|null $duracion_en_minutos Duración en minutos
@@ -150,6 +151,17 @@ class Sede extends Model
     public function recibosPago(): HasMany
     {
         return $this->hasMany(ReciboPago::class);
+    }
+
+    /**
+     * Cuentas bancarias del instituto asociadas explícitamente a la sede (sin contar las
+     * que aplican por su ciudad; para eso ver CuentaBancaria::scopeAplicaASede).
+     *
+     * @return BelongsToMany
+     */
+    public function cuentasBancarias(): BelongsToMany
+    {
+        return $this->belongsToMany(CuentaBancaria::class, 'cuenta_bancaria_sede')->withTimestamps();
     }
 
     /**

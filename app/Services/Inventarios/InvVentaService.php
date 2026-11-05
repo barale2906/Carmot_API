@@ -2,6 +2,7 @@
 
 namespace App\Services\Inventarios;
 
+use App\Models\Configuracion\CuentaBancaria;
 use App\Models\Configuracion\Sede;
 use App\Models\Financiero\Descuento\Descuento;
 use App\Models\Financiero\LibroDiario\LdTurnoCaja;
@@ -37,7 +38,7 @@ class InvVentaService
      *   cajero_id: int,
      *   items: [{producto_id, cantidad, descuento_id?, entregar?: bool, entrega_completa?: bool}],
      *   monto_abono: float,
-     *   medios_pago: [{medio_pago, valor, referencia?, banco_id?}],
+     *   medios_pago: [{medio_pago, valor, referencia?, cuenta_bancaria_id?}],
      *   observaciones?: string,
      *   entrega_inmediata?: bool,
      *   variantes_kit?: [{item_index?: int, pedido_item_id?: int, componentes: [{kit_componente_id, producto_entregado_id}]}]
@@ -234,7 +235,7 @@ class InvVentaService
      * @param array $datos {
      *   cajero_id: int,
      *   monto_abono: float,
-     *   medios_pago: [{medio_pago, valor, referencia?, banco_id?}],
+     *   medios_pago: [{medio_pago, valor, referencia?, cuenta_bancaria_id?}],
      *   entrega_inmediata?: bool,
      *   items_a_entregar?: int[],
      *   variantes_kit?: array
@@ -424,14 +425,12 @@ class InvVentaService
 
         $esTransferencia = static::esTransferencia($datos['medios_pago']);
 
-        // Resolver nombre del banco para el campo de texto legado
-        $bancoNombre = null;
-        if ($esTransferencia) {
-            $bancoId = collect($datos['medios_pago'])->firstWhere('medio_pago', 'transferencia')['banco_id'] ?? null;
-            if ($bancoId) {
-                $bancoNombre = \App\Models\Configuracion\Banco::find($bancoId)?->nombre;
-            }
-        }
+        // La cuenta destino de la transferencia define el banco del medio de pago y el
+        // nombre del banco del campo de texto legado del recibo
+        $datosCuenta = $esTransferencia
+            ? CuentaBancaria::datosParaMedioPago(collect($datos['medios_pago'])->firstWhere('medio_pago', 'transferencia')['cuenta_bancaria_id'] ?? null)
+            : [];
+        $bancoNombre = $datosCuenta['banco'] ?? null;
 
         $recibo = ReciboPago::create([
             'origen'            => ReciboPago::ORIGEN_INVENTARIOS,
@@ -452,16 +451,16 @@ class InvVentaService
 
         $mediosPagoCreados = [];
         foreach ($datos['medios_pago'] as $mp) {
-            $mediosPagoCreados[] = ReciboPagoMedioPago::create([
+            $mediosPagoCreados[] = ReciboPagoMedioPago::create(array_merge([
                 'recibo_pago_id'      => $recibo->id,
                 'medio_pago'          => $mp['medio_pago'],
                 'valor'               => $mp['valor'],
                 'referencia'          => $mp['referencia'] ?? null,
                 'banco_id'            => $mp['banco_id'] ?? null,
-                'banco'               => ($mp['medio_pago'] === 'transferencia') ? $bancoNombre : ($mp['banco'] ?? null),
+                'banco'               => $mp['banco'] ?? null,
                 'tipo_tarjeta'        => $mp['tipo_tarjeta'] ?? null,
                 'numero_transaccion'  => $mp['numero_transaccion'] ?? null,
-            ]);
+            ], $mp['medio_pago'] === 'transferencia' ? $datosCuenta : []));
         }
 
         ReciboPagoInvPedido::create([

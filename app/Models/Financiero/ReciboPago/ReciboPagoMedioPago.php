@@ -3,6 +3,7 @@
 namespace App\Models\Financiero\ReciboPago;
 
 use App\Models\Configuracion\Banco;
+use App\Models\Configuracion\CuentaBancaria;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -19,7 +20,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property float $valor Valor pagado con este medio
  * @property string|null $referencia Referencia del pago (número de cheque, transferencia, etc.)
  * @property string|null $banco Banco relacionado (texto libre, legado)
- * @property int|null $banco_id FK al catálogo de bancos
+ * @property int|null $banco_id FK al catálogo de bancos (en transferencias, el banco de la cuenta destino)
+ * @property int|null $cuenta_bancaria_id Cuenta del instituto que recibió la transferencia
  * @property string|null $numero_transaccion Número único de transacción bancaria
  * @property string|null $comprobante_path Ruta del comprobante en storage
  * @property \Carbon\Carbon $created_at Fecha de creación
@@ -27,6 +29,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  *
  * @property-read \App\Models\Financiero\ReciboPago\ReciboPago $reciboPago Recibo de pago asociado
  * @property-read \App\Models\Configuracion\Banco|null $banco_rel Entidad bancaria del catálogo
+ * @property-read \App\Models\Configuracion\CuentaBancaria|null $cuentaBancaria Cuenta destino de la transferencia
  */
 class ReciboPagoMedioPago extends Model
 {
@@ -62,6 +65,7 @@ class ReciboPagoMedioPago extends Model
     protected $casts = [
         'valor'    => 'decimal:2',
         'banco_id' => 'integer',
+        'cuenta_bancaria_id' => 'integer',
     ];
 
     /**
@@ -82,6 +86,17 @@ class ReciboPagoMedioPago extends Model
     public function banco(): BelongsTo
     {
         return $this->belongsTo(Banco::class, 'banco_id');
+    }
+
+    /**
+     * Cuenta del instituto a la que entró la transferencia. Incluye las eliminadas para
+     * conservar el histórico de los recibos.
+     *
+     * @return BelongsTo
+     */
+    public function cuentaBancaria(): BelongsTo
+    {
+        return $this->belongsTo(CuentaBancaria::class)->withTrashed();
     }
 
     /**

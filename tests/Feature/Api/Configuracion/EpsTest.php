@@ -347,4 +347,17 @@ class EpsTest extends TestCase
             ->assertOk()
             ->assertHeader('Content-Type', 'text/csv; charset=UTF-8');
     }
+
+    // ─── menú ─────────────────────────────────────────────────────────────────
+
+    /** @test */
+    public function menu_muestra_eps_solo_con_permiso(): void
+    {
+        $opciones = fn (User $user) => collect($this->actingAs($user)->getJson('/api/menu')->assertOk()->json('data'))
+            ->flatMap(fn ($modulo) => $modulo['children'] ?? [])
+            ->pluck('id');
+
+        $this->assertContains('configuracion-eps', $opciones($this->usuario));
+        $this->assertNotContains('configuracion-eps', $opciones(User::factory()->create()));
+    }
 }

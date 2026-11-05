@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Api\Inventarios;
 
+use App\Models\Configuracion\CuentaBancaria;
 use App\Models\Configuracion\Sede;
 use App\Models\Financiero\LibroDiario\LdTurnoCaja;
 use App\Models\Financiero\Lp\LpListaPrecio;
@@ -52,6 +53,11 @@ class StoreInvVentaRequest extends FormRequest
             'medios_pago.*.valor'                  => ['required', 'numeric', 'min:0.01'],
             'medios_pago.*.referencia'             => ['nullable', 'string', 'max:100'],
             'medios_pago.*.banco_id'               => ['nullable', 'integer', 'exists:bancos,id'],
+            // Cuenta del instituto que recibió la transferencia: activa y aplicable a la sede del
+            // turno de caja con que se factura (el recibo queda en esa sede)
+            'medios_pago.*.cuenta_bancaria_id'     => ['nullable', 'required_if:medios_pago.*.medio_pago,transferencia', 'integer', CuentaBancaria::reglaActivaDeSede(
+                LdTurnoCaja::sedeParaFacturar((int) $this->user()?->id, $this->integer('turno_caja_id') ?: null)
+            )],
             'medios_pago.*.tipo_tarjeta'           => ['nullable', 'string', 'max:60'],
             'medios_pago.*.numero_transaccion'     => ['nullable', 'string', 'max:100'],
             'comprobante'                          => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf,webp', 'max:' . ArchivoService::MAX_KB],
@@ -197,6 +203,8 @@ class StoreInvVentaRequest extends FormRequest
             'medios_pago.required'             => 'Debe indicar al menos un medio de pago.',
             'medios_pago.*.medio_pago.required' => 'El tipo de medio de pago es obligatorio.',
             'medios_pago.*.valor.required'     => 'El valor del medio de pago es obligatorio.',
+            'medios_pago.*.cuenta_bancaria_id.required_if' => 'La cuenta a la que se hizo el pago es obligatoria para pagos por transferencia.',
+            'medios_pago.*.cuenta_bancaria_id.in'          => 'La cuenta seleccionada no está activa o no aplica a la sede desde la que se factura.',
             'medios_pago.*.valor.min'          => 'El valor del medio de pago debe ser mayor a 0.',
         ];
     }

@@ -226,6 +226,16 @@ class LdTurnoCaja extends Model
     }
 
     /**
+     * Sede donde se recibe el pago al facturar: la del turno con que se factura (ver
+     * paraFacturar). El recibo siempre queda en esa sede, aunque la matrícula o el
+     * pedido sean de otra; null si no hay turno resoluble.
+     */
+    public static function sedeParaFacturar(int $cajeroId, ?int $turnoId = null): ?int
+    {
+        return self::paraFacturar($cajeroId, $turnoId)?->sede_id;
+    }
+
+    /**
      * Error de validación al facturar sin un turno resoluble (ver paraFacturar), o null si
      * hay turno: sin caja abierta, turno indicado inválido o varias cajas sin elegir.
      */

@@ -47,7 +47,7 @@ class MenuController extends Controller
         ];
 
         // Configuración - módulo con varios submenús
-        if ($this->hasAnyPermission($user, ['co_users', 'co_roles', 'co_poblaciones', 'co_sedes', 'co_diasNoLaborables'])) {
+        if ($this->hasAnyPermission($user, ['co_users', 'co_roles', 'co_poblaciones', 'co_sedes', 'co_eps', 'co_bancos', 'co_cuentasBancarias', 'co_diasNoLaborables'])) {
             $configChildren = [];
 
             // Usuarios
@@ -92,6 +92,39 @@ class MenuController extends Controller
                     'icon' => 'location_city',
                     'route' => '/configuracion/sedes',
                     'permission' => 'co_sedes',
+                ];
+            }
+
+            // EPS
+            if ($user->can('co_eps')) {
+                $configChildren[] = [
+                    'id' => 'configuracion-eps',
+                    'title' => 'EPS',
+                    'icon' => 'assignment_ind',
+                    'route' => '/configuracion/eps',
+                    'permission' => 'co_eps',
+                ];
+            }
+
+            // Catálogo de bancos
+            if ($user->can('co_bancos')) {
+                $configChildren[] = [
+                    'id' => 'configuracion-bancos',
+                    'title' => 'Bancos',
+                    'icon' => 'account_balance',
+                    'route' => '/configuracion/bancos',
+                    'permission' => 'co_bancos',
+                ];
+            }
+
+            // Cuentas bancarias del instituto (destino de las transferencias, por sede o ciudad)
+            if ($user->can('co_cuentasBancarias')) {
+                $configChildren[] = [
+                    'id' => 'configuracion-cuentas-bancarias',
+                    'title' => 'Cuentas bancarias',
+                    'icon' => 'payments',
+                    'route' => '/configuracion/cuentas-bancarias',
+                    'permission' => 'co_cuentasBancarias',
                 ];
             }
 

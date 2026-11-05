@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Api\Inventarios;
 
+use App\Models\Configuracion\CuentaBancaria;
 use App\Models\Configuracion\Poblacion;
 use App\Models\Configuracion\Sede;
 use App\Models\Financiero\Descuento\Descuento;
@@ -32,6 +33,7 @@ class InvVentaTest extends TestCase
     private InvAlmacen $almacen;
     private InvProducto $producto;
     private LpListaPrecio $lista;
+    private CuentaBancaria $cuenta;
     private float $precio = 50000;
 
     protected function setUp(): void
@@ -65,6 +67,9 @@ class InvVentaTest extends TestCase
 
         // Los recibos solo se generan dentro de un turno de caja abierto del cajero
         LdTurnoCaja::factory()->create(['cajero_id' => $this->cajero->id, 'sede_id' => $this->sede->id]);
+
+        // Cuenta del instituto en la sede donde se reciben las transferencias
+        $this->cuenta = CuentaBancaria::factory()->paraSedes($this->sede)->create();
     }
 
     /**
@@ -688,12 +693,45 @@ class InvVentaTest extends TestCase
         $response = $this->actingAs($this->cajero)
             ->postJson(route('inv-ventas.store'), $this->payloadPedido([
                 'monto_abono'       => $monto,
-                'medios_pago'       => [['medio_pago' => 'transferencia', 'valor' => $monto]],
+                'medios_pago'       => [['medio_pago' => 'transferencia', 'valor' => $monto, 'cuenta_bancaria_id' => $this->cuenta->id]],
                 'entrega_inmediata' => true,
             ]))
             ->assertCreated();
 
         return [$response->json('data.id'), $response->json('recibo.id')];
+    }
+
+    /** @test */
+    public function store_por_transferencia_exige_cuenta_activa_de_la_sede_del_pedido(): void
+    {
+        $sinCuenta = $this->actingAs($this->cajero)
+            ->postJson(route('inv-ventas.store'), $this->payloadPedido([
+                'monto_abono' => $this->precio,
+                'medios_pago' => [['medio_pago' => 'transferencia', 'valor' => $this->precio]],
+            ]));
+        $sinCuenta->assertUnprocessable()->assertJsonValidationErrors(['medios_pago.0.cuenta_bancaria_id']);
+
+        $this->actingAs($this->cajero)
+            ->postJson(route('inv-ventas.store'), $this->payloadPedido([
+                'monto_abono' => $this->precio,
+                'medios_pago' => [['medio_pago' => 'transferencia', 'valor' => $this->precio, 'cuenta_bancaria_id' => CuentaBancaria::factory()->create()->id]],
+            ]))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['medios_pago.0.cuenta_bancaria_id']);
+
+        $this->assertSame(0, InvPedido::count());
+    }
+
+    /** @test */
+    public function store_por_transferencia_guarda_cuenta_y_banco_derivado(): void
+    {
+        [, $reciboId] = $this->venderPorTransferencia($this->precio);
+
+        $this->assertDatabaseHas('recibo_pago_medio_pago', [
+            'recibo_pago_id'     => $reciboId,
+            'cuenta_bancaria_id' => $this->cuenta->id,
+            'banco_id'           => $this->cuenta->banco_id,
+        ]);
     }
 
     /** @test */
@@ -703,7 +741,7 @@ class InvVentaTest extends TestCase
 
         $response = $this->actingAs($this->cajero)
             ->postJson(route('inv-ventas.store'), $this->payloadPedido([
-                'medios_pago'       => [['medio_pago' => 'transferencia', 'valor' => $this->precio]],
+                'medios_pago'       => [['medio_pago' => 'transferencia', 'valor' => $this->precio, 'cuenta_bancaria_id' => $this->cuenta->id]],
                 'entrega_inmediata' => true,
             ]))
             ->assertCreated()
@@ -780,7 +818,7 @@ class InvVentaTest extends TestCase
         $reciboId = $this->actingAs($this->cajero)
             ->postJson(route('inv-ventas.abonar', $pedidoId), [
                 'monto_abono'       => $mitad,
-                'medios_pago'       => [['medio_pago' => 'transferencia', 'valor' => $mitad]],
+                'medios_pago'       => [['medio_pago' => 'transferencia', 'valor' => $mitad, 'cuenta_bancaria_id' => $this->cuenta->id]],
                 'entrega_inmediata' => true,
             ])
             ->assertOk()

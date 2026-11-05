@@ -4,6 +4,7 @@ namespace Tests\Feature\Api\Financiero\ReciboPago;
 
 use App\Models\Academico\Matricula;
 use App\Models\Configuracion\Banco;
+use App\Models\Configuracion\CuentaBancaria;
 use App\Models\Configuracion\Sede;
 use App\Models\Financiero\Cartera\Cartera;
 use App\Models\Financiero\ConceptoPago\ConceptoPago;
@@ -31,6 +32,7 @@ class ReciboTransferenciaTest extends TestCase
     private Sede $sede;
     private Matricula $matricula;
     private Banco $banco;
+    private CuentaBancaria $cuenta;
     private ConceptoPago $conceptoMatricula;
     private ConceptoPago $conceptoMensualidad;
     private ConceptoPago $conceptoDescuento;
@@ -65,6 +67,9 @@ class ReciboTransferenciaTest extends TestCase
         ]);
 
         $this->banco = Banco::factory()->create(['nombre' => 'Bancolombia', 'codigo' => '007']);
+        $this->cuenta = CuentaBancaria::factory()->paraSedes($this->sede)->create([
+            'banco_id' => $this->banco->id,
+        ]);
 
         $this->matricula = Matricula::factory()->create([
             'status'                => 1,
@@ -132,7 +137,7 @@ class ReciboTransferenciaTest extends TestCase
             'medios_pago'       => [[
                 'medio_pago'         => 'transferencia',
                 'valor'              => 100000,
-                'banco_id'           => $this->banco->id,
+                'cuenta_bancaria_id' => $this->cuenta->id,
                 'numero_transaccion' => 'TXN-TEST-001',
             ]],
         ];
@@ -148,11 +153,15 @@ class ReciboTransferenciaTest extends TestCase
             'status'        => ReciboPago::STATUS_PENDIENTE_APROBACION,
             'numero_recibo' => null,
         ]);
+        // El banco del medio de pago se deriva de la cuenta destino
         $this->assertDatabaseHas('recibo_pago_medio_pago', [
             'medio_pago'         => 'transferencia',
+            'cuenta_bancaria_id' => $this->cuenta->id,
             'banco_id'           => $this->banco->id,
+            'banco'              => 'Bancolombia',
             'numero_transaccion' => 'TXN-TEST-001',
         ]);
+        $this->assertSame('Bancolombia', $response->json('data.banco'));
     }
 
     /** @test */
@@ -171,7 +180,7 @@ class ReciboTransferenciaTest extends TestCase
             'medios_pago'       => [[
                 'medio_pago'         => 'transferencia',
                 'valor'              => $valor,
-                'banco_id'           => $this->banco->id,
+                'cuenta_bancaria_id' => $this->cuenta->id,
                 'numero_transaccion' => $txn,
             ]],
         ];
@@ -210,7 +219,7 @@ class ReciboTransferenciaTest extends TestCase
             'fecha_transaccion' => now()->format('Y-m-d H:i:s'),
             'monto_a_pagar'     => 100000,
             'medios_pago'       => [
-                ['medio_pago' => 'transferencia', 'valor' => 50000, 'banco_id' => $this->banco->id, 'numero_transaccion' => 'TXN-1'],
+                ['medio_pago' => 'transferencia', 'valor' => 50000, 'cuenta_bancaria_id' => $this->cuenta->id, 'numero_transaccion' => 'TXN-1'],
                 ['medio_pago' => 'efectivo',       'valor' => 50000],
             ],
         ];
@@ -222,7 +231,7 @@ class ReciboTransferenciaTest extends TestCase
     }
 
     /** @test */
-    public function store_rechaza_transferencia_sin_banco_id(): void
+    public function store_rechaza_transferencia_sin_cuenta_destino(): void
     {
         $payload = [
             'sede_id'           => $this->sede->id,
@@ -232,12 +241,107 @@ class ReciboTransferenciaTest extends TestCase
             'fecha_recibo'      => now()->format('Y-m-d'),
             'fecha_transaccion' => now()->format('Y-m-d H:i:s'),
             'monto_a_pagar'     => 100000,
-            'medios_pago'       => [['medio_pago' => 'transferencia', 'valor' => 100000, 'numero_transaccion' => 'TXN-001']],
+            'medios_pago'       => [['medio_pago' => 'transferencia', 'valor' => 100000, 'banco_id' => $this->banco->id, 'numero_transaccion' => 'TXN-001']],
         ];
 
         $this->actingAs($this->cajero)
             ->postJson(route('recibos-pago.store'), $payload)
-            ->assertUnprocessable();
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['medios_pago.0.cuenta_bancaria_id']);
+    }
+
+    /** @test */
+    public function store_rechaza_cuenta_de_otra_sede_o_inactiva(): void
+    {
+        $this->crearCartera();
+        $deOtraSede = CuentaBancaria::factory()->create();
+        $inactiva   = CuentaBancaria::factory()->paraSedes($this->sede)->inactiva()->create();
+
+        foreach ([$deOtraSede, $inactiva] as $i => $cuenta) {
+            $this->actingAs($this->cajero)
+                ->postJson(route('recibos-pago.store'), [
+                    'sede_id'           => $this->sede->id,
+                    'cajero_id'         => $this->cajero->id,
+                    'matricula_id'      => $this->matricula->id,
+                    'origen'            => ReciboPago::ORIGEN_ACADEMICO,
+                    'fecha_recibo'      => now()->format('Y-m-d'),
+                    'fecha_transaccion' => now()->format('Y-m-d H:i:s'),
+                    'monto_a_pagar'     => 100000,
+                    'medios_pago'       => [[
+                        'medio_pago'         => 'transferencia',
+                        'valor'              => 100000,
+                        'cuenta_bancaria_id' => $cuenta->id,
+                        'numero_transaccion' => 'TXN-SEDE-' . $i,
+                    ]],
+                ])
+                ->assertUnprocessable()
+                ->assertJsonValidationErrors(['medios_pago.0.cuenta_bancaria_id']);
+        }
+
+        $this->assertSame(0, ReciboPago::count());
+    }
+
+    /** @test */
+    public function store_valida_la_cuenta_contra_la_sede_del_turno_y_no_la_de_la_matricula(): void
+    {
+        // Matrícula de otra sede (p. ej. Duitama) cobrada desde la caja de $this->sede (Tunja):
+        // el recibo queda en la sede del turno, así que solo valen las cuentas de esa sede
+        $this->crearCartera();
+        $sedeMatricula   = Sede::factory()->create();
+        $cuentaMatricula = CuentaBancaria::factory()->paraSedes($sedeMatricula)->create();
+
+        $payload = fn (int $cuentaId, string $txn) => [
+            'sede_id'           => $sedeMatricula->id,
+            'cajero_id'         => $this->cajero->id,
+            'matricula_id'      => $this->matricula->id,
+            'origen'            => ReciboPago::ORIGEN_ACADEMICO,
+            'fecha_recibo'      => now()->format('Y-m-d'),
+            'fecha_transaccion' => now()->format('Y-m-d H:i:s'),
+            'monto_a_pagar'     => 50000,
+            'medios_pago'       => [[
+                'medio_pago'         => 'transferencia',
+                'valor'              => 50000,
+                'cuenta_bancaria_id' => $cuentaId,
+                'numero_transaccion' => $txn,
+            ]],
+        ];
+
+        $this->actingAs($this->cajero)
+            ->postJson(route('recibos-pago.store'), $payload($cuentaMatricula->id, 'TXN-SEDE-MAT'))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['medios_pago.0.cuenta_bancaria_id']);
+
+        $this->actingAs($this->cajero)
+            ->postJson(route('recibos-pago.store'), $payload($this->cuenta->id, 'TXN-SEDE-TURNO'))
+            ->assertCreated()
+            ->assertJsonPath('data.sede_id', $this->sede->id);
+    }
+
+    /** @test */
+    public function store_acepta_cuenta_asociada_a_la_ciudad_de_la_sede(): void
+    {
+        $this->crearCartera();
+        $cuentaCiudad = CuentaBancaria::factory()->paraPoblacion($this->sede->poblacion_id)->create();
+
+        $this->actingAs($this->cajero)
+            ->postJson(route('recibos-pago.store'), [
+                'sede_id'           => $this->sede->id,
+                'cajero_id'         => $this->cajero->id,
+                'matricula_id'      => $this->matricula->id,
+                'origen'            => ReciboPago::ORIGEN_ACADEMICO,
+                'fecha_recibo'      => now()->format('Y-m-d'),
+                'fecha_transaccion' => now()->format('Y-m-d H:i:s'),
+                'monto_a_pagar'     => 50000,
+                'medios_pago'       => [[
+                    'medio_pago'         => 'transferencia',
+                    'valor'              => 50000,
+                    'cuenta_bancaria_id' => $cuentaCiudad->id,
+                    'numero_transaccion' => 'TXN-CIUDAD',
+                ]],
+            ])
+            ->assertCreated();
+
+        $this->assertDatabaseHas('recibo_pago_medio_pago', ['cuenta_bancaria_id' => $cuentaCiudad->id]);
     }
 
     /** @test */
@@ -266,7 +370,7 @@ class ReciboTransferenciaTest extends TestCase
             'medios_pago'       => [[
                 'medio_pago'         => 'transferencia',
                 'valor'              => 100000,
-                'banco_id'           => $this->banco->id,
+                'cuenta_bancaria_id' => $this->cuenta->id,
                 'numero_transaccion' => 'TXN-DUPLICADO',
             ]],
         ];
@@ -452,24 +556,45 @@ class ReciboTransferenciaTest extends TestCase
         $recibo = $this->crearReciboPendiente();
         $recibo->update(['status' => ReciboPago::STATUS_RECHAZADO, 'motivo_rechazo' => 'Número incorrecto.']);
 
-        $nuevoBanco = Banco::factory()->create(['nombre' => 'Davivienda']);
+        $nuevaCuenta = CuentaBancaria::factory()->paraSedes($this->sede)->create([
+            'banco_id' => Banco::factory()->create(['nombre' => 'Davivienda'])->id,
+        ]);
 
         $this->actingAs($this->cajero)
             ->postJson(route('recibos-pago.reenviar-transferencia', $recibo), [
-                'banco_id'           => $nuevoBanco->id,
+                'cuenta_bancaria_id' => $nuevaCuenta->id,
                 'numero_transaccion' => 'TXN-CORREGIDO-001',
             ])
             ->assertOk()
-            ->assertJsonPath('data.status', ReciboPago::STATUS_PENDIENTE_APROBACION);
+            ->assertJsonPath('data.status', ReciboPago::STATUS_PENDIENTE_APROBACION)
+            ->assertJsonPath('data.medios_pago.0.cuenta_bancaria.id', $nuevaCuenta->id)
+            ->assertJsonPath('data.medios_pago.0.banco_nombre', 'Davivienda');
 
         $recibo->refresh();
         $this->assertEquals(ReciboPago::STATUS_PENDIENTE_APROBACION, $recibo->status);
         $this->assertNull($recibo->motivo_rechazo);
+        $this->assertSame('Davivienda', $recibo->banco);
 
         Notification::assertSentTo(
             $this->validador,
             \App\Notifications\Financiero\TransferenciaPendienteNotification::class
         );
+    }
+
+    /** @test */
+    public function reenviar_rechaza_cuenta_de_otra_sede(): void
+    {
+        $recibo = $this->crearReciboPendiente();
+        $recibo->update(['status' => ReciboPago::STATUS_RECHAZADO, 'motivo_rechazo' => 'Cuenta incorrecta.']);
+
+        $this->actingAs($this->cajero)
+            ->postJson(route('recibos-pago.reenviar-transferencia', $recibo), [
+                'cuenta_bancaria_id' => CuentaBancaria::factory()->create()->id,
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['cuenta_bancaria_id']);
+
+        $this->assertEquals(ReciboPago::STATUS_RECHAZADO, $recibo->fresh()->status);
     }
 
     /** @test */
