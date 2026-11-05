@@ -3,6 +3,7 @@
 namespace App\Models\Academico;
 
 use App\Models\Financiero\Cartera\Cartera;
+use App\Models\Financiero\ReciboPago\ReciboPago;
 use App\Models\User;
 use App\Traits\HasFilterScopes;
 use App\Traits\HasGenericScopes;
@@ -294,7 +295,9 @@ class Asistencia extends Model
 
     /**
      * Deja en cada asistencia el saldo vencido de su estudiante (`saldo_vencido`, 0 si está
-     * al día), para mostrar en el listado quién está en mora.
+     * al día) y sus transferencias pendientes de aprobación (`transferencias_pendientes`,
+     * `valor_transferencias_pendientes`), para mostrar en el listado quién está en mora y
+     * quién tiene un pago en revisión.
      *
      * @param iterable<Asistencia> $asistencias
      * @return void
@@ -302,12 +305,16 @@ class Asistencia extends Model
     public static function cargarMora(iterable $asistencias): void
     {
         $asistencias = collect($asistencias);
-        $saldos      = Cartera::saldosVencidosPorEstudiante($asistencias->pluck('estudiante_id')->unique()->values()->all());
+        $ids            = $asistencias->pluck('estudiante_id')->unique()->values()->all();
+        $saldos         = Cartera::saldosVencidosPorEstudiante($ids);
+        $transferencias = ReciboPago::transferenciasPendientesPorEstudiante($ids);
 
-        $asistencias->each(fn (Asistencia $asistencia) => $asistencia->setAttribute(
-            'saldo_vencido',
-            $saldos->get($asistencia->estudiante_id, 0.0)
-        ));
+        $asistencias->each(function (Asistencia $asistencia) use ($saldos, $transferencias) {
+            $pendiente = $transferencias->get($asistencia->estudiante_id);
+            $asistencia->setAttribute('saldo_vencido', $saldos->get($asistencia->estudiante_id, 0.0));
+            $asistencia->setAttribute('transferencias_pendientes', $pendiente['cantidad'] ?? 0);
+            $asistencia->setAttribute('valor_transferencias_pendientes', $pendiente['valor'] ?? 0.0);
+        });
     }
 
     /**

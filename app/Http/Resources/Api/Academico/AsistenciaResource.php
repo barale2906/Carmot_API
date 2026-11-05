@@ -34,10 +34,12 @@ class AsistenciaResource extends JsonResource
             'updated_at' => $this->updated_at?->format('Y-m-d H:i:s'),
             'deleted_at' => $this->deleted_at?->format('Y-m-d H:i:s'),
 
-            // Mora del estudiante: solo cuando el listado la calculó (Asistencia::cargarMora)
+            // Mora y transferencias en revisión del estudiante: solo cuando el listado las calculó (Asistencia::cargarMora)
             $this->mergeWhen(array_key_exists('saldo_vencido', $this->resource->getAttributes()), fn () => [
                 'saldo_vencido' => (float) $this->saldo_vencido,
                 'en_mora' => $this->saldo_vencido > 0,
+                'transferencias_pendientes' => (int) $this->transferencias_pendientes,
+                'valor_transferencias_pendientes' => (float) $this->valor_transferencias_pendientes,
             ]),
 
             // Relaciones cargadas

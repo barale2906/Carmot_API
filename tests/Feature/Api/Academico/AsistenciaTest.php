@@ -8,6 +8,7 @@ use App\Models\Academico\Ciclo;
 use App\Models\Academico\Grupo;
 use App\Models\Academico\Matricula;
 use App\Models\Financiero\Cartera\Cartera;
+use App\Models\Financiero\ReciboPago\ReciboPago;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PhpOffice\PhpSpreadsheet\IOFactory;
@@ -347,6 +348,48 @@ class AsistenciaTest extends TestCase
         $this->assertEquals(150000, $estudiantes[$this->estudianteA->id]['saldo_vencido']);
         $this->assertFalse($estudiantes[$this->estudianteB->id]['en_mora']);
         $this->assertEquals(0, $estudiantes[$this->estudianteB->id]['saldo_vencido']);
+    }
+
+    /** @test */
+    public function la_lista_de_asistencia_indica_quien_tiene_transferencias_pendientes_de_aprobacion(): void
+    {
+        $this->ponerEnMora($this->estudianteA, 150000);
+        ReciboPago::factory()->pendienteAprobacion()->create([
+            'estudiante_id' => $this->estudianteA->id, 'sede_id' => $this->grupo->sede_id, 'valor_total' => 150000,
+        ]);
+        ReciboPago::factory()->rechazado()->create([
+            'estudiante_id' => $this->estudianteB->id, 'sede_id' => $this->grupo->sede_id, 'valor_total' => 80000,
+        ]);
+
+        $estudiantes = collect($this->actingAs($this->profesor)
+            ->getJson(route('asistencias.lista-asistencia', $this->grupo->id))
+            ->assertOk()
+            ->json('data.estudiantes'))->keyBy('id');
+
+        // La mora sigue visible hasta que se apruebe la transferencia
+        $this->assertTrue($estudiantes[$this->estudianteA->id]['en_mora']);
+        $this->assertSame(1, $estudiantes[$this->estudianteA->id]['transferencias_pendientes']);
+        $this->assertEquals(150000, $estudiantes[$this->estudianteA->id]['valor_transferencias_pendientes']);
+        $this->assertSame(0, $estudiantes[$this->estudianteB->id]['transferencias_pendientes']);
+        $this->assertEquals(0, $estudiantes[$this->estudianteB->id]['valor_transferencias_pendientes']);
+    }
+
+    /** @test */
+    public function el_listado_indica_las_transferencias_pendientes_del_estudiante(): void
+    {
+        $this->registrar([$this->estudianteA->id => 'presente', $this->estudianteB->id => 'ausente']);
+        ReciboPago::factory()->pendienteAprobacion()->create([
+            'estudiante_id' => $this->estudianteB->id, 'sede_id' => $this->grupo->sede_id, 'valor_total' => 60000,
+        ]);
+
+        $porEstudiante = collect($this->actingAs($this->profesor)
+            ->getJson(route('asistencias.index', ['grupo_id' => $this->grupo->id]))
+            ->assertOk()
+            ->json('data'))->keyBy('estudiante_id');
+
+        $this->assertSame(1, $porEstudiante[$this->estudianteB->id]['transferencias_pendientes']);
+        $this->assertEquals(60000, $porEstudiante[$this->estudianteB->id]['valor_transferencias_pendientes']);
+        $this->assertSame(0, $porEstudiante[$this->estudianteA->id]['transferencias_pendientes']);
     }
 
     /** @test */

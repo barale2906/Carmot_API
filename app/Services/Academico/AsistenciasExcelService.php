@@ -21,7 +21,7 @@ class AsistenciasExcelService
 
     private const ENCABEZADOS = [
         'Fecha clase', 'Hora', 'Sede', 'Curso', 'Módulo', 'Grupo', 'Estudiante', 'Documento',
-        'Estado', 'Justificada', 'Justificación', 'Observaciones', 'En mora', 'Saldo vencido', 'Registró',
+        'Estado', 'Justificada', 'Justificación', 'Observaciones', 'En mora', 'Saldo vencido', 'Transferencia pendiente', 'Registró',
     ];
 
     /**
@@ -66,6 +66,7 @@ class AsistenciasExcelService
                 $asistencia->observaciones,
                 $asistencia->saldo_vencido > 0 ? 'Sí' : 'No',
                 $asistencia->saldo_vencido,
+                $asistencia->transferencias_pendientes > 0 ? 'Sí' : 'No',
                 $asistencia->registradoPor?->name,
             ], null, "A{$fila}", true);
             $fila++;

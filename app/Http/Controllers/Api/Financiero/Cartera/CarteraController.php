@@ -7,6 +7,7 @@ use App\Http\Requests\Api\Financiero\Cartera\StoreAcuerdoPagoRequest;
 use App\Http\Resources\Api\Financiero\Cartera\CarteraResource;
 use App\Models\Academico\Matricula;
 use App\Models\Financiero\Cartera\Cartera;
+use App\Models\Financiero\ReciboPago\ReciboPago;
 use App\Services\Financiero\AcuerdoPagoService;
 use App\Services\Financiero\CarteraDescuentoService;
 use Carbon\Carbon;
@@ -34,7 +35,9 @@ class CarteraController extends Controller
 
     /**
      * Lista paginada de carteras agrupadas por matrícula y estudiante.
-     * Cada elemento del resultado representa una matrícula con sus cuotas anidadas.
+     * Cada elemento del resultado representa una matrícula con sus cuotas anidadas y las
+     * transferencias del estudiante pendientes de aprobación (`transferencias_pendientes`,
+     * `valor_transferencias_pendientes`): un pago en revisión que aún no abona la cartera.
      *
      * @param Request $request
      * @return JsonResponse
@@ -118,6 +121,10 @@ class CarteraController extends Controller
             ->orderBy('id')
             ->paginate($request->integer('per_page', 15));
 
+        $transferencias = ReciboPago::transferenciasPendientesPorEstudiante(
+            $matriculas->getCollection()->pluck('estudiante_id')->filter()->unique()->values()->all()
+        );
+
         $data = $matriculas->getCollection()->map(fn (Matricula $matricula) => [
             'matricula_id' => $matricula->id,
             'matricula'    => [
@@ -139,6 +146,8 @@ class CarteraController extends Controller
             // Valor total = abonado + descuento + saldo: sin esta columna no cuadraba (F16)
             'total_descuento' => (float) $matricula->carteras->sum('descuento'),
             'carteras'     => CarteraResource::collection($matricula->carteras),
+            'transferencias_pendientes'       => $transferencias->get($matricula->estudiante_id)['cantidad'] ?? 0,
+            'valor_transferencias_pendientes' => (float) ($transferencias->get($matricula->estudiante_id)['valor'] ?? 0),
         ]);
 
         return response()->json([

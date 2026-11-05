@@ -17,6 +17,7 @@ use App\Models\Academico\Curso;
 use App\Models\Academico\Grupo;
 use App\Models\Academico\Matricula;
 use App\Models\Financiero\Cartera\Cartera;
+use App\Models\Financiero\ReciboPago\ReciboPago;
 use App\Services\Academico\AsistenciasExcelService;
 use App\Services\Asistencia\RegistroAsistenciaService;
 use App\Services\Asistencia\VerificarCumplimientoService;
@@ -351,14 +352,17 @@ class AsistenciaController extends Controller
                 ->with(['estudiante', 'ciclo'])
                 ->get();
 
-            $saldosVencidos = Cartera::saldosVencidosPorEstudiante($matriculas->pluck('estudiante_id')->unique()->values()->all());
+            $estudianteIds  = $matriculas->pluck('estudiante_id')->unique()->values()->all();
+            $saldosVencidos = Cartera::saldosVencidosPorEstudiante($estudianteIds);
+            $transferencias = ReciboPago::transferenciasPendientesPorEstudiante($estudianteIds);
 
-            // Extraer estudiantes únicos con información del ciclo y su mora
-            $estudiantes = $matriculas->map(function ($matricula) use ($saldosVencidos) {
+            // Extraer estudiantes únicos con información del ciclo, su mora y sus transferencias en revisión
+            $estudiantes = $matriculas->map(function ($matricula) use ($saldosVencidos, $transferencias) {
                 $estudiante = $matricula->estudiante;
                 $estudiante->ciclo_id = $matricula->ciclo_id;
                 $estudiante->ciclo_nombre = $matricula->ciclo->nombre;
                 $estudiante->saldo_vencido = $saldosVencidos->get($estudiante->id, 0.0);
+                $estudiante->transferencias_pendientes = $transferencias->get($estudiante->id);
                 return $estudiante;
             })->unique('id');
 

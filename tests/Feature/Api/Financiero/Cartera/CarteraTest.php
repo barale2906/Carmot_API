@@ -7,6 +7,7 @@ use App\Models\Academico\Curso;
 use App\Models\Academico\Matricula;
 use App\Models\Configuracion\Sede;
 use App\Models\Financiero\Cartera\Cartera;
+use App\Models\Financiero\ReciboPago\ReciboPago;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -104,6 +105,41 @@ class CarteraTest extends TestCase
         // Totales globales reflejan la suma de todas las cuotas (sin paginación)
         $this->assertEquals(250000, $response->json('meta.total_saldo_filtrado'));
         $this->assertEquals(300000, $response->json('meta.total_valor_filtrado'));
+    }
+
+    /** @test */
+    public function index_indica_las_transferencias_pendientes_de_aprobacion_del_estudiante(): void
+    {
+        $this->crearCartera(['numero_cuota' => 1, 'valor' => 200000, 'abono' => 0, 'descuento' => 0, 'saldo' => 200000]);
+        $estudianteId = $this->matricula->estudiante_id;
+        ReciboPago::factory()->pendienteAprobacion()->count(2)->create([
+            'estudiante_id' => $estudianteId, 'sede_id' => $this->sede->id, 'valor_total' => 50000,
+        ]);
+        // Ni la aprobada ni la rechazada cuentan como pendientes
+        ReciboPago::factory()->creado()->create(['estudiante_id' => $estudianteId, 'sede_id' => $this->sede->id, 'valor_total' => 70000]);
+        ReciboPago::factory()->rechazado()->create(['estudiante_id' => $estudianteId, 'sede_id' => $this->sede->id, 'valor_total' => 90000]);
+
+        $this->actingAs($this->usuario)
+            ->getJson(route('carteras.index'))
+            ->assertOk()
+            ->assertJsonPath('data.0.transferencias_pendientes', 2)
+            ->assertJsonPath('data.0.valor_transferencias_pendientes', 100000);
+    }
+
+    /** @test */
+    public function index_sin_transferencias_pendientes_las_reporta_en_cero(): void
+    {
+        $this->crearCartera(['numero_cuota' => 1, 'saldo' => 200000]);
+        // Transferencia pendiente de otro estudiante: no se mezcla
+        ReciboPago::factory()->pendienteAprobacion()->create([
+            'estudiante_id' => User::factory()->create()->id, 'sede_id' => $this->sede->id, 'valor_total' => 50000,
+        ]);
+
+        $this->actingAs($this->usuario)
+            ->getJson(route('carteras.index'))
+            ->assertOk()
+            ->assertJsonPath('data.0.transferencias_pendientes', 0)
+            ->assertJsonPath('data.0.valor_transferencias_pendientes', 0);
     }
 
     /** @test */

@@ -491,6 +491,43 @@ class ReciboPago extends Model
     }
 
     /**
+     * Scope para filtrar transferencias pendientes de aprobación (status 4).
+     *
+     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    public function scopePendientesAprobacion($query)
+    {
+        return $query->where('status', self::STATUS_PENDIENTE_APROBACION);
+    }
+
+    /**
+     * Transferencias pendientes de aprobación de cada estudiante: cantidad de recibos y
+     * valor total. Solo devuelve los estudiantes que tienen alguna. Lo usan la cartera y
+     * las listas de asistencia para avisar que un pago está en revisión (su mora puede
+     * quedar saldada cuando el validador apruebe).
+     *
+     * @param array<int> $estudianteIds
+     * @return \Illuminate\Support\Collection<int, array{cantidad: int, valor: float}> estudiante_id => resumen
+     */
+    public static function transferenciasPendientesPorEstudiante(array $estudianteIds): \Illuminate\Support\Collection
+    {
+        if ($estudianteIds === []) {
+            return collect();
+        }
+
+        return static::pendientesAprobacion()
+            ->whereIn('estudiante_id', $estudianteIds)
+            ->groupBy('estudiante_id')
+            ->selectRaw('estudiante_id, COUNT(*) as cantidad, SUM(valor_total) as valor')
+            ->get()
+            ->mapWithKeys(fn ($fila) => [$fila->estudiante_id => [
+                'cantidad' => (int) $fila->cantidad,
+                'valor'    => round((float) $fila->valor, 2),
+            ]]);
+    }
+
+    /**
      * Obtiene el siguiente consecutivo para una sede y origen específicos.
      *
      * @param int $sedeId ID de la sede
