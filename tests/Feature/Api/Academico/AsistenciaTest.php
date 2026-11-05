@@ -8,6 +8,7 @@ use App\Models\Academico\Ciclo;
 use App\Models\Academico\Grupo;
 use App\Models\Academico\Matricula;
 use App\Models\Financiero\Cartera\Cartera;
+use App\Models\Financiero\ConceptoPago\ConceptoPago;
 use App\Models\Financiero\ReciboPago\ReciboPago;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -207,15 +208,17 @@ class AsistenciaTest extends TestCase
     }
 
     /** Cuota vencida y con saldo del estudiante: lo deja en mora. */
-    private function ponerEnMora(User $estudiante, float $saldo = 150000): void
+    private function ponerEnMora(User $estudiante, float $saldo = 150000, int $diasVencida = 5, int $numeroCuota = 1): Cartera
     {
-        Cartera::factory()->create([
+        return Cartera::factory()->create([
             'matricula_id'      => Matricula::where('estudiante_id', $estudiante->id)->value('id'),
             'estudiante_id'     => $estudiante->id,
             'sede_id'           => $this->grupo->sede_id,
             'valor'             => $saldo,
             'saldo'             => $saldo,
-            'fecha_vencimiento' => now()->subDays(5)->toDateString(),
+            'numero_cuota'      => $numeroCuota,
+            'concepto'          => null,
+            'fecha_vencimiento' => now()->subDays($diasVencida)->toDateString(),
             'status'            => Cartera::getStatusKey('Activa'),
         ]);
     }
@@ -348,6 +351,156 @@ class AsistenciaTest extends TestCase
         $this->assertEquals(150000, $estudiantes[$this->estudianteA->id]['saldo_vencido']);
         $this->assertFalse($estudiantes[$this->estudianteB->id]['en_mora']);
         $this->assertEquals(0, $estudiantes[$this->estudianteB->id]['saldo_vencido']);
+    }
+
+    /** @test */
+    public function la_lista_de_asistencia_detalla_las_cuotas_vencidas_del_estudiante(): void
+    {
+        $antigua  = $this->ponerEnMora($this->estudianteA, 100000, 40, 1);
+        $reciente = $this->ponerEnMora($this->estudianteA, 50000, 10, 2);
+        // Cuota vencida ya pagada: no hace parte de la mora
+        $this->ponerEnMora($this->estudianteA, 0, 70, 3);
+
+        $estudiantes = collect($this->actingAs($this->profesor)
+            ->getJson(route('asistencias.lista-asistencia', $this->grupo->id))
+            ->assertOk()
+            ->json('data.estudiantes'))->keyBy('id');
+
+        $a = $estudiantes[$this->estudianteA->id];
+        $this->assertEquals(150000, $a['saldo_vencido']);
+        $this->assertSame(40, $a['dias_mora']);
+        $this->assertCount(2, $a['mora_detalle']);
+        // De la más antigua a la más reciente
+        $this->assertSame($antigua->id, $a['mora_detalle'][0]['cartera_id']);
+        $this->assertSame(ConceptoPago::MENSUALIDAD, $a['mora_detalle'][0]['concepto']);
+        $this->assertSame($this->ciclo->curso->nombre, $a['mora_detalle'][0]['curso']);
+        $this->assertSame(now()->subDays(40)->toDateString(), $a['mora_detalle'][0]['fecha_vencimiento']);
+        $this->assertSame(40, $a['mora_detalle'][0]['dias_mora']);
+        $this->assertEquals(100000, $a['mora_detalle'][0]['saldo']);
+        $this->assertSame($reciente->id, $a['mora_detalle'][1]['cartera_id']);
+        $this->assertSame(10, $a['mora_detalle'][1]['dias_mora']);
+
+        $this->assertSame(0, $estudiantes[$this->estudianteB->id]['dias_mora']);
+        $this->assertSame([], $estudiantes[$this->estudianteB->id]['mora_detalle']);
+    }
+
+    /** @test */
+    public function el_listado_de_asistencias_detalla_las_cuotas_vencidas_del_estudiante(): void
+    {
+        $this->registrar([$this->estudianteA->id => 'presente', $this->estudianteB->id => 'ausente']);
+        $this->ponerEnMora($this->estudianteA, 80000, 15, 0);
+
+        $porEstudiante = collect($this->actingAs($this->profesor)
+            ->getJson(route('asistencias.index', ['grupo_id' => $this->grupo->id]))
+            ->assertOk()
+            ->json('data'))->keyBy('estudiante_id');
+
+        $this->assertSame(15, $porEstudiante[$this->estudianteA->id]['dias_mora']);
+        $this->assertCount(1, $porEstudiante[$this->estudianteA->id]['mora_detalle']);
+        $this->assertSame(ConceptoPago::MATRICULA, $porEstudiante[$this->estudianteA->id]['mora_detalle'][0]['concepto']);
+        $this->assertSame(0, $porEstudiante[$this->estudianteA->id]['mora_detalle'][0]['numero_cuota']);
+        $this->assertSame([], $porEstudiante[$this->estudianteB->id]['mora_detalle']);
+    }
+
+    /** Estudiantes de la lista de toma de asistencia del grupo, por id. */
+    private function listaPorEstudiante(): \Illuminate\Support\Collection
+    {
+        return collect($this->actingAs($this->profesor)
+            ->getJson(route('asistencias.lista-asistencia', $this->grupo->id))
+            ->assertOk()
+            ->json('data.estudiantes'))->keyBy('id');
+    }
+
+    /** @test */
+    public function dos_fallas_seguidas_dejan_al_estudiante_como_desertado_en_la_lista(): void
+    {
+        $this->asistenciaEnOtraClase(now()->subDays(3)->toDateString(), 'ausente');
+        $this->asistenciaEnOtraClase(now()->subDays(2)->toDateString(), 'ausente');
+
+        $estudiantes = $this->listaPorEstudiante();
+
+        $this->assertSame('Desertado', $estudiantes[$this->estudianteA->id]['estado_estudiante']);
+        $this->assertSame(2, $estudiantes[$this->estudianteA->id]['fallas_consecutivas']);
+        $this->assertSame('Activo', $estudiantes[$this->estudianteB->id]['estado_estudiante']);
+        $this->assertSame(0, $estudiantes[$this->estudianteB->id]['fallas_consecutivas']);
+        // Es un estado calculado: la matrícula sigue activa
+        $this->assertSame(Matricula::ESTADO_ACTIVO, (int) Matricula::where('estudiante_id', $this->estudianteA->id)->value('estado_academico'));
+    }
+
+    /** @test */
+    public function registrar_una_nueva_asistencia_saca_al_estudiante_de_desertado(): void
+    {
+        $this->asistenciaEnOtraClase(now()->subDays(3)->toDateString(), 'ausente');
+        $this->asistenciaEnOtraClase(now()->subDays(2)->toDateString(), 'ausente');
+
+        $this->registrar([$this->estudianteA->id => 'tardanza'])->assertCreated();
+
+        $a = $this->listaPorEstudiante()[$this->estudianteA->id];
+        $this->assertSame('Activo', $a['estado_estudiante']);
+        $this->assertSame(0, $a['fallas_consecutivas']);
+    }
+
+    /** @test */
+    public function las_fallas_seguidas_se_cuentan_por_fecha_de_la_clase_y_por_curso(): void
+    {
+        // Registradas en desorden: la última clase (ayer) fue asistida
+        $this->asistenciaEnOtraClase(now()->subDay()->toDateString(), 'presente');
+        $this->asistenciaEnOtraClase(now()->subDays(5)->toDateString(), 'ausente');
+        $this->asistenciaEnOtraClase(now()->subDays(4)->toDateString(), 'ausente');
+
+        // Fallas de B en otro curso no cuentan para este
+        $otroCurso = \App\Models\Academico\Curso::factory()->create();
+        foreach ([3, 2] as $dias) {
+            $clase = AsistenciaClaseProgramada::factory()->create([
+                'grupo_id' => $this->grupo->id, 'ciclo_id' => $this->ciclo->id,
+                'fecha_clase' => now()->subDays($dias)->toDateString(), 'estado' => 'dictada',
+            ]);
+            Asistencia::factory()->create([
+                'estudiante_id' => $this->estudianteB->id, 'clase_programada_id' => $clase->id,
+                'grupo_id' => $this->grupo->id, 'ciclo_id' => $this->ciclo->id, 'modulo_id' => $this->grupo->modulo_id,
+                'curso_id' => $otroCurso->id, 'estado' => 'ausente', 'justificada' => false,
+                'registrado_por_id' => $this->profesor->id,
+            ]);
+        }
+        $this->asistenciaEnOtraClase(now()->subDays(6)->toDateString(), 'ausente');
+
+        $estudiantes = $this->listaPorEstudiante();
+
+        $this->assertSame('Activo', $estudiantes[$this->estudianteA->id]['estado_estudiante']);
+        $this->assertSame('Activo', $estudiantes[$this->estudianteB->id]['estado_estudiante']);
+    }
+
+    /** @test */
+    public function la_lista_muestra_en_mora_y_desertado_prevalece_sobre_la_mora(): void
+    {
+        $this->ponerEnMora($this->estudianteA);
+        $this->ponerEnMora($this->estudianteB);
+        $this->asistenciaEnOtraClase(now()->subDays(3)->toDateString(), 'ausente');
+        $this->asistenciaEnOtraClase(now()->subDays(2)->toDateString(), 'ausente');
+
+        $estudiantes = $this->listaPorEstudiante();
+
+        $this->assertSame('Desertado', $estudiantes[$this->estudianteA->id]['estado_estudiante']);
+        $this->assertTrue($estudiantes[$this->estudianteA->id]['en_mora']);
+        $this->assertSame(Asistencia::ESTADO_ESTUDIANTE_EN_MORA, $estudiantes[$this->estudianteB->id]['estado_estudiante']);
+    }
+
+    /** @test */
+    public function el_listado_trae_el_estado_del_estudiante_en_el_curso(): void
+    {
+        $this->asistenciaEnOtraClase(now()->subDays(3)->toDateString(), 'ausente');
+        $this->registrar([$this->estudianteA->id => 'ausente', $this->estudianteB->id => 'presente']);
+        // B quedó aplazado después: el listado muestra su estado académico
+        Matricula::where('estudiante_id', $this->estudianteB->id)->update(['estado_academico' => Matricula::ESTADO_APLAZADO]);
+
+        $filas = collect($this->actingAs($this->profesor)
+            ->getJson(route('asistencias.index', ['grupo_id' => $this->grupo->id, 'fecha' => now()->toDateString()]))
+            ->assertOk()
+            ->json('data'))->keyBy('estudiante_id');
+
+        $this->assertSame('Desertado', $filas[$this->estudianteA->id]['estado_estudiante']);
+        $this->assertSame(2, $filas[$this->estudianteA->id]['fallas_consecutivas']);
+        $this->assertSame('Aplazado', $filas[$this->estudianteB->id]['estado_estudiante']);
     }
 
     /** @test */
@@ -504,8 +657,9 @@ class AsistenciaTest extends TestCase
         $this->assertSame('Fecha clase', $filas[0][0]);
         $this->assertCount(3, $filas); // encabezado + 2 asistencias del día
         $filaB = collect($filas)->first(fn ($fila) => $fila[6] === $this->estudianteB->name);
-        $this->assertSame(['Ausente', 'Sí', 'Cita médica'], [$filaB[8], $filaB[9], $filaB[10]]);
-        $this->assertSame('Sí', $filaB[12]);
+        $this->assertSame(Asistencia::ESTADO_ESTUDIANTE_EN_MORA, $filaB[8]);
+        $this->assertSame(['Ausente', 'Sí', 'Cita médica'], [$filaB[9], $filaB[10], $filaB[11]]);
+        $this->assertSame('Sí', $filaB[13]);
     }
 
     /** @test */

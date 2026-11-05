@@ -53,6 +53,12 @@ class Asistencia extends Model
     /** Estados de asistencia (enum de la tabla). La justificación va aparte, en `justificada`. */
     public const ESTADOS = ['presente', 'ausente', 'tardanza'];
 
+    /** Fallas seguidas, contadas desde la última clase registrada, con que el estudiante figura como desertado. */
+    public const FALLAS_DESERCION = 2;
+
+    /** Estado del estudiante cuando está activo en el curso pero tiene cuotas vencidas. */
+    public const ESTADO_ESTUDIANTE_EN_MORA = 'En mora';
+
     protected $guarded = ['id', 'created_at', 'updated_at'];
 
     protected $dates = ['deleted_at'];
@@ -294,27 +300,95 @@ class Asistencia extends Model
     }
 
     /**
-     * Deja en cada asistencia el saldo vencido de su estudiante (`saldo_vencido`, 0 si está
-     * al día) y sus transferencias pendientes de aprobación (`transferencias_pendientes`,
-     * `valor_transferencias_pendientes`), para mostrar en el listado quién está en mora y
-     * quién tiene un pago en revisión.
+     * Deja en cada asistencia la situación de su estudiante en el curso, para el listado y el Excel:
+     * - mora: `saldo_vencido` (0 si está al día), `dias_mora` de la cuota más antigua y
+     *   `mora_detalle` con las cuotas vencidas (ver Cartera::moraPorEstudiante());
+     * - transferencias pendientes de aprobación: `transferencias_pendientes`, `valor_transferencias_pendientes`;
+     * - `fallas_consecutivas` en el curso y `estado_estudiante` (ver estadoEstudiante()), tomando
+     *   el estado académico de su matrícula más reciente no anulada en ese curso.
      *
      * @param iterable<Asistencia> $asistencias
      * @return void
      */
-    public static function cargarMora(iterable $asistencias): void
+    public static function cargarEstadoEstudiante(iterable $asistencias): void
     {
         $asistencias = collect($asistencias);
         $ids            = $asistencias->pluck('estudiante_id')->unique()->values()->all();
-        $saldos         = Cartera::saldosVencidosPorEstudiante($ids);
+        $moras          = Cartera::moraPorEstudiante($ids);
         $transferencias = ReciboPago::transferenciasPendientesPorEstudiante($ids);
+        $fallas         = static::fallasConsecutivasPorCurso($ids);
+        $estados        = Matricula::whereIn('estudiante_id', $ids)
+            ->whereIn('curso_id', $asistencias->pluck('curso_id')->unique()->values()->all())
+            ->where('status', '!=', 2)
+            ->orderBy('id')
+            ->get(['id', 'estudiante_id', 'curso_id', 'estado_academico'])
+            ->keyBy(fn (Matricula $m) => "{$m->estudiante_id}:{$m->curso_id}")
+            ->map(fn (Matricula $m) => (int) $m->estado_academico);
 
-        $asistencias->each(function (Asistencia $asistencia) use ($saldos, $transferencias) {
+        $asistencias->each(function (Asistencia $asistencia) use ($moras, $transferencias, $fallas, $estados) {
+            $clave     = "{$asistencia->estudiante_id}:{$asistencia->curso_id}";
             $pendiente = $transferencias->get($asistencia->estudiante_id);
-            $asistencia->setAttribute('saldo_vencido', $saldos->get($asistencia->estudiante_id, 0.0));
+            $mora      = $moras->get($asistencia->estudiante_id);
+            $seguidas  = $fallas->get($clave, 0);
+            $asistencia->setAttribute('saldo_vencido', $mora['saldo'] ?? 0.0);
+            $asistencia->setAttribute('dias_mora', $mora['dias_mora'] ?? 0);
+            $asistencia->setAttribute('mora_detalle', $mora['cuotas'] ?? []);
             $asistencia->setAttribute('transferencias_pendientes', $pendiente['cantidad'] ?? 0);
             $asistencia->setAttribute('valor_transferencias_pendientes', $pendiente['valor'] ?? 0.0);
+            $asistencia->setAttribute('fallas_consecutivas', $seguidas);
+            $asistencia->setAttribute('estado_estudiante', static::estadoEstudiante($estados->get($clave), $seguidas, ($mora['saldo'] ?? 0) > 0));
         });
+    }
+
+    /**
+     * Fallas seguidas de cada estudiante en cada curso, contadas hacia atrás desde su última
+     * clase registrada (por fecha y hora de la clase). Una asistencia o tardanza corta la racha,
+     * así que registrar la siguiente asistencia la reinicia. Una falla justificada sigue siendo falla.
+     *
+     * @param array<int> $estudianteIds
+     * @return \Illuminate\Support\Collection<string, int> "estudianteId:cursoId" => fallas consecutivas
+     */
+    public static function fallasConsecutivasPorCurso(array $estudianteIds): \Illuminate\Support\Collection
+    {
+        if ($estudianteIds === []) {
+            return collect();
+        }
+
+        return static::query()
+            ->join('asistencia_clases_programadas as clase', 'clase.id', '=', 'asistencias.clase_programada_id')
+            ->whereIn('asistencias.estudiante_id', $estudianteIds)
+            ->orderByDesc('clase.fecha_clase')
+            ->orderByDesc('clase.hora_inicio')
+            ->orderByDesc('asistencias.id')
+            ->get(['asistencias.estudiante_id', 'asistencias.curso_id', 'asistencias.estado'])
+            ->groupBy(fn (Asistencia $a) => "{$a->estudiante_id}:{$a->curso_id}")
+            ->map(fn ($registros) => $registros->takeWhile(fn (Asistencia $a) => $a->estado === 'ausente')->count());
+    }
+
+    /**
+     * Estado del estudiante en el curso que se muestra al tomar y al listar la asistencia:
+     * 1. si su matrícula no está Activa, su estado académico (Aplazado, Desertado, Retirado…);
+     * 2. si lleva FALLAS_DESERCION fallas seguidas, Desertado (es un estado calculado: no cambia
+     *    la matrícula, y vuelve a Activo en cuanto se le registra una asistencia);
+     * 3. si tiene cuotas vencidas, En mora;
+     * 4. si no, Activo.
+     *
+     * @param int|null $estadoAcademico Matricula::ESTADOS_ACADEMICOS de su matrícula en el curso (null si no se encontró)
+     * @param int $fallasConsecutivas
+     * @param bool $enMora
+     * @return string
+     */
+    public static function estadoEstudiante(?int $estadoAcademico, int $fallasConsecutivas, bool $enMora): string
+    {
+        if ($estadoAcademico !== null && $estadoAcademico !== Matricula::ESTADO_ACTIVO) {
+            return Matricula::ESTADOS_ACADEMICOS[$estadoAcademico];
+        }
+
+        if ($fallasConsecutivas >= self::FALLAS_DESERCION) {
+            return Matricula::ESTADOS_ACADEMICOS[Matricula::ESTADO_DESERTADO];
+        }
+
+        return $enMora ? self::ESTADO_ESTUDIANTE_EN_MORA : Matricula::ESTADOS_ACADEMICOS[Matricula::ESTADO_ACTIVO];
     }
 
     /**

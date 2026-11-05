@@ -46,7 +46,8 @@ class AsistenciaController extends Controller
 
     /**
      * Listado de asistencias filtrable por grupo, sede, curso, estudiante y fecha de la clase
-     * (un día o un rango). Cada registro trae el saldo vencido del estudiante (`en_mora`).
+     * (un día o un rango). Cada registro trae la mora del estudiante (`en_mora`, `saldo_vencido`, `dias_mora` y `mora_detalle` con las cuotas vencidas)
+     * y su estado en el curso (`estado_estudiante`, `fallas_consecutivas`; ver Asistencia::estadoEstudiante()).
      * Sin `sort_by` ordena por la clase más reciente. A un alumno solo se le listan las suyas.
      *
      * @param FiltrarAsistenciasRequest $request
@@ -66,7 +67,7 @@ class AsistenciaController extends Controller
                 fn ($q) => $q->ordenadoPorClase()
             )
             ->paginate($request->get('per_page', 15));
-        Asistencia::cargarMora($asistencias->getCollection());
+        Asistencia::cargarEstadoEstudiante($asistencias->getCollection());
 
         return response()->json([
             'data' => AsistenciaResource::collection($asistencias),
@@ -310,8 +311,10 @@ class AsistenciaController extends Controller
 
     /**
      * Obtiene la lista de asistencia por grupo: ciclos en curso o en su plazo de cierre
-     * (`academico.dias_cierre_ciclo`). Cada estudiante trae su saldo vencido para que quien
-     * toma la asistencia decida si entra a clase. Prohibida para alumnos.
+     * (`academico.dias_cierre_ciclo`). Cada estudiante trae su mora (saldo vencido, días de mora
+     * y detalle de cuotas vencidas: concepto, curso, vencimiento y saldo) para que quien toma la
+     * asistencia decida si entra a clase, y su estado en el curso (`estado_estudiante`: Desertado si
+     * lleva dos fallas seguidas, En mora o Activo; ver Asistencia::estadoEstudiante()). Prohibida para alumnos.
      *
      * @param Request $request
      * @param int $grupoId
@@ -353,16 +356,24 @@ class AsistenciaController extends Controller
                 ->get();
 
             $estudianteIds  = $matriculas->pluck('estudiante_id')->unique()->values()->all();
-            $saldosVencidos = Cartera::saldosVencidosPorEstudiante($estudianteIds);
+            $moras          = Cartera::moraPorEstudiante($estudianteIds);
             $transferencias = ReciboPago::transferenciasPendientesPorEstudiante($estudianteIds);
+            $fallas         = Asistencia::fallasConsecutivasPorCurso($estudianteIds);
 
-            // Extraer estudiantes únicos con información del ciclo, su mora y sus transferencias en revisión
-            $estudiantes = $matriculas->map(function ($matricula) use ($saldosVencidos, $transferencias) {
+            // Extraer estudiantes únicos con información del ciclo, su mora (saldo y cuotas vencidas),
+            // sus transferencias en revisión y su estado en el curso
+            $estudiantes = $matriculas->map(function ($matricula) use ($moras, $transferencias, $fallas) {
                 $estudiante = $matricula->estudiante;
                 $estudiante->ciclo_id = $matricula->ciclo_id;
                 $estudiante->ciclo_nombre = $matricula->ciclo->nombre;
-                $estudiante->saldo_vencido = $saldosVencidos->get($estudiante->id, 0.0);
+                $estudiante->mora = $moras->get($estudiante->id);
                 $estudiante->transferencias_pendientes = $transferencias->get($estudiante->id);
+                $estudiante->fallas_consecutivas = $fallas->get("{$estudiante->id}:{$matricula->curso_id}", 0);
+                $estudiante->estado_estudiante = Asistencia::estadoEstudiante(
+                    $matricula->estado_academico,
+                    $estudiante->fallas_consecutivas,
+                    ($estudiante->mora['saldo'] ?? 0) > 0
+                );
                 return $estudiante;
             })->unique('id');
 

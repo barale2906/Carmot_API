@@ -12,8 +12,10 @@ class ListaAsistenciaResource extends JsonResource
      *
      * Este resource se usa para la respuesta de lista de asistencia que incluye:
      * - Información del grupo
-     * - Estudiantes del grupo (de ciclos activos), con su saldo vencido, si están en mora y sus
- *   transferencias pendientes de aprobación (cantidad y valor)
+     * - Estudiantes del grupo (de ciclos activos), con su saldo vencido, si están en mora, los
+     *   días de mora de la cuota más antigua, el detalle de las cuotas vencidas (`mora_detalle`,
+     *   ver Cartera::moraPorEstudiante()), sus transferencias pendientes de aprobación (cantidad y valor),
+     *   sus fallas consecutivas y su estado en el curso (`estado_estudiante`, ver Asistencia::estadoEstudiante())
      * - Clases programadas del grupo
      *
      * @return array<string, mixed>
@@ -47,10 +49,14 @@ class ListaAsistenciaResource extends JsonResource
                         'documento' => $estudiante->documento,
                         'ciclo_id' => $estudiante->ciclo_id ?? null,
                         'ciclo_nombre' => $estudiante->ciclo_nombre ?? null,
-                        'saldo_vencido' => (float) ($estudiante->saldo_vencido ?? 0),
-                        'en_mora' => ($estudiante->saldo_vencido ?? 0) > 0,
+                        'saldo_vencido' => (float) ($estudiante->mora['saldo'] ?? 0),
+                        'en_mora' => ($estudiante->mora['saldo'] ?? 0) > 0,
+                        'dias_mora' => (int) ($estudiante->mora['dias_mora'] ?? 0),
+                        'mora_detalle' => $estudiante->mora['cuotas'] ?? [],
                         'transferencias_pendientes' => $estudiante->transferencias_pendientes['cantidad'] ?? 0,
                         'valor_transferencias_pendientes' => (float) ($estudiante->transferencias_pendientes['valor'] ?? 0),
+                        'fallas_consecutivas' => (int) ($estudiante->fallas_consecutivas ?? 0),
+                        'estado_estudiante' => $estudiante->estado_estudiante ?? null,
                     ];
                 });
             }),

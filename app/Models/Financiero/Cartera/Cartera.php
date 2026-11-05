@@ -271,26 +271,51 @@ class Cartera extends Model
     }
 
     /**
-     * Saldo vencido de cada estudiante (cuotas pendientes con saldo y fecha de vencimiento
-     * pasada), solo de los que están en mora. Lo usan las listas de asistencia para que el
-     * profesor sepa quién está en mora antes de dejarlo entrar a clase.
+     * Mora de cada estudiante: saldo vencido total y el detalle de las cuotas que la componen
+     * (cuotas pendientes con saldo y fecha de vencimiento pasada), solo de los que están en
+     * mora. Lo usan las listas de asistencia para que el profesor sepa quién está en mora,
+     * por qué concepto y desde cuándo, antes de dejarlo entrar a clase.
+     *
+     * Cada cuota del detalle trae: cartera_id, concepto, numero_cuota, curso,
+     * fecha_vencimiento (Y-m-d), dias_mora y saldo. Van de la más antigua a la más reciente.
      *
      * @param array<int> $estudianteIds
-     * @return \Illuminate\Support\Collection<int, float> estudiante_id => saldo vencido
+     * @return \Illuminate\Support\Collection<int, array{saldo: float, dias_mora: int, cuotas: array<int, array<string, mixed>>}>
+     *         estudiante_id => mora
      */
-    public static function saldosVencidosPorEstudiante(array $estudianteIds): \Illuminate\Support\Collection
+    public static function moraPorEstudiante(array $estudianteIds): \Illuminate\Support\Collection
     {
         if ($estudianteIds === []) {
             return collect();
         }
 
+        $hoy = now()->startOfDay();
+
         return static::vencidas()
             ->where('saldo', '>', 0)
             ->whereIn('estudiante_id', $estudianteIds)
+            ->with('matricula.curso:id,nombre')
+            ->orderBy('fecha_vencimiento')
+            ->orderBy('numero_cuota')
+            ->get()
             ->groupBy('estudiante_id')
-            ->selectRaw('estudiante_id, SUM(saldo) as saldo_vencido')
-            ->pluck('saldo_vencido', 'estudiante_id')
-            ->map(fn ($saldo) => round((float) $saldo, 2));
+            ->map(function ($cuotas) use ($hoy) {
+                $detalle = $cuotas->map(fn (Cartera $cuota) => [
+                    'cartera_id'        => $cuota->id,
+                    'concepto'          => $cuota->conceptoNombre(),
+                    'numero_cuota'      => $cuota->numero_cuota,
+                    'curso'             => $cuota->matricula?->curso?->nombre,
+                    'fecha_vencimiento' => $cuota->fecha_vencimiento->format('Y-m-d'),
+                    'dias_mora'         => (int) $cuota->fecha_vencimiento->diffInDays($hoy),
+                    'saldo'             => round((float) $cuota->saldo, 2),
+                ])->values();
+
+                return [
+                    'saldo'     => round($detalle->sum('saldo'), 2),
+                    'dias_mora' => $detalle->max('dias_mora'),
+                    'cuotas'    => $detalle->all(),
+                ];
+            });
     }
 
     // -------------------------------------------------------------------------

@@ -13,14 +13,15 @@ use PhpOffice\PhpSpreadsheet\Style\Fill;
  *
  * Genera el Excel del listado de asistencias con los mismos filtros y el mismo orden de la
  * pantalla (clase más reciente primero): una fila por asistencia, con la justificación aparte
- * del estado y el saldo vencido del estudiante a la fecha de la descarga.
+ * del estado, el estado del estudiante en el curso (Asistencia::estadoEstudiante()) y su saldo
+ * vencido a la fecha de la descarga.
  */
 class AsistenciasExcelService
 {
     private const COLOR_ENCABEZADO = '1F4E79';
 
     private const ENCABEZADOS = [
-        'Fecha clase', 'Hora', 'Sede', 'Curso', 'Módulo', 'Grupo', 'Estudiante', 'Documento',
+        'Fecha clase', 'Hora', 'Sede', 'Curso', 'Módulo', 'Grupo', 'Estudiante', 'Documento', 'Estado estudiante',
         'Estado', 'Justificada', 'Justificación', 'Observaciones', 'En mora', 'Saldo vencido', 'Transferencia pendiente', 'Registró',
     ];
 
@@ -34,7 +35,7 @@ class AsistenciasExcelService
             ->with(['estudiante', 'claseProgramada', 'grupo.sede', 'curso', 'modulo', 'registradoPor'])
             ->ordenadoPorClase()
             ->get();
-        Asistencia::cargarMora($asistencias);
+        Asistencia::cargarEstadoEstudiante($asistencias);
 
         $spreadsheet = new Spreadsheet;
         $hoja = $spreadsheet->getActiveSheet();
@@ -60,6 +61,7 @@ class AsistenciasExcelService
                 $asistencia->grupo?->nombre,
                 $asistencia->estudiante?->name,
                 $asistencia->estudiante?->documento,
+                $asistencia->estado_estudiante,
                 ucfirst($asistencia->estado),
                 $asistencia->justificada ? 'Sí' : 'No',
                 $asistencia->justificacion,
@@ -76,7 +78,8 @@ class AsistenciasExcelService
         foreach (range(1, count(self::ENCABEZADOS)) as $indice) {
             $hoja->getColumnDimension(Coordinate::stringFromColumnIndex($indice))->setAutoSize(true);
         }
-        $hoja->getStyle("N2:N{$ultimaFila}")->getNumberFormat()->setFormatCode('#,##0');
+        $saldo = Coordinate::stringFromColumnIndex(array_search('Saldo vencido', self::ENCABEZADOS, true) + 1);
+        $hoja->getStyle("{$saldo}2:{$saldo}{$ultimaFila}")->getNumberFormat()->setFormatCode('#,##0');
         $hoja->setAutoFilter("A1:{$ultima}{$ultimaFila}");
         $hoja->freezePane('A2');
 
