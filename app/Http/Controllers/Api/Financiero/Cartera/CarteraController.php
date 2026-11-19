@@ -38,6 +38,10 @@ class CarteraController extends Controller
      * Cada elemento del resultado representa una matrícula con sus cuotas anidadas y las
      * transferencias del estudiante pendientes de aprobación (`transferencias_pendientes`,
      * `valor_transferencias_pendientes`): un pago en revisión que aún no abona la cartera.
+     * Con `con_transferencia_pendiente=1` solo se listan las matrículas de estudiantes que
+     * tienen alguna transferencia por validar. El `meta` incluye `total_transferencias_pendientes`
+     * (suma de las transferencias por validar de los estudiantes filtrados) y `total_cartera_neta`
+     * (`total_saldo_filtrado` menos esas transferencias).
      *
      * @param Request $request
      * @return JsonResponse
@@ -84,9 +88,16 @@ class CarteraController extends Controller
             $agregado->byCurso($request->integer('curso_id'));
         }
         $filtrarCarteras($agregado);
+        if ($request->boolean('con_transferencia_pendiente')) {
+            $agregado->whereIn('estudiante_id', ReciboPago::pendientesAprobacion()->select('estudiante_id'));
+        }
 
         $totalSaldoFiltrado = (float) $agregado->sum('saldo');
         $totalValorFiltrado = (float) $agregado->sum('valor');
+        // Transferencias por validar de los estudiantes incluidos en los filtros: aún no abonan la cartera.
+        $totalTransferenciasPendientes = round((float) ReciboPago::pendientesAprobacion()
+            ->whereIn('estudiante_id', (clone $agregado)->select('estudiante_id'))
+            ->sum('valor_total'), 2);
 
         $query = Matricula::query()
             ->whereHas('carteras', $filtrarCarteras)
@@ -100,6 +111,9 @@ class CarteraController extends Controller
                 'sede',
             ]);
 
+        if ($request->boolean('con_transferencia_pendiente')) {
+            $query->whereIn('estudiante_id', ReciboPago::pendientesAprobacion()->select('estudiante_id'));
+        }
         if ($request->filled('matricula_id')) {
             $query->where('id', $request->integer('matricula_id'));
         }
@@ -161,6 +175,8 @@ class CarteraController extends Controller
                 'to'                  => $matriculas->lastItem(),
                 'total_saldo_filtrado' => $totalSaldoFiltrado,
                 'total_valor_filtrado' => $totalValorFiltrado,
+                'total_transferencias_pendientes' => $totalTransferenciasPendientes,
+                'total_cartera_neta'  => round($totalSaldoFiltrado - $totalTransferenciasPendientes, 2),
             ],
         ]);
     }

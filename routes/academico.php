@@ -238,6 +238,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('masivo', [AsistenciaController::class, 'storeMasivo'])->name('asistencias.masivo');
         Route::get('filters', [AsistenciaController::class, 'filters'])->name('asistencias.filters');
         Route::get('excel', [AsistenciaController::class, 'excel'])->name('asistencias.excel');
+        Route::get('clases-del-dia', [AsistenciaController::class, 'clasesDelDia'])->name('asistencias.clases-del-dia');
         Route::get('lista-asistencia/{grupoId}', [AsistenciaController::class, 'listaAsistencia'])->name('asistencias.lista-asistencia');
         Route::get('reporte/estudiante/{id}', [AsistenciaController::class, 'reporteEstudiante'])->name('asistencias.reporte-estudiante');
         Route::get('reporte/grupo/{grupoId}', [AsistenciaController::class, 'reporteGrupo'])->name('asistencias.reporte-grupo');

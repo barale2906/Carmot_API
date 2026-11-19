@@ -143,6 +143,31 @@ class CarteraTest extends TestCase
     }
 
     /** @test */
+    public function index_filtra_solo_estudiantes_con_transferencia_por_validar(): void
+    {
+        $this->crearCartera(['numero_cuota' => 1, 'saldo' => 200000]);
+
+        // Sin transferencias pendientes el filtro no devuelve nada
+        $this->actingAs($this->usuario)
+            ->getJson(route('carteras.index', ['con_transferencia_pendiente' => true]))
+            ->assertOk()
+            ->assertJsonCount(0, 'data');
+
+        ReciboPago::factory()->pendienteAprobacion()->create([
+            'estudiante_id' => $this->matricula->estudiante_id, 'sede_id' => $this->sede->id, 'valor_total' => 50000,
+        ]);
+
+        $this->actingAs($this->usuario)
+            ->getJson(route('carteras.index', ['con_transferencia_pendiente' => true]))
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.matricula_id', $this->matricula->id)
+            ->assertJsonPath('meta.total_saldo_filtrado', 200000)
+            ->assertJsonPath('meta.total_transferencias_pendientes', 50000)
+            ->assertJsonPath('meta.total_cartera_neta', 150000);
+    }
+
+    /** @test */
     public function meta_totales_respetan_filtros_aplicados(): void
     {
         // Cuota activa con saldo

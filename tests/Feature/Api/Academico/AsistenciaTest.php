@@ -103,6 +103,85 @@ class AsistenciaTest extends TestCase
             ->assertJsonPath('data.estudiantes.0.id', $this->estudianteA->id);
     }
 
+    private function comoSoloProfesor(): void
+    {
+        $this->profesor->assignRole(\Spatie\Permission\Models\Role::firstOrCreate(['name' => User::ROL_PROFESOR]));
+    }
+
+    /** @test */
+    public function clases_del_dia_trae_las_clases_de_hoy_con_sus_estudiantes(): void
+    {
+        $this->comoSoloProfesor();
+        $this->actingAs($this->profesor)
+            ->getJson(route('asistencias.clases-del-dia'))
+            ->assertOk()
+            ->assertJsonCount(1, 'data.clases')
+            ->assertJsonPath('data.clases.0.id', $this->clase->id)
+            ->assertJsonPath('data.clases.0.asistencias_registradas', 0)
+            ->assertJsonCount(2, 'data.clases.0.estudiantes');
+    }
+
+    /** @test */
+    public function clases_del_dia_omite_canceladas_otros_dias_y_grupos_ajenos(): void
+    {
+        $this->comoSoloProfesor();
+        $this->clase->update(['estado' => 'cancelada']);
+        AsistenciaClaseProgramada::factory()->create([
+            'grupo_id' => $this->grupo->id, 'ciclo_id' => $this->ciclo->id,
+            'fecha_clase' => now()->addDay()->toDateString(), 'estado' => 'programada',
+        ]);
+        $ajeno = Grupo::factory()->create(['status' => 1]);
+        $this->ciclo->grupos()->attach($ajeno->id, ['orden' => 2]);
+        AsistenciaClaseProgramada::factory()->create([
+            'grupo_id' => $ajeno->id, 'ciclo_id' => $this->ciclo->id,
+            'fecha_clase' => now()->toDateString(), 'estado' => 'programada',
+        ]);
+
+        $this->actingAs($this->profesor)
+            ->getJson(route('asistencias.clases-del-dia'))
+            ->assertOk()
+            ->assertJsonCount(0, 'data.clases');
+    }
+
+    /** @test */
+    public function clases_del_dia_cuenta_las_asistencias_ya_registradas(): void
+    {
+        $this->comoSoloProfesor();
+        $this->registrar([$this->estudianteA->id => 'presente']);
+
+        $this->actingAs($this->profesor)
+            ->getJson(route('asistencias.clases-del-dia'))
+            ->assertJsonPath('data.clases.0.asistencias_registradas', 1);
+    }
+
+    /** @test */
+    public function clases_del_dia_del_personal_se_limitan_a_sus_sedes(): void
+    {
+        $personal = User::factory()->create();
+        $personal->givePermissionTo('aca_asistencias');
+
+        $this->actingAs($personal)
+            ->getJson(route('asistencias.clases-del-dia'))
+            ->assertOk()
+            ->assertJsonCount(0, 'data.clases');
+
+        $personal->sedes()->attach($this->grupo->sede_id);
+
+        $this->actingAs($personal)
+            ->getJson(route('asistencias.clases-del-dia'))
+            ->assertJsonCount(1, 'data.clases')
+            ->assertJsonPath('data.sedes.0.id', $this->grupo->sede_id);
+    }
+
+    /** @test */
+    public function registrar_a_un_estudiante_no_borra_las_asistencias_de_los_demas(): void
+    {
+        $this->registrar([$this->estudianteA->id => 'presente'])->assertCreated();
+        $this->registrar([$this->estudianteB->id => 'tardanza'])->assertCreated();
+
+        $this->assertSame(2, Asistencia::where('clase_programada_id', $this->clase->id)->count());
+    }
+
     /** @test */
     public function registro_masivo_crea_asistencias_y_marca_la_clase_como_dictada(): void
     {

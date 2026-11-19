@@ -19,6 +19,7 @@ use App\Models\Academico\Matricula;
 use App\Models\Financiero\Cartera\Cartera;
 use App\Models\Financiero\ReciboPago\ReciboPago;
 use App\Services\Academico\AsistenciasExcelService;
+use App\Services\Asistencia\ClasesDelDiaService;
 use App\Services\Asistencia\RegistroAsistenciaService;
 use App\Services\Asistencia\VerificarCumplimientoService;
 use Illuminate\Http\JsonResponse;
@@ -34,11 +35,12 @@ class AsistenciaController extends Controller
      */
     public function __construct(
         private readonly RegistroAsistenciaService $registroAsistencia,
+        private readonly ClasesDelDiaService $clasesDelDia,
         private readonly VerificarCumplimientoService $cumplimiento,
         private readonly AsistenciasExcelService $asistenciasExcel
     )
     {
-        $this->middleware('permission:aca_asistencias')->only(['index', 'filters', 'excel', 'show', 'listaAsistencia', 'reporteEstudiante', 'reporteGrupo']);
+        $this->middleware('permission:aca_asistencias')->only(['index', 'filters', 'excel', 'show', 'listaAsistencia', 'clasesDelDia', 'reporteEstudiante', 'reporteGrupo']);
         $this->middleware('permission:aca_asistenciaCrear')->only(['store', 'storeMasivo']);
         $this->middleware('permission:aca_asistenciaEditar')->only(['update']);
         $this->middleware('permission:aca_asistenciaInactivar')->only(['destroy', 'restore']);
@@ -307,6 +309,38 @@ class AsistenciaController extends Controller
                 'error' => $e->getMessage(),
             ], 500);
         }
+    }
+
+    /**
+     * Clases con asistencia por tomar en un día (por defecto hoy) en las sedes del usuario, o en
+     * los grupos del profesor, con los estudiantes de cada una (ver ClasesDelDiaService).
+     * Prohibida para alumnos.
+     *
+     * @queryParam fecha date Día a consultar (YYYY-MM-DD). Por defecto, hoy.
+     * @queryParam sede_id int Limita a una de las sedes del usuario.
+     */
+    public function clasesDelDia(Request $request): JsonResponse
+    {
+        abort_if($request->user()->esSoloEstudiante(), 403, 'Un estudiante no puede consultar las clases del día.');
+
+        $datos = $request->validate([
+            'fecha'   => ['nullable', 'date_format:Y-m-d'],
+            'sede_id' => ['nullable', 'integer'],
+        ]);
+
+        abort_if(
+            ! empty($datos['sede_id']) && ! $request->user()->tieneAccesoSede((int) $datos['sede_id']),
+            403,
+            'No tienes acceso a esa sede.'
+        );
+
+        $resultado = $this->clasesDelDia->obtener(
+            $request->user(),
+            $datos['fecha'] ?? now()->toDateString(),
+            isset($datos['sede_id']) ? (int) $datos['sede_id'] : null
+        );
+
+        return response()->json(['data' => $resultado]);
     }
 
     /**
