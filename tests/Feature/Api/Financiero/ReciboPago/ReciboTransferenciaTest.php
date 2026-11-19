@@ -139,6 +139,7 @@ class ReciboTransferenciaTest extends TestCase
                 'valor'              => 100000,
                 'cuenta_bancaria_id' => $this->cuenta->id,
                 'numero_transaccion' => 'TXN-TEST-001',
+                'fecha_transferencia' => now()->format('Y-m-d'),
             ]],
         ];
 
@@ -161,7 +162,46 @@ class ReciboTransferenciaTest extends TestCase
             'banco'              => 'Bancolombia',
             'numero_transaccion' => 'TXN-TEST-001',
         ]);
+        $this->assertSame(now()->toDateString(), $response->json('data.medios_pago.0.fecha_transferencia'));
         $this->assertSame('Bancolombia', $response->json('data.banco'));
+    }
+
+    /** @test */
+    public function store_exige_fecha_de_transferencia_y_no_acepta_fechas_futuras(): void
+    {
+        $this->crearCartera();
+        $payload = [
+            'sede_id'           => $this->sede->id,
+            'cajero_id'         => $this->cajero->id,
+            'matricula_id'      => $this->matricula->id,
+            'origen'            => ReciboPago::ORIGEN_ACADEMICO,
+            'fecha_transaccion' => now()->format('Y-m-d H:i:s'),
+            'monto_a_pagar'     => 100000,
+            'medios_pago'       => [[
+                'medio_pago'         => 'transferencia',
+                'valor'              => 100000,
+                'cuenta_bancaria_id' => $this->cuenta->id,
+                'numero_transaccion' => 'TXN-FECHA-001',
+            ]],
+        ];
+
+        $this->actingAs($this->cajero)
+            ->postJson(route('recibos-pago.store'), $payload)
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['medios_pago.0.fecha_transferencia']);
+
+        $payload['medios_pago'][0]['fecha_transferencia'] = now()->addDay()->format('Y-m-d');
+        $this->actingAs($this->cajero)
+            ->postJson(route('recibos-pago.store'), $payload)
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['medios_pago.0.fecha_transferencia']);
+
+        // Una fecha pasada (la transferencia se hizo días antes) sí es válida
+        $payload['medios_pago'][0]['fecha_transferencia'] = now()->subDays(3)->format('Y-m-d');
+        $this->actingAs($this->cajero)
+            ->postJson(route('recibos-pago.store'), $payload)
+            ->assertCreated()
+            ->assertJsonPath('data.medios_pago.0.fecha_transferencia', now()->subDays(3)->format('Y-m-d'));
     }
 
     /** @test */
@@ -182,6 +222,7 @@ class ReciboTransferenciaTest extends TestCase
                 'valor'              => $valor,
                 'cuenta_bancaria_id' => $this->cuenta->id,
                 'numero_transaccion' => $txn,
+                'fecha_transferencia' => now()->format('Y-m-d'),
             ]],
         ];
 
@@ -219,7 +260,7 @@ class ReciboTransferenciaTest extends TestCase
             'fecha_transaccion' => now()->format('Y-m-d H:i:s'),
             'monto_a_pagar'     => 100000,
             'medios_pago'       => [
-                ['medio_pago' => 'transferencia', 'valor' => 50000, 'cuenta_bancaria_id' => $this->cuenta->id, 'numero_transaccion' => 'TXN-1'],
+                ['medio_pago' => 'transferencia', 'valor' => 50000, 'cuenta_bancaria_id' => $this->cuenta->id, 'numero_transaccion' => 'TXN-1', 'fecha_transferencia' => now()->format('Y-m-d')],
                 ['medio_pago' => 'efectivo',       'valor' => 50000],
             ],
         ];
@@ -241,7 +282,7 @@ class ReciboTransferenciaTest extends TestCase
             'fecha_recibo'      => now()->format('Y-m-d'),
             'fecha_transaccion' => now()->format('Y-m-d H:i:s'),
             'monto_a_pagar'     => 100000,
-            'medios_pago'       => [['medio_pago' => 'transferencia', 'valor' => 100000, 'banco_id' => $this->banco->id, 'numero_transaccion' => 'TXN-001']],
+            'medios_pago'       => [['medio_pago' => 'transferencia', 'valor' => 100000, 'banco_id' => $this->banco->id, 'numero_transaccion' => 'TXN-001', 'fecha_transferencia' => now()->format('Y-m-d')]],
         ];
 
         $this->actingAs($this->cajero)
@@ -272,6 +313,7 @@ class ReciboTransferenciaTest extends TestCase
                         'valor'              => 100000,
                         'cuenta_bancaria_id' => $cuenta->id,
                         'numero_transaccion' => 'TXN-SEDE-' . $i,
+                        'fecha_transferencia' => now()->format('Y-m-d'),
                     ]],
                 ])
                 ->assertUnprocessable()
@@ -303,6 +345,7 @@ class ReciboTransferenciaTest extends TestCase
                 'valor'              => 50000,
                 'cuenta_bancaria_id' => $cuentaId,
                 'numero_transaccion' => $txn,
+                'fecha_transferencia' => now()->format('Y-m-d'),
             ]],
         ];
 
@@ -337,6 +380,7 @@ class ReciboTransferenciaTest extends TestCase
                     'valor'              => 50000,
                     'cuenta_bancaria_id' => $cuentaCiudad->id,
                     'numero_transaccion' => 'TXN-CIUDAD',
+                    'fecha_transferencia' => now()->format('Y-m-d'),
                 ]],
             ])
             ->assertCreated();
@@ -372,6 +416,7 @@ class ReciboTransferenciaTest extends TestCase
                 'valor'              => 100000,
                 'cuenta_bancaria_id' => $this->cuenta->id,
                 'numero_transaccion' => 'TXN-DUPLICADO',
+                'fecha_transferencia' => now()->format('Y-m-d'),
             ]],
         ];
 
@@ -564,11 +609,13 @@ class ReciboTransferenciaTest extends TestCase
             ->postJson(route('recibos-pago.reenviar-transferencia', $recibo), [
                 'cuenta_bancaria_id' => $nuevaCuenta->id,
                 'numero_transaccion' => 'TXN-CORREGIDO-001',
+                'fecha_transferencia' => now()->subDay()->format('Y-m-d'),
             ])
             ->assertOk()
             ->assertJsonPath('data.status', ReciboPago::STATUS_PENDIENTE_APROBACION)
             ->assertJsonPath('data.medios_pago.0.cuenta_bancaria.id', $nuevaCuenta->id)
-            ->assertJsonPath('data.medios_pago.0.banco_nombre', 'Davivienda');
+            ->assertJsonPath('data.medios_pago.0.banco_nombre', 'Davivienda')
+            ->assertJsonPath('data.medios_pago.0.fecha_transferencia', now()->subDay()->format('Y-m-d'));
 
         $recibo->refresh();
         $this->assertEquals(ReciboPago::STATUS_PENDIENTE_APROBACION, $recibo->status);

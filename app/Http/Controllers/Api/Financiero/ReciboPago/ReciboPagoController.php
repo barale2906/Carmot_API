@@ -181,6 +181,23 @@ class ReciboPagoController extends Controller
     }
 
     /**
+     * Fecha con la que queda el recibo.
+     *
+     * La fecha del recibo no es editable: siempre es la de hoy. Solo el superusuario
+     * puede fijar una fecha distinta (se ignora la enviada por cualquier otro usuario).
+     *
+     * @param  Request  $request  Petición autenticada
+     * @param  string|null  $fecha  Fecha enviada en la petición
+     * @return string Fecha (Y-m-d) a registrar
+     */
+    private function fechaReciboPermitida(Request $request, ?string $fecha): string
+    {
+        return $fecha && $request->user()->hasRole('superusuario')
+            ? $fecha
+            : now()->toDateString();
+    }
+
+    /**
      * Almacena un nuevo recibo de pago usando el modo unificado.
      *
      * El operador ingresa el monto total que paga el estudiante (monto_a_pagar).
@@ -278,7 +295,7 @@ class ReciboPagoController extends Controller
                 'estudiante_id'     => $matricula->estudiante_id,
                 'cajero_id'         => $data['cajero_id'],
                 'turno_caja_id'     => LdTurnoCaja::paraFacturar((int) $data['cajero_id'], $data['turno_caja_id'] ?? null)?->id,
-                'fecha_recibo'      => $data['fecha_recibo'],
+                'fecha_recibo'      => $this->fechaReciboPermitida($request, $data['fecha_recibo'] ?? null),
                 'fecha_transaccion' => $data['fecha_transaccion'],
                 'valor_total'       => $montoAPagar,
                 'descuento_total'   => $descuentoTotal,
@@ -391,6 +408,7 @@ class ReciboPagoController extends Controller
                     'banco'              => $medio['banco'] ?? null,
                     'banco_id'           => $medio['banco_id'] ?? null,
                     'numero_transaccion' => $medio['numero_transaccion'] ?? null,
+                    'fecha_transferencia' => $medio['fecha_transferencia'] ?? null,
                 ], $medio['medio_pago'] === 'transferencia' ? $datosCuenta : []));
             }
 
@@ -513,18 +531,22 @@ class ReciboPagoController extends Controller
             $data = $request->validated();
 
             // Actualizar datos básicos del recibo
-            $reciboPago->update($request->only([
+            $campos = [
                 'sede_id',
                 'estudiante_id',
                 'cajero_id',
                 'matricula_id',
                 'origen',
-                'fecha_recibo',
                 'fecha_transaccion',
                 'valor_total',
                 'descuento_total',
                 'banco',
-            ]));
+            ];
+            // La fecha del recibo solo puede modificarla el superusuario
+            if ($request->user()->hasRole('superusuario')) {
+                $campos[] = 'fecha_recibo';
+            }
+            $reciboPago->update($request->only($campos));
 
             // Actualizar conceptos de pago
             if (isset($data['conceptos_pago'])) {
@@ -1075,7 +1097,7 @@ class ReciboPagoController extends Controller
      * comprobante) y lo reenvía a aprobación notificando nuevamente al validador. La cuenta
      * debe estar activa y aplicar a la sede del recibo; banco_id se mantiene por compatibilidad.
      *
-     * @param Request    $request cuenta_bancaria_id, banco_id, numero_transaccion, comprobante (file)
+     * @param Request    $request cuenta_bancaria_id, banco_id, numero_transaccion, fecha_transferencia, comprobante (file)
      * @param ReciboPago $reciboPago
      * @return JsonResponse
      */
@@ -1089,8 +1111,10 @@ class ReciboPagoController extends Controller
                 \Illuminate\Validation\Rule::unique('recibo_pago_medio_pago', 'numero_transaccion')
                     ->whereNot('recibo_pago_id', $reciboPago->id),
             ],
+            'fecha_transferencia' => 'nullable|date|before_or_equal:today',
             'comprobante'        => 'nullable|file|mimes:jpg,jpeg,png,pdf,webp|max:' . ArchivoService::MAX_KB,
         ], [
+            'fecha_transferencia.before_or_equal' => 'La fecha de la transferencia no puede ser futura.',
             'cuenta_bancaria_id.in'      => 'La cuenta seleccionada no está activa o no aplica a la sede del recibo.',
             'banco_id.exists'                => 'El banco seleccionado no existe.',
             'numero_transaccion.unique'      => 'El número de transacción ya fue registrado en otro recibo.',
@@ -1128,6 +1152,9 @@ class ReciboPagoController extends Controller
         }
         if ($request->filled('numero_transaccion')) {
             $updateData['numero_transaccion'] = $request->string('numero_transaccion');
+        }
+        if ($request->filled('fecha_transferencia')) {
+            $updateData['fecha_transferencia'] = $request->input('fecha_transferencia');
         }
         $comprobanteReenvioPath = null;
         if ($request->hasFile('comprobante')) {

@@ -55,7 +55,8 @@ class StoreReciboPagoRequest extends FormRequest
             'turno_caja_id'                             => 'nullable|integer',
             'matricula_id'                              => 'required|exists:matriculas,id',
             'origen'                                    => ['required', 'integer', Rule::in([ReciboPago::ORIGEN_INVENTARIOS, ReciboPago::ORIGEN_ACADEMICO])],
-            'fecha_recibo'                              => 'required|date',
+            // Solo la respeta el superusuario; para el resto el recibo siempre queda con la fecha de hoy
+            'fecha_recibo'                              => 'nullable|date',
             'fecha_transaccion'                         => 'required|date',
             'banco'                                     => 'nullable|string|max:100',
 
@@ -96,6 +97,8 @@ class StoreReciboPagoRequest extends FormRequest
                 LdTurnoCaja::sedeParaFacturar((int) $this->cajero_id, $this->integer('turno_caja_id') ?: null)
             )],
             'medios_pago.*.numero_transaccion'          => 'nullable|string|max:100|unique:recibo_pago_medio_pago,numero_transaccion',
+            // Fecha en que el cliente hizo la transferencia: no puede ser futura
+            'medios_pago.*.fecha_transferencia'         => 'nullable|date|before_or_equal:today',
 
             // Comprobante de transferencia (foto del soporte) — campo de archivo a nivel raíz
             'comprobante'                               => 'nullable|file|mimes:jpg,jpeg,png,pdf,webp|max:' . ArchivoService::MAX_KB,
@@ -142,6 +145,9 @@ class StoreReciboPagoRequest extends FormRequest
                 }
                 if (empty($transfer['numero_transaccion'])) {
                     $validator->errors()->add('medios_pago.0.numero_transaccion', 'El número de transacción es obligatorio para pagos por transferencia.');
+                }
+                if (empty($transfer['fecha_transferencia'])) {
+                    $validator->errors()->add('medios_pago.0.fecha_transferencia', 'La fecha de la transferencia es obligatoria para pagos por transferencia.');
                 }
             }
 
@@ -198,7 +204,6 @@ class StoreReciboPagoRequest extends FormRequest
             'matricula_id.exists'                                => 'La matrícula seleccionada no existe.',
             'origen.required'                                    => 'El origen es obligatorio.',
             'origen.in'                                          => 'El origen debe ser 0 (Inventarios) o 1 (Académico).',
-            'fecha_recibo.required'                              => 'La fecha del recibo es obligatoria.',
             'fecha_recibo.date'                                  => 'La fecha del recibo debe ser una fecha válida.',
             'fecha_transaccion.required'                         => 'La fecha de transacción es obligatoria.',
             'fecha_transaccion.date'                             => 'La fecha de transacción debe ser una fecha válida.',
@@ -217,6 +222,8 @@ class StoreReciboPagoRequest extends FormRequest
             'medios_pago.*.cuenta_bancaria_id.in'                => 'La cuenta seleccionada no está activa o no aplica a la sede desde la que se factura.',
             'medios_pago.*.numero_transaccion.unique'            => 'El número de transacción ya fue registrado en otro recibo.',
             'medios_pago.*.numero_transaccion.max'               => 'El número de transacción no puede exceder los 100 caracteres.',
+            'medios_pago.*.fecha_transferencia.date'             => 'La fecha de la transferencia debe ser una fecha válida.',
+            'medios_pago.*.fecha_transferencia.before_or_equal'  => 'La fecha de la transferencia no puede ser futura.',
             'comprobante.file'                                   => 'El comprobante debe ser un archivo.',
             'comprobante.mimes'                                  => 'El comprobante debe ser jpg, jpeg, png, pdf o webp.',
             'comprobante.max'                                    => 'El comprobante no puede superar los 10 MB.',

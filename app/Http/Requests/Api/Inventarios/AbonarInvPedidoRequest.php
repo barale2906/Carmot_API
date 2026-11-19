@@ -44,6 +44,8 @@ class AbonarInvPedidoRequest extends FormRequest
             )],
             'medios_pago.*.tipo_tarjeta'           => ['nullable', 'string', 'max:60'],
             'medios_pago.*.numero_transaccion'     => ['nullable', 'string', 'max:100'],
+            // Fecha en que el cliente hizo la transferencia: obligatoria en transferencias, nunca futura
+            'medios_pago.*.fecha_transferencia'    => ['nullable', 'required_if:medios_pago.*.medio_pago,transferencia', 'date', 'before_or_equal:today'],
             'comprobante'                          => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf,webp', 'max:' . ArchivoService::MAX_KB],
             'sobrecargos'                          => ['nullable', 'array'],
             'sobrecargos.*.descuento_id'           => ['required', 'integer', 'exists:descuentos,id'],
@@ -98,6 +100,8 @@ class AbonarInvPedidoRequest extends FormRequest
             'medios_pago.required'             => 'Debe indicar al menos un medio de pago.',
             'medios_pago.*.medio_pago.required' => 'El tipo de medio de pago es obligatorio.',
             'medios_pago.*.valor.required'     => 'El valor del medio de pago es obligatorio.',
+            'medios_pago.*.fecha_transferencia.required_if' => 'La fecha de la transferencia es obligatoria para pagos por transferencia.',
+            'medios_pago.*.fecha_transferencia.before_or_equal' => 'La fecha de la transferencia no puede ser futura.',
             'medios_pago.*.cuenta_bancaria_id.required_if' => 'La cuenta a la que se hizo el pago es obligatoria para pagos por transferencia.',
             'medios_pago.*.cuenta_bancaria_id.in'          => 'La cuenta seleccionada no está activa o no aplica a la sede desde la que se factura.',
             'items_a_entregar.*.exists'        => 'Uno de los ítems a entregar no existe.',

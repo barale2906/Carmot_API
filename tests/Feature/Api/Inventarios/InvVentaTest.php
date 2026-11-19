@@ -693,7 +693,7 @@ class InvVentaTest extends TestCase
         $response = $this->actingAs($this->cajero)
             ->postJson(route('inv-ventas.store'), $this->payloadPedido([
                 'monto_abono'       => $monto,
-                'medios_pago'       => [['medio_pago' => 'transferencia', 'valor' => $monto, 'cuenta_bancaria_id' => $this->cuenta->id]],
+                'medios_pago'       => [['medio_pago' => 'transferencia', 'fecha_transferencia' => now()->toDateString(), 'valor' => $monto, 'cuenta_bancaria_id' => $this->cuenta->id]],
                 'entrega_inmediata' => true,
             ]))
             ->assertCreated();
@@ -707,14 +707,14 @@ class InvVentaTest extends TestCase
         $sinCuenta = $this->actingAs($this->cajero)
             ->postJson(route('inv-ventas.store'), $this->payloadPedido([
                 'monto_abono' => $this->precio,
-                'medios_pago' => [['medio_pago' => 'transferencia', 'valor' => $this->precio]],
+                'medios_pago' => [['medio_pago' => 'transferencia', 'fecha_transferencia' => now()->toDateString(), 'valor' => $this->precio]],
             ]));
         $sinCuenta->assertUnprocessable()->assertJsonValidationErrors(['medios_pago.0.cuenta_bancaria_id']);
 
         $this->actingAs($this->cajero)
             ->postJson(route('inv-ventas.store'), $this->payloadPedido([
                 'monto_abono' => $this->precio,
-                'medios_pago' => [['medio_pago' => 'transferencia', 'valor' => $this->precio, 'cuenta_bancaria_id' => CuentaBancaria::factory()->create()->id]],
+                'medios_pago' => [['medio_pago' => 'transferencia', 'fecha_transferencia' => now()->toDateString(), 'valor' => $this->precio, 'cuenta_bancaria_id' => CuentaBancaria::factory()->create()->id]],
             ]))
             ->assertUnprocessable()
             ->assertJsonValidationErrors(['medios_pago.0.cuenta_bancaria_id']);
@@ -741,7 +741,7 @@ class InvVentaTest extends TestCase
 
         $response = $this->actingAs($this->cajero)
             ->postJson(route('inv-ventas.store'), $this->payloadPedido([
-                'medios_pago'       => [['medio_pago' => 'transferencia', 'valor' => $this->precio, 'cuenta_bancaria_id' => $this->cuenta->id]],
+                'medios_pago'       => [['medio_pago' => 'transferencia', 'fecha_transferencia' => now()->toDateString(), 'valor' => $this->precio, 'cuenta_bancaria_id' => $this->cuenta->id]],
                 'entrega_inmediata' => true,
             ]))
             ->assertCreated()
@@ -818,7 +818,7 @@ class InvVentaTest extends TestCase
         $reciboId = $this->actingAs($this->cajero)
             ->postJson(route('inv-ventas.abonar', $pedidoId), [
                 'monto_abono'       => $mitad,
-                'medios_pago'       => [['medio_pago' => 'transferencia', 'valor' => $mitad, 'cuenta_bancaria_id' => $this->cuenta->id]],
+                'medios_pago'       => [['medio_pago' => 'transferencia', 'fecha_transferencia' => now()->toDateString(), 'valor' => $mitad, 'cuenta_bancaria_id' => $this->cuenta->id]],
                 'entrega_inmediata' => true,
             ])
             ->assertOk()

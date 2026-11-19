@@ -238,6 +238,79 @@ class ReciboPagoTest extends TestCase
             ->assertJsonPath('data.id', $recibo->id);
     }
 
+    // ─── store — fecha del recibo ─────────────────────────────────────────────
+
+    /** @test */
+    public function usuario_comun_no_puede_fijar_la_fecha_del_recibo(): void
+    {
+        $concepto = ConceptoPago::factory()->create(['nombre' => 'Copia Certificado', 'tipo' => 1, 'valor' => 25000]);
+
+        $id = $this->actingAs($this->usuario)
+            ->postJson(route('recibos-pago.store'), $this->payloadSoloAdicionales($concepto, [
+                'fecha_recibo' => now()->subDays(10)->toDateString(),
+            ]))
+            ->assertCreated()
+            ->json('data.id');
+
+        $this->assertSame(now()->toDateString(), ReciboPago::find($id)->fecha_recibo->toDateString());
+    }
+
+    /** @test */
+    public function recibo_sin_fecha_queda_con_la_fecha_de_hoy(): void
+    {
+        $concepto = ConceptoPago::factory()->create(['nombre' => 'Copia Certificado', 'tipo' => 1, 'valor' => 25000]);
+        $payload = $this->payloadSoloAdicionales($concepto);
+        unset($payload['fecha_recibo']);
+
+        $id = $this->actingAs($this->usuario)
+            ->postJson(route('recibos-pago.store'), $payload)
+            ->assertCreated()
+            ->json('data.id');
+
+        $this->assertSame(now()->toDateString(), ReciboPago::find($id)->fecha_recibo->toDateString());
+    }
+
+    /** @test */
+    public function superusuario_puede_fijar_la_fecha_del_recibo(): void
+    {
+        $concepto = ConceptoPago::factory()->create(['nombre' => 'Copia Certificado', 'tipo' => 1, 'valor' => 25000]);
+        $this->usuario->assignRole(\Spatie\Permission\Models\Role::create(['name' => 'superusuario']));
+        $fecha = now()->subDays(10)->toDateString();
+
+        $id = $this->actingAs($this->usuario)
+            ->postJson(route('recibos-pago.store'), $this->payloadSoloAdicionales($concepto, ['fecha_recibo' => $fecha]))
+            ->assertCreated()
+            ->json('data.id');
+
+        $this->assertSame($fecha, ReciboPago::find($id)->fecha_recibo->toDateString());
+    }
+
+    /** @test */
+    public function usuario_comun_no_puede_modificar_la_fecha_en_update(): void
+    {
+        $recibo = $this->crearRecibo(['status' => ReciboPago::STATUS_EN_PROCESO, 'fecha_recibo' => now()->toDateString()]);
+
+        $this->actingAs($this->usuario)
+            ->putJson(route('recibos-pago.update', $recibo), ['fecha_recibo' => now()->subDays(10)->toDateString()])
+            ->assertOk();
+
+        $this->assertSame(now()->toDateString(), $recibo->fresh()->fecha_recibo->toDateString());
+    }
+
+    /** @test */
+    public function superusuario_puede_modificar_la_fecha_en_update(): void
+    {
+        $this->usuario->assignRole(\Spatie\Permission\Models\Role::create(['name' => 'superusuario']));
+        $recibo = $this->crearRecibo(['status' => ReciboPago::STATUS_EN_PROCESO, 'fecha_recibo' => now()->toDateString()]);
+        $fecha = now()->subDays(10)->toDateString();
+
+        $this->actingAs($this->usuario)
+            ->putJson(route('recibos-pago.update', $recibo), ['fecha_recibo' => $fecha])
+            ->assertOk();
+
+        $this->assertSame($fecha, $recibo->fresh()->fecha_recibo->toDateString());
+    }
+
     // ─── store — modo unificado ───────────────────────────────────────────────
 
     /** @test */
@@ -451,7 +524,7 @@ class ReciboPagoTest extends TestCase
             ->assertUnprocessable()
             ->assertJsonValidationErrors([
                 'sede_id', 'cajero_id', 'matricula_id',
-                'origen', 'fecha_recibo', 'fecha_transaccion',
+                'origen', 'fecha_transaccion',
                 'monto_a_pagar', 'medios_pago',
             ]);
     }

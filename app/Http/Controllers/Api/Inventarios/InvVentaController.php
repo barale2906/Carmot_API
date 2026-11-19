@@ -454,7 +454,7 @@ class InvVentaController extends Controller
      * La cuenta destino debe estar activa y aplicar a la sede del recibo; banco_id se
      * mantiene por compatibilidad.
      *
-     * @param Request    $request cuenta_bancaria_id, banco_id, numero_transaccion, comprobante (file)
+     * @param Request    $request cuenta_bancaria_id, banco_id, numero_transaccion, fecha_transferencia, comprobante (file)
      * @param ReciboPago $reciboPago
      * @return JsonResponse
      */
@@ -464,9 +464,11 @@ class InvVentaController extends Controller
             'cuenta_bancaria_id' => ['nullable', 'integer', CuentaBancaria::reglaActivaDeSede($reciboPago->sede_id)],
             'banco_id'           => 'nullable|exists:bancos,id',
             'numero_transaccion' => 'nullable|string|max:100',
+            'fecha_transferencia' => 'nullable|date|before_or_equal:today',
             'comprobante'        => 'nullable|file|mimes:jpg,jpeg,png,pdf,webp|max:' . ArchivoService::MAX_KB,
         ], [
             'cuenta_bancaria_id.in' => 'La cuenta seleccionada no está activa o no aplica a la sede del recibo.',
+            'fecha_transferencia.before_or_equal' => 'La fecha de la transferencia no puede ser futura.',
         ]);
 
         if ($reciboPago->origen !== ReciboPago::ORIGEN_INVENTARIOS) {
@@ -496,6 +498,9 @@ class InvVentaController extends Controller
         }
         if ($request->filled('numero_transaccion')) {
             $updateData['numero_transaccion'] = $request->string('numero_transaccion');
+        }
+        if ($request->filled('fecha_transferencia')) {
+            $updateData['fecha_transferencia'] = $request->input('fecha_transferencia');
         }
 
         $comprobanteReenvioPath = null;

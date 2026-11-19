@@ -154,6 +154,7 @@ class ReciboPagoResource extends JsonResource
                             ]
                             : null,
                         'numero_transaccion'  => $medio->numero_transaccion,
+                        'fecha_transferencia' => $medio->fecha_transferencia?->format('Y-m-d'),
                         'comprobante_path'    => $medio->comprobante_path,
                         'comprobante_url'     => $medio->comprobante_url,
                     ];

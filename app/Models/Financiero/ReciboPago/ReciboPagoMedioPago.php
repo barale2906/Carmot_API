@@ -23,6 +23,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int|null $banco_id FK al catálogo de bancos (en transferencias, el banco de la cuenta destino)
  * @property int|null $cuenta_bancaria_id Cuenta del instituto que recibió la transferencia
  * @property string|null $numero_transaccion Número único de transacción bancaria
+ * @property \Carbon\Carbon|null $fecha_transferencia Fecha en que se realizó la transferencia
  * @property string|null $comprobante_path Ruta del comprobante en storage
  * @property \Carbon\Carbon $created_at Fecha de creación
  * @property \Carbon\Carbon $updated_at Fecha de actualización
@@ -66,6 +67,7 @@ class ReciboPagoMedioPago extends Model
         'valor'    => 'decimal:2',
         'banco_id' => 'integer',
         'cuenta_bancaria_id' => 'integer',
+        'fecha_transferencia' => 'date',
     ];
 
     /**

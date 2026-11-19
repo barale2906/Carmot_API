@@ -460,6 +460,7 @@ class InvVentaService
                 'banco'               => $mp['banco'] ?? null,
                 'tipo_tarjeta'        => $mp['tipo_tarjeta'] ?? null,
                 'numero_transaccion'  => $mp['numero_transaccion'] ?? null,
+                'fecha_transferencia' => $mp['fecha_transferencia'] ?? null,
             ], $mp['medio_pago'] === 'transferencia' ? $datosCuenta : []));
         }
 
