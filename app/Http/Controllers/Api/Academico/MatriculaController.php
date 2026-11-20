@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Academico;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\Academico\CambiarEstadoAcademicoRequest;
+use App\Http\Requests\Api\Academico\PrecalcularDescuentoMatriculaRequest;
 use App\Http\Requests\Api\Academico\StoreMatriculaRequest;
 use App\Http\Requests\Api\Academico\UpdateMatriculaRequest;
 use App\Http\Resources\Api\Academico\EvaluacionCierreResource;
@@ -18,7 +19,9 @@ use App\Models\User;
 use App\Services\Academico\EvaluacionCierreService;
 use App\Services\Academico\MatriculaEstadoService;
 use App\Services\ArchivoService;
+use App\Services\Financiero\MatriculaDescuentoService;
 use App\Traits\HasActiveStatus;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -30,7 +33,7 @@ class MatriculaController extends Controller
 
     /** Campos permitidos en store/update (excluye los gestionados automáticamente). */
     private const FILLABLE_FIELDS = [
-        'sede_id', 'curso_id', 'ciclo_id', 'estudiante_id', 'matriculado_por_id', 'comercial_id',
+        'sede_id', 'curso_id', 'ciclo_id', 'programacion_id', 'estudiante_id', 'matriculado_por_id', 'comercial_id',
         'fecha_matricula', 'fecha_inicio', 'monto', 'valor_cuota', 'observaciones', 'lp_precio_producto_id',
         'tipo_identificacion', 'departamento_expedicion', 'ciudad_expedicion',
         'fecha_nacimiento', 'genero', 'estado_civil', 'grupo_sanguineo', 'rh',
@@ -48,6 +51,7 @@ class MatriculaController extends Controller
     {
         $this->middleware('permission:aca_matriculas')->only(['index', 'show', 'filters', 'statistics', 'precargaEstudiante', 'historialEstados', 'evaluacionCierre']);
         $this->middleware('permission:aca_matriculaEstado')->only(['cambiarEstadoAcademico']);
+        $this->middleware('permission:aca_matriculaCrear|aca_matriculaEditar')->only(['precalcularDescuentos']);
         $this->middleware('permission:aca_matriculaCrear')->only(['store']);
         $this->middleware('permission:aca_matriculaEditar')->only(['update']);
         $this->middleware('permission:aca_matriculaInactivar')->only(['destroy', 'restore', 'forceDelete', 'trashed']);
@@ -106,7 +110,7 @@ class MatriculaController extends Controller
 
         $matricula = Matricula::create($data);
         // refresh: toma estado_academico y demás valores por defecto de la BD (B16)
-        $matricula->refresh()->load(['curso', 'ciclo', 'estudiante', 'matriculadoPor', 'comercial', 'lugarOrigen']);
+        $matricula->refresh()->load(['curso', 'ciclo', 'estudiante', 'matriculadoPor', 'comercial', 'lugarOrigen', 'descuentosCongelados']);
 
         return response()->json([
             'message' => 'Matrícula creada exitosamente.',
@@ -133,7 +137,7 @@ class MatriculaController extends Controller
     /**
      * Actualiza la matrícula especificada.
      */
-    public function update(UpdateMatriculaRequest $request, Matricula $matricula): JsonResponse
+    public function update(UpdateMatriculaRequest $request, Matricula $matricula, MatriculaDescuentoService $descuentos): JsonResponse
     {
         $data = $request->only(self::FILLABLE_FIELDS);
 
@@ -145,11 +149,39 @@ class MatriculaController extends Controller
         }
 
         $matricula->update($data);
-        $matricula->load(['curso', 'ciclo', 'estudiante', 'matriculadoPor', 'comercial', 'lugarOrigen']);
+
+        // Al cambiar curso, ciclo o programación el usuario decide si los descuentos congelados
+        // se recalculan (recalcular_descuentos = true) o se conservan los del momento de matricular.
+        if ($request->boolean('recalcular_descuentos')) {
+            $matricula->load('lpPrecioProducto');
+            $descuentos->congelar($matricula);
+        }
+
+        $matricula->load(['curso', 'ciclo', 'estudiante', 'matriculadoPor', 'comercial', 'lugarOrigen', 'descuentosCongelados']);
 
         return response()->json([
             'message' => 'Matrícula actualizada exitosamente.',
             'data'    => new MatriculaResource($matricula),
+        ]);
+    }
+
+    /**
+     * Vista previa de los descuentos que se activan al matricular.
+     *
+     * Según sede, curso, programación (jornada) y precio de lista devuelve el total del curso,
+     * los descuentos de matrícula que aplican con su detalle y los de pronto pago aplicables
+     * después. No crea ni modifica nada: el front la consulta al cambiar curso, ciclo o programación.
+     */
+    public function precalcularDescuentos(PrecalcularDescuentoMatriculaRequest $request, MatriculaDescuentoService $descuentos): JsonResponse
+    {
+        return response()->json([
+            'data' => $descuentos->previsualizar(
+                $request->integer('sede_id'),
+                $request->integer('curso_id'),
+                $request->filled('programacion_id') ? $request->integer('programacion_id') : null,
+                $request->filled('lp_precio_producto_id') ? $request->integer('lp_precio_producto_id') : null,
+                $request->filled('fecha_matricula') ? Carbon::parse($request->input('fecha_matricula')) : null,
+            ),
         ]);
     }
 

@@ -100,12 +100,16 @@ class UpdateDescuentoRequest extends FormRequest
             'status'           => Descuento::getStatusValidationRule(),
             'listas_precios'   => 'nullable|array',
             'listas_precios.*' => 'exists:lp_listas_precios,id',
-            'productos'        => 'nullable|array',
-            'productos.*'      => 'exists:lp_productos,id',
-            'sedes'            => 'nullable|array',
-            'sedes.*'          => 'exists:sedes,id',
-            'poblaciones'      => 'nullable|array',
-            'poblaciones.*'    => 'exists:poblacions,id',
+            'productos' => 'nullable|array',
+            'productos.*' => 'exists:lp_productos,id',
+            'sedes' => 'nullable|array',
+            'sedes.*' => 'exists:sedes,id',
+            'poblaciones' => 'nullable|array',
+            'poblaciones.*' => 'exists:poblacions,id',
+            'cursos' => 'nullable|array',
+            'cursos.*' => 'exists:cursos,id',
+            'jornadas' => 'nullable|array',
+            'jornadas.*' => 'integer|between:0,4',
         ];
     }
 

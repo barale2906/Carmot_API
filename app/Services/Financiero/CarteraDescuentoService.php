@@ -19,15 +19,24 @@ use Carbon\Carbon;
  * Las cuotas vencidas no bloquean el pronto pago. Se descuentan del monto disponible sin aplicar
  * descuento y el remanente rueda automáticamente a las cuotas próximas que sí cumplan la anticipación.
  *
+ * Alcance: el descuento de pronto pago solo aplica si su sede, curso y jornada cubren la matrícula
+ * (ver Descuento::scopeConAlcance).
+ *
  * Promoción matrícula — aplica automáticamente cuando:
- *  - Existe un Descuento activo con tipo_activacion = 'promocion_matricula' y aplicacion = 'matricula'.
+ *  - La matrícula tiene descuentos congelados (matricula_descuento) con aplicacion = 'matricula'.
+ *    Se congelan al matricular según sede, curso y jornada (ver MatriculaDescuentoService).
  *  - La cartera de matrícula (numero_cuota = 0) está pendiente.
+ *  - Varios descuentos se aplican uno tras otro sobre el saldo que va quedando.
  *
  * El descuento de pronto pago se aplica EXCLUSIVAMENTE a cuotas mensuales (numero_cuota > 0).
  * La cuota de matrícula (numero_cuota = 0) queda reservada para el descuento de promocion_matricula.
  */
 class CarteraDescuentoService
 {
+    public function __construct(
+        private readonly MatriculaDescuentoService $matriculaDescuentos
+    ) {}
+
     /**
      * Calcula el descuento por pronto pago aplicable a las cuotas mensuales de una matrícula.
      *
@@ -38,10 +47,9 @@ class CarteraDescuentoService
      * configurados de forma individual. Cuotas sin suficiente anticipación no reciben descuento
      * pero permiten que las cuotas siguientes sí lo hagan.
      *
-     * @param  Matricula     $matricula
-     * @param  float         $montoAPagar      monto total que el estudiante va a pagar
-     * @param  Carbon|null   $fechaReferencia  fecha del pago (default: hoy)
-     * @return array{aplica: bool, valor: float, descuento: Descuento|null, motivo: string}
+     * @param  float  $montoAPagar  monto total que el estudiante va a pagar
+     * @param  Carbon|null  $fechaReferencia  fecha del pago (default: hoy)
+     * @return array{aplica: bool, valor: float, descuento: Descuento|null, descuentos: array<int, array{descuento: Descuento, valor: float}>, motivo: string}
      */
     public function calcular(Matricula $matricula, float $montoAPagar, ?Carbon $fechaReferencia = null): array
     {
@@ -64,10 +72,7 @@ class CarteraDescuentoService
         }
 
         // Condición 3: existe descuento activo de tipo pago_anticipado aplicado a cuota
-        $descuento = Descuento::vigentes($fecha)
-            ->where('tipo_activacion', Descuento::ACTIVACION_PAGO_ANTICIPADO)
-            ->where('aplicacion', Descuento::APLICACION_CUOTA)
-            ->first();
+        $descuento = $this->obtenerDescuentoProntoPago($matricula, $fecha);
 
         if (! $descuento) {
             return $this->sinDescuento('No hay descuento por pronto pago activo.');
@@ -154,47 +159,51 @@ class CarteraDescuentoService
             'aplica'    => true,
             'valor'     => $valorTotal,
             'descuento' => $descuento,
-            'motivo'    => "Pronto pago — {$descuento->nombre}",
+            'descuentos' => [['descuento' => $descuento, 'valor' => $valorTotal]],
+            'motivo' => "Pronto pago — {$descuento->nombre}",
         ];
     }
 
     /**
-     * Retorna el Descuento de pronto pago activo y vigente, si existe.
+     * Retorna el Descuento de pronto pago activo y vigente cuyo alcance (sede, curso, jornada)
+     * cubre la matrícula, si existe.
      * Usado por ReciboPagoDistribucionService para aplicar el descuento per-cuota.
      *
      * @param  Carbon|null $fechaReferencia
      * @return Descuento|null
      */
-    public function obtenerDescuentoProntoPago(?Carbon $fechaReferencia = null): ?Descuento
+    public function obtenerDescuentoProntoPago(Matricula $matricula, ?Carbon $fechaReferencia = null): ?Descuento
     {
         $fecha = $fechaReferencia ?? Carbon::today();
         return Descuento::vigentes($fecha)
+            ->where('origen', 1)
+            ->descuentos()
             ->where('tipo_activacion', Descuento::ACTIVACION_PAGO_ANTICIPADO)
             ->where('aplicacion', Descuento::APLICACION_CUOTA)
+            ->conAlcance(
+                (int) $matricula->sede_id,
+                (int) $matricula->curso_id,
+                $this->matriculaDescuentos->jornadaDeProgramacion($matricula->programacion_id)
+            )
+            ->orderBy('id')
             ->first();
     }
 
     /**
-     * Calcula el descuento por promoción de matrícula si aplica.
+     * Calcula el descuento de matrícula (cuota 0) a partir de los descuentos congelados al matricular.
      *
-     * Aplica automáticamente cuando existe un Descuento vigente con
-     * tipo_activacion = 'promocion_matricula' y aplicacion = 'matricula',
-     * y la cartera de matrícula (numero_cuota = 0) está pendiente de pago.
+     * Aplica siempre que la cuota 0 esté pendiente y la matrícula tenga descuentos congelados
+     * con aplicacion = 'matricula', sin depender de que la promoción siga vigente hoy:
+     * lo pactado al matricular se respeta.
      *
-     * @param  Matricula   $matricula
-     * @param  Carbon|null $fechaReferencia
-     * @return array{aplica: bool, valor: float, descuento: Descuento|null, motivo: string}
+     * @return array{aplica: bool, valor: float, descuento: Descuento|null, descuentos: array<int, array{descuento: Descuento, valor: float}>, motivo: string}
      */
     public function calcularDescuentoMatricula(Matricula $matricula, ?Carbon $fechaReferencia = null): array
     {
-        $fecha = $fechaReferencia ?? Carbon::today();
+        $congelados = $this->matriculaDescuentos->congelados($matricula)
+            ->filter(fn (Descuento $d) => $d->pivot->aplicacion === Descuento::APLICACION_MATRICULA);
 
-        $descuento = Descuento::vigentes($fecha)
-            ->where('tipo_activacion', Descuento::ACTIVACION_PROMOCION_MATRICULA)
-            ->where('aplicacion', Descuento::APLICACION_MATRICULA)
-            ->first();
-
-        if (! $descuento) {
+        if ($congelados->isEmpty()) {
             return $this->sinDescuento('No hay descuento de matrícula activo.');
         }
 
@@ -207,13 +216,18 @@ class CarteraDescuentoService
             return $this->sinDescuento('No hay cuota de matrícula pendiente.');
         }
 
-        $valor = $descuento->calcularDescuento((float) $carteraMatricula->saldo);
+        $aplicados = $this->matriculaDescuentos->aplicarSecuencial($congelados, (float) $carteraMatricula->saldo);
+
+        if ($aplicados['total'] <= 0) {
+            return $this->sinDescuento('El descuento de matrícula no genera valor sobre el saldo pendiente.');
+        }
 
         return [
-            'aplica'    => true,
-            'valor'     => $valor,
-            'descuento' => $descuento,
-            'motivo'    => "Descuento matrícula ({$descuento->nombre})",
+            'aplica' => true,
+            'valor' => $aplicados['total'],
+            'descuento' => $aplicados['detalle'][0]['descuento'],
+            'descuentos' => $aplicados['detalle'],
+            'motivo' => 'Descuento matrícula ('.$congelados->pluck('nombre')->implode(', ').')',
         ];
     }
 
@@ -226,7 +240,8 @@ class CarteraDescuentoService
             'aplica'    => false,
             'valor'     => 0.0,
             'descuento' => null,
-            'motivo'    => $motivo,
+            'descuentos' => [],
+            'motivo' => $motivo,
         ];
     }
 }

@@ -7,12 +7,13 @@ use App\Services\ArchivoService;
 use App\Traits\HasActiveStatus;
 use App\Traits\HasActiveStatusValidation;
 use App\Http\Requests\Api\Academico\Concerns\ValidaCicloDeMatricula;
+use App\Http\Requests\Api\Academico\Concerns\ValidaProgramacionDeMatricula;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class UpdateMatriculaRequest extends FormRequest
 {
-    use HasActiveStatus, HasActiveStatusValidation, ValidaCicloDeMatricula;
+    use HasActiveStatus, HasActiveStatusValidation, ValidaCicloDeMatricula, ValidaProgramacionDeMatricula;
 
     /**
      * Opciones de estado: extiende el trait para incluir "Anulado".
@@ -42,6 +43,8 @@ class UpdateMatriculaRequest extends FormRequest
             // ----------------------------------------------------------------
             'curso_id'           => 'sometimes|integer|exists:cursos,id',
             'ciclo_id'           => 'sometimes|integer|exists:ciclos,id',
+            'programacion_id'    => 'sometimes|nullable|integer|exists:programacions,id',
+            'recalcular_descuentos' => 'sometimes|boolean',
             'estudiante_id'      => 'sometimes|integer|exists:users,id',
             'matriculado_por_id' => 'sometimes|integer|exists:users,id',
             'comercial_id'       => 'sometimes|integer|exists:users,id',
@@ -123,6 +126,8 @@ class UpdateMatriculaRequest extends FormRequest
         return array_merge([
             'curso_id.exists'             => 'El curso seleccionado no existe.',
             'ciclo_id.exists'             => 'El ciclo seleccionado no existe.',
+            'programacion_id.exists'      => 'La programación seleccionada no existe.',
+            'recalcular_descuentos.boolean' => 'Indique si desea recalcular los descuentos (sí o no).',
             'estudiante_id.exists'        => 'El estudiante seleccionado no existe.',
             'matriculado_por_id.exists'   => 'El usuario que realiza la matrícula no existe.',
             'comercial_id.exists'         => 'El usuario comercial seleccionado no existe.',
@@ -181,6 +186,24 @@ class UpdateMatriculaRequest extends FormRequest
                 );
             }
 
+            if ($this->hasAny(['programacion_id', 'curso_id'])) {
+                $this->validarProgramacionDeMatricula(
+                    $validator,
+                    $this->input('programacion_id', $matricula->programacion_id),
+                    $matricula->sede_id,
+                    $this->input('curso_id', $matricula->curso_id)
+                );
+            }
+
+            // Recalcular reemplaza los descuentos congelados: no se permite si a la cuota 0
+            // ya se le aplicó un descuento, porque quedaría un descuento pagado sin respaldo.
+            if ($this->boolean('recalcular_descuentos')
+                && $matricula->carteras()->where('numero_cuota', 0)->where('descuento', '>', 0)->exists()) {
+                $validator->errors()->add(
+                    'recalcular_descuentos',
+                    'No se pueden recalcular los descuentos: la matrícula ya recibió un descuento en su pago.'
+                );
+            }
 
             $estudianteId = $this->input('estudiante_id', $matricula->estudiante_id);
             $cursoId      = $this->input('curso_id', $matricula->curso_id);
@@ -210,6 +233,8 @@ class UpdateMatriculaRequest extends FormRequest
         return [
             'curso_id'                => 'curso',
             'ciclo_id'                => 'ciclo',
+            'programacion_id'         => 'programación',
+            'recalcular_descuentos'   => 'recalcular descuentos',
             'estudiante_id'           => 'estudiante',
             'matriculado_por_id'      => 'usuario que realiza la matrícula',
             'comercial_id'            => 'usuario comercial',

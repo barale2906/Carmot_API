@@ -2,6 +2,7 @@
 
 namespace App\Models\Financiero\Descuento;
 
+use App\Models\Academico\Curso;
 use App\Models\Configuracion\Poblacion;
 use App\Models\Configuracion\Sede;
 use App\Models\Financiero\Lp\LpListaPrecio;
@@ -38,6 +39,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property bool $permite_acumulacion Siempre false para sobrecargos
  * @property array|null $medios_pago Medios que activan el sobrecargo (solo medio_pago)
  * @property array|null $marca_tarjeta Marcas específicas; null = cualquier marca
+ * @property array|null $jornadas Jornadas a las que aplica (0-4); null o vacío = todas
  * @property \Carbon\Carbon $fecha_inicio
  * @property \Carbon\Carbon $fecha_fin
  * @property int $status 0=Inactivo, 1=En Proceso, 2=Aprobado, 3=Activo
@@ -132,8 +134,9 @@ class Descuento extends Model
         'fecha_fin'        => 'date',
         'status'           => 'integer',
         'permite_acumulacion' => 'boolean',
-        'medios_pago'      => 'array',
-        'marca_tarjeta'    => 'array',
+        'medios_pago' => 'array',
+        'marca_tarjeta' => 'array',
+        'jornadas' => 'array',
     ];
 
     /**
@@ -200,6 +203,21 @@ class Descuento extends Model
             'descuento_poblacion',
             'descuento_id',
             'poblacion_id'
+        )->withTimestamps();
+    }
+
+    /**
+     * Relación con Curso (muchos a muchos).
+     * Un descuento puede restringirse a cursos específicos.
+     * Si está vacío, aplica a todos los cursos.
+     */
+    public function cursos(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            Curso::class,
+            'descuento_curso',
+            'descuento_id',
+            'curso_id'
         )->withTimestamps();
     }
 
@@ -454,6 +472,42 @@ class Descuento extends Model
     }
 
     /**
+     * Scope: descuentos cuyo alcance cubre la sede, el curso y la jornada dados.
+     *
+     * Cada dimensión sin restricción (sin registros asociados) aplica a todo. Las tres
+     * se combinan con AND: un descuento con sede, curso y jornada exige las tres.
+     * La sede también casa por población cuando el descuento no lista sedes (igual que aplicaASede).
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder  $query
+     * @param  int|null  $jornada  jornada de la programación elegida; null si la matrícula no tiene programación
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    public function scopeConAlcance($query, int $sedeId, int $cursoId, ?int $jornada)
+    {
+        return $query
+            ->where(function ($q) use ($sedeId) {
+                $q->whereHas('sedes', fn ($s) => $s->where('sedes.id', $sedeId))
+                    ->orWhere(function ($q2) use ($sedeId) {
+                        $q2->whereDoesntHave('sedes')
+                            ->where(function ($q3) use ($sedeId) {
+                                $q3->whereDoesntHave('poblaciones')
+                                    ->orWhereHas('poblaciones.sedes', fn ($s) => $s->where('sedes.id', $sedeId));
+                            });
+                    });
+            })
+            ->where(function ($q) use ($cursoId) {
+                $q->whereDoesntHave('cursos')
+                    ->orWhereHas('cursos', fn ($c) => $c->where('cursos.id', $cursoId));
+            })
+            ->where(function ($q) use ($jornada) {
+                $q->whereNull('jornadas')->orWhereJsonLength('jornadas', 0);
+                if ($jornada !== null) {
+                    $q->orWhereJsonContains('jornadas', $jornada);
+                }
+            });
+    }
+
+    /**
      * Scope: ajustes vigentes (activos y dentro del rango de fechas).
      *
      * @param \Illuminate\Database\Eloquent\Builder $query
@@ -566,6 +620,7 @@ class Descuento extends Model
             'productos',
             'sedes',
             'poblaciones',
+            'cursos',
             'descuentosAplicados',
             'listasPrecios.poblaciones',
             'productos.tipoProducto',

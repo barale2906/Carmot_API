@@ -139,6 +139,56 @@ class DescuentoTest extends TestCase
     }
 
     /** @test */
+    public function crea_un_descuento_con_alcance_por_sede_curso_y_jornada(): void
+    {
+        $sede  = \App\Models\Configuracion\Sede::factory()->create();
+        $curso = \App\Models\Academico\Curso::factory()->create();
+
+        $this->actingAs($this->usuario)
+            ->postJson(route('descuentos.store'), $this->datosBase([
+                'tipo_activacion'     => Descuento::ACTIVACION_PROMOCION_MATRICULA,
+                'aplicacion'          => Descuento::APLICACION_MATRICULA,
+                'dias_anticipacion'   => null,
+                'permite_acumulacion' => true,
+                'sedes'               => [$sede->id],
+                'cursos'              => [$curso->id],
+                'jornadas'            => [0, 2],
+            ]))
+            ->assertCreated()
+            ->assertJsonPath('data.cursos.0.id', $curso->id)
+            ->assertJsonPath('data.sedes.0.id', $sede->id)
+            ->assertJsonPath('data.jornadas', [0, 2])
+            ->assertJsonPath('data.permite_acumulacion', true);
+
+        $this->assertDatabaseHas('descuento_curso', ['curso_id' => $curso->id]);
+    }
+
+    /** @test */
+    public function rechaza_jornada_fuera_de_rango_y_curso_inexistente(): void
+    {
+        $this->actingAs($this->usuario)
+            ->postJson(route('descuentos.store'), $this->datosBase([
+                'jornadas' => [7],
+                'cursos'   => [99999],
+            ]))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['jornadas.0', 'cursos.0']);
+    }
+
+    /** @test */
+    public function actualiza_los_cursos_de_un_descuento(): void
+    {
+        $descuento = Descuento::factory()->enProceso()->create();
+        $curso     = \App\Models\Academico\Curso::factory()->create();
+
+        $this->actingAs($this->usuario)
+            ->putJson(route('descuentos.update', $descuento), ['cursos' => [$curso->id], 'jornadas' => [1]])
+            ->assertOk()
+            ->assertJsonPath('data.cursos.0.id', $curso->id)
+            ->assertJsonPath('data.jornadas', [1]);
+    }
+
+    /** @test */
     public function rechaza_crear_sin_permiso(): void
     {
         $sinPermiso = User::factory()->create();

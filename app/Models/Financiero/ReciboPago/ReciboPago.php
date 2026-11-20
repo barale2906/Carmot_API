@@ -331,8 +331,8 @@ class ReciboPago extends Model
     public function descuentos(): BelongsToMany
     {
         return $this->belongsToMany(Descuento::class, 'recibo_pago_descuento', 'recibo_pago_id', 'descuento_id')
-                    ->withPivot(['valor_descuento', 'valor_original', 'valor_final'])
-                    ->withTimestamps();
+            ->withPivot(['cartera_id', 'rubro', 'valor_descuento', 'valor_original', 'valor_final'])
+            ->withTimestamps();
     }
 
     /**

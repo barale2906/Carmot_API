@@ -39,21 +39,23 @@ class DescuentoResource extends JsonResource
             'aplicacion_text'      => $this->getAplicacionText(),
             'tipo_activacion'      => $this->tipo_activacion,
             'tipo_activacion_text' => $this->getTipoActivacionText(),
-            'dias_anticipacion'    => $this->dias_anticipacion,
-            'permite_acumulacion'  => (bool) $this->permite_acumulacion,
-            'medios_pago'          => $this->medios_pago ?? [],
-            'marca_tarjeta'        => $this->marca_tarjeta ?? [],
-            'fecha_inicio'         => $this->fecha_inicio?->format('Y-m-d'),
-            'fecha_fin'            => $this->fecha_fin?->format('Y-m-d'),
-            'status'               => $this->status,
-            'status_text'          => $this->status_text,
-            'esta_vigente'         => $this->estaVigente(),
-            'listas_precios'       => $this->getListasPreciosArray(),
-            'productos'            => $this->getProductosArray(),
-            'sedes'                => $this->getSedesArray(),
-            'poblaciones'          => $this->getPoblacionesArray(),
-            'created_at'           => $this->created_at?->format('Y-m-d H:i:s'),
-            'updated_at'           => $this->updated_at?->format('Y-m-d H:i:s'),
+            'dias_anticipacion' => $this->dias_anticipacion,
+            'permite_acumulacion' => (bool) $this->permite_acumulacion,
+            'medios_pago' => $this->medios_pago ?? [],
+            'marca_tarjeta' => $this->marca_tarjeta ?? [],
+            'fecha_inicio' => $this->fecha_inicio?->format('Y-m-d'),
+            'fecha_fin' => $this->fecha_fin?->format('Y-m-d'),
+            'status' => $this->status,
+            'status_text' => $this->status_text,
+            'esta_vigente' => $this->estaVigente(),
+            'listas_precios' => $this->getListasPreciosArray(),
+            'productos' => $this->getProductosArray(),
+            'sedes' => $this->getSedesArray(),
+            'poblaciones' => $this->getPoblacionesArray(),
+            'cursos' => $this->getCursosArray(),
+            'jornadas' => $this->jornadas ?? [],
+            'created_at' => $this->created_at?->format('Y-m-d H:i:s'),
+            'updated_at' => $this->updated_at?->format('Y-m-d H:i:s'),
         ];
     }
 
@@ -137,6 +139,22 @@ class DescuentoResource extends JsonResource
                 'nombre' => $poblacion->nombre,
             ];
         })->values()->toArray();
+    }
+
+    /**
+     * Obtiene el array de cursos a los que se restringe el descuento.
+     * Siempre devuelve un array, cargando la relación si es necesario.
+     */
+    private function getCursosArray(): array
+    {
+        if (! $this->relationLoaded('cursos')) {
+            $this->load('cursos');
+        }
+
+        return $this->cursos->map(fn ($curso) => [
+            'id' => $curso->id,
+            'nombre' => $curso->nombre,
+        ])->values()->toArray();
     }
 
     private function getTipoMovimientoText(): string

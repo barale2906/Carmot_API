@@ -5,6 +5,7 @@ namespace Tests\Feature\Api\Financiero\Cartera;
 use App\Models\Academico\Matricula;
 use App\Models\Financiero\Cartera\Cartera;
 use App\Models\Financiero\Descuento\Descuento;
+use App\Services\Financiero\MatriculaDescuentoService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -63,6 +64,9 @@ class MoraDiariaTest extends TestCase
             'valor'      => 100,
             'aplicacion' => Descuento::APLICACION_MATRICULA,
         ]);
+        // La promoción se congela al matricular: la fecha de la matrícula debe caer en su vigencia
+        $this->matricula->update(['fecha_matricula' => now()->toDateString()]);
+        app(MatriculaDescuentoService::class)->congelar($this->matricula->load('lpPrecioProducto'));
         $matricula = $this->cuotaVencida(0, 200000);
         $cuota1    = $this->cuotaVencida(1, 400000);
 

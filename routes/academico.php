@@ -187,6 +187,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('trashed', [MatriculaController::class, 'trashed'])->name('matriculas.trashed');
         Route::get('filters', [MatriculaController::class, 'filters'])->name('matriculas.filters');
         Route::get('statistics', [MatriculaController::class, 'statistics'])->name('matriculas.statistics');
+        Route::post('precalcular-descuentos', [MatriculaController::class, 'precalcularDescuentos'])->name('matriculas.precalcular-descuentos');
         Route::get('precarga-estudiante/{estudianteId}', [MatriculaController::class, 'precargaEstudiante'])->name('matriculas.precarga-estudiante');
         Route::post('{matricula}/estado-academico', [MatriculaController::class, 'cambiarEstadoAcademico'])->name('matriculas.estado-academico');
         Route::get('{matricula}/historial-estados', [MatriculaController::class, 'historialEstados'])->name('matriculas.historial-estados');

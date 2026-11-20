@@ -7,12 +7,13 @@ use App\Services\ArchivoService;
 use App\Traits\HasActiveStatus;
 use App\Traits\HasActiveStatusValidation;
 use App\Http\Requests\Api\Academico\Concerns\ValidaCicloDeMatricula;
+use App\Http\Requests\Api\Academico\Concerns\ValidaProgramacionDeMatricula;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class StoreMatriculaRequest extends FormRequest
 {
-    use HasActiveStatus, HasActiveStatusValidation, ValidaCicloDeMatricula;
+    use HasActiveStatus, HasActiveStatusValidation, ValidaCicloDeMatricula, ValidaProgramacionDeMatricula;
 
     /**
      * Opciones de estado: extiende el trait para incluir "Anulado".
@@ -40,6 +41,7 @@ class StoreMatriculaRequest extends FormRequest
             'sede_id'              => 'required|integer|exists:sedes,id',
             'curso_id'             => 'required|integer|exists:cursos,id',
             'ciclo_id'             => 'required|integer|exists:ciclos,id',
+            'programacion_id'      => 'nullable|integer|exists:programacions,id',
             'estudiante_id'        => 'required|integer|exists:users,id',
             'matriculado_por_id'   => 'required|integer|exists:users,id',
             'comercial_id'         => 'required|integer|exists:users,id',
@@ -128,6 +130,7 @@ class StoreMatriculaRequest extends FormRequest
             'curso_id.exists'             => 'El curso seleccionado no existe.',
             'ciclo_id.required'           => 'El ciclo es obligatorio.',
             'ciclo_id.exists'             => 'El ciclo seleccionado no existe.',
+            'programacion_id.exists'      => 'La programación seleccionada no existe.',
             'estudiante_id.required'      => 'El estudiante es obligatorio.',
             'estudiante_id.exists'        => 'El estudiante seleccionado no existe.',
             'matriculado_por_id.required' => 'El usuario que realiza la matrícula es obligatorio.',
@@ -189,6 +192,7 @@ class StoreMatriculaRequest extends FormRequest
     {
         $validator->after(function ($validator) {
             $this->validarCicloDeMatricula($validator, $this->input('ciclo_id'), $this->input('sede_id'), $this->input('curso_id'));
+            $this->validarProgramacionDeMatricula($validator, $this->input('programacion_id'), $this->input('sede_id'), $this->input('curso_id'));
 
             $estudianteId = $this->input('estudiante_id');
             $cursoId      = $this->input('curso_id');
@@ -216,6 +220,7 @@ class StoreMatriculaRequest extends FormRequest
         return [
             'curso_id'                => 'curso',
             'ciclo_id'                => 'ciclo',
+            'programacion_id'         => 'programación',
             'estudiante_id'           => 'estudiante',
             'matriculado_por_id'      => 'usuario que realiza la matrícula',
             'comercial_id'            => 'usuario comercial',

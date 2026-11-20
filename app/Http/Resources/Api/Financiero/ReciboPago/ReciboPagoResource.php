@@ -123,6 +123,8 @@ class ReciboPagoResource extends JsonResource
                         'nombre' => $descuento->nombre,
                         'codigo_descuento' => $descuento->codigo_descuento,
                         'tipo' => $descuento->tipo,
+                        'cartera_id' => $descuento->pivot->cartera_id,
+                        'rubro' => $descuento->pivot->rubro,
                         'valor_descuento' => (float) $descuento->pivot->valor_descuento,
                         'valor_original' => (float) $descuento->pivot->valor_original,
                         'valor_final' => (float) $descuento->pivot->valor_final,

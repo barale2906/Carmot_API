@@ -35,15 +35,20 @@ class MatriculaResource extends JsonResource
             // ----------------------------------------------------------------
             // Datos académicos / administrativos
             // ----------------------------------------------------------------
-            'fecha_matricula'  => $this->fecha_matricula?->format('Y-m-d'),
-            'fecha_inicio'     => $this->fecha_inicio?->format('Y-m-d'),
-            'monto'            => (float) $this->monto,
-            'valor_cuota'      => $this->valor_cuota !== null ? (float) $this->valor_cuota : null,
-            'observaciones'    => $this->observaciones,
-            'referido_id'      => $this->referido_id,
-            'status'           => $this->status,
-            'status_text'      => self::getActiveStatusText($this->status),
-            'estado_academico'       => $this->estado_academico,
+            'sede_id' => $this->sede_id,
+            'curso_id' => $this->curso_id,
+            'ciclo_id' => $this->ciclo_id,
+            'programacion_id' => $this->programacion_id,
+            'lp_precio_producto_id' => $this->lp_precio_producto_id,
+            'fecha_matricula' => $this->fecha_matricula?->format('Y-m-d'),
+            'fecha_inicio' => $this->fecha_inicio?->format('Y-m-d'),
+            'monto' => (float) $this->monto,
+            'valor_cuota' => $this->valor_cuota !== null ? (float) $this->valor_cuota : null,
+            'observaciones' => $this->observaciones,
+            'referido_id' => $this->referido_id,
+            'status' => $this->status,
+            'status_text' => self::getActiveStatusText($this->status),
+            'estado_academico' => $this->estado_academico,
             'estado_academico_texto' => $this->estado_academico_texto,
             'fecha_estado_academico' => $this->fecha_estado_academico?->format('Y-m-d'),
             'anulada'          => $this->anulada,
@@ -146,6 +151,16 @@ class MatriculaResource extends JsonResource
                 'status'      => $this->ciclo->status,
                 'status_text' => self::getActiveStatusText($this->ciclo->status),
             ]),
+
+            // Descuentos activados al matricular, con el tipo y valor congelados en ese momento
+            'descuentos_congelados' => $this->whenLoaded('descuentosCongelados', fn () => $this->descuentosCongelados->map(fn ($d) => [
+                'id' => $d->id,
+                'nombre' => $d->nombre,
+                'aplicacion' => $d->pivot->aplicacion,
+                'tipo' => $d->pivot->tipo,
+                'valor' => (float) $d->pivot->valor,
+                'permite_acumulacion' => (bool) $d->pivot->permite_acumulacion,
+            ])->values()),
 
             'estudiante' => $this->whenLoaded('estudiante', [
                 'id'        => $this->estudiante->id,

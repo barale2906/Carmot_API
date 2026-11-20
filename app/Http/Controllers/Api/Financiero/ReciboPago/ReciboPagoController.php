@@ -22,7 +22,7 @@ use App\Notifications\Financiero\TransferenciaRechazadaNotification;
 use App\Services\ArchivoService;
 use App\Services\Financiero\AjusteService;
 use App\Services\Financiero\CarteraDescuentoService;
-use App\Services\Financiero\ReciboPagoPDFService;
+use App\Services\Financiero\ReciboPagoDescuentoService;
 use App\Services\Financiero\ReciboPagoDistribucionService;
 use App\Services\Financiero\ReciboPagoNumeracionService;
 use App\Services\Inventarios\InvVentaService;
@@ -50,6 +50,7 @@ class ReciboPagoController extends Controller
         private readonly AjusteService $ajusteService,
         private readonly CarteraDescuentoService $carteraDescuentoService,
         private readonly ReciboPagoNumeracionService $numeracionService,
+        private readonly ReciboPagoDescuentoService $descuentoRegistro,
     ) {
         $this->middleware('auth:sanctum');
         $this->middleware('permission:fin_recibos_pago')->only(['index', 'show']);
@@ -372,28 +373,15 @@ class ReciboPagoController extends Controller
                     ]);
                 }
 
-                // Línea de descuento (matrícula o pronto pago): muestra nombre + tipo/valor del descuento
-                if (($linea['descuento'] ?? 0) > 0 && ($linea['descuento_obj'] ?? null) !== null) {
-                    $conceptoDesc = ConceptoPago::porNombre(ConceptoPago::DESCUENTO);
-                    if ($conceptoDesc) {
-                        $desc = $linea['descuento_obj'];
-                        $observacionDesc = $desc->tipo === Descuento::TIPO_PORCENTUAL
-                            ? "{$desc->nombre} {$desc->valor}%"
-                            : "{$desc->nombre} $" . number_format($linea['descuento'], 0, ',', '.');
-
-                        $recibo->conceptosPago()->attach($conceptoDesc->id, [
-                            'tipo'           => $conceptoDesc->tipo,
-                            'valor'          => $linea['descuento'],
-                            'cantidad'       => 1,
-                            'unitario'       => $linea['descuento'],
-                            'subtotal'       => $linea['descuento'],
-                            'id_relacional'  => $cartera->id,
-                            'observaciones'  => $observacionDesc,
-                            'status_cartera' => $statusSnapshot,
-                            'saldo_cartera'  => $saldoSnapshot,
-                        ]);
-                    }
-                }
+                // Descuento (matrícula o pronto pago): línea del recibo, detalle por cuota e historial
+                $this->descuentoRegistro->registrar(
+                    $recibo,
+                    $cartera,
+                    $linea,
+                    $cartera->numero_cuota === 0 ? $saldoAntes : (float) $cartera->valor,
+                    $statusSnapshot,
+                    $saldoSnapshot
+                );
             }
 
             // ── 7. Medios de pago ─────────────────────────────────────────────
@@ -710,10 +698,10 @@ class ReciboPagoController extends Controller
                 ->map(fn (array $linea) => [
                     'cartera_id'   => $linea['cartera']->id,
                     'numero_cuota' => $linea['cartera']->numero_cuota,
-                    'valor'        => (float) $linea['cartera']->valor,
-                    'saldo'        => (float) $linea['cartera']->saldo,
-                    'descuento'    => (float) $linea['descuento'],
-                    'motivo'       => $linea['descuento_obj']?->nombre,
+                    'valor' => (float) $linea['cartera']->valor,
+                    'saldo' => (float) $linea['cartera']->saldo,
+                    'descuento' => (float) $linea['descuento'],
+                    'motivo' => $linea['detalle'][0]['descuento']->nombre ?? null,
                 ])
                 ->values();
 
@@ -738,6 +726,14 @@ class ReciboPagoController extends Controller
                             'tipo'   => $resultadoMatricula['descuento']->tipo,
                             'valor'  => (float) $resultadoMatricula['descuento']->valor,
                         ] : null,
+                        // Cada descuento congelado al matricular, con lo que descuenta de la cuota 0
+                        'descuentos' => array_map(fn (array $item) => [
+                            'id'              => $item['descuento']->id,
+                            'nombre'          => $item['descuento']->nombre,
+                            'tipo'            => $item['descuento']->tipo,
+                            'valor'           => (float) $item['descuento']->valor,
+                            'valor_descuento' => $item['valor'],
+                        ], $resultadoMatricula['descuentos']),
                     ],
                     'cuotas_costo_cero' => $cuotasCostoCero,
                     // Reparto exacto que aplicará el recibo (abono y descuento por cuota) y el
@@ -971,29 +967,14 @@ class ReciboPagoController extends Controller
                     ]);
                 }
 
-                if (($linea['descuento'] ?? 0) > 0 && ($linea['descuento_obj'] ?? null) !== null) {
-                    $conceptoDesc = \App\Models\Financiero\ConceptoPago\ConceptoPago::porNombre(
-                        \App\Models\Financiero\ConceptoPago\ConceptoPago::DESCUENTO
-                    );
-                    if ($conceptoDesc) {
-                        $desc            = $linea['descuento_obj'];
-                        $observacionDesc = $desc->tipo === \App\Models\Financiero\Descuento\Descuento::TIPO_PORCENTUAL
-                            ? "{$desc->nombre} {$desc->valor}%"
-                            : "{$desc->nombre} $" . number_format($linea['descuento'], 0, ',', '.');
-
-                        $reciboPago->conceptosPago()->attach($conceptoDesc->id, [
-                            'tipo'           => $conceptoDesc->tipo,
-                            'valor'          => $linea['descuento'],
-                            'cantidad'       => 1,
-                            'unitario'       => $linea['descuento'],
-                            'subtotal'       => $linea['descuento'],
-                            'id_relacional'  => $cartera->id,
-                            'observaciones'  => $observacionDesc,
-                            'status_cartera' => $statusSnapshot,
-                            'saldo_cartera'  => $saldoSnapshot,
-                        ]);
-                    }
-                }
+                $this->descuentoRegistro->registrar(
+                    $reciboPago,
+                    $cartera,
+                    $linea,
+                    $cartera->numero_cuota === 0 ? $saldoAntes : (float) $cartera->valor,
+                    $statusSnapshot,
+                    $saldoSnapshot
+                );
             }
 
             // Actualizar descuento_total en el encabezado

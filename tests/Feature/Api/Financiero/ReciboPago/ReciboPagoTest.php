@@ -7,6 +7,7 @@ use App\Models\Configuracion\Sede;
 use App\Models\Financiero\Cartera\Cartera;
 use App\Models\Financiero\ConceptoPago\ConceptoPago;
 use App\Models\Financiero\Descuento\Descuento;
+use App\Services\Financiero\MatriculaDescuentoService;
 use App\Models\Financiero\LibroDiario\LdTurnoCaja;
 use App\Models\Financiero\ReciboPago\ReciboPago;
 use App\Models\Inventarios\InvAlmacen;
@@ -768,6 +769,7 @@ class ReciboPagoTest extends TestCase
             'valor'      => 10,
             'aplicacion' => Descuento::APLICACION_MATRICULA,
         ]);
+        $this->congelarDescuentosMatricula();
         $matricula = $this->crearCuota(0, 200000, -1);
         $cuota1    = $this->crearCuota(1, 400000, 30);
 
@@ -1126,6 +1128,14 @@ class ReciboPagoTest extends TestCase
 
         // descuento_total = 10 % × 100 000 × 2 = 20 000
         $this->assertEquals(20000, $response->json('data.descuento_total'));
+
+        // Un registro por cuota con descuento (rubro cuota): 10 000 sobre 100 000 cada una
+        $this->assertDatabaseCount('recibo_pago_descuento', 2);
+        $this->assertDatabaseHas('recibo_pago_descuento', [
+            'recibo_pago_id' => $response->json('data.id'), 'rubro' => 'cuota',
+            'valor_original' => 100000, 'valor_descuento' => 10000, 'valor_final' => 90000,
+        ]);
+        $this->assertDatabaseCount('descuento_aplicado', 2);
     }
 
     /** @test */
@@ -1137,6 +1147,7 @@ class ReciboPagoTest extends TestCase
             'valor'      => 50000,
             'aplicacion' => Descuento::APLICACION_MATRICULA,
         ]);
+        $this->congelarDescuentosMatricula();
 
         // Cuota 0 (matrícula) pendiente
         Cartera::factory()->create([
@@ -1163,6 +1174,60 @@ class ReciboPagoTest extends TestCase
 
         // El descuento de matrícula ($50 000) debe quedar registrado en descuento_total
         $this->assertEquals(50000, $response->json('data.descuento_total'));
+
+        // Queda registrado a cuánto equivale el descuento: en el recibo (por cuota y rubro) y en el historial
+        $descuento = Descuento::first();
+        $cuotaCero = Cartera::where('matricula_id', $this->matricula->id)->where('numero_cuota', 0)->first();
+
+        $this->assertDatabaseHas('recibo_pago_descuento', [
+            'recibo_pago_id'  => $response->json('data.id'),
+            'descuento_id'    => $descuento->id,
+            'cartera_id'      => $cuotaCero->id,
+            'rubro'           => 'matricula',
+            'valor_original'  => 150000,
+            'valor_descuento' => 50000,
+            'valor_final'     => 100000,
+        ]);
+        $this->assertDatabaseHas('descuento_aplicado', [
+            'descuento_id'    => $descuento->id,
+            'concepto_tipo'   => 'matricula',
+            'concepto_id'     => $cuotaCero->id,
+            'valor_original'  => 150000,
+            'valor_descuento' => 50000,
+            'valor_final'     => 100000,
+            'sede_id'         => $this->sede->id,
+        ]);
+    }
+
+    /** @test */
+    public function store_registra_cada_descuento_acumulable_de_la_matricula(): void
+    {
+        foreach ([10, 10] as $valor) {
+            Descuento::factory()->vigente()->promocionMatricula()->create([
+                'tipo'                => Descuento::TIPO_PORCENTUAL,
+                'valor'               => $valor,
+                'aplicacion'          => Descuento::APLICACION_MATRICULA,
+                'permite_acumulacion' => true,
+            ]);
+        }
+        $this->congelarDescuentosMatricula();
+        $cuotaCero = $this->crearCuota(0, 200000, 5);
+        ConceptoPago::factory()->tipoCartera()->create(['nombre' => ConceptoPago::DESCUENTO, 'valor' => 0]);
+
+        // 10 % de 200.000 = 20.000 y 10 % de 180.000 = 18.000 → paga 162.000
+        $response = $this->actingAs($this->usuario)
+            ->postJson(route('recibos-pago.store'), $this->payloadCartera(162000))
+            ->assertCreated();
+
+        $this->assertEquals(38000, $response->json('data.descuento_total'));
+        $this->assertDatabaseHas('recibo_pago_descuento', [
+            'cartera_id' => $cuotaCero->id, 'valor_original' => 200000, 'valor_descuento' => 20000, 'valor_final' => 180000,
+        ]);
+        $this->assertDatabaseHas('recibo_pago_descuento', [
+            'cartera_id' => $cuotaCero->id, 'valor_original' => 180000, 'valor_descuento' => 18000, 'valor_final' => 162000,
+        ]);
+        $this->assertDatabaseCount('descuento_aplicado', 2);
+        $this->assertEquals(Cartera::getStatusKey('Cerrada'), $cuotaCero->refresh()->status);
     }
 
     /** @test */
@@ -1399,6 +1464,14 @@ class ReciboPagoTest extends TestCase
         ], $overrides);
     }
 
+    /** Congela en la matrícula de prueba los descuentos de matrícula vigentes (lo que ocurre al matricular). */
+    private function congelarDescuentosMatricula(): void
+    {
+        // La promoción debe estar vigente en la fecha de la matrícula
+        $this->matricula->update(['fecha_matricula' => now()->toDateString()]);
+        app(MatriculaDescuentoService::class)->congelar($this->matricula->load('lpPrecioProducto'));
+    }
+
     private function crearDescuentoMatricula100(): void
     {
         Descuento::factory()->vigente()->promocionMatricula()->create([
@@ -1406,6 +1479,7 @@ class ReciboPagoTest extends TestCase
             'valor'      => 100,
             'aplicacion' => Descuento::APLICACION_MATRICULA,
         ]);
+        $this->congelarDescuentosMatricula();
         ConceptoPago::factory()->tipoCartera()->create(['nombre' => ConceptoPago::DESCUENTO, 'valor' => 0]);
     }
 

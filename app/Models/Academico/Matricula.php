@@ -7,9 +7,12 @@ use App\Models\Crm\Referido;
 use App\Models\Configuracion\Poblacion;
 use App\Models\Configuracion\Sede;
 use App\Models\Financiero\Cartera\Cartera;
+use App\Models\Financiero\Descuento\Descuento;
 use App\Models\Financiero\Lp\LpPrecioProducto;
 use App\Models\Financiero\ReciboPago\ReciboPago;
 use App\Models\User;
+use App\Services\Financiero\CarteraGeneradorService;
+use App\Services\Financiero\MatriculaDescuentoService;
 use App\Traits\HasActiveStatus;
 use App\Traits\HasFilterScopes;
 use App\Traits\HasRelationScopes;
@@ -17,8 +20,8 @@ use App\Traits\HasSortingScopes;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use App\Services\Financiero\CarteraGeneradorService;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
@@ -30,6 +33,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property int $id
  * @property int $curso_id
  * @property int $ciclo_id
+ * @property int|null $programacion_id Programación elegida al matricular (define la jornada)
  * @property int $estudiante_id
  * @property int $matriculado_por_id
  * @property int $comercial_id
@@ -242,6 +246,25 @@ class Matricula extends Model
     public function ciclo(): BelongsTo
     {
         return $this->belongsTo(Ciclo::class);
+    }
+
+    /**
+     * Programación elegida al matricular; de ella sale la jornada que define los descuentos.
+     */
+    public function programacion(): BelongsTo
+    {
+        return $this->belongsTo(Programacion::class);
+    }
+
+    /**
+     * Descuentos activados al matricular, congelados con el tipo y valor de ese momento.
+     * El pivote guarda aplicacion, tipo, valor y permite_acumulacion.
+     */
+    public function descuentosCongelados(): BelongsToMany
+    {
+        return $this->belongsToMany(Descuento::class, 'matricula_descuento', 'matricula_id', 'descuento_id')
+            ->withPivot(['aplicacion', 'tipo', 'valor', 'permite_acumulacion'])
+            ->withTimestamps();
     }
 
     public function estudiante(): BelongsTo
@@ -508,6 +531,8 @@ class Matricula extends Model
         return [
             'curso',
             'ciclo',
+            'programacion',
+            'descuentosCongelados',
             'estudiante',
             'matriculadoPor',
             'comercial',
@@ -653,6 +678,10 @@ class Matricula extends Model
             if ($matricula->status === 1) {
                 $matricula->incrementarInscritos();
                 $matricula->attachEstudianteACurso();
+
+                // Activa y congela los descuentos de matrícula que aplican a sede, curso y jornada.
+                $matricula->load('lpPrecioProducto');
+                app(MatriculaDescuentoService::class)->congelar($matricula);
 
                 // Genera cargos de cartera cuando la matrícula tiene un precio de lista vinculado.
                 // El recibo de pago se genera manualmente en la pantalla de recibos.

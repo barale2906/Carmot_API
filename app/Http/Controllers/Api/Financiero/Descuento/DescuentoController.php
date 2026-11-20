@@ -168,6 +168,10 @@ class DescuentoController extends Controller
                 $relaciones['poblaciones'] = $data['poblaciones'];
                 unset($data['poblaciones']);
             }
+            if (isset($data['cursos'])) {
+                $relaciones['cursos'] = $data['cursos'];
+                unset($data['cursos']);
+            }
 
             // Crear descuento
             $descuento = Descuento::create($data);
@@ -185,9 +189,12 @@ class DescuentoController extends Controller
             if (isset($relaciones['poblaciones'])) {
                 $descuento->poblaciones()->sync($relaciones['poblaciones']);
             }
+            if (isset($relaciones['cursos'])) {
+                $descuento->cursos()->sync($relaciones['cursos']);
+            }
 
             // Cargar relaciones para la respuesta
-            $descuento->load(['listasPrecios', 'productos', 'sedes', 'poblaciones']);
+            $descuento->load(['listasPrecios', 'productos', 'sedes', 'poblaciones', 'cursos']);
 
             return response()->json([
                 'message' => 'Descuento creado exitosamente.',
@@ -258,6 +265,10 @@ class DescuentoController extends Controller
                 $relaciones['poblaciones'] = $data['poblaciones'];
                 unset($data['poblaciones']);
             }
+            if (isset($data['cursos'])) {
+                $relaciones['cursos'] = $data['cursos'];
+                unset($data['cursos']);
+            }
 
             // Actualizar descuento
             $descuento->update($data);
@@ -275,9 +286,12 @@ class DescuentoController extends Controller
             if (isset($relaciones['poblaciones'])) {
                 $descuento->poblaciones()->sync($relaciones['poblaciones']);
             }
+            if (isset($relaciones['cursos'])) {
+                $descuento->cursos()->sync($relaciones['cursos']);
+            }
 
             // Cargar relaciones para la respuesta
-            $descuento->load(['listasPrecios', 'productos', 'sedes', 'poblaciones']);
+            $descuento->load(['listasPrecios', 'productos', 'sedes', 'poblaciones', 'cursos']);
 
             return response()->json([
                 'message' => 'Descuento actualizado exitosamente.',

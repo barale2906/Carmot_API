@@ -29,18 +29,17 @@ class ReciboPagoDistribucionService
      * - Pronto pago (pago_anticipado): solo a cuotas mensuales (numero_cuota > 0)
      *   cuando se cumple la anticipación requerida. Requiere $aplicarDescuento = true.
      * - Promoción matrícula (promocion_matricula): aplica automáticamente a la cuota
-     *   de matrícula (numero_cuota = 0) si existe un descuento activo de ese tipo.
+     *   de matrícula (numero_cuota = 0) con los descuentos congelados al matricular.
      *
      * Cuotas de costo cero: una cuota cuyo costo efectivo es 0 (valor 0, o descuento que
      * cubre el 100 % del saldo) se incluye siempre en el plan con valor = 0 para que quede
      * Cerrada, sin importar el orden ni si el monto ya se agotó. Por eso $monto puede ser 0:
      * en ese caso el plan contiene únicamente las cuotas de costo cero.
      *
-     * @param  Matricula   $matricula
-     * @param  float       $monto            total a distribuir (0 = solo descargar cuotas de costo cero)
-     * @param  bool        $aplicarDescuento si true, intenta aplicar descuento de pronto pago a cuotas mensuales
-     * @param  Carbon|null $fechaReferencia  fecha del pago (default: hoy)
-     * @return array<int, array{cartera: Cartera, valor: float, descuento: float, descuento_obj: \App\Models\Financiero\Descuento\Descuento|null}>
+     * @param  float  $monto  total a distribuir (0 = solo descargar cuotas de costo cero)
+     * @param  bool  $aplicarDescuento  si true, intenta aplicar descuento de pronto pago a cuotas mensuales
+     * @param  Carbon|null  $fechaReferencia  fecha del pago (default: hoy)
+     * @return array<int, array{cartera: Cartera, valor: float, descuento: float, detalle: array<int, array{descuento: \App\Models\Financiero\Descuento\Descuento, valor: float}>}>
      *
      * @throws \InvalidArgumentException si el monto excede el saldo total pendiente
      */
@@ -102,7 +101,7 @@ class ReciboPagoDistribucionService
 
         // Descuento de pronto pago: se obtiene el objeto para evaluar per-cuota
         $descuentoProntoPago = $aplicarDescuento
-            ? $this->descuentoService->obtenerDescuentoProntoPago($fecha)
+            ? $this->descuentoService->obtenerDescuentoProntoPago($matricula, $fecha)
             : null;
         $diasRequeridos = $descuentoProntoPago !== null
             ? (int) ($descuentoProntoPago->dias_anticipacion ?? 0)
@@ -118,14 +117,17 @@ class ReciboPagoDistribucionService
         foreach ($carteras as $cartera) {
             $saldo         = (float) $cartera->saldo;
             $descuentoLinea = 0.0;
+            $detalleLinea = [];
 
             if ($cartera->numero_cuota === 0) {
-                // Cuota de matrícula: aplicar descuento de promoción si el monto cubre el costo efectivo
-                if ($infoDescuentoMatricula['aplica'] && $infoDescuentoMatricula['descuento'] !== null) {
-                    $candidato     = $infoDescuentoMatricula['descuento']->calcularDescuento($saldo);
+                // Cuota de matrícula: aplicar los descuentos congelados al matricular si el
+                // monto cubre el costo efectivo (la cuota 0 siempre es el rubro matrícula)
+                if ($infoDescuentoMatricula['aplica']) {
+                    $candidato = $infoDescuentoMatricula['valor'];
                     $efectivaSaldo = $saldo - $candidato;
                     if ($restante >= $efectivaSaldo - 0.01) {
                         $descuentoLinea = $candidato;
+                        $detalleLinea = $infoDescuentoMatricula['descuentos'];
                     }
                 }
             } elseif ($descuentoProntoPago !== null) {
@@ -149,6 +151,7 @@ class ReciboPagoDistribucionService
                     $efectivaSaldo = $saldo - $candidato;
                     if ($restante >= $efectivaSaldo - 0.01) {
                         $descuentoLinea = $candidato;
+                        $detalleLinea = [['descuento' => $descuentoProntoPago, 'valor' => $candidato]];
                     }
                 }
             }
@@ -163,18 +166,11 @@ class ReciboPagoDistribucionService
                 continue;
             }
 
-            $descuentoObj = null;
-            if ($descuentoLinea > 0) {
-                $descuentoObj = $cartera->numero_cuota === 0
-                    ? $infoDescuentoMatricula['descuento']
-                    : $descuentoProntoPago;
-            }
-
             $plan[] = [
-                'cartera'      => $cartera,
-                'valor'        => $aCubrir,
-                'descuento'    => $descuentoLinea,
-                'descuento_obj' => $descuentoObj,
+                'cartera' => $cartera,
+                'valor' => $aCubrir,
+                'descuento' => $descuentoLinea,
+                'detalle' => $detalleLinea,
             ];
 
             $restante -= $aCubrir;
