@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Api\Inventarios;
 
+use App\Services\ArchivoTabularService;
 use Illuminate\Foundation\Http\FormRequest;
 
 /**
@@ -11,8 +12,6 @@ class ImportarInvStockRequest extends FormRequest
 {
     /**
      * La autorización se resuelve con el middleware de permisos de la ruta.
-     *
-     * @return bool
      */
     public function authorize(): bool
     {
@@ -25,7 +24,7 @@ class ImportarInvStockRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'archivo'    => ['required', 'file', 'mimes:xlsx', 'max:5120'],
+            'archivo' => ['required', 'file', ArchivoTabularService::REGLA_MIMES, 'max:5120'],
             'almacen_id' => ['required', 'integer', 'exists:inv_almacenes,id'],
         ];
     }
@@ -36,12 +35,12 @@ class ImportarInvStockRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'archivo.required'    => 'El archivo XLSX es obligatorio.',
-            'archivo.file'        => 'El campo debe ser un archivo.',
-            'archivo.mimes'       => 'El archivo debe ser de tipo XLSX (Excel).',
-            'archivo.max'         => 'El archivo no puede superar 5 MB.',
+            'archivo.required' => 'El archivo es obligatorio.',
+            'archivo.file' => 'El campo debe ser un archivo.',
+            'archivo.mimes' => ArchivoTabularService::MENSAJE_MIMES,
+            'archivo.max' => 'El archivo no puede superar 5 MB.',
             'almacen_id.required' => 'El almacén es obligatorio para la importación.',
-            'almacen_id.exists'   => 'El almacén seleccionado no existe.',
+            'almacen_id.exists' => 'El almacén seleccionado no existe.',
         ];
     }
 }

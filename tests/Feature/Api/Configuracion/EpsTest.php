@@ -297,6 +297,41 @@ class EpsTest extends TestCase
     }
 
     /** @test */
+    public function importar_acepta_excel_xlsx(): void
+    {
+        $archivo = $this->archivoExcel([['nombre', 'direccion', 'status'], ['Nueva Sanitas', 'Calle 9', 1], ['Coomeva', null, 0]], 'eps.xlsx');
+
+        $this->actingAs($this->usuario)
+            ->postJson(route('eps.importar'), ['archivo' => $archivo])
+            ->assertOk()
+            ->assertJsonPath('data.insertadas', 2);
+
+        $this->assertDatabaseHas('eps', ['nombre' => 'Coomeva', 'status' => 0]);
+    }
+
+    /** @test */
+    public function importar_acepta_csv_con_punto_y_coma_como_lo_guarda_excel(): void
+    {
+        $archivo = UploadedFile::fake()->createWithContent('eps.csv', "\xEF\xBB\xBFnombre;direccion;status\nSura Norte;Carrera 5;1\n");
+
+        $this->actingAs($this->usuario)
+            ->postJson(route('eps.importar'), ['archivo' => $archivo])
+            ->assertOk()
+            ->assertJsonPath('data.insertadas', 1);
+
+        $this->assertDatabaseHas('eps', ['nombre' => 'Sura Norte', 'direccion' => 'Carrera 5']);
+    }
+
+    /** @test */
+    public function importar_rechaza_extensiones_no_admitidas(): void
+    {
+        $this->actingAs($this->usuario)
+            ->postJson(route('eps.importar'), ['archivo' => UploadedFile::fake()->create('eps.pdf', 10, 'application/pdf')])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('archivo');
+    }
+
+    /** @test */
     public function importar_omite_nombres_duplicados(): void
     {
         Eps::factory()->create(['nombre' => 'Sanitas']);
@@ -359,5 +394,20 @@ class EpsTest extends TestCase
 
         $this->assertContains('configuracion-eps', $opciones($this->usuario));
         $this->assertNotContains('configuracion-eps', $opciones(User::factory()->create()));
+    }
+
+    /**
+     * Archivo Excel (.xlsx) en disco con la matriz de filas indicada (la primera es el encabezado).
+     *
+     * @param  array<int, array<int, mixed>>  $filas
+     */
+    private function archivoExcel(array $filas, string $nombre): UploadedFile
+    {
+        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet;
+        $spreadsheet->getActiveSheet()->fromArray($filas, null, 'A1', true);
+        $ruta = tempnam(sys_get_temp_dir(), 'imp').'.xlsx';
+        (new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet))->save($ruta);
+
+        return new UploadedFile($ruta, $nombre, null, null, true);
     }
 }

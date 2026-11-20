@@ -45,6 +45,8 @@ Route::middleware('auth:sanctum')
             Route::get('filters', [ActActivoController::class, 'filters'])->name('activos.filters');
             Route::get('statistics', [ActActivoController::class, 'statistics'])->name('activos.statistics');
             Route::get('trashed', [ActActivoController::class, 'trashed'])->name('activos.trashed');
+            Route::get('importar/plantilla', [ActActivoController::class, 'plantilla'])->name('activos.plantilla');
+            Route::post('importar', [ActActivoController::class, 'importar'])->name('activos.importar');
             Route::post('{id}/restore', [ActActivoController::class, 'restore'])->name('activos.restore');
             Route::delete('{id}/force-delete', [ActActivoController::class, 'forceDelete'])->name('activos.force-delete');
             Route::post('{activo}/trasladar', [ActActivoController::class, 'trasladar'])->name('activos.trasladar');

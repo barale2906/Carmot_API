@@ -372,11 +372,28 @@ class InvStockTest extends TestCase
     }
 
     /** @test */
-    public function importar_rechaza_archivo_que_no_es_xlsx(): void
+    public function importar_acepta_csv(): void
+    {
+        $this->usuario->givePermissionTo('inv_stockImportar');
+        $producto = InvProducto::factory()->create(['codigo' => 'CSV-001', 'tipo' => 'simple', 'status' => 1]);
+
+        $this->actingAs($this->usuario)
+            ->postJson(route('inv-stock.importar'), [
+                'archivo' => UploadedFile::fake()->createWithContent('stock.csv', "codigo_producto;cantidad\nCSV-001;7\n"),
+                'almacen_id' => $this->almacen->id,
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.procesadas', 1);
+
+        $this->assertDatabaseHas('inv_stock', ['producto_id' => $producto->id, 'almacen_id' => $this->almacen->id, 'cantidad_total' => 7]);
+    }
+
+    /** @test */
+    public function importar_rechaza_extensiones_no_admitidas(): void
     {
         $this->usuario->givePermissionTo('inv_stockImportar');
 
-        $archivo = UploadedFile::fake()->create('datos.csv', 10, 'text/csv');
+        $archivo = UploadedFile::fake()->create('datos.pdf', 10, 'application/pdf');
 
         $this->actingAs($this->usuario)
             ->postJson(route('inv-stock.importar'), [

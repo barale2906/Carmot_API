@@ -22,7 +22,7 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
  * Controlador para la consulta y administración del stock de inventario.
  *
  * Expone el stock actual por almacén y producto, indicadores de bajo stock
- * e importación masiva de stock inicial desde XLSX.
+ * e importación masiva de stock inicial desde Excel o CSV.
  */
 class InvStockController extends Controller
 {
@@ -205,7 +205,7 @@ class InvStockController extends Controller
     }
 
     /**
-     * Procesa la carga masiva de stock inicial para un almacén desde XLSX.
+     * Procesa la carga masiva de stock inicial para un almacén desde Excel (.xlsx, .xls) o CSV.
      *
      * Lee la primera hoja del archivo. Columnas requeridas: codigo_producto, cantidad.
      * Solo aplica a productos de tipo simple existentes y activos.
@@ -221,7 +221,7 @@ class InvStockController extends Controller
             $spreadsheet = IOFactory::load($archivo->getRealPath());
         } catch (\Throwable $e) {
             return response()->json([
-                'message' => 'No se pudo leer el archivo XLSX: '.$e->getMessage(),
+                'message' => 'No se pudo leer el archivo: '.$e->getMessage(),
             ], 422);
         }
 
@@ -230,7 +230,7 @@ class InvStockController extends Controller
         $columnasReq = ['codigo_producto', 'cantidad'];
 
         if (empty($filas)) {
-            return response()->json(['message' => 'El archivo XLSX está vacío.'], 422);
+            return response()->json(['message' => 'El archivo está vacío.'], 422);
         }
 
         // La primera fila es el encabezado
@@ -239,7 +239,7 @@ class InvStockController extends Controller
 
         if (! empty($columnasFalt)) {
             return response()->json([
-                'message' => 'El archivo XLSX no tiene el formato correcto. Columnas faltantes: '.implode(', ', $columnasFalt),
+                'message' => 'El archivo no tiene el formato correcto. Columnas faltantes: '.implode(', ', $columnasFalt),
             ], 422);
         }
 

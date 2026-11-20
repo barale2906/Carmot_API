@@ -2,19 +2,18 @@
 
 namespace App\Http\Requests\Api\Inventarios;
 
+use App\Services\ArchivoTabularService;
 use Illuminate\Foundation\Http\FormRequest;
 
 /**
  * Validación para la carga masiva del catálogo de productos.
  *
- * El archivo CSV debe tener encabezados: codigo, nombre, tipo, categoria, unidad_medida, descripcion, status
+ * El archivo (Excel o CSV) debe tener encabezados: codigo, nombre, tipo, categoria, unidad_medida, descripcion, status
  */
 class ImportarInvCatalogoRequest extends FormRequest
 {
     /**
      * La autorización se resuelve con el middleware de permisos de la ruta.
-     *
-     * @return bool
      */
     public function authorize(): bool
     {
@@ -27,7 +26,7 @@ class ImportarInvCatalogoRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'archivo' => ['required', 'file', 'mimes:csv,txt', 'max:5120'],
+            'archivo' => ['required', 'file', ArchivoTabularService::REGLA_MIMES, 'max:5120'],
         ];
     }
 
@@ -37,10 +36,10 @@ class ImportarInvCatalogoRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'archivo.required' => 'El archivo CSV es obligatorio.',
-            'archivo.file'     => 'El campo debe ser un archivo válido.',
-            'archivo.mimes'    => 'El archivo debe ser de tipo CSV.',
-            'archivo.max'      => 'El archivo no puede superar 5 MB.',
+            'archivo.required' => 'El archivo es obligatorio.',
+            'archivo.file' => 'El campo debe ser un archivo válido.',
+            'archivo.mimes' => ArchivoTabularService::MENSAJE_MIMES,
+            'archivo.max' => 'El archivo no puede superar 5 MB.',
         ];
     }
 }

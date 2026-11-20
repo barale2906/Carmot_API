@@ -11,6 +11,7 @@ use App\Models\Inventarios\InvCategoria;
 use App\Models\Inventarios\InvProducto;
 use App\Models\Inventarios\InvUnidadMedida;
 use App\Services\ArchivoService;
+use App\Services\ArchivoTabularService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
@@ -403,55 +404,38 @@ class InvProductoController extends Controller
     }
 
     /**
-     * Procesa la carga masiva del catálogo de productos desde un archivo CSV.
+     * Procesa la carga masiva del catálogo de productos desde un archivo Excel (.xlsx, .xls) o CSV.
      *
      * Las columnas requeridas son: codigo, nombre, tipo.
      * Las columnas opcionales son: categoria, unidad_medida, descripcion, status.
-     * Las filas con código duplicado (ignorando eliminadas) se omiten.
+     * Las filas con código duplicado (incluida la papelera) se omiten.
      *
      * @param ImportarInvCatalogoRequest $request
      * @return JsonResponse
      */
     public function importar(ImportarInvCatalogoRequest $request): JsonResponse
     {
-        $archivo = $request->file('archivo');
-        $handle  = fopen($archivo->getRealPath(), 'r');
+        ['encabezados' => $encabezados, 'filas' => $filas] = app(ArchivoTabularService::class)
+            ->leer($request->file('archivo')->getRealPath());
 
-        $bom = fread($handle, 3);
-        if ($bom !== "\xEF\xBB\xBF") {
-            rewind($handle);
-        }
-
-        $encabezados    = array_map('strtolower', array_map('trim', fgetcsv($handle) ?: []));
-        $columnasReq    = ['codigo', 'nombre', 'tipo'];
-        $columnasFalt   = array_diff($columnasReq, $encabezados);
+        $columnasFalt = array_diff(['codigo', 'nombre', 'tipo'], $encabezados);
 
         if (!empty($columnasFalt)) {
-            fclose($handle);
             return response()->json([
-                'message' => 'El archivo CSV no tiene el formato correcto. Columnas faltantes: ' . implode(', ', $columnasFalt),
+                'message' => 'El archivo no tiene el formato correcto. Columnas faltantes: ' . implode(', ', $columnasFalt),
             ], 422);
         }
 
         $resumen = ['insertadas' => 0, 'omitidas' => 0, 'errores' => []];
-        $fila    = 1;
-
-        // Pre-cargar catálogos para evitar N+1 en el CSV
+        // Pre-cargar catálogos para evitar N+1 en el archivo
         $categorias  = InvCategoria::pluck('id', 'nombre');
         $unidades    = InvUnidadMedida::pluck('id', 'nombre');
         $tiposValidos = ['simple', 'kit', 'grupo'];
 
         DB::beginTransaction();
         try {
-            while (($filaData = fgetcsv($handle)) !== false) {
-                $fila++;
-                if (count($filaData) < count($columnasReq)) {
-                    $resumen['errores'][] = "Fila {$fila}: datos insuficientes.";
-                    $resumen['omitidas']++;
-                    continue;
-                }
-
-                $datos = array_combine($encabezados, array_map('trim', $filaData));
+            foreach ($filas as $fila => $valores) {
+                $datos = array_combine($encabezados, array_slice(array_pad($valores, count($encabezados), null), 0, count($encabezados)));
 
                 if (empty($datos['codigo'])) {
                     $resumen['errores'][] = "Fila {$fila}: el código es obligatorio.";
@@ -513,13 +497,10 @@ class InvProductoController extends Controller
             DB::commit();
         } catch (\Throwable $e) {
             DB::rollBack();
-            fclose($handle);
             return response()->json([
                 'message' => 'Error al procesar el archivo: ' . $e->getMessage(),
             ], 500);
         }
-
-        fclose($handle);
 
         return response()->json([
             'message' => "Carga masiva completada. Insertadas: {$resumen['insertadas']}, Omitidas: {$resumen['omitidas']}.",

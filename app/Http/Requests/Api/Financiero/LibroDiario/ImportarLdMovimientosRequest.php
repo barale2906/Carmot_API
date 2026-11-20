@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Api\Financiero\LibroDiario;
 
 use App\Models\Financiero\LibroDiario\LdTurnoCaja;
+use App\Services\ArchivoTabularService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Validator;
 
@@ -32,7 +33,7 @@ class ImportarLdMovimientosRequest extends FormRequest
         return [
             // Caja desde la que se factura; obligatoria solo si el cajero tiene turnos abiertos en varias sedes
             'turno_caja_id' => ['nullable', 'integer'],
-            'archivo' => ['required', 'file', 'mimes:xlsx,xls,csv,txt', 'max:5120'],
+            'archivo' => ['required', 'file', ArchivoTabularService::REGLA_MIMES, 'max:5120'],
         ];
     }
 
@@ -59,7 +60,7 @@ class ImportarLdMovimientosRequest extends FormRequest
         return [
             'archivo.required' => 'El archivo es obligatorio.',
             'archivo.file' => 'El archivo no es válido.',
-            'archivo.mimes' => 'El archivo debe ser Excel (.xlsx, .xls) o CSV.',
+            'archivo.mimes' => ArchivoTabularService::MENSAJE_MIMES,
             'archivo.max' => 'El archivo no puede exceder 5 MB.',
         ];
     }

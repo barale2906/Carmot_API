@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Activos;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\Activos\CambiarEstadoActActivoRequest;
 use App\Http\Requests\Api\Activos\ImagenActActivoRequest;
+use App\Http\Requests\Api\Activos\ImportarActActivosRequest;
 use App\Http\Requests\Api\Activos\StoreActActivoRequest;
 use App\Http\Requests\Api\Activos\TrasladarActActivoRequest;
 use App\Http\Requests\Api\Activos\UpdateActActivoRequest;
@@ -15,9 +16,12 @@ use App\Models\Activos\ActCategoria;
 use App\Models\Activos\ActMovimiento;
 use App\Models\Configuracion\Sede;
 use App\Models\User;
+use App\Services\Activos\ActActivoImportacionService;
 use App\Services\Activos\ActActivoService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * Activos fijos por sede y área: registro, edición, imagen, envío de traslados, cambios de
@@ -32,13 +36,17 @@ class ActActivoController extends Controller
      * Registra los middlewares de permisos del módulo.
      *
      * @param ActActivoService $activos
+     * @param ActActivoImportacionService $importacion
      */
-    public function __construct(private readonly ActActivoService $activos)
+    public function __construct(
+        private readonly ActActivoService $activos,
+        private readonly ActActivoImportacionService $importacion,
+    )
     {
         $this->middleware('permission:act_activos')->only(['index', 'show', 'statistics', 'movimientos']);
         // Quien solo recibe traslados también necesita el catálogo (sus sedes y los responsables).
         $this->middleware('permission:act_activos|act_activoRecibir')->only(['filters']);
-        $this->middleware('permission:act_activoCrear')->only(['store']);
+        $this->middleware('permission:act_activoCrear')->only(['store', 'plantilla', 'importar']);
         $this->middleware('permission:act_activoEditar')->only(['update', 'cambiarEstado']);
         $this->middleware('permission:act_activoCrear|act_activoEditar')->only(['subirImagen', 'eliminarImagen']);
         $this->middleware('permission:act_activoTrasladar')->only(['trasladar']);
@@ -85,6 +93,49 @@ class ActActivoController extends Controller
         return response()->json([
             'message' => 'Activo registrado exitosamente.',
             'data'    => new ActActivoResource($activo->load(self::RELACIONES)),
+        ], 201);
+    }
+
+    /**
+     * Descarga la plantilla Excel de la carga masiva, con las categorías, sedes (y sus áreas),
+     * estados y responsables vigentes como listas desplegables, instrucciones y un ejemplo.
+     *
+     * @param Request $request
+     * @return StreamedResponse
+     */
+    public function plantilla(Request $request): StreamedResponse
+    {
+        $spreadsheet = $this->importacion->plantilla($request->user());
+
+        return response()->streamDownload(function () use ($spreadsheet) {
+            (new Xlsx($spreadsheet))->save('php://output');
+        }, 'plantilla-activos.xlsx', ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']);
+    }
+
+    /**
+     * Carga masiva de activos desde la plantilla. Todo o nada: si alguna fila tiene errores no
+     * se registra ninguno y se responde 422 con `errores` (número de fila del archivo y sus mensajes).
+     *
+     * @param ImportarActActivosRequest $request
+     * @return JsonResponse
+     */
+    public function importar(ImportarActActivosRequest $request): JsonResponse
+    {
+        $resultado = $this->importacion->importar($request->file('archivo')->getRealPath(), $request->user());
+
+        if ($resultado['errores']) {
+            return response()->json([
+                'message' => 'El archivo tiene errores; no se registró ningún activo.',
+                'errores' => $resultado['errores'],
+            ], 422);
+        }
+
+        $activos = $resultado['activos'];
+
+        return response()->json([
+            'message' => "Se registraron {$activos->count()} activos.",
+            'data'    => ActActivoResource::collection($activos->each->load(self::RELACIONES)),
+            'meta'    => ['total' => $activos->count()],
         ], 201);
     }
 

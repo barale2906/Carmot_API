@@ -8,6 +8,7 @@ use App\Http\Requests\Api\Configuracion\StoreEpsRequest;
 use App\Http\Requests\Api\Configuracion\UpdateEpsRequest;
 use App\Http\Resources\Api\Configuracion\EpsResource;
 use App\Models\Configuracion\Eps;
+use App\Services\ArchivoTabularService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -298,7 +299,7 @@ class EpsController extends Controller
     }
 
     /**
-     * Procesa la carga masiva de EPS desde un archivo CSV.
+     * Procesa la carga masiva de EPS desde un archivo Excel (.xlsx, .xls) o CSV.
      *
      * El archivo debe tener encabezados: nombre, direccion, status
      * Las filas con nombre duplicado (ignorando eliminadas) se omiten.
@@ -308,41 +309,23 @@ class EpsController extends Controller
      */
     public function importar(ImportarEpsRequest $request): JsonResponse
     {
-        $archivo = $request->file('archivo');
-        $handle  = fopen($archivo->getRealPath(), 'r');
+        ['encabezados' => $encabezados, 'filas' => $filas] = app(ArchivoTabularService::class)
+            ->leer($request->file('archivo')->getRealPath());
 
-        // Detectar y omitir BOM UTF-8
-        $bom = fread($handle, 3);
-        if ($bom !== "\xEF\xBB\xBF") {
-            rewind($handle);
-        }
-
-        $encabezados = array_map('strtolower', array_map('trim', fgetcsv($handle) ?: []));
-
-        $columnasPoblacion = ['nombre', 'direccion', 'status'];
-        $columnasFaltantes = array_diff($columnasPoblacion, $encabezados);
+        $columnasFaltantes = array_diff(['nombre', 'direccion', 'status'], $encabezados);
 
         if (!empty($columnasFaltantes)) {
-            fclose($handle);
             return response()->json([
-                'message' => 'El archivo CSV no tiene el formato correcto. Columnas faltantes: ' . implode(', ', $columnasFaltantes),
+                'message' => 'El archivo no tiene el formato correcto. Columnas faltantes: ' . implode(', ', $columnasFaltantes),
             ], 422);
         }
 
         $resumen = ['insertadas' => 0, 'omitidas' => 0, 'errores' => []];
-        $fila = 1;
 
         DB::beginTransaction();
         try {
-            while (($fila_datos = fgetcsv($handle)) !== false) {
-                $fila++;
-                if (count($fila_datos) < count($encabezados)) {
-                    $resumen['errores'][] = "Fila {$fila}: datos insuficientes.";
-                    $resumen['omitidas']++;
-                    continue;
-                }
-
-                $datos = array_combine($encabezados, array_map('trim', $fila_datos));
+            foreach ($filas as $fila => $valores) {
+                $datos = array_combine($encabezados, array_slice(array_pad($valores, count($encabezados), null), 0, count($encabezados)));
 
                 if (empty($datos['nombre'])) {
                     $resumen['errores'][] = "Fila {$fila}: el nombre es obligatorio.";
@@ -377,13 +360,10 @@ class EpsController extends Controller
             DB::commit();
         } catch (\Throwable $e) {
             DB::rollBack();
-            fclose($handle);
             return response()->json([
                 'message' => 'Error al procesar el archivo: ' . $e->getMessage(),
             ], 500);
         }
-
-        fclose($handle);
 
         return response()->json([
             'message' => "Carga masiva completada. Insertadas: {$resumen['insertadas']}, Omitidas: {$resumen['omitidas']}.",

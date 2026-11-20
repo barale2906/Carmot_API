@@ -2,14 +2,13 @@
 
 namespace App\Http\Requests\Api\Configuracion;
 
+use App\Services\ArchivoTabularService;
 use Illuminate\Foundation\Http\FormRequest;
 
 class ImportarEpsRequest extends FormRequest
 {
     /**
      * Determina si el usuario está autorizado para realizar esta petición.
-     *
-     * @return bool
      */
     public function authorize(): bool
     {
@@ -24,7 +23,7 @@ class ImportarEpsRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'archivo' => ['required', 'file', 'mimes:csv,txt', 'max:5120'],
+            'archivo' => ['required', 'file', ArchivoTabularService::REGLA_MIMES, 'max:5120'],
         ];
     }
 
@@ -36,10 +35,10 @@ class ImportarEpsRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'archivo.required' => 'El archivo CSV es obligatorio.',
-            'archivo.file'     => 'El campo archivo debe ser un archivo válido.',
-            'archivo.mimes'    => 'El archivo debe ser de tipo CSV (.csv).',
-            'archivo.max'      => 'El archivo no puede exceder 5 MB.',
+            'archivo.required' => 'El archivo es obligatorio.',
+            'archivo.file' => 'El campo archivo debe ser un archivo válido.',
+            'archivo.mimes' => ArchivoTabularService::MENSAJE_MIMES,
+            'archivo.max' => 'El archivo no puede exceder 5 MB.',
         ];
     }
 

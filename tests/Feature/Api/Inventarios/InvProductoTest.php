@@ -447,6 +447,33 @@ class InvProductoTest extends TestCase
     }
 
     /** @test */
+    public function importar_acepta_excel_xlsx(): void
+    {
+        $archivo = $this->archivoExcel([
+            ['codigo', 'nombre', 'tipo', 'categoria', 'unidad_medida', 'descripcion', 'status'],
+            ['XL-001', 'Camisa Excel', 'simple', null, null, null, 1],
+            [2002, 'Codigo numerico', 'simple', null, null, null, null],
+        ], 'catalogo.xlsx');
+
+        $this->actingAs($this->usuario)
+            ->postJson(route('inv-productos.importar'), ['archivo' => $archivo])
+            ->assertOk()
+            ->assertJsonPath('data.insertadas', 2);
+
+        $this->assertDatabaseHas('inv_productos', ['codigo' => 'XL-001']);
+        $this->assertDatabaseHas('inv_productos', ['codigo' => '2002', 'status' => 1]);
+    }
+
+    /** @test */
+    public function importar_rechaza_extensiones_no_admitidas(): void
+    {
+        $this->actingAs($this->usuario)
+            ->postJson(route('inv-productos.importar'), ['archivo' => UploadedFile::fake()->create('catalogo.pdf', 10, 'application/pdf')])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('archivo');
+    }
+
+    /** @test */
     public function importar_falla_con_columnas_invalidas(): void
     {
         $csv = "col_invalida,otra_col\nvalor,valor";
@@ -569,5 +596,20 @@ class InvProductoTest extends TestCase
         $this->actingAs(User::factory()->create())
             ->getJson(route('inv-productos.buscar', ['q' => 'Cam']))
             ->assertForbidden();
+    }
+
+    /**
+     * Archivo Excel (.xlsx) en disco con la matriz de filas indicada (la primera es el encabezado).
+     *
+     * @param  array<int, array<int, mixed>>  $filas
+     */
+    private function archivoExcel(array $filas, string $nombre): UploadedFile
+    {
+        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet;
+        $spreadsheet->getActiveSheet()->fromArray($filas, null, 'A1', true);
+        $ruta = tempnam(sys_get_temp_dir(), 'imp').'.xlsx';
+        (new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet))->save($ruta);
+
+        return new UploadedFile($ruta, $nombre, null, null, true);
     }
 }

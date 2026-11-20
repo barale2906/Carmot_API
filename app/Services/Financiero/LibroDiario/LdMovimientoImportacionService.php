@@ -10,19 +10,16 @@ use App\Models\Financiero\LibroDiario\LdTipoMovimiento;
 use App\Models\Financiero\LibroDiario\LdTurnoCaja;
 use App\Models\Financiero\ReciboPago\ReciboPagoMedioPago;
 use App\Models\User;
-use Illuminate\Support\Carbon;
+use App\Services\Concerns\ArmaPlantillaExcel;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
-use PhpOffice\PhpSpreadsheet\Cell\DataValidation;
 use PhpOffice\PhpSpreadsheet\IOFactory;
-use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Color;
-use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
@@ -44,20 +41,15 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
  */
 class LdMovimientoImportacionService
 {
+    use ArmaPlantillaExcel;
+
     /** Máximo de filas por archivo. */
     public const MAX_FILAS = 500;
-
-    /** Formatos de fecha aceptados como texto (las celdas de fecha de Excel se leen directo). */
-    private const FORMATOS_FECHA = ['Y-m-d', 'd/m/Y', 'd-m-Y'];
 
     /** Impuestos o retenciones que admite cada fila. */
     public const MAX_IMPUESTOS = 3;
 
-    private const COLOR_ENCABEZADO = '1F4E79';
-
     private const HOJA_DATOS = 'Movimientos';
-
-    private const HOJA_CATALOGOS = 'Catalogos';
 
     private const COLUMNAS_OBLIGATORIAS = [
         'tipo_movimiento', 'tercero_tipo_identificacion', 'tercero_identificacion',
@@ -344,106 +336,6 @@ class LdMovimientoImportacionService
     }
 
     /**
-     * Fecha de la fila: hoy si viene vacía, false si no se reconoce. Acepta la fecha de
-     * Excel (número de serie) o texto en los formatos de FORMATOS_FECHA.
-     */
-    private function fecha(mixed $valor): Carbon|false
-    {
-        if ($valor === null || $valor === '') {
-            return today();
-        }
-        if (is_numeric($valor)) {
-            return Carbon::instance(ExcelDate::excelToDateTimeObject((float) $valor))->startOfDay();
-        }
-        foreach (self::FORMATOS_FECHA as $formato) {
-            $fecha = \DateTime::createFromFormat("!{$formato}", (string) $valor);
-            if ($fecha && $fecha->format($formato) === (string) $valor) {
-                return Carbon::instance($fecha);
-            }
-        }
-
-        return false;
-    }
-
-    /**
-     * Escribe la fila de encabezados con el estilo de los Excel del sistema.
-     *
-     * @param  array<int, string>  $encabezados
-     */
-    private function encabezado(Worksheet $hoja, array $encabezados, int $fila = 1, int $columna = 1): void
-    {
-        $inicio = Coordinate::stringFromColumnIndex($columna);
-        $fin = Coordinate::stringFromColumnIndex($columna + count($encabezados) - 1);
-        $hoja->fromArray($encabezados, null, "{$inicio}{$fila}");
-        $hoja->getStyle("{$inicio}{$fila}:{$fin}{$fila}")->applyFromArray([
-            'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
-            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => self::COLOR_ENCABEZADO]],
-            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
-        ]);
-    }
-
-    /**
-     * Escribe cada catálogo en un par de columnas (valor, detalle) y devuelve el rango de sus valores.
-     *
-     * @param  array<string, array<int, array{0: string, 1: string}>>  $catalogos
-     * @return array<string, string>
-     */
-    private function hojaCatalogos(Worksheet $hoja, array $catalogos): array
-    {
-        $hoja->setTitle(self::HOJA_CATALOGOS);
-        $rangos = [];
-        $columna = 1;
-        foreach ($catalogos as $titulo => $valores) {
-            $this->encabezado($hoja, [$titulo, 'Detalle'], 1, $columna);
-            if ($valores) {
-                $hoja->fromArray($valores, null, Coordinate::stringFromColumnIndex($columna).'2');
-            }
-
-            $letra = Coordinate::stringFromColumnIndex($columna);
-            $rangos[$titulo] = "'".self::HOJA_CATALOGOS."'!\${$letra}\$2:\${$letra}\$".max(2, count($valores) + 1);
-            $hoja->getColumnDimension($letra)->setAutoSize(true);
-            $hoja->getColumnDimension(Coordinate::stringFromColumnIndex($columna + 1))->setAutoSize(true);
-            $columna += 3;
-        }
-
-        return $rangos;
-    }
-
-    /**
-     * Lista desplegable sobre un rango de celdas a partir de un rango del catálogo.
-     */
-    private function listaDesplegable(Worksheet $hoja, string $celdas, string $origen): void
-    {
-        $validacion = new DataValidation;
-        $validacion->setType(DataValidation::TYPE_LIST)
-            ->setErrorStyle(DataValidation::STYLE_STOP)
-            ->setAllowBlank(true)
-            ->setShowDropDown(true)
-            ->setShowErrorMessage(true)
-            ->setErrorTitle('Valor no válido')
-            ->setError('Seleccione un valor de la lista (hoja '.self::HOJA_CATALOGOS.').')
-            ->setFormula1($origen);
-        $hoja->setDataValidation($celdas, $validacion);
-    }
-
-    /**
-     * Restringe la columna de fecha a fechas hasta hoy.
-     */
-    private function validacionFecha(Worksheet $hoja, string $celdas): void
-    {
-        $validacion = new DataValidation;
-        $validacion->setType(DataValidation::TYPE_DATE)
-            ->setOperator(DataValidation::OPERATOR_LESSTHANOREQUAL)
-            ->setErrorStyle(DataValidation::STYLE_STOP)
-            ->setAllowBlank(true)
-            ->setShowErrorMessage(true)
-            ->setErrorTitle('Fecha no válida')
-            ->setError('Escriba una fecha (AAAA-MM-DD) que no sea posterior a hoy.')
-            ->setFormula1('TODAY()');
-        $hoja->setDataValidation($celdas, $validacion);
-    }
-
-    /**
      * Hoja con la descripción de cada columna y las reglas de la carga.
      */
     private function hojaInstrucciones(Worksheet $hoja): void
@@ -564,14 +456,4 @@ class LdMovimientoImportacionService
         $hoja->freezePane('B4');
     }
 
-    /**
-     * Pares [código, descripción] de un arreglo constante.
-     *
-     * @param  array<string, string>  $opciones
-     * @return array<int, array{0: string, 1: string}>
-     */
-    private function pares(array $opciones): array
-    {
-        return collect($opciones)->map(fn ($etiqueta, $codigo) => [$codigo, $etiqueta])->values()->all();
-    }
 }
