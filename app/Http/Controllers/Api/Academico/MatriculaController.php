@@ -7,6 +7,7 @@ use App\Http\Requests\Api\Academico\CambiarEstadoAcademicoRequest;
 use App\Http\Requests\Api\Academico\PrecalcularDescuentoMatriculaRequest;
 use App\Http\Requests\Api\Academico\StoreMatriculaRequest;
 use App\Http\Requests\Api\Academico\UpdateMatriculaRequest;
+use App\Http\Requests\Api\Academico\ValidarMatriculaRequest;
 use App\Http\Resources\Api\Academico\EvaluacionCierreResource;
 use App\Http\Resources\Api\Academico\MatriculaEstadoResource;
 use App\Http\Resources\Api\Academico\MatriculaPrecargaResource;
@@ -51,7 +52,7 @@ class MatriculaController extends Controller
     {
         $this->middleware('permission:aca_matriculas')->only(['index', 'show', 'filters', 'statistics', 'precargaEstudiante', 'historialEstados', 'evaluacionCierre']);
         $this->middleware('permission:aca_matriculaEstado')->only(['cambiarEstadoAcademico']);
-        $this->middleware('permission:aca_matriculaCrear|aca_matriculaEditar')->only(['precalcularDescuentos']);
+        $this->middleware('permission:aca_matriculaCrear|aca_matriculaEditar')->only(['precalcularDescuentos', 'validar']);
         $this->middleware('permission:aca_matriculaCrear')->only(['store']);
         $this->middleware('permission:aca_matriculaEditar')->only(['update']);
         $this->middleware('permission:aca_matriculaInactivar')->only(['destroy', 'restore', 'forceDelete', 'trashed']);
@@ -101,6 +102,7 @@ class MatriculaController extends Controller
         // referido_id solo se asigna al crear: vincula la matrícula con el lead convertido.
         $data = $request->only([...self::FILLABLE_FIELDS, 'referido_id']);
         $data['status'] = $data['status'] ?? 1;
+        $data['estado_academico'] = Matricula::estadoInicialPara(Ciclo::find($data['ciclo_id'] ?? null));
 
         if ($request->hasFile('foto')) {
             $data['foto'] = $this->guardarFoto($request->file('foto'));
@@ -183,6 +185,16 @@ class MatriculaController extends Controller
                 $request->filled('fecha_matricula') ? Carbon::parse($request->input('fecha_matricula')) : null,
             ),
         ]);
+    }
+
+    /**
+     * Valida los datos de la matrícula (y del estudiante nuevo, si aplica) sin crear nada.
+     * El asistente la llama antes de crear al estudiante para no dejar registros huérfanos
+     * cuando la matrícula tiene errores. Responde 422 con los errores o 200 si todo es válido.
+     */
+    public function validar(ValidarMatriculaRequest $request): JsonResponse
+    {
+        return response()->json(['message' => 'Los datos son válidos.']);
     }
 
     /**

@@ -76,7 +76,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property string|null $multiculturalidad
  * @property string|null $foto
  * @property int $status 0: Inactivo | 1: Activo | 2: Anulado
- * @property int $estado_academico 1 Activo | 2 Aplazado | 3 Desertado | 4 Retirado | 5 Graduado
+ * @property int $estado_academico 1 Activo | 2 Aplazado | 3 Desertado | 4 Retirado | 5 Graduado | 6 Reprobado | 7 Pendiente por iniciar
  * @property \Illuminate\Support\Carbon|null $fecha_estado_academico
  * @property-read \App\Models\Academico\Curso          $curso
  * @property-read \App\Models\Academico\Ciclo          $ciclo
@@ -104,6 +104,7 @@ class Matricula extends Model
     public const ESTADO_RETIRADO  = 4;
     public const ESTADO_GRADUADO  = 5;
     public const ESTADO_REPROBADO = 6;
+    public const ESTADO_PENDIENTE_INICIO = 7;
 
     public const ESTADOS_ACADEMICOS = [
         self::ESTADO_ACTIVO    => 'Activo',
@@ -112,7 +113,20 @@ class Matricula extends Model
         self::ESTADO_RETIRADO  => 'Retirado',
         self::ESTADO_GRADUADO  => 'Graduado',
         self::ESTADO_REPROBADO => 'Reprobado',
+        self::ESTADO_PENDIENTE_INICIO => 'Pendiente por iniciar',
     ];
+
+    /**
+     * Estado con el que nace una matrícula según el inicio de su ciclo: Activo si el curso ya
+     * comenzó (o el ciclo no tiene fecha de inicio) y Pendiente por iniciar si aún no.
+     * El estado pendiente pasa a Activo solo, cuando llega la fecha de inicio del ciclo.
+     */
+    public static function estadoInicialPara(?Ciclo $ciclo): int
+    {
+        return $ciclo?->fecha_inicio && $ciclo->fecha_inicio->gt(today())
+            ? self::ESTADO_PENDIENTE_INICIO
+            : self::ESTADO_ACTIVO;
+    }
 
     /**
      * Estados que cierran la formación: la matrícula deja de estar vigente (status 0),

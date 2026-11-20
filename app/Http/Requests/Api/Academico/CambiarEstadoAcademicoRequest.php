@@ -27,7 +27,7 @@ class CambiarEstadoAcademicoRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'estado_academico' => ['required', 'integer', Rule::in(array_keys(Matricula::ESTADOS_ACADEMICOS))],
+            'estado_academico' => ['required', 'integer', Rule::in(array_diff(array_keys(Matricula::ESTADOS_ACADEMICOS), [Matricula::ESTADO_PENDIENTE_INICIO]))],
             'fecha'            => ['required', 'date', 'before_or_equal:today'],
             'motivo'           => ['required', 'string', 'min:5', 'max:1000'],
         ];
