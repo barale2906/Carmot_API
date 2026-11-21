@@ -344,6 +344,8 @@ class Asistencia extends Model
      * Fallas seguidas de cada estudiante en cada curso, contadas hacia atrás desde su última
      * clase registrada (por fecha y hora de la clase). Una asistencia o tardanza corta la racha,
      * así que registrar la siguiente asistencia la reinicia. Una falla justificada sigue siendo falla.
+     * No cuentan (ni cortan la racha) las clases canceladas o reprogramadas ni la clase de origen de
+     * una reposición: la ausencia en la clase de destino sí cuenta.
      *
      * @param array<int> $estudianteIds
      * @return \Illuminate\Support\Collection<string, int> "estudianteId:cursoId" => fallas consecutivas
@@ -357,6 +359,14 @@ class Asistencia extends Model
         return static::query()
             ->join('asistencia_clases_programadas as clase', 'clase.id', '=', 'asistencias.clase_programada_id')
             ->whereIn('asistencias.estudiante_id', $estudianteIds)
+            ->whereNotIn('clase.estado', ['cancelada', 'reprogramada'])
+            ->whereNotExists(function ($reposicion) {
+                $reposicion->selectRaw('1')
+                    ->from('asistencia_reposiciones as repo')
+                    ->whereColumn('repo.clase_origen_id', 'asistencias.clase_programada_id')
+                    ->whereColumn('repo.estudiante_id', 'asistencias.estudiante_id')
+                    ->whereNull('repo.deleted_at');
+            })
             ->orderByDesc('clase.fecha_clase')
             ->orderByDesc('clase.hora_inicio')
             ->orderByDesc('asistencias.id')

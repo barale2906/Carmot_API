@@ -69,6 +69,26 @@ class AsistenciaClaseProgramada extends Model
     ];
 
     /**
+     * Reposiciones registradas hacia esta clase (estudiantes de otros grupos que la tomarán aquí).
+     *
+     * @return HasMany
+     */
+    public function reposicionesDestino(): HasMany
+    {
+        return $this->hasMany(AsistenciaReposicion::class, 'clase_destino_id');
+    }
+
+    /**
+     * IDs de los estudiantes invitados a esta clase por una reposición.
+     *
+     * @return \Illuminate\Support\Collection<int, int>
+     */
+    public function idsEstudiantesInvitados(): \Illuminate\Support\Collection
+    {
+        return $this->reposicionesDestino()->pluck('estudiante_id')->map(fn ($id) => (int) $id);
+    }
+
+    /**
      * Relación con Grupo (muchos a uno).
      * Una clase programada pertenece a un grupo.
      *

@@ -59,6 +59,7 @@ class DatabaseSeeder extends Seeder
             AddCierreNotasPermissionsSeeder::class,
             AddActivosPermissionsSeeder::class,
             AddCuentasBancariasPermissionsSeeder::class,
+            AddReposicionPermissionsSeeder::class,
         ]);
         // \App\Models\User::factory(10)->create();
 

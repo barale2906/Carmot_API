@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Api\Academico\Concerns;
 
+use App\Models\Academico\AsistenciaClaseProgramada;
 use App\Models\Academico\Grupo;
 
 /**
@@ -19,15 +20,21 @@ trait ValidaEstudiantesDelGrupo
      * @param Grupo|null $grupo
      * @param array<int, mixed> $estudianteIds Índice → estudiante_id
      * @param string|null $campo Arreglo del payload (p. ej. "notas"); null para un solo estudiante
+     * @param AsistenciaClaseProgramada|null $clase Al tomar asistencia de una clase: acepta también a los desertados
+     *        automáticamente (se reactivan al asistir) y a los invitados por reposición
      * @return void
      */
-    protected function validarEstudiantesDelGrupo($validator, ?Grupo $grupo, array $estudianteIds, ?string $campo = null): void
+    protected function validarEstudiantesDelGrupo($validator, ?Grupo $grupo, array $estudianteIds, ?string $campo = null, ?AsistenciaClaseProgramada $clase = null): void
     {
         if (! $grupo || $estudianteIds === []) {
             return;
         }
 
-        $vigentes = $grupo->idsEstudiantesVigentes();
+        $vigentes = $grupo->idsEstudiantesVigentes($clase !== null);
+
+        if ($clase) {
+            $vigentes = $vigentes->merge($clase->idsEstudiantesInvitados())->unique();
+        }
 
         foreach ($estudianteIds as $i => $estudianteId) {
             $clave = $campo ? "{$campo}.{$i}.estudiante_id" : 'estudiante_id';

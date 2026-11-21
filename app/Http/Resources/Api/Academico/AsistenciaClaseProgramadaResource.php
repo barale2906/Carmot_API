@@ -38,6 +38,10 @@ class AsistenciaClaseProgramadaResource extends JsonResource
                 'email' => $this->creadoPor->email,
             ]),
 
+            'reposiciones' => $this->whenLoaded('reposicionesDestino', function () {
+                return AsistenciaReposicionResource::collection($this->reposicionesDestino);
+            }),
+
             'asistencias' => $this->whenLoaded('asistencias', function () {
                 return AsistenciaResource::collection($this->asistencias);
             }),

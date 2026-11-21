@@ -81,6 +81,55 @@ class InvListaPrecioTest extends TestCase
     }
 
     /** @test */
+    public function index_filtra_por_vigencia(): void
+    {
+        $vigente  = $this->listaInv(['fecha_inicio' => now()->subMonth(), 'fecha_fin' => now()->addMonth()]);
+        $vencida  = $this->listaInv(['fecha_inicio' => now()->subMonths(3), 'fecha_fin' => now()->subDay()]);
+        $inactiva = $this->listaInv(['status' => LpListaPrecio::STATUS_INACTIVA, 'fecha_inicio' => now()->subMonth(), 'fecha_fin' => now()->addMonth()]);
+
+        $ids = fn (string $vigencia) => collect(
+            $this->actingAs($this->usuario)
+                ->getJson(route('inv-listas-precios.index', ['vigencia' => $vigencia]))
+                ->assertOk()->json('data')
+        )->pluck('id')->sort()->values()->all();
+
+        $this->assertSame([$vigente->id], $ids('vigentes'));
+        $this->assertSame([$vencida->id, $inactiva->id], $ids('vencidas'));
+    }
+
+    /** @test */
+    public function index_busca_por_nombre_de_lista_o_de_producto(): void
+    {
+        $uniformes = $this->listaInv(['nombre' => 'Uniformes 2026']);
+        $libros    = $this->listaInv(['nombre' => 'Libros 2026']);
+        $camisa    = InvProducto::factory()->create(['nombre' => 'Camisa polo']);
+        InvPrecioProducto::asignar($libros->id, $camisa->id, 50000);
+
+        $buscar = fn (string $texto) => collect(
+            $this->actingAs($this->usuario)
+                ->getJson(route('inv-listas-precios.index', ['search' => $texto]))
+                ->assertOk()->json('data')
+        )->pluck('id')->all();
+
+        $this->assertSame([$uniformes->id], $buscar('Uniformes'));
+        $this->assertSame([$libros->id], $buscar('polo'));
+    }
+
+    /** @test */
+    public function poblaciones_solo_devuelve_las_usadas_en_listas_de_inventario(): void
+    {
+        $usada = Poblacion::factory()->create(['nombre' => 'Usada']);
+        Poblacion::factory()->create(['nombre' => 'Sin lista']);
+        $this->listaInv()->poblaciones()->attach($usada->id);
+
+        $this->actingAs($this->usuario)
+            ->getJson(route('inv-listas-precios.poblaciones'))
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $usada->id);
+    }
+
+    /** @test */
     public function index_deniega_sin_permiso(): void
     {
         $sinPermiso = User::factory()->create();

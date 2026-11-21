@@ -48,7 +48,7 @@ class FiltrarConsolidadoNotasRequest extends FormRequest
             'grupo_id'      => ['nullable', 'integer', 'exists:grupos,id'],
             'profesor_id'   => ['nullable', 'integer', 'exists:users,id'],
             'estudiante_id' => ['nullable', 'integer', 'exists:users,id'],
-            'buscar'        => ['nullable', 'string', 'min:3', 'max:100'],
+            'buscar'        => ['nullable', 'string', 'min:2', 'max:100'],
             'estado'        => ['nullable', Rule::in(self::ESTADOS)],
             'por_recuperar' => ['nullable', 'boolean'],
             'page'          => ['nullable', 'integer', 'min:1'],
@@ -65,7 +65,7 @@ class FiltrarConsolidadoNotasRequest extends FormRequest
     {
         return [
             'ciclo_id.required_without_all' => 'Indique al menos un ciclo, grupo, profesor o estudiante.',
-            'buscar.min'                    => 'La búsqueda de estudiante debe tener al menos 3 caracteres.',
+            'buscar.min'                    => 'La búsqueda de estudiante debe tener al menos 2 caracteres.',
             'estado.in'                     => 'El estado debe ser: ' . implode(', ', self::ESTADOS) . '.',
         ];
     }

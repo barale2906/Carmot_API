@@ -101,7 +101,7 @@ class InvProductoController extends Controller
     /**
      * Busca productos por nombre o código para autocompletado.
      *
-     * Solo devuelve resultados cuando el término tiene al menos 3 caracteres.
+     * Solo devuelve resultados cuando el término tiene al menos 2 caracteres.
      * Limita a 20 resultados ordenados por coincidencia exacta primero.
      * Acepta filtro opcional por tipo (simple, kit, grupo).
      *
@@ -111,7 +111,7 @@ class InvProductoController extends Controller
     public function buscar(Request $request): JsonResponse
     {
         $request->validate([
-            'q'    => ['required', 'string', 'min:3', 'max:100'],
+            'q'    => ['required', 'string', 'min:2', 'max:100'],
             'tipo' => ['nullable', 'string', 'in:simple,kit,grupo'],
         ], [
             'q.required' => 'El término de búsqueda es obligatorio.',

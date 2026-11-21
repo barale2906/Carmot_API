@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\Academico\EstudianteController;
 use App\Http\Controllers\Api\Academico\AsistenciaClaseProgramadaController;
 use App\Http\Controllers\Api\Academico\AsistenciaConfiguracionController;
 use App\Http\Controllers\Api\Academico\AsistenciaController;
+use App\Http\Controllers\Api\Academico\AsistenciaReposicionController;
 use App\Http\Controllers\Api\Academico\BibliotecaController;
 use App\Http\Controllers\Api\Academico\CicloController;
 use App\Http\Controllers\Api\Academico\CierreNotasCicloController;
@@ -247,6 +248,14 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('{id}/restore', [AsistenciaController::class, 'restore'])->name('asistencias.restore');
     });
     Route::apiResource('asistencias', AsistenciaController::class);
+
+    // -------------------------------------------------------------------------
+    // Asistencia — Reposiciones (clase tomada en otro grupo del curso)
+    // -------------------------------------------------------------------------
+    Route::get('asistencia-reposiciones/opciones', [AsistenciaReposicionController::class, 'opciones'])->name('asistencia-reposiciones.opciones');
+    Route::apiResource('asistencia-reposiciones', AsistenciaReposicionController::class)
+        ->only(['index', 'store', 'show', 'destroy'])
+        ->parameters(['asistencia-reposiciones' => 'id']);
 
     // -------------------------------------------------------------------------
     // Asistencia — Clases programadas

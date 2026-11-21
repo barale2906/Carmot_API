@@ -91,7 +91,7 @@ class StoreAsistenciaRequest extends FormRequest
             }
 
             $clase = AsistenciaClaseProgramada::with('grupo')->find($this->input('clase_programada_id'));
-            $this->validarEstudiantesDelGrupo($validator, $clase?->grupo, [$this->input('estudiante_id')]);
+            $this->validarEstudiantesDelGrupo($validator, $clase?->grupo, [$this->input('estudiante_id')], null, $clase);
         });
     }
 }

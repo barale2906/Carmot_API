@@ -4,6 +4,7 @@ namespace App\Services\Asistencia;
 
 use App\Models\Academico\Asistencia;
 use App\Models\Academico\AsistenciaClaseProgramada;
+use App\Services\Academico\DesercionAutomaticaService;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Facades\DB;
 
@@ -14,9 +15,14 @@ use Illuminate\Support\Facades\DB;
  * guardar la lista actualiza los registros existentes —incluidos los eliminados, que
  * se restauran— en lugar de duplicarlos. Al registrarla, la clase pasa a "dictada".
  * La justificación va aparte del estado: una ausencia justificada sigue siendo falla.
+ * Después de guardar revisa la deserción automática de los estudiantes de la lista.
  */
 class RegistroAsistenciaService
 {
+    public function __construct(private readonly DesercionAutomaticaService $desercion)
+    {
+    }
+
     /**
      * @param AsistenciaClaseProgramada $clase
      * @param array<int, array{estudiante_id: int, estado: string, justificada?: bool, justificacion?: string|null, observaciones?: string|null}> $registros
@@ -76,6 +82,8 @@ class RegistroAsistenciaService
             if ($clase->estado === 'programada') {
                 $clase->update(['estado' => 'dictada']);
             }
+
+            $this->desercion->evaluar(array_column($registros, 'estudiante_id'), $clase->ciclo->curso_id, $clase->fecha_clase->toDateString());
 
             return compact('creadas', 'actualizadas', 'asistencias');
         });

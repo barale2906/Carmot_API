@@ -7,6 +7,7 @@ use App\Http\Requests\Api\Inventarios\CloneInvListaPrecioRequest;
 use App\Http\Requests\Api\Inventarios\StoreInvListaPrecioRequest;
 use App\Http\Requests\Api\Inventarios\UpdateInvListaPrecioRequest;
 use App\Http\Resources\Api\Inventarios\InvListaPrecioResource;
+use App\Models\Configuracion\Poblacion;
 use App\Models\Financiero\Lp\LpListaPrecio;
 use App\Models\Inventarios\InvPrecioProducto;
 use Illuminate\Http\JsonResponse;
@@ -30,7 +31,7 @@ class InvListaPrecioController extends Controller
     public function __construct()
     {
         $this->middleware('auth:sanctum');
-        $this->middleware('permission:inv_listas')->only(['index', 'show']);
+        $this->middleware('permission:inv_listas')->only(['index', 'show', 'poblaciones']);
         $this->middleware('permission:inv_listasCrear')->only(['store']);
         $this->middleware('permission:inv_listasEditar')->only(['update']);
         $this->middleware('permission:inv_listasInactivar')->only(['destroy', 'inactivar']);
@@ -49,10 +50,17 @@ class InvListaPrecioController extends Controller
         $listas = LpListaPrecio::where('origen', 0)
             ->with('poblaciones')
             ->withCount('preciosInventario')
-            ->when(
-                $request->filled('search'),
-                fn ($q) => $q->where('nombre', 'like', "%{$request->search}%")
-            )
+            ->when($request->filled('search'), function ($q) use ($request) {
+                $texto = $request->search;
+
+                // Coincide por nombre de la lista o por nombre/código de alguno de sus productos
+                $q->where(fn ($w) => $w
+                    ->where('nombre', 'like', "%{$texto}%")
+                    ->orWhereHas('preciosInventario.producto', fn ($p) => $p
+                        ->where('nombre', 'like', "%{$texto}%")
+                        ->orWhere('codigo', 'like', "%{$texto}%"))
+                );
+            })
             ->when(
                 $request->filled('status'),
                 fn ($q) => $q->where('status', $request->integer('status'))
@@ -68,6 +76,17 @@ class InvListaPrecioController extends Controller
                 $request->boolean('vigentes'),
                 fn ($q) => $q->vigentes()
             )
+            ->when(
+                $request->input('vigencia') === 'vigentes',
+                fn ($q) => $q->where('status', '!=', LpListaPrecio::STATUS_INACTIVA)
+                    ->where(fn ($w) => $w->whereNull('fecha_fin')->orWhereDate('fecha_fin', '>=', today()))
+            )
+            ->when(
+                $request->input('vigencia') === 'vencidas',
+                fn ($q) => $q->where(fn ($w) => $w
+                    ->where('status', LpListaPrecio::STATUS_INACTIVA)
+                    ->orWhereDate('fecha_fin', '<', today()))
+            )
             ->orderBy($request->get('sort_by', 'created_at'), $request->get('sort_direction', 'desc'))
             ->paginate($request->get('per_page', 15));
 
@@ -82,6 +101,25 @@ class InvListaPrecioController extends Controller
                 'to'           => $listas->lastItem(),
             ],
         ]);
+    }
+
+    /**
+     * Poblaciones que tienen al menos una lista de precios de inventario: alimenta el filtro
+     * del listado para ofrecer solo opciones que devuelven resultados.
+     *
+     * @return JsonResponse
+     */
+    public function poblaciones(): JsonResponse
+    {
+        $poblaciones = Poblacion::whereIn('id', DB::table('lp_lista_precio_poblacion as pivote')
+            ->join('lp_listas_precios as lista', 'lista.id', '=', 'pivote.lista_precio_id')
+            ->where('lista.origen', 0)
+            ->whereNull('lista.deleted_at')
+            ->select('pivote.poblacion_id'))
+            ->orderBy('nombre')
+            ->get(['id', 'nombre']);
+
+        return response()->json(['data' => $poblaciones]);
     }
 
     /**

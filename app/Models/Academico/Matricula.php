@@ -78,6 +78,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property int $status 0: Inactivo | 1: Activo | 2: Anulado
  * @property int $estado_academico 1 Activo | 2 Aplazado | 3 Desertado | 4 Retirado | 5 Graduado | 6 Reprobado | 7 Pendiente por iniciar
  * @property \Illuminate\Support\Carbon|null $fecha_estado_academico
+ * @property bool $desercion_automatica Desertada por el sistema (2 fallas seguidas); vuelve a Activo al registrarle asistencia
  * @property-read \App\Models\Academico\Curso          $curso
  * @property-read \App\Models\Academico\Ciclo          $ciclo
  * @property-read \App\Models\User                     $estudiante
@@ -219,6 +220,7 @@ class Matricula extends Model
         'status' => 'integer',
         'estado_academico' => 'integer',
         'fecha_estado_academico' => 'date',
+        'desercion_automatica' => 'boolean',
         'fecha_matricula' => 'date',
         'fecha_inicio' => 'date',
         'fecha_nacimiento' => 'date',
@@ -500,6 +502,18 @@ class Matricula extends Model
     public function scopeVigentes($query)
     {
         return $query->where('status', 1);
+    }
+
+    /**
+     * Matrículas a las que se les toma asistencia: las vigentes y activas, y las desertadas
+     * automáticamente por fallas (siguen en la planilla para poder reactivarse al asistir).
+     */
+    public function scopeParaAsistencia($query)
+    {
+        return $query->where(function ($q) {
+            $q->where(fn ($activa) => $activa->where('status', 1)->where('estado_academico', self::ESTADO_ACTIVO))
+                ->orWhere(fn ($desertada) => $desertada->where('estado_academico', self::ESTADO_DESERTADO)->where('desercion_automatica', true));
+        });
     }
 
     /**

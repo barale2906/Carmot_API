@@ -529,10 +529,10 @@ class InvProductoTest extends TestCase
     }
 
     /** @test */
-    public function buscar_falla_si_q_tiene_menos_de_3_caracteres(): void
+    public function buscar_falla_si_q_tiene_menos_de_2_caracteres(): void
     {
         $this->actingAs($this->usuario)
-            ->getJson(route('inv-productos.buscar', ['q' => 'AB']))
+            ->getJson(route('inv-productos.buscar', ['q' => 'A']))
             ->assertUnprocessable()
             ->assertJsonValidationErrors(['q']);
     }

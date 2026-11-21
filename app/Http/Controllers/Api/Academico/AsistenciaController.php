@@ -19,6 +19,7 @@ use App\Models\Academico\Matricula;
 use App\Models\Financiero\Cartera\Cartera;
 use App\Models\Financiero\ReciboPago\ReciboPago;
 use App\Services\Academico\AsistenciasExcelService;
+use App\Services\Academico\DesercionAutomaticaService;
 use App\Services\Asistencia\ClasesDelDiaService;
 use App\Services\Asistencia\RegistroAsistenciaService;
 use App\Services\Asistencia\VerificarCumplimientoService;
@@ -37,7 +38,8 @@ class AsistenciaController extends Controller
         private readonly RegistroAsistenciaService $registroAsistencia,
         private readonly ClasesDelDiaService $clasesDelDia,
         private readonly VerificarCumplimientoService $cumplimiento,
-        private readonly AsistenciasExcelService $asistenciasExcel
+        private readonly AsistenciasExcelService $asistenciasExcel,
+        private readonly DesercionAutomaticaService $desercion
     )
     {
         $this->middleware('permission:aca_asistencias')->only(['index', 'filters', 'excel', 'show', 'listaAsistencia', 'clasesDelDia', 'reporteEstudiante', 'reporteGrupo']);
@@ -142,7 +144,8 @@ class AsistenciaController extends Controller
     }
 
     /**
-     * Almacena una nueva asistencia individual.
+     * Almacena una nueva asistencia individual. Si con ella el estudiante suma 2 fallas seguidas queda
+     * Desertado automáticamente, y si estaba desertado por el sistema vuelve a Activo (ver DesercionAutomaticaService).
      *
      * @param StoreAsistenciaRequest $request
      * @return JsonResponse
@@ -176,6 +179,8 @@ class AsistenciaController extends Controller
                 'fecha_registro' => now(),
             ]);
 
+            $this->desercion->evaluar([$asistencia->estudiante_id], $asistencia->curso_id, $claseProgramada->fecha_clase->toDateString());
+
             DB::commit();
 
             return response()->json([
@@ -195,7 +200,8 @@ class AsistenciaController extends Controller
      * Registra o corrige la lista de asistencia de una clase.
      *
      * Volver a enviar la lista de la misma clase actualiza los registros en lugar de
-     * duplicarlos; la clase queda marcada como dictada.
+     * duplicarlos; la clase queda marcada como dictada. Tras guardar, los estudiantes con 2 fallas seguidas
+     * quedan Desertados y los desertados por el sistema que asistieron vuelven a Activo.
      *
      * @param StoreAsistenciaMasivaRequest $request
      * @return JsonResponse
@@ -251,6 +257,7 @@ class AsistenciaController extends Controller
             $asistencia = Asistencia::findOrFail($id);
 
             $asistencia->update($request->datos());
+            $this->desercion->evaluar([$asistencia->estudiante_id], $asistencia->curso_id, $asistencia->claseProgramada->fecha_clase->toDateString());
 
             return response()->json([
                 'message' => 'Asistencia actualizada exitosamente.',
@@ -383,9 +390,9 @@ class AsistenciaController extends Controller
             $ciclosIds = $ciclosActivos->pluck('id');
 
             // Matrículas vigentes de esos ciclos; los aplazados no asisten mientras dure el aplazamiento.
+            // Los desertados automáticamente por fallas siguen en la planilla: al asistir vuelven a Activo.
             $matriculas = Matricula::whereIn('ciclo_id', $ciclosIds)
-                ->where('status', 1)
-                ->where('estado_academico', Matricula::ESTADO_ACTIVO)
+                ->paraAsistencia()
                 ->with(['estudiante', 'ciclo'])
                 ->get();
 
@@ -414,7 +421,7 @@ class AsistenciaController extends Controller
             // Obtener clases programadas del grupo
             $clasesProgramadas = AsistenciaClaseProgramada::where('grupo_id', $grupoId)
                 ->whereIn('ciclo_id', $ciclosIds)
-                ->with(['grupo', 'ciclo'])
+                ->with(['grupo', 'ciclo', 'reposicionesDestino.estudiante'])
                 ->orderBy('fecha_clase')
                 ->orderBy('hora_inicio')
                 ->get();

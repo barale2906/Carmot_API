@@ -154,6 +154,7 @@ Route::middleware('auth:sanctum')
         // Listas de precios de inventario (origen=0)
         // ──────────────────────────────────────────────────────────────────────
         Route::prefix('listas-precios')->group(function () {
+            Route::get('poblaciones',              [InvListaPrecioController::class, 'poblaciones'])->name('listas-precios.poblaciones');
             Route::post('{listaPrecio}/aprobar',   [InvListaPrecioController::class, 'aprobar'])->name('listas-precios.aprobar');
             Route::post('{listaPrecio}/activar',   [InvListaPrecioController::class, 'activar'])->name('listas-precios.activar');
             Route::post('{listaPrecio}/inactivar', [InvListaPrecioController::class, 'inactivar'])->name('listas-precios.inactivar');

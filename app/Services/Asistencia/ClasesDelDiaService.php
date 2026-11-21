@@ -12,7 +12,8 @@ use Illuminate\Support\Collection;
  * Clases con asistencia por tomar en un día, para que quien recibe a los estudiantes en la
  * sede las encuentre sin buscar el grupo. Un profesor ve solo sus grupos; el personal, los
  * de sus sedes. Cada clase trae su lista de estudiantes con matrícula activa (la misma
- * regla de la lista de asistencia del grupo) y cuántos ya tienen asistencia registrada.
+ * regla de la lista de asistencia del grupo) y cuántos ya tienen asistencia registrada. `invitados` son los estudiantes de otros grupos que
+ * tomarán esa clase por una reposición.
  */
 class ClasesDelDiaService
 {
@@ -40,7 +41,7 @@ class ClasesDelDiaService
                 }
                 $q->when($sedeId, fn ($q2) => $q2->where('sede_id', $sedeId));
             })
-            ->with(['grupo.sede', 'grupo.modulo', 'ciclo.curso'])
+            ->with(['grupo.sede', 'grupo.modulo', 'ciclo.curso', 'reposicionesDestino.estudiante:id,primer_nombre,segundo_nombre,primer_apellido,segundo_apellido,documento'])
             ->withCount('asistencias')
             ->orderBy('hora_inicio')
             ->get();
@@ -61,12 +62,18 @@ class ClasesDelDiaService
                 'sede'                  => $clase->grupo->sede ? ['id' => $clase->grupo->sede->id, 'nombre' => $clase->grupo->sede->nombre] : null,
                 'asistencias_registradas' => $clase->asistencias_count,
                 'estudiantes'           => $estudiantesPorCiclo->get($clase->ciclo_id, collect())->values(),
+                'invitados'             => $clase->reposicionesDestino->filter(fn ($r) => $r->estudiante)->map(fn ($r) => [
+                    'id'        => $r->estudiante->id,
+                    'name'      => $r->estudiante->name,
+                    'documento' => $r->estudiante->documento,
+                    'reposicion_id' => $r->id,
+                ])->values(),
             ])->values(),
         ];
     }
 
     /**
-     * Estudiantes con matrícula vigente y activa (no aplazados) por ciclo.
+     * Estudiantes con matrícula vigente y activa (no aplazados) por ciclo, más los desertados automáticamente.
      *
      * @return Collection<int, Collection>
      */
@@ -77,8 +84,7 @@ class ClasesDelDiaService
         }
 
         return Matricula::whereIn('ciclo_id', $cicloIds)
-            ->where('status', 1)
-            ->where('estado_academico', Matricula::ESTADO_ACTIVO)
+            ->paraAsistencia()
             ->with('estudiante:id,primer_nombre,segundo_nombre,primer_apellido,segundo_apellido,documento')
             ->get()
             ->filter(fn ($m) => $m->estudiante)

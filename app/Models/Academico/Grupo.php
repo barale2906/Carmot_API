@@ -143,11 +143,12 @@ class Grupo extends Model
      * IDs de los estudiantes con matrícula vigente en algún ciclo que incluye este grupo:
      * los únicos a los que se les puede registrar asistencia o notas en él.
      *
+     * @param bool $paraAsistencia Incluye a los desertados automáticamente por fallas (Matricula::scopeParaAsistencia)
      * @return \Illuminate\Support\Collection<int, int>
      */
-    public function idsEstudiantesVigentes(): \Illuminate\Support\Collection
+    public function idsEstudiantesVigentes(bool $paraAsistencia = false): \Illuminate\Support\Collection
     {
-        return Matricula::vigentes()
+        return Matricula::when($paraAsistencia, fn ($q) => $q->paraAsistencia(), fn ($q) => $q->vigentes())
             ->whereIn('ciclo_id', $this->ciclos()->pluck('ciclos.id'))
             ->pluck('estudiante_id')
             ->map(fn ($id) => (int) $id)

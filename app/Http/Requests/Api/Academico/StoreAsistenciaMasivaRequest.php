@@ -99,7 +99,8 @@ class StoreAsistenciaMasivaRequest extends FormRequest
                 $validator,
                 $clase->grupo,
                 array_column((array) $this->input('asistencias', []), 'estudiante_id'),
-                'asistencias'
+                'asistencias',
+                $clase
             );
         });
     }
