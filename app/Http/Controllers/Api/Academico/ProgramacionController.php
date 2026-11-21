@@ -10,8 +10,8 @@ use App\Http\Resources\Api\Academico\ProgramacionResource;
 use App\Models\Academico\Programacion;
 use App\Traits\HasActiveStatus;
 use App\Traits\HasJornadaStatus;
-use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class ProgramacionController extends Controller
 {
@@ -30,15 +30,12 @@ class ProgramacionController extends Controller
 
     /**
      * Muestra una lista de las programaciones.
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function index(Request $request): JsonResponse
     {
         // Preparar filtros
         $filters = $request->only([
-            'search', 'status', 'curso_id', 'sede_id', 'jornada', 'fecha_inicio', 'fecha_fin', 'fecha_inicio_range', 'fecha_fin_range', 'activas_en_fecha', 'include_trashed', 'only_trashed'
+            'search', 'status', 'curso_id', 'sede_id', 'jornada', 'fecha_inicio', 'fecha_fin', 'fecha_inicio_range', 'fecha_fin_range', 'activas_en_fecha', 'include_trashed', 'only_trashed',
         ]);
 
         // Preparar relaciones
@@ -74,9 +71,6 @@ class ProgramacionController extends Controller
 
     /**
      * Almacena una nueva programación en la base de datos.
-     *
-     * @param StoreProgramacionRequest $request
-     * @return JsonResponse
      */
     public function store(StoreProgramacionRequest $request): JsonResponse
     {
@@ -115,10 +109,6 @@ class ProgramacionController extends Controller
 
     /**
      * Muestra la programación especificada.
-     *
-     * @param Request $request
-     * @param Programacion $programacion
-     * @return JsonResponse
      */
     public function show(Request $request, Programacion $programacion): JsonResponse
     {
@@ -138,10 +128,6 @@ class ProgramacionController extends Controller
 
     /**
      * Actualiza la programación especificada en la base de datos.
-     *
-     * @param UpdateProgramacionRequest $request
-     * @param Programacion $programacion
-     * @return JsonResponse
      */
     public function update(UpdateProgramacionRequest $request, Programacion $programacion): JsonResponse
     {
@@ -159,7 +145,7 @@ class ProgramacionController extends Controller
 
         // Actualizar grupos asignados a la programación si se proporcionan
         if ($request->has('grupos')) {
-            if (is_array($request->grupos) && !empty($request->grupos)) {
+            if (is_array($request->grupos) && ! empty($request->grupos)) {
                 $gruposConFechas = [];
                 foreach ($request->grupos as $grupo) {
                     $gruposConFechas[] = [
@@ -185,9 +171,6 @@ class ProgramacionController extends Controller
 
     /**
      * Elimina la programación especificada de la base de datos (soft delete).
-     *
-     * @param Programacion $programacion
-     * @return JsonResponse
      */
     public function destroy(Programacion $programacion): JsonResponse
     {
@@ -207,9 +190,6 @@ class ProgramacionController extends Controller
 
     /**
      * Restaura una programación eliminada (soft delete).
-     *
-     * @param int $id
-     * @return JsonResponse
      */
     public function restore(int $id): JsonResponse
     {
@@ -224,9 +204,6 @@ class ProgramacionController extends Controller
 
     /**
      * Elimina permanentemente una programación.
-     *
-     * @param int $id
-     * @return JsonResponse
      */
     public function forceDelete(int $id): JsonResponse
     {
@@ -248,15 +225,12 @@ class ProgramacionController extends Controller
 
     /**
      * Obtiene solo las programaciones eliminadas (soft delete).
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function trashed(Request $request): JsonResponse
     {
         // Preparar filtros
         $filters = $request->only([
-            'search', 'status', 'curso_id', 'sede_id', 'jornada'
+            'search', 'status', 'curso_id', 'sede_id', 'jornada',
         ]);
         $filters['only_trashed'] = true;
 
@@ -293,8 +267,6 @@ class ProgramacionController extends Controller
 
     /**
      * Obtiene las opciones de filtros disponibles.
-     *
-     * @return JsonResponse
      */
     public function filters(): JsonResponse
     {
@@ -313,8 +285,6 @@ class ProgramacionController extends Controller
 
     /**
      * Obtiene estadísticas de programaciones.
-     *
-     * @return JsonResponse
      */
     public function statistics(): JsonResponse
     {
@@ -335,7 +305,7 @@ class ProgramacionController extends Controller
                 ->map(function ($item) {
                     return [
                         'sede' => $item->sede->nombre ?? 'Sin sede',
-                        'total' => $item->total
+                        'total' => $item->total,
                     ];
                 }),
             'por_curso' => Programacion::with('curso')
@@ -345,7 +315,7 @@ class ProgramacionController extends Controller
                 ->map(function ($item) {
                     return [
                         'curso' => $item->curso->nombre ?? 'Sin curso',
-                        'total' => $item->total
+                        'total' => $item->total,
                     ];
                 }),
             'por_jornada' => Programacion::selectRaw('jornada, COUNT(*) as total')
@@ -354,7 +324,7 @@ class ProgramacionController extends Controller
                 ->map(function ($item) {
                     return [
                         'jornada' => self::getJornadaText($item->jornada),
-                        'total' => $item->total
+                        'total' => $item->total,
                     ];
                 }),
             'con_grupos' => Programacion::whereHas('grupos')->count(),
@@ -368,10 +338,6 @@ class ProgramacionController extends Controller
 
     /**
      * Asigna grupos a una programación. Deben ser de su sede y de módulos de su curso (N23).
-     *
-     * @param AsignarGruposProgramacionRequest $request
-     * @param Programacion $programacion
-     * @return JsonResponse
      */
     public function asignarGrupos(AsignarGruposProgramacionRequest $request, Programacion $programacion): JsonResponse
     {
@@ -395,15 +361,11 @@ class ProgramacionController extends Controller
 
     /**
      * Desasigna un grupo de una programación.
-     *
-     * @param Request $request
-     * @param Programacion $programacion
-     * @return JsonResponse
      */
     public function desasignarGrupo(Request $request, Programacion $programacion): JsonResponse
     {
         $request->validate([
-            'grupo_id' => 'required|exists:grupos,id'
+            'grupo_id' => 'required|exists:grupos,id',
         ]);
 
         $programacion->grupos()->detach($request->grupo_id);
@@ -417,9 +379,6 @@ class ProgramacionController extends Controller
 
     /**
      * Obtiene el cronograma detallado de la programación.
-     *
-     * @param Programacion $programacion
-     * @return JsonResponse
      */
     public function cronograma(Programacion $programacion): JsonResponse
     {
@@ -442,9 +401,9 @@ class ProgramacionController extends Controller
                     'total_horas' => $programacion->total_horas,
                     'horas_por_semana_promedio' => count($cronograma) > 0
                         ? round($programacion->horas_por_semana / count($cronograma), 2)
-                        : 0
-                ]
-            ]
+                        : 0,
+                ],
+            ],
         ]);
     }
 }

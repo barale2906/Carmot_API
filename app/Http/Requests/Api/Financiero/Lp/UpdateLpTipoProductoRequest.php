@@ -12,8 +12,6 @@ use Illuminate\Validation\Rule;
  *
  * Valida los datos para actualizar un tipo de producto existente en el sistema de listas de precios.
  * Todos los campos son opcionales (sometimes) para permitir actualizaciones parciales.
- *
- * @package App\Http\Requests\Api\Financiero\Lp
  */
 class UpdateLpTipoProductoRequest extends FormRequest
 {
@@ -22,8 +20,6 @@ class UpdateLpTipoProductoRequest extends FormRequest
     /**
      * Determina si el usuario está autorizado para hacer esta solicitud.
      * La autorización se maneja mediante middleware y permisos.
-     *
-     * @return bool
      */
     public function authorize(): bool
     {
@@ -46,7 +42,7 @@ class UpdateLpTipoProductoRequest extends FormRequest
                 'sometimes',
                 'string',
                 'max:50',
-                Rule::unique('lp_tipos_producto', 'codigo')->ignore($tipoProductoId)
+                Rule::unique('lp_tipos_producto', 'codigo')->ignore($tipoProductoId),
             ],
             'es_financiable' => 'sometimes|boolean',
             'descripcion' => 'nullable|string',

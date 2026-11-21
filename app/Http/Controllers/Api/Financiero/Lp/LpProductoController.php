@@ -16,8 +16,6 @@ use Illuminate\Http\Request;
  * Gestiona las operaciones CRUD para los productos del catálogo de listas de precios.
  * Permite crear, listar, mostrar, actualizar y eliminar productos.
  * Incluye filtros especiales por tipo de producto, referencia y financiabilidad.
- *
- * @package App\Http\Controllers\Api\Financiero\Lp
  */
 class LpProductoController extends Controller
 {
@@ -38,7 +36,7 @@ class LpProductoController extends Controller
      * Muestra una lista de productos.
      * Permite filtrar por tipo_producto_id, referencia_tipo y es_financiable.
      *
-     * @param Request $request Solicitud HTTP con parámetros de filtrado y paginación
+     * @param  Request  $request  Solicitud HTTP con parámetros de filtrado y paginación
      * @return JsonResponse Respuesta JSON con la lista paginada de productos
      */
     public function index(Request $request): JsonResponse
@@ -57,8 +55,8 @@ class LpProductoController extends Controller
                 $search = $request->string('search');
                 $query->where(function ($q) use ($search) {
                     $q->where('nombre', 'like', "%{$search}%")
-                      ->orWhere('codigo', 'like', "%{$search}%")
-                      ->orWhere('descripcion', 'like', "%{$search}%");
+                        ->orWhere('codigo', 'like', "%{$search}%")
+                        ->orWhere('descripcion', 'like', "%{$search}%");
                 });
             }
 
@@ -93,11 +91,11 @@ class LpProductoController extends Controller
 
             // Filtro por referencia académica específica (curso o módulo concreto)
             if ($request->filled('referencia_id') && $request->filled('referencia_tipo')) {
-                $refId   = $request->integer('referencia_id');
+                $refId = $request->integer('referencia_id');
                 $refTipo = $request->string('referencia_tipo')->toString();
                 $query->whereHas('referencias', function ($q) use ($refId, $refTipo) {
-                    $q->where('referencia_id',   $refId)
-                      ->where('referencia_tipo', $refTipo);
+                    $q->where('referencia_id', $refId)
+                        ->where('referencia_tipo', $refTipo);
                 });
             }
 
@@ -120,7 +118,7 @@ class LpProductoController extends Controller
             }
 
             // Aplicar relaciones
-            if (!empty($relations)) {
+            if (! empty($relations)) {
                 $query->with($relations);
             }
 
@@ -154,7 +152,7 @@ class LpProductoController extends Controller
     /**
      * Almacena un nuevo producto en la base de datos.
      *
-     * @param StoreLpProductoRequest $request Datos validados del producto
+     * @param  StoreLpProductoRequest  $request  Datos validados del producto
      * @return JsonResponse Respuesta JSON con el producto creado
      */
     public function store(StoreLpProductoRequest $request): JsonResponse
@@ -180,8 +178,8 @@ class LpProductoController extends Controller
     /**
      * Muestra el producto especificado.
      *
-     * @param Request $request Solicitud HTTP con parámetros opcionales
-     * @param LpProducto $lpProducto Producto a mostrar
+     * @param  Request  $request  Solicitud HTTP con parámetros opcionales
+     * @param  LpProducto  $lpProducto  Producto a mostrar
      * @return JsonResponse Respuesta JSON con los datos del producto
      */
     public function show(Request $request, LpProducto $lpProducto): JsonResponse
@@ -209,8 +207,8 @@ class LpProductoController extends Controller
     /**
      * Actualiza el producto especificado en la base de datos.
      *
-     * @param UpdateLpProductoRequest $request Datos validados para actualizar
-     * @param LpProducto $lpProducto Producto a actualizar
+     * @param  UpdateLpProductoRequest  $request  Datos validados para actualizar
+     * @param  LpProducto  $lpProducto  Producto a actualizar
      * @return JsonResponse Respuesta JSON con el producto actualizado
      */
     public function update(UpdateLpProductoRequest $request, LpProducto $lpProducto): JsonResponse
@@ -236,7 +234,7 @@ class LpProductoController extends Controller
     /**
      * Elimina (soft delete) el producto especificado.
      *
-     * @param LpProducto $lpProducto Producto a eliminar
+     * @param  LpProducto  $lpProducto  Producto a eliminar
      * @return JsonResponse Respuesta JSON de confirmación
      */
     public function destroy(LpProducto $lpProducto): JsonResponse

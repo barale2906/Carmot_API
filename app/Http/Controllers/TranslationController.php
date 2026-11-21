@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\App;
-use Illuminate\Support\Facades\Lang;
 
 class TranslationController extends Controller
 {
@@ -21,14 +20,14 @@ class TranslationController extends Controller
             return response()->json([
                 'message' => 'Idioma cambiado exitosamente',
                 'locale' => $locale,
-                'success' => true
+                'success' => true,
             ]);
         }
 
         return response()->json([
             'message' => __('api.error.validation_failed'),
             'errors' => ['locale' => 'Idioma no soportado'],
-            'success' => false
+            'success' => false,
         ], 400);
     }
 
@@ -57,7 +56,7 @@ class TranslationController extends Controller
                 'logged_out' => __('api.user.logged_out'),
                 'profile_updated' => __('api.user.profile_updated'),
             ],
-            'locale' => App::getLocale()
+            'locale' => App::getLocale(),
         ]);
     }
 
@@ -75,7 +74,7 @@ class TranslationController extends Controller
         return response()->json([
             'message' => __('api.success.created'),
             'data' => $request->only(['name', 'email']),
-            'success' => true
+            'success' => true,
         ]);
     }
 

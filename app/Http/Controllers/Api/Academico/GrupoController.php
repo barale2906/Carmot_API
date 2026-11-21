@@ -3,19 +3,18 @@
 namespace App\Http\Controllers\Api\Academico;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Api\Academico\StoreGrupoRequest;
-use App\Http\Requests\Api\Academico\UpdateGrupoRequest;
 use App\Http\Requests\Api\Academico\StoreGrupoHorarioRequest;
+use App\Http\Requests\Api\Academico\StoreGrupoRequest;
 use App\Http\Requests\Api\Academico\UpdateGrupoHorarioRequest;
+use App\Http\Requests\Api\Academico\UpdateGrupoRequest;
 use App\Http\Resources\Api\Academico\GrupoResource;
 use App\Http\Resources\Api\Academico\GrupoVigenteResource;
 use App\Models\Academico\Grupo;
-use App\Models\Configuracion\Horario;
 use App\Traits\HasActiveStatus;
 use App\Traits\HasGrupoHorarios;
 use App\Traits\HasJornadaStatus;
-use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class GrupoController extends Controller
@@ -37,16 +36,13 @@ class GrupoController extends Controller
 
     /**
      * Muestra una lista de los grupos.
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function index(Request $request): JsonResponse
     {
         // Preparar filtros
         $filters = $request->only([
             'search', 'status', 'sede_id', 'modulo_id', 'profesor_id',
-            'jornada', 'inscritos_min', 'inscritos_max', 'include_trashed', 'only_trashed'
+            'jornada', 'inscritos_min', 'inscritos_max', 'include_trashed', 'only_trashed',
         ]);
 
         // Preparar relaciones
@@ -84,9 +80,6 @@ class GrupoController extends Controller
     /**
      * Almacena un nuevo grupo en la base de datos.
      * meta.advertencias avisa si el profesor tiene otro grupo activo en la misma franja (B03).
-     *
-     * @param StoreGrupoRequest $request
-     * @return JsonResponse
      */
     public function store(StoreGrupoRequest $request): JsonResponse
     {
@@ -106,14 +99,15 @@ class GrupoController extends Controller
             ]);
 
             // Si se proporcionan horarios, asignarlos al grupo
-            if ($request->has('horarios') && !empty($request->horarios)) {
+            if ($request->has('horarios') && ! empty($request->horarios)) {
                 // Deduplicar por (dia, hora): conserva la última ocurrencia de cada slot
                 $horarios = $this->deduplicarHorariosPorSlot($request->horarios);
 
                 // Validar que no haya solapamientos reales
                 $validacion = $this->validarSolapamientoHorarios($horarios);
-                if (!$validacion['valido']) {
+                if (! $validacion['valido']) {
                     DB::rollBack();
+
                     return response()->json([
                         'message' => 'Error en la validación de horarios.',
                         'errors' => $validacion['errores'],
@@ -121,8 +115,9 @@ class GrupoController extends Controller
                 }
 
                 // Asignar horarios al grupo
-                if (!$this->asignarHorariosAGrupo($grupo, $horarios)) {
+                if (! $this->asignarHorariosAGrupo($grupo, $horarios)) {
                     DB::rollBack();
+
                     return response()->json([
                         'message' => 'Error al asignar horarios al grupo.',
                     ], 500);
@@ -135,7 +130,7 @@ class GrupoController extends Controller
             $grupo->load(['sede', 'modulo', 'profesor', 'horarios.area']);
 
             $message = 'Grupo creado exitosamente.';
-            if ($request->has('horarios') && !empty($request->horarios)) {
+            if ($request->has('horarios') && ! empty($request->horarios)) {
                 $message .= ' Horarios asignados correctamente.';
             }
 
@@ -157,10 +152,6 @@ class GrupoController extends Controller
 
     /**
      * Muestra el grupo especificado.
-     *
-     * @param Request $request
-     * @param Grupo $grupo
-     * @return JsonResponse
      */
     public function show(Request $request, Grupo $grupo): JsonResponse
     {
@@ -181,10 +172,6 @@ class GrupoController extends Controller
     /**
      * Actualiza el grupo especificado en la base de datos.
      * meta.advertencias avisa si el profesor tiene otro grupo activo en la misma franja (B03).
-     *
-     * @param UpdateGrupoRequest $request
-     * @param Grupo $grupo
-     * @return JsonResponse
      */
     public function update(UpdateGrupoRequest $request, Grupo $grupo): JsonResponse
     {
@@ -209,9 +196,6 @@ class GrupoController extends Controller
     /**
      * Elimina el grupo especificado de la base de datos (soft delete).
      * Se rechaza si hay estudiantes con matrícula vigente en ciclos del grupo.
-     *
-     * @param Grupo $grupo
-     * @return JsonResponse
      */
     public function destroy(Grupo $grupo): JsonResponse
     {
@@ -231,9 +215,6 @@ class GrupoController extends Controller
 
     /**
      * Restaura un grupo eliminado (soft delete).
-     *
-     * @param int $id
-     * @return JsonResponse
      */
     public function restore(int $id): JsonResponse
     {
@@ -249,9 +230,6 @@ class GrupoController extends Controller
     /**
      * Elimina permanentemente un grupo.
      * Se rechaza si hay estudiantes con matrícula vigente en ciclos del grupo.
-     *
-     * @param int $id
-     * @return JsonResponse
      */
     public function forceDelete(int $id): JsonResponse
     {
@@ -273,16 +251,13 @@ class GrupoController extends Controller
 
     /**
      * Obtiene solo los grupos eliminados (soft delete).
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function trashed(Request $request): JsonResponse
     {
         // Preparar filtros
         $filters = $request->only([
             'search', 'status', 'sede_id', 'modulo_id', 'profesor_id',
-            'jornada', 'inscritos_min', 'inscritos_max'
+            'jornada', 'inscritos_min', 'inscritos_max',
         ]);
         $filters['only_trashed'] = true;
 
@@ -320,8 +295,6 @@ class GrupoController extends Controller
 
     /**
      * Obtiene las opciones de filtros disponibles.
-     *
-     * @return JsonResponse
      */
     public function filters(): JsonResponse
     {
@@ -350,8 +323,6 @@ class GrupoController extends Controller
 
     /**
      * Obtiene estadísticas de grupos.
-     *
-     * @return JsonResponse
      */
     public function statistics(): JsonResponse
     {
@@ -368,7 +339,7 @@ class GrupoController extends Controller
             'por_jornada' => collect(self::getJornadaOptions())->map(function ($label, $value) {
                 return [
                     'jornada' => $label,
-                    'total' => Grupo::where('jornada', $value)->count()
+                    'total' => Grupo::where('jornada', $value)->count(),
                 ];
             })->values(),
             'por_inscritos' => [
@@ -388,10 +359,6 @@ class GrupoController extends Controller
     /**
      * Asigna horarios a un grupo específico.
      * meta.advertencias avisa si el profesor tiene otro grupo activo en la misma franja (B03).
-     *
-     * @param StoreGrupoHorarioRequest $request
-     * @param Grupo $grupo
-     * @return JsonResponse
      */
     public function storeHorarios(StoreGrupoHorarioRequest $request, Grupo $grupo): JsonResponse
     {
@@ -400,7 +367,7 @@ class GrupoController extends Controller
 
         // Validar que no haya solapamientos reales
         $validacion = $this->validarSolapamientoHorarios($horarios);
-        if (!$validacion['valido']) {
+        if (! $validacion['valido']) {
             return response()->json([
                 'message' => 'Error en la validación de horarios.',
                 'errors' => $validacion['errores'],
@@ -426,10 +393,6 @@ class GrupoController extends Controller
     /**
      * Actualiza los horarios de un grupo específico.
      * meta.advertencias avisa si el profesor tiene otro grupo activo en la misma franja (B03).
-     *
-     * @param UpdateGrupoHorarioRequest $request
-     * @param Grupo $grupo
-     * @return JsonResponse
      */
     public function updateHorarios(UpdateGrupoHorarioRequest $request, Grupo $grupo): JsonResponse
     {
@@ -440,14 +403,14 @@ class GrupoController extends Controller
 
             // Validar que no haya solapamientos reales
             $validacion = $this->validarSolapamientoHorarios($horarios);
-            if (!$validacion['valido']) {
+            if (! $validacion['valido']) {
                 return response()->json([
                     'message' => 'Error en la validación de horarios.',
                     'errors' => $validacion['errores'],
                 ], 422);
             }
 
-            if (!$this->actualizarHorariosDeGrupo($grupo, $horarios)) {
+            if (! $this->actualizarHorariosDeGrupo($grupo, $horarios)) {
                 return response()->json([
                     'message' => 'Error al actualizar horarios del grupo.',
                 ], 500);
@@ -466,9 +429,6 @@ class GrupoController extends Controller
 
     /**
      * Elimina todos los horarios de un grupo específico.
-     *
-     * @param Grupo $grupo
-     * @return JsonResponse
      */
     public function destroyHorarios(Grupo $grupo): JsonResponse
     {
@@ -485,10 +445,6 @@ class GrupoController extends Controller
 
     /**
      * Obtiene los horarios de un grupo específico.
-     *
-     * @param Request $request
-     * @param Grupo $grupo
-     * @return JsonResponse
      */
     public function getHorarios(Request $request, Grupo $grupo): JsonResponse
     {
@@ -516,9 +472,6 @@ class GrupoController extends Controller
 
     /**
      * Obtiene estadísticas de horarios de un grupo específico.
-     *
-     * @param Grupo $grupo
-     * @return JsonResponse
      */
     public function getHorariosEstadisticas(Grupo $grupo): JsonResponse
     {
@@ -535,13 +488,10 @@ class GrupoController extends Controller
      * Con `mis_grupos=1` se limita a los grupos donde el usuario es el profesor; a quien
      * solo es profesor siempre se le limita así. El resto del personal ve solo los grupos
      * de sus sedes (F11).
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function vigentes(Request $request): JsonResponse
     {
-        $usuario   = $request->user();
+        $usuario = $request->user();
         $misGrupos = $request->boolean('mis_grupos') || $usuario->esSoloProfesor();
 
         $grupos = Grupo::whereHas('ciclos', fn ($q) => $q->abiertosParaRegistro())

@@ -13,7 +13,6 @@ class AreaResource extends JsonResource
     /**
      * Transforma el recurso en un array.
      *
-     * @param Request $request
      * @return array<string, mixed>
      */
     public function toArray(Request $request): array

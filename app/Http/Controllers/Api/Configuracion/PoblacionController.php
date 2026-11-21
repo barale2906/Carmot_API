@@ -5,8 +5,8 @@ namespace App\Http\Controllers\Api\Configuracion;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\Api\Configuracion\PoblacionResource;
 use App\Models\Configuracion\Poblacion;
-use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class PoblacionController extends Controller
 {
@@ -21,9 +21,6 @@ class PoblacionController extends Controller
 
     /**
      * Muestra una lista de las poblaciones.
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function index(Request $request): JsonResponse
     {
@@ -56,10 +53,6 @@ class PoblacionController extends Controller
 
     /**
      * Muestra la población especificada.
-     *
-     * @param Request $request
-     * @param Poblacion $poblacion
-     * @return JsonResponse
      */
     public function show(Request $request, Poblacion $poblacion): JsonResponse
     {
@@ -69,7 +62,7 @@ class PoblacionController extends Controller
             : [];
 
         // Cargar relaciones si es necesario
-        if (!empty($relations)) {
+        if (! empty($relations)) {
             $poblacion->load($relations);
         }
 
@@ -82,9 +75,6 @@ class PoblacionController extends Controller
      * Activa o inactiva una población (toggle de estado).
      *
      * Cambia el campo status: 0 (inactivo) ↔ 1 (activo).
-     *
-     * @param Poblacion $poblacion
-     * @return JsonResponse
      */
     public function toggleStatus(Poblacion $poblacion): JsonResponse
     {
@@ -103,8 +93,6 @@ class PoblacionController extends Controller
 
     /**
      * Obtiene las opciones de filtros disponibles.
-     *
-     * @return JsonResponse
      */
     public function filters(): JsonResponse
     {
@@ -121,15 +109,13 @@ class PoblacionController extends Controller
 
     /**
      * Obtiene estadísticas de poblaciones.
-     *
-     * @return JsonResponse
      */
     public function statistics(): JsonResponse
     {
         $stats = [
             'totales' => [
-                'total'     => Poblacion::count(),
-                'activas'   => Poblacion::where('status', 1)->count(),
+                'total' => Poblacion::count(),
+                'activas' => Poblacion::where('status', 1)->count(),
                 'inactivas' => Poblacion::where('status', 0)->count(),
             ],
             'por_pais' => Poblacion::selectRaw('pais, count(*) as total')

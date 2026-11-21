@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\Financiero\Cartera\CarteraController;
+use App\Http\Controllers\Api\Financiero\Cartera\ProrrogaPagoController;
 use App\Http\Controllers\Api\Financiero\ConceptoPago\ConceptoPagoController;
 use App\Http\Controllers\Api\Financiero\Descuento\DescuentoController;
 use App\Http\Controllers\Api\Financiero\LibroDiario\LdAutorizacionTurnoController;
@@ -160,6 +161,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('acuerdo-pago', [CarteraController::class, 'acuerdoPago'])->name('carteras.acuerdo-pago');
     });
     Route::apiResource('carteras', CarteraController::class)->only(['index', 'show']);
+
+    // Plazos nuevos de pago (prórrogas) para estudiantes en mora; no modifican la cartera
+    Route::apiResource('prorrogas-pago', ProrrogaPagoController::class)->only(['index', 'store', 'show', 'destroy']);
 
     // Grupo de rutas para Recibos de Pago
     // IMPORTANTE: rutas GET/POST con segmentos estáticos ANTES del apiResource para

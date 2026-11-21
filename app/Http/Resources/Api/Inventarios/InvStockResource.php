@@ -13,25 +13,24 @@ class InvStockResource extends JsonResource
     /**
      * Transforma el recurso en un array.
      *
-     * @param Request $request
      * @return array<string, mixed>
      */
     public function toArray(Request $request): array
     {
         return [
-            'id'                   => $this->id,
-            'almacen_id'           => $this->almacen_id,
-            'producto_id'          => $this->producto_id,
-            'cantidad_total'       => $this->cantidad_total,
-            'cantidad_reservada'   => $this->cantidad_reservada,
-            'cantidad_disponible'  => $this->cantidad_disponible,
+            'id' => $this->id,
+            'almacen_id' => $this->almacen_id,
+            'producto_id' => $this->producto_id,
+            'cantidad_total' => $this->cantidad_total,
+            'cantidad_reservada' => $this->cantidad_reservada,
+            'cantidad_disponible' => $this->cantidad_disponible,
             'ultimo_movimiento_at' => $this->ultimo_movimiento_at?->format('Y-m-d H:i:s'),
-            'updated_at'           => $this->updated_at?->format('Y-m-d H:i:s'),
+            'updated_at' => $this->updated_at?->format('Y-m-d H:i:s'),
 
             'almacen' => $this->when(
                 $this->relationLoaded('almacen'),
                 fn () => $this->almacen ? [
-                    'id'     => $this->almacen->id,
+                    'id' => $this->almacen->id,
                     'nombre' => $this->almacen->nombre,
                 ] : null
             ),
@@ -39,10 +38,10 @@ class InvStockResource extends JsonResource
             'producto' => $this->when(
                 $this->relationLoaded('producto'),
                 fn () => $this->producto ? [
-                    'id'     => $this->producto->id,
+                    'id' => $this->producto->id,
                     'codigo' => $this->producto->codigo,
                     'nombre' => $this->producto->nombre,
-                    'tipo'   => $this->producto->tipo,
+                    'tipo' => $this->producto->tipo,
                     'punto_reorden' => $this->producto->punto_reorden,
                 ] : null
             ),

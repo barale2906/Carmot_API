@@ -12,8 +12,6 @@ use Illuminate\Validation\Rule;
 
 /**
  * Valida la actualización de un tipo de documento.
- *
- * @package App\Http\Requests\Api\Academico\Documentacion
  */
 class UpdateDocTipoDocumentoRequest extends FormRequest
 {
@@ -22,8 +20,6 @@ class UpdateDocTipoDocumentoRequest extends FormRequest
 
     /**
      * Determina si el usuario está autorizado (los permisos se validan por middleware).
-     *
-     * @return bool
      */
     public function authorize(): bool
     {
@@ -40,18 +36,18 @@ class UpdateDocTipoDocumentoRequest extends FormRequest
         $tipoDocumento = $this->route('tipo_documento');
 
         return [
-            'codigo'                 => [
+            'codigo' => [
                 'sometimes',
                 'string',
                 'max:50',
                 Rule::unique('doc_tipos_documento', 'codigo')->ignore($tipoDocumento?->id),
             ],
-            'nombre'                 => 'sometimes|string|max:255',
-            'descripcion'            => 'nullable|string',
-            'entidad_type'           => ['nullable', 'string', Rule::in(array_keys(config('documentacion.entidades', [])))],
-            'conforma_matricula'     => 'sometimes|boolean',
+            'nombre' => 'sometimes|string|max:255',
+            'descripcion' => 'nullable|string',
+            'entidad_type' => ['nullable', 'string', Rule::in(array_keys(config('documentacion.entidades', [])))],
+            'conforma_matricula' => 'sometimes|boolean',
             'campo_fecha_referencia' => 'nullable|string|max:100',
-            'status'                 => self::getStatusValidationRule(),
+            'status' => self::getStatusValidationRule(),
         ];
     }
 
@@ -62,9 +58,6 @@ class UpdateDocTipoDocumentoRequest extends FormRequest
      * ya tiene registrada el tipo de documento. Si la entidad cambia, las
      * variables habilitadas que dejen de existir en el nuevo catálogo se
      * reportan como error para evitar plantillas con variables huérfanas.
-     *
-     * @param Validator $validator
-     * @return void
      */
     public function withValidator(Validator $validator): void
     {
@@ -79,7 +72,7 @@ class UpdateDocTipoDocumentoRequest extends FormRequest
             if ($this->filled('campo_fecha_referencia')) {
                 $camposFecha = config("documentacion.entidades.{$entidadType}.campos_fecha", []);
 
-                if (!in_array($this->input('campo_fecha_referencia'), $camposFecha, true)) {
+                if (! in_array($this->input('campo_fecha_referencia'), $camposFecha, true)) {
                     $validator->errors()->add(
                         'campo_fecha_referencia',
                         'El campo de fecha de referencia no es válido para la entidad seleccionada.'
@@ -88,7 +81,7 @@ class UpdateDocTipoDocumentoRequest extends FormRequest
             }
 
             if ($this->has('entidad_type') && $tipoDocumento && $entidadType !== $tipoDocumento->entidad_type) {
-                $validas     = app(DocVariableResolverService::class)->clavesValidas($entidadType);
+                $validas = app(DocVariableResolverService::class)->clavesValidas($entidadType);
                 $habilitadas = $tipoDocumento->clavesHabilitadas();
 
                 if (array_diff($habilitadas, $validas)) {
@@ -109,8 +102,8 @@ class UpdateDocTipoDocumentoRequest extends FormRequest
     public function messages(): array
     {
         return array_merge([
-            'codigo.unique'         => 'Ya existe un tipo de documento con este código.',
-            'entidad_type.in'      => 'La entidad seleccionada no está disponible para documentos.',
+            'codigo.unique' => 'Ya existe un tipo de documento con este código.',
+            'entidad_type.in' => 'La entidad seleccionada no está disponible para documentos.',
         ], self::getStatusValidationMessages());
     }
 
@@ -122,11 +115,11 @@ class UpdateDocTipoDocumentoRequest extends FormRequest
     public function attributes(): array
     {
         return [
-            'codigo'                 => 'código',
-            'nombre'                 => 'nombre',
-            'descripcion'            => 'descripción',
-            'entidad_type'           => 'entidad asociada',
-            'conforma_matricula'     => 'conforma la matrícula',
+            'codigo' => 'código',
+            'nombre' => 'nombre',
+            'descripcion' => 'descripción',
+            'entidad_type' => 'entidad asociada',
+            'conforma_matricula' => 'conforma la matrícula',
             'campo_fecha_referencia' => 'campo de fecha de referencia',
         ];
     }

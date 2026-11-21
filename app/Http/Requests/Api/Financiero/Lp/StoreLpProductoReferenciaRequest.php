@@ -13,16 +13,12 @@ use Illuminate\Validation\Rule;
  * Valida los datos para vincular una entidad académica (curso o módulo)
  * a un producto LP. Garantiza que la combinación producto-referencia
  * no exista previamente y que la entidad académica exista.
- *
- * @package App\Http\Requests\Api\Financiero\Lp
  */
 class StoreLpProductoReferenciaRequest extends FormRequest
 {
     /**
      * Determina si el usuario está autorizado para hacer esta solicitud.
      * La autorización se maneja mediante middleware y permisos.
-     *
-     * @return bool
      */
     public function authorize(): bool
     {
@@ -60,8 +56,7 @@ class StoreLpProductoReferenciaRequest extends FormRequest
      * 1. La entidad académica exista (sin soft-deleted).
      * 2. El vínculo no sea duplicado.
      *
-     * @param \Illuminate\Validation\Validator $validator
-     * @return void
+     * @param  \Illuminate\Validation\Validator  $validator
      */
     public function withValidator($validator): void
     {
@@ -70,29 +65,30 @@ class StoreLpProductoReferenciaRequest extends FormRequest
                 return;
             }
 
-            $referenciaId   = $this->integer('referencia_id');
+            $referenciaId = $this->integer('referencia_id');
             $referenciaTipo = $this->string('referencia_tipo')->toString();
-            $productoId     = $this->integer('lp_producto_id');
+            $productoId = $this->integer('lp_producto_id');
 
             // Verificar que la entidad académica existe
-            $tabla  = $referenciaTipo === LpProductoReferencia::TIPO_CURSO ? 'cursos' : 'modulos';
+            $tabla = $referenciaTipo === LpProductoReferencia::TIPO_CURSO ? 'cursos' : 'modulos';
             $existe = DB::table($tabla)
                 ->whereNull('deleted_at')
                 ->where('id', $referenciaId)
                 ->exists();
 
-            if (!$existe) {
+            if (! $existe) {
                 $validator->errors()->add(
                     'referencia_id',
                     "El {$referenciaTipo} con ID {$referenciaId} no existe o está eliminado."
                 );
+
                 return;
             }
 
             // Verificar que el vínculo no existe ya
             $duplicado = DB::table('lp_producto_referencias')
-                ->where('lp_producto_id',  $productoId)
-                ->where('referencia_id',   $referenciaId)
+                ->where('lp_producto_id', $productoId)
+                ->where('referencia_id', $referenciaId)
                 ->where('referencia_tipo', $referenciaTipo)
                 ->exists();
 
@@ -114,12 +110,12 @@ class StoreLpProductoReferenciaRequest extends FormRequest
     {
         return [
             'lp_producto_id.required' => 'El producto LP es obligatorio.',
-            'lp_producto_id.integer'  => 'El ID del producto debe ser un número entero.',
-            'lp_producto_id.exists'   => 'El producto LP seleccionado no existe.',
-            'referencia_id.required'  => 'El ID de la referencia académica es obligatorio.',
-            'referencia_id.integer'   => 'El ID de la referencia debe ser un número entero.',
+            'lp_producto_id.integer' => 'El ID del producto debe ser un número entero.',
+            'lp_producto_id.exists' => 'El producto LP seleccionado no existe.',
+            'referencia_id.required' => 'El ID de la referencia académica es obligatorio.',
+            'referencia_id.integer' => 'El ID de la referencia debe ser un número entero.',
             'referencia_tipo.required' => 'El tipo de referencia es obligatorio.',
-            'referencia_tipo.in'       => 'El tipo de referencia debe ser "curso" o "modulo".',
+            'referencia_tipo.in' => 'El tipo de referencia debe ser "curso" o "modulo".',
         ];
     }
 }

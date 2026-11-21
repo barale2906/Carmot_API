@@ -13,12 +13,10 @@ use Illuminate\Validation\Rule;
 class StoreInvProveedorRequest extends FormRequest
 {
     use HasActiveStatus, HasActiveStatusValidation;
+
     /**
      * La autorización se resuelve con el middleware de permisos de la ruta.
-     *
-     * @return bool
      */
-
     public function authorize(): bool
     {
         return true;
@@ -36,19 +34,19 @@ class StoreInvProveedorRequest extends FormRequest
                 'max:255',
                 Rule::unique('inv_proveedores', 'razon_social')->whereNull('deleted_at'),
             ],
-            'nit'          => [
+            'nit' => [
                 'nullable',
                 'string',
                 'max:20',
                 // El índice UNIQUE de la BD incluye los proveedores en papelera
                 Rule::unique('inv_proveedores', 'nit'),
             ],
-            'contacto'     => ['nullable', 'string', 'max:150'],
-            'telefono'     => ['nullable', 'string', 'max:50'],
-            'email'        => ['nullable', 'email', 'max:150'],
-            'direccion'    => ['nullable', 'string', 'max:255'],
-            'notas'        => ['nullable', 'string', 'max:2000'],
-            'status'       => self::getStatusValidationRule(),
+            'contacto' => ['nullable', 'string', 'max:150'],
+            'telefono' => ['nullable', 'string', 'max:50'],
+            'email' => ['nullable', 'email', 'max:150'],
+            'direccion' => ['nullable', 'string', 'max:255'],
+            'notas' => ['nullable', 'string', 'max:2000'],
+            'status' => self::getStatusValidationRule(),
         ];
     }
 
@@ -59,10 +57,10 @@ class StoreInvProveedorRequest extends FormRequest
     {
         return array_merge([
             'razon_social.required' => 'La razón social es obligatoria.',
-            'razon_social.max'      => 'La razón social no puede superar 255 caracteres.',
-            'razon_social.unique'   => 'Ya existe un proveedor con esa razón social.',
-            'nit.unique'            => 'Ya existe un proveedor con ese NIT. Si fue eliminado, restáuralo desde la papelera.',
-            'email.email'           => 'El correo electrónico no tiene un formato válido.',
+            'razon_social.max' => 'La razón social no puede superar 255 caracteres.',
+            'razon_social.unique' => 'Ya existe un proveedor con esa razón social.',
+            'nit.unique' => 'Ya existe un proveedor con ese NIT. Si fue eliminado, restáuralo desde la papelera.',
+            'email.email' => 'El correo electrónico no tiene un formato válido.',
         ], self::getStatusValidationMessages());
     }
 
@@ -73,13 +71,13 @@ class StoreInvProveedorRequest extends FormRequest
     {
         return [
             'razon_social' => 'razón social',
-            'nit'          => 'NIT',
-            'contacto'     => 'contacto',
-            'telefono'     => 'teléfono',
-            'email'        => 'correo electrónico',
-            'direccion'    => 'dirección',
-            'notas'        => 'notas',
-            'status'       => 'estado',
+            'nit' => 'NIT',
+            'contacto' => 'contacto',
+            'telefono' => 'teléfono',
+            'email' => 'correo electrónico',
+            'direccion' => 'dirección',
+            'notas' => 'notas',
+            'status' => 'estado',
         ];
     }
 }

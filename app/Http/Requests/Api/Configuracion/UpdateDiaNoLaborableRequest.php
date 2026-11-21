@@ -15,8 +15,6 @@ class UpdateDiaNoLaborableRequest extends FormRequest
 
     /**
      * Determina si el usuario está autorizado para realizar esta petición.
-     *
-     * @return bool
      */
     public function authorize(): bool
     {
@@ -31,20 +29,17 @@ class UpdateDiaNoLaborableRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'fecha'         => ['sometimes', 'date_format:Y-m-d'],
-            'nombre'        => ['sometimes', 'string', 'max:255'],
-            'tipo'          => ['sometimes', Rule::in(array_keys(DiaNoLaborable::TIPOS))],
-            'sede_id'       => ['sometimes', 'nullable', 'integer', 'exists:sedes,id'],
+            'fecha' => ['sometimes', 'date_format:Y-m-d'],
+            'nombre' => ['sometimes', 'string', 'max:255'],
+            'tipo' => ['sometimes', Rule::in(array_keys(DiaNoLaborable::TIPOS))],
+            'sede_id' => ['sometimes', 'nullable', 'integer', 'exists:sedes,id'],
             'observaciones' => ['sometimes', 'nullable', 'string', 'max:1000'],
-            'status'        => self::getStatusValidationRule(),
+            'status' => self::getStatusValidationRule(),
         ];
     }
 
     /**
      * Valida duplicados con la fecha y sede resultantes (las enviadas o las actuales).
-     *
-     * @param Validator $validator
-     * @return void
      */
     public function withValidator(Validator $validator): void
     {
@@ -54,8 +49,8 @@ class UpdateDiaNoLaborableRequest extends FormRequest
             }
 
             /** @var DiaNoLaborable $dia */
-            $dia    = $this->route('diaNoLaborable');
-            $fecha  = $this->input('fecha', $dia->fecha->toDateString());
+            $dia = $this->route('diaNoLaborable');
+            $fecha = $this->input('fecha', $dia->fecha->toDateString());
             $sedeId = $this->has('sede_id')
                 ? ($this->filled('sede_id') ? (int) $this->input('sede_id') : null)
                 : $dia->sede_id;
@@ -77,9 +72,9 @@ class UpdateDiaNoLaborableRequest extends FormRequest
     {
         return array_merge([
             'fecha.date_format' => 'La fecha debe tener el formato AAAA-MM-DD.',
-            'nombre.max'        => 'El nombre no puede exceder los 255 caracteres.',
-            'tipo.in'           => 'El tipo debe ser: ' . implode(', ', array_keys(DiaNoLaborable::TIPOS)) . '.',
-            'sede_id.exists'    => 'La sede seleccionada no existe.',
+            'nombre.max' => 'El nombre no puede exceder los 255 caracteres.',
+            'tipo.in' => 'El tipo debe ser: '.implode(', ', array_keys(DiaNoLaborable::TIPOS)).'.',
+            'sede_id.exists' => 'La sede seleccionada no existe.',
             'observaciones.max' => 'Las observaciones no pueden exceder los 1000 caracteres.',
         ], self::getStatusValidationMessages());
     }
@@ -92,12 +87,12 @@ class UpdateDiaNoLaborableRequest extends FormRequest
     public function attributes(): array
     {
         return [
-            'fecha'         => 'fecha',
-            'nombre'        => 'nombre',
-            'tipo'          => 'tipo',
-            'sede_id'       => 'sede',
+            'fecha' => 'fecha',
+            'nombre' => 'nombre',
+            'tipo' => 'tipo',
+            'sede_id' => 'sede',
             'observaciones' => 'observaciones',
-            'status'        => 'estado',
+            'status' => 'estado',
         ];
     }
 }

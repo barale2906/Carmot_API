@@ -13,8 +13,6 @@ class StoreActCategoriaRequest extends FormRequest
 
     /**
      * Determina si el usuario está autorizado para realizar esta petición.
-     *
-     * @return bool
      */
     public function authorize(): bool
     {
@@ -29,9 +27,9 @@ class StoreActCategoriaRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'nombre'      => ['required', 'string', 'max:120', Rule::unique('act_categorias', 'nombre')->whereNull('deleted_at')],
+            'nombre' => ['required', 'string', 'max:120', Rule::unique('act_categorias', 'nombre')->whereNull('deleted_at')],
             'descripcion' => ['nullable', 'string', 'max:1000'],
-            'status'      => self::getStatusValidationRule(),
+            'status' => self::getStatusValidationRule(),
         ];
     }
 
@@ -44,7 +42,7 @@ class StoreActCategoriaRequest extends FormRequest
     {
         return [
             'nombre.required' => 'El nombre de la categoría es obligatorio.',
-            'nombre.unique'   => 'Ya existe una categoría con este nombre.',
+            'nombre.unique' => 'Ya existe una categoría con este nombre.',
         ] + self::getStatusValidationMessages();
     }
 }

@@ -6,13 +6,12 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\Crm\StoreReferidoRequest;
 use App\Http\Requests\Api\Crm\UpdateReferidoRequest;
 use App\Http\Resources\Api\Crm\ReferidoResource;
-use App\Models\Crm\Referido;
 use App\Models\Academico\Curso;
+use App\Models\Crm\Referido;
 use App\Models\User;
-use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Gate;
 
 class ReferidoController extends Controller
 {
@@ -29,9 +28,6 @@ class ReferidoController extends Controller
 
     /**
      * Muestra una lista de los referidos.
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function index(Request $request): JsonResponse
     {
@@ -69,9 +65,6 @@ class ReferidoController extends Controller
      * Almacena un nuevo referido en la base de datos. Si llega `seguimiento`, queda como la
      * primera entrada de su bitácora, a nombre de quien registra el lead y con fecha de hoy;
      * si llega `proxima_accion`, queda programada en la agenda.
-     *
-     * @param StoreReferidoRequest $request
-     * @return JsonResponse
      */
     public function store(StoreReferidoRequest $request): JsonResponse
     {
@@ -106,10 +99,6 @@ class ReferidoController extends Controller
 
     /**
      * Muestra el referido especificado.
-     *
-     * @param Request $request
-     * @param Referido $referido
-     * @return JsonResponse
      */
     public function show(Request $request, Referido $referido): JsonResponse
     {
@@ -130,10 +119,6 @@ class ReferidoController extends Controller
     /**
      * Actualiza el referido especificado en la base de datos. Si cambia el asesor, la
      * reasignación queda en la bitácora del lead (N07).
-     *
-     * @param UpdateReferidoRequest $request
-     * @param Referido $referido
-     * @return JsonResponse
      */
     public function update(UpdateReferidoRequest $request, Referido $referido): JsonResponse
     {
@@ -162,9 +147,6 @@ class ReferidoController extends Controller
 
     /**
      * Elimina el referido especificado de la base de datos (soft delete).
-     *
-     * @param Referido $referido
-     * @return JsonResponse
      */
     public function destroy(Referido $referido): JsonResponse
     {
@@ -184,9 +166,6 @@ class ReferidoController extends Controller
 
     /**
      * Restaura un referido eliminado (soft delete).
-     *
-     * @param int $id
-     * @return JsonResponse
      */
     public function restore(int $id): JsonResponse
     {
@@ -201,9 +180,6 @@ class ReferidoController extends Controller
 
     /**
      * Elimina permanentemente un referido.
-     *
-     * @param int $id
-     * @return JsonResponse
      */
     public function forceDelete(int $id): JsonResponse
     {
@@ -225,9 +201,6 @@ class ReferidoController extends Controller
 
     /**
      * Obtiene solo los referidos eliminados (soft delete).
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function trashed(Request $request): JsonResponse
     {
@@ -264,8 +237,6 @@ class ReferidoController extends Controller
 
     /**
      * Obtiene las opciones de filtros disponibles.
-     *
-     * @return JsonResponse
      */
     public function filters(): JsonResponse
     {
@@ -297,8 +268,6 @@ class ReferidoController extends Controller
 
     /**
      * Obtiene estadísticas de referidos.
-     *
-     * @return JsonResponse
      */
     public function statistics(): JsonResponse
     {

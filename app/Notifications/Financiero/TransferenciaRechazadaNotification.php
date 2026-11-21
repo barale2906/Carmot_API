@@ -21,8 +21,7 @@ class TransferenciaRechazadaNotification extends Notification implements ShouldQ
     public function __construct(
         public readonly ReciboPago $recibo,
         public readonly string $motivo,
-    ) {
-    }
+    ) {}
 
     /**
      * @return array<string>
@@ -37,21 +36,21 @@ class TransferenciaRechazadaNotification extends Notification implements ShouldQ
      */
     public function toMail(object $notifiable): MailMessage
     {
-        $validador  = $this->recibo->aprobadoPor;
+        $validador = $this->recibo->aprobadoPor;
         $estudiante = $this->recibo->estudiante;
-        $valor      = number_format((float) $this->recibo->valor_total, 0, ',', '.');
+        $valor = number_format((float) $this->recibo->valor_total, 0, ',', '.');
 
         return (new MailMessage)
-            ->subject("❌ Recibo por transferencia rechazado")
+            ->subject('❌ Recibo por transferencia rechazado')
             ->greeting("Hola {$notifiable->name},")
-            ->line("El recibo de pago por transferencia que generó fue **rechazado** por el validador.")
-            ->line("**Validador:** " . ($validador?->name ?? 'Sistema'))
-            ->line("**Estudiante:** " . ($estudiante?->name ?? 'No especificado'))
+            ->line('El recibo de pago por transferencia que generó fue **rechazado** por el validador.')
+            ->line('**Validador:** '.($validador?->name ?? 'Sistema'))
+            ->line('**Estudiante:** '.($estudiante?->name ?? 'No especificado'))
             ->line("**Valor:** \${$valor}")
-            ->line("**Motivo del rechazo:**")
+            ->line('**Motivo del rechazo:**')
             ->line("> {$this->motivo}")
-            ->line("Por favor ingrese al sistema para corregir los datos del recibo (número de transacción o comprobante) o eliminarlo si no es posible corregirlo.")
-            ->salutation("Carmot — Sistema Financiero");
+            ->line('Por favor ingrese al sistema para corregir los datos del recibo (número de transacción o comprobante) o eliminarlo si no es posible corregirlo.')
+            ->salutation('Carmot — Sistema Financiero');
     }
 
     /**
@@ -60,14 +59,14 @@ class TransferenciaRechazadaNotification extends Notification implements ShouldQ
     public function toDatabase(object $notifiable): array
     {
         return [
-            'tipo'            => 'transferencia_rechazada',
-            'recibo_id'       => $this->recibo->id,
-            'validador_id'    => $this->recibo->aprobado_por_id,
-            'validador_nombre'=> $this->recibo->aprobadoPor?->name,
-            'estudiante_id'   => $this->recibo->estudiante_id,
-            'valor_total'     => (float) $this->recibo->valor_total,
-            'motivo_rechazo'  => $this->motivo,
-            'mensaje'         => "Su recibo por transferencia fue rechazado. Motivo: {$this->motivo}",
+            'tipo' => 'transferencia_rechazada',
+            'recibo_id' => $this->recibo->id,
+            'validador_id' => $this->recibo->aprobado_por_id,
+            'validador_nombre' => $this->recibo->aprobadoPor?->name,
+            'estudiante_id' => $this->recibo->estudiante_id,
+            'valor_total' => (float) $this->recibo->valor_total,
+            'motivo_rechazo' => $this->motivo,
+            'mensaje' => "Su recibo por transferencia fue rechazado. Motivo: {$this->motivo}",
         ];
     }
 }

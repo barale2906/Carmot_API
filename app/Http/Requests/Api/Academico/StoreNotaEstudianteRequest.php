@@ -87,12 +87,12 @@ class StoreNotaEstudianteRequest extends FormRequest
     protected function prepareForValidation(): void
     {
         // Establecer fecha_registro por defecto si no se proporciona
-        if (!$this->has('fecha_registro')) {
+        if (! $this->has('fecha_registro')) {
             $this->merge(['fecha_registro' => now()->toDateString()]);
         }
 
         // Establecer status por defecto
-        if (!$this->has('status')) {
+        if (! $this->has('status')) {
             $this->merge(['status' => 1]); // Registrada por defecto
         }
     }
@@ -101,8 +101,7 @@ class StoreNotaEstudianteRequest extends FormRequest
      * Solo se registran notas a estudiantes con matrícula vigente en el grupo y con las
      * notas del ciclo abiertas.
      *
-     * @param \Illuminate\Validation\Validator $validator
-     * @return void
+     * @param  \Illuminate\Validation\Validator  $validator
      */
     public function withValidator($validator): void
     {

@@ -23,14 +23,11 @@ class AsistenciaConfiguracionController extends Controller
 
     /**
      * Muestra una lista de configuraciones.
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function index(Request $request): JsonResponse
     {
         $filters = $request->only([
-            'curso_id', 'modulo_id', 'fecha_inicio_vigencia', 'fecha_fin_vigencia', 'include_trashed', 'only_trashed'
+            'curso_id', 'modulo_id', 'fecha_inicio_vigencia', 'fecha_fin_vigencia', 'include_trashed', 'only_trashed',
         ]);
 
         $relations = $request->has('with')
@@ -57,9 +54,6 @@ class AsistenciaConfiguracionController extends Controller
 
     /**
      * Almacena una nueva configuración.
-     *
-     * @param StoreAsistenciaConfiguracionRequest $request
-     * @return JsonResponse
      */
     public function store(StoreAsistenciaConfiguracionRequest $request): JsonResponse
     {
@@ -80,9 +74,6 @@ class AsistenciaConfiguracionController extends Controller
 
     /**
      * Muestra una configuración específica.
-     *
-     * @param int $id
-     * @return JsonResponse
      */
     public function show(int $id): JsonResponse
     {
@@ -96,10 +87,6 @@ class AsistenciaConfiguracionController extends Controller
 
     /**
      * Actualiza una configuración específica.
-     *
-     * @param UpdateAsistenciaConfiguracionRequest $request
-     * @param int $id
-     * @return JsonResponse
      */
     public function update(UpdateAsistenciaConfiguracionRequest $request, int $id): JsonResponse
     {
@@ -122,9 +109,6 @@ class AsistenciaConfiguracionController extends Controller
 
     /**
      * Elimina una configuración.
-     *
-     * @param int $id
-     * @return JsonResponse
      */
     public function destroy(int $id): JsonResponse
     {

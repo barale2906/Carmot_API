@@ -3,16 +3,16 @@
 namespace App\Http\Controllers\Api\Dashboard;
 
 use App\Http\Controllers\Controller;
-use App\Http\Resources\Api\Dashboard\DashboardCardResource;
+use App\Http\Requests\Api\Dashboard\KpiComputeRequest;
 use App\Http\Requests\Api\Dashboard\StoreDashboardCardRequest;
 use App\Http\Requests\Api\Dashboard\UpdateDashboardCardRequest;
+use App\Http\Resources\Api\Dashboard\DashboardCardResource;
+use App\Http\Resources\Api\Dashboard\KpiComputeResource;
 use App\Models\Dashboard\Dashboard;
 use App\Models\Dashboard\DashboardCard;
-use App\Http\Requests\Api\Dashboard\KpiComputeRequest;
-use App\Http\Resources\Api\Dashboard\KpiComputeResource;
 use App\Services\KpiCalculationService;
-use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 /**
  * Controlador DashboardCardController
@@ -22,13 +22,12 @@ use Illuminate\Http\JsonResponse;
  */
 class DashboardCardController extends Controller
 {
-    public function __construct(private readonly KpiCalculationService $kpiService)
-    {
-    }
+    public function __construct(private readonly KpiCalculationService $kpiService) {}
+
     /**
      * Obtiene una lista paginada de tarjetas de dashboard.
      *
-     * @param Request $request Datos de la petición
+     * @param  Request  $request  Datos de la petición
      * @return JsonResponse Lista de tarjetas
      */
     public function index(Request $request): JsonResponse
@@ -61,7 +60,7 @@ class DashboardCardController extends Controller
     /**
      * Crea una nueva tarjeta de dashboard.
      *
-     * @param StoreDashboardCardRequest $request Datos de la petición
+     * @param  StoreDashboardCardRequest  $request  Datos de la petición
      * @return JsonResponse Tarjeta creada
      */
     public function store(StoreDashboardCardRequest $request): JsonResponse
@@ -76,7 +75,7 @@ class DashboardCardController extends Controller
     /**
      * Obtiene una tarjeta de dashboard específica.
      *
-     * @param int $id ID de la tarjeta
+     * @param  int  $id  ID de la tarjeta
      * @return JsonResponse Tarjeta encontrada
      */
     public function show(int $id): JsonResponse
@@ -89,8 +88,8 @@ class DashboardCardController extends Controller
     /**
      * Actualiza una tarjeta de dashboard existente.
      *
-     * @param UpdateDashboardCardRequest $request Datos de la petición
-     * @param int $id ID de la tarjeta
+     * @param  UpdateDashboardCardRequest  $request  Datos de la petición
+     * @param  int  $id  ID de la tarjeta
      * @return JsonResponse Tarjeta actualizada
      */
     public function update(UpdateDashboardCardRequest $request, int $id): JsonResponse
@@ -106,8 +105,7 @@ class DashboardCardController extends Controller
     /**
      * Elimina una tarjeta de dashboard.
      *
-     * @param Request $request
-     * @param int $id ID de la tarjeta
+     * @param  int  $id  ID de la tarjeta
      * @return JsonResponse Respuesta de confirmación
      */
     public function destroy(Request $request, int $id): JsonResponse
@@ -122,7 +120,7 @@ class DashboardCardController extends Controller
     /**
      * Obtiene las tarjetas de un dashboard específico.
      *
-     * @param int $dashboardId ID del dashboard
+     * @param  int  $dashboardId  ID del dashboard
      * @return JsonResponse Lista de tarjetas del dashboard
      */
     public function getByDashboard(int $dashboardId): JsonResponse
@@ -139,9 +137,10 @@ class DashboardCardController extends Controller
     /**
      * Actualiza la posición de una tarjeta en el dashboard.
      *
-     * @param Request $request Datos de la petición
-     * @param int $id ID de la tarjeta
+     * @param  Request  $request  Datos de la petición
+     * @param  int  $id  ID de la tarjeta
      * @return JsonResponse Tarjeta actualizada
+     *
      * @throws ValidationException Si los datos no son válidos
      */
     public function updatePosition(Request $request, int $id): JsonResponse
@@ -184,9 +183,7 @@ class DashboardCardController extends Controller
      * - GET /api/dashboard/dashboard-cards/2/compute
      *   (Usa el chart_schema guardado del KPI)
      *
-     * @param KpiComputeRequest $request
-     * @param int $id ID de la tarjeta del dashboard
-     * @return JsonResponse
+     * @param  int  $id  ID de la tarjeta del dashboard
      */
     public function compute(KpiComputeRequest $request, int $id): JsonResponse
     {
@@ -195,27 +192,27 @@ class DashboardCardController extends Controller
 
         // Construir opciones priorizando query > card > kpi
         $opts = $request->validated();
-        
+
         // Solo usar valores de la card si no vienen en la request o están vacíos
         // Si el parámetro viene en la request con un valor válido, usarlo; si no, usar el de la card
-        if (!$request->has('period_type') || empty($request->input('period_type'))) {
-            if (!empty($card->period_type)) {
+        if (! $request->has('period_type') || empty($request->input('period_type'))) {
+            if (! empty($card->period_type)) {
                 $opts['period_type'] = $card->period_type;
             }
         }
-        
-        if (!$request->has('group_by') || empty($request->input('group_by'))) {
-            if (!empty($card->group_by)) {
+
+        if (! $request->has('group_by') || empty($request->input('group_by'))) {
+            if (! empty($card->group_by)) {
                 $opts['group_by'] = $card->group_by;
             }
         }
-        
+
         // Mezcla de filtros: query (override) > card (base)
         // Si la request tiene filtros, mezclarlos (request sobreescribe card)
         // Si la request no tiene filtros, usar solo los de la card
         $cardFilters = $card->filters ?? [];
         $requestFilters = $opts['filters'] ?? [];
-        
+
         if ($request->has('filters')) {
             // Si viene explícitamente (aunque sea vacío), usar los de la request mezclados con los de la card
             // array_merge hace que los filtros de la request sobreescriban los de la card cuando hay keys duplicados
@@ -234,10 +231,10 @@ class DashboardCardController extends Controller
 
         // Priorizar chart_schema: request > card > resultado del servicio
         $chartSchemaToApply = null;
-        if (isset($opts['chart_schema']) && is_array($opts['chart_schema']) && !empty($opts['chart_schema'])) {
+        if (isset($opts['chart_schema']) && is_array($opts['chart_schema']) && ! empty($opts['chart_schema'])) {
             // Si viene en la request, usar ese (prioridad más alta)
             $chartSchemaToApply = $opts['chart_schema'];
-        } elseif (!empty($card->chart_schema) && is_array($card->chart_schema)) {
+        } elseif (! empty($card->chart_schema) && is_array($card->chart_schema)) {
             // Si no viene en la request pero la card tiene uno, usar el de la card
             $chartSchemaToApply = $card->chart_schema;
         }
@@ -252,10 +249,6 @@ class DashboardCardController extends Controller
 
     /**
      * Corta con 403 si el usuario no es dueño del tablero ni superusuario.
-     *
-     * @param Request $request
-     * @param Dashboard|null $dashboard
-     * @return void
      */
     private function autorizarTablero(Request $request, ?Dashboard $dashboard): void
     {

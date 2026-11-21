@@ -97,7 +97,7 @@ class StoreKpiRequest extends FormRequest
             $hasDenOp = $this->filled('denominator_operation');
 
             // Si se envía denominator_model, exigir denominator_operation válida
-            if ($hasDenModel && !$hasDenOp) {
+            if ($hasDenModel && ! $hasDenOp) {
                 $validator->errors()->add('denominator_operation', 'La operación del denominador es obligatoria cuando se especifica un modelo.');
             }
 
@@ -111,4 +111,3 @@ class StoreKpiRequest extends FormRequest
         });
     }
 }
-

@@ -39,7 +39,7 @@ class UpdateEsquemaCalificacionRequest extends FormRequest
                 Rule::unique('esquema_calificacions', 'nombre_esquema')
                     ->where('modulo_id', $this->modulo_id ?? $this->route('esquema_calificacion')?->modulo_id)
                     ->where('grupo_id', $this->grupo_id ?? $this->route('esquema_calificacion')?->grupo_id ?? null)
-                    ->ignore($esquemaId)
+                    ->ignore($esquemaId),
             ],
             'descripcion' => 'nullable|string',
             'condicion_aplicacion' => 'nullable|string',
@@ -102,7 +102,7 @@ class UpdateEsquemaCalificacionRequest extends FormRequest
                     if ($conNotas->isNotEmpty()) {
                         $validator->errors()->add(
                             'tipos_nota',
-                            'No se pueden quitar tipos de nota con calificaciones registradas: ' . $conNotas->implode(', ') . '.'
+                            'No se pueden quitar tipos de nota con calificaciones registradas: '.$conNotas->implode(', ').'.'
                         );
                     }
                 }

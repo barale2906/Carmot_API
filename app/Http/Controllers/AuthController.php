@@ -12,27 +12,26 @@ class AuthController extends Controller
     /**
      * Registrar un nuevo usuario.
      *
-     * @param  \Illuminate\Http\Request  $request
      * @return \Illuminate\Http\JsonResponse
      */
     public function register(Request $request)
     {
         $request->validate([
-            'primer_nombre'    => 'required|string|max:80',
-            'segundo_nombre'   => 'nullable|string|max:80',
-            'primer_apellido'  => 'required|string|max:80',
+            'primer_nombre' => 'required|string|max:80',
+            'segundo_nombre' => 'nullable|string|max:80',
+            'primer_apellido' => 'required|string|max:80',
             'segundo_apellido' => 'nullable|string|max:80',
-            'email'            => 'required|string|email|max:255|unique:users',
-            'password'         => 'required|string|min:8|confirmed',
+            'email' => 'required|string|email|max:255|unique:users',
+            'password' => 'required|string|min:8|confirmed',
         ]);
 
         $user = User::create([
-            'primer_nombre'    => $request->primer_nombre,
-            'segundo_nombre'   => $request->segundo_nombre,
-            'primer_apellido'  => $request->primer_apellido,
+            'primer_nombre' => $request->primer_nombre,
+            'segundo_nombre' => $request->segundo_nombre,
+            'primer_apellido' => $request->primer_apellido,
             'segundo_apellido' => $request->segundo_apellido,
-            'email'            => $request->email,
-            'password'         => Hash::make($request->password),
+            'email' => $request->email,
+            'password' => Hash::make($request->password),
         ]);
 
         $token = $user->createToken('auth_token')->plainTextToken;
@@ -47,7 +46,6 @@ class AuthController extends Controller
     /**
      * Iniciar sesión de usuario.
      *
-     * @param  \Illuminate\Http\Request  $request
      * @return \Illuminate\Http\JsonResponse
      */
     public function login(Request $request)
@@ -77,7 +75,6 @@ class AuthController extends Controller
     /**
      * Cerrar sesión del usuario.
      *
-     * @param  \Illuminate\Http\Request  $request
      * @return \Illuminate\Http\JsonResponse
      */
     public function logout(Request $request)
@@ -92,14 +89,14 @@ class AuthController extends Controller
     /**
      * Obtener información del usuario autenticado.
      *
-     * @param  \Illuminate\Http\Request  $request
      * @return \Illuminate\Http\JsonResponse
      */
     public function user(Request $request)
     {
         $user = $request->user();
+
         return response()->json(array_merge($user->toArray(), [
-            'roles'       => $user->getRoleNames()->toArray(),
+            'roles' => $user->getRoleNames()->toArray(),
             'permissions' => $user->getAllPermissions()->pluck('name')->toArray(),
         ]));
     }

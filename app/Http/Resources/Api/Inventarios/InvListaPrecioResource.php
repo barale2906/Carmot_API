@@ -16,30 +16,27 @@ class InvListaPrecioResource extends JsonResource
     /**
      * Transforma la lista de precios de inventario en un array para la respuesta JSON.
      *
-     * @param  Request  $request
      * @return array<string, mixed>
      */
     public function toArray(Request $request): array
     {
         return [
-            'id'           => $this->id,
-            'nombre'       => $this->nombre,
+            'id' => $this->id,
+            'nombre' => $this->nombre,
             'fecha_inicio' => $this->fecha_inicio?->format('Y-m-d'),
-            'fecha_fin'    => $this->fecha_fin?->format('Y-m-d'),
-            'descripcion'  => $this->descripcion,
-            'status'       => $this->status,
-            'status_text'  => self::getStatusText($this->status),
+            'fecha_fin' => $this->fecha_fin?->format('Y-m-d'),
+            'descripcion' => $this->descripcion,
+            'status' => $this->status,
+            'status_text' => self::getStatusText($this->status),
             'esta_vigente' => $this->estaVigente(),
 
-            'poblaciones' => $this->whenLoaded('poblaciones', fn () =>
-                $this->poblaciones->map(fn ($p) => [
-                    'id'     => $p->id,
-                    'nombre' => $p->nombre,
-                ])
+            'poblaciones' => $this->whenLoaded('poblaciones', fn () => $this->poblaciones->map(fn ($p) => [
+                'id' => $p->id,
+                'nombre' => $p->nombre,
+            ])
             ),
 
-            'precios' => $this->whenLoaded('preciosInventario', fn () =>
-                InvPrecioProductoResource::collection($this->preciosInventario)
+            'precios' => $this->whenLoaded('preciosInventario', fn () => InvPrecioProductoResource::collection($this->preciosInventario)
             ),
 
             'precios_count' => $this->when(

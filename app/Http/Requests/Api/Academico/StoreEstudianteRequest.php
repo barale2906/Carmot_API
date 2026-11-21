@@ -14,9 +14,6 @@ class StoreEstudianteRequest extends FormRequest
 {
     use ReglaContrasena;
 
-    /**
-     * @return bool
-     */
     public function authorize(): bool
     {
         return true;
@@ -28,15 +25,15 @@ class StoreEstudianteRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'primer_nombre'    => ['required', 'string', 'max:80'],
-            'segundo_nombre'   => ['nullable', 'string', 'max:80'],
-            'primer_apellido'  => ['required', 'string', 'max:80'],
+            'primer_nombre' => ['required', 'string', 'max:80'],
+            'segundo_nombre' => ['nullable', 'string', 'max:80'],
+            'primer_apellido' => ['required', 'string', 'max:80'],
             'segundo_apellido' => ['nullable', 'string', 'max:80'],
-            'email'            => ['required', 'string', 'email', 'max:255', 'unique:users'],
-            'documento'        => ['required', 'string', 'max:255', 'unique:users'],
-            'password'         => ['required', 'confirmed', ...$this->reglaContrasena([User::ROL_ALUMNO])],
-            'sedes'            => ['sometimes', 'array'],
-            'sedes.*'          => ['integer', 'exists:sedes,id'],
+            'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
+            'documento' => ['required', 'string', 'max:255', 'unique:users'],
+            'password' => ['required', 'confirmed', ...$this->reglaContrasena([User::ROL_ALUMNO])],
+            'sedes' => ['sometimes', 'array'],
+            'sedes.*' => ['integer', 'exists:sedes,id'],
         ];
     }
 
@@ -46,10 +43,10 @@ class StoreEstudianteRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'email.unique'       => 'Ya existe un usuario con este correo.',
-            'documento.unique'   => 'Ya existe un usuario con este documento.',
+            'email.unique' => 'Ya existe un usuario con este correo.',
+            'documento.unique' => 'Ya existe un usuario con este documento.',
             'password.confirmed' => 'La confirmación de la contraseña no coincide.',
-            'password.regex'     => 'La contraseña no puede tener espacios.',
+            'password.regex' => 'La contraseña no puede tener espacios.',
         ];
     }
 }

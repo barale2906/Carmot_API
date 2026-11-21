@@ -16,8 +16,6 @@ use Illuminate\Http\Request;
  * Administra el ciclo de vida de los almacenes (bodegas por sede):
  * CRUD, soft delete, restauración, eliminación permanente
  * y asignación de cajeros.
- *
- * @package App\Http\Controllers\Api\Inventarios
  */
 class InvAlmacenController extends Controller
 {
@@ -35,9 +33,6 @@ class InvAlmacenController extends Controller
 
     /**
      * Muestra una lista paginada de almacenes con filtros y ordenamiento.
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function index(Request $request): JsonResponse
     {
@@ -53,11 +48,11 @@ class InvAlmacenController extends Controller
             'data' => InvAlmacenResource::collection($almacenes),
             'meta' => [
                 'current_page' => $almacenes->currentPage(),
-                'last_page'    => $almacenes->lastPage(),
-                'per_page'     => $almacenes->perPage(),
-                'total'        => $almacenes->total(),
-                'from'         => $almacenes->firstItem(),
-                'to'           => $almacenes->lastItem(),
+                'last_page' => $almacenes->lastPage(),
+                'per_page' => $almacenes->perPage(),
+                'total' => $almacenes->total(),
+                'from' => $almacenes->firstItem(),
+                'to' => $almacenes->lastItem(),
             ],
         ]);
     }
@@ -65,9 +60,6 @@ class InvAlmacenController extends Controller
     /**
      * Lista todos los almacenes activos sin paginación (para selectores).
      * Filtra por sede_id si se proporciona.
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function activos(Request $request): JsonResponse
     {
@@ -82,8 +74,8 @@ class InvAlmacenController extends Controller
         return response()->json([
             'data' => InvAlmacenResource::collection($almacenes),
             'meta' => [
-                'total'       => $almacenes->count(),
-                'scope'       => 'activos',
+                'total' => $almacenes->count(),
+                'scope' => 'activos',
                 'descripcion' => 'Almacenes activos y sin eliminación lógica.',
             ],
         ]);
@@ -91,32 +83,26 @@ class InvAlmacenController extends Controller
 
     /**
      * Almacena un nuevo almacén en la base de datos.
-     *
-     * @param StoreInvAlmacenRequest $request
-     * @return JsonResponse
      */
     public function store(StoreInvAlmacenRequest $request): JsonResponse
     {
         $almacen = InvAlmacen::create([
-            'nombre'      => $request->nombre,
+            'nombre' => $request->nombre,
             'descripcion' => $request->descripcion,
-            'sede_id'     => $request->sede_id,
-            'status'      => $request->status ?? 1,
+            'sede_id' => $request->sede_id,
+            'status' => $request->status ?? 1,
         ]);
 
         $almacen->load('sede');
 
         return response()->json([
             'message' => 'Almacén creado exitosamente.',
-            'data'    => new InvAlmacenResource($almacen),
+            'data' => new InvAlmacenResource($almacen),
         ], 201);
     }
 
     /**
      * Muestra el almacén especificado con sus cajeros asignados.
-     *
-     * @param InvAlmacen $almacen
-     * @return JsonResponse
      */
     public function show(InvAlmacen $almacen): JsonResponse
     {
@@ -129,10 +115,6 @@ class InvAlmacenController extends Controller
 
     /**
      * Actualiza el almacén especificado en la base de datos.
-     *
-     * @param UpdateInvAlmacenRequest $request
-     * @param InvAlmacen $almacen
-     * @return JsonResponse
      */
     public function update(UpdateInvAlmacenRequest $request, InvAlmacen $almacen): JsonResponse
     {
@@ -141,15 +123,12 @@ class InvAlmacenController extends Controller
 
         return response()->json([
             'message' => 'Almacén actualizado exitosamente.',
-            'data'    => new InvAlmacenResource($almacen),
+            'data' => new InvAlmacenResource($almacen),
         ]);
     }
 
     /**
      * Elimina el almacén (soft delete).
-     *
-     * @param InvAlmacen $almacen
-     * @return JsonResponse
      */
     public function destroy(InvAlmacen $almacen): JsonResponse
     {
@@ -162,9 +141,6 @@ class InvAlmacenController extends Controller
 
     /**
      * Restaura un almacén eliminado (soft delete).
-     *
-     * @param int $id
-     * @return JsonResponse
      */
     public function restore(int $id): JsonResponse
     {
@@ -173,15 +149,12 @@ class InvAlmacenController extends Controller
 
         return response()->json([
             'message' => 'Almacén restaurado exitosamente.',
-            'data'    => new InvAlmacenResource($almacen),
+            'data' => new InvAlmacenResource($almacen),
         ]);
     }
 
     /**
      * Elimina permanentemente un almacén.
-     *
-     * @param int $id
-     * @return JsonResponse
      */
     public function forceDelete(int $id): JsonResponse
     {
@@ -195,9 +168,6 @@ class InvAlmacenController extends Controller
 
     /**
      * Obtiene solo los almacenes eliminados (soft delete).
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function trashed(Request $request): JsonResponse
     {
@@ -213,19 +183,17 @@ class InvAlmacenController extends Controller
             'data' => InvAlmacenResource::collection($almacenes),
             'meta' => [
                 'current_page' => $almacenes->currentPage(),
-                'last_page'    => $almacenes->lastPage(),
-                'per_page'     => $almacenes->perPage(),
-                'total'        => $almacenes->total(),
-                'from'         => $almacenes->firstItem(),
-                'to'           => $almacenes->lastItem(),
+                'last_page' => $almacenes->lastPage(),
+                'per_page' => $almacenes->perPage(),
+                'total' => $almacenes->total(),
+                'from' => $almacenes->firstItem(),
+                'to' => $almacenes->lastItem(),
             ],
         ]);
     }
 
     /**
      * Obtiene las opciones de filtros disponibles para almacenes.
-     *
-     * @return JsonResponse
      */
     public function filters(): JsonResponse
     {
@@ -239,15 +207,11 @@ class InvAlmacenController extends Controller
     /**
      * Sincroniza los cajeros asignados a un almacén.
      * Reemplaza completamente la lista de usuarios con acceso.
-     *
-     * @param Request $request
-     * @param InvAlmacen $almacen
-     * @return JsonResponse
      */
     public function syncUsuarios(Request $request, InvAlmacen $almacen): JsonResponse
     {
         $request->validate([
-            'user_ids'   => ['required', 'array'],
+            'user_ids' => ['required', 'array'],
             'user_ids.*' => ['integer', 'exists:users,id'],
         ]);
 
@@ -256,7 +220,7 @@ class InvAlmacenController extends Controller
 
         return response()->json([
             'message' => 'Cajeros del almacén actualizados exitosamente.',
-            'data'    => new InvAlmacenResource($almacen),
+            'data' => new InvAlmacenResource($almacen),
         ]);
     }
 }

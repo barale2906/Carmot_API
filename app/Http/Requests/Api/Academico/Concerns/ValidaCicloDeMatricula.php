@@ -12,11 +12,10 @@ use App\Models\Academico\Ciclo;
 trait ValidaCicloDeMatricula
 {
     /**
-     * @param \Illuminate\Validation\Validator $validator
-     * @param mixed $cicloId
-     * @param mixed $sedeId
-     * @param mixed $cursoId
-     * @return void
+     * @param  \Illuminate\Validation\Validator  $validator
+     * @param  mixed  $cicloId
+     * @param  mixed  $sedeId
+     * @param  mixed  $cursoId
      */
     protected function validarCicloDeMatricula($validator, $cicloId, $sedeId, $cursoId): void
     {

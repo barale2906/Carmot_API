@@ -3,7 +3,6 @@
 namespace App\Http\Requests\Api\Financiero\Lp;
 
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Support\Facades\DB;
 
 /**
  * Request CloneLpListaPrecioRequest
@@ -18,16 +17,12 @@ use Illuminate\Support\Facades\DB;
  *   - descripcion  → si se omite, se hereda de la lista origen.
  *   - poblaciones  → array de IDs de poblacion; si se omite, se heredan de la lista origen.
  *   - copiar_precios → bool (default true); si false, crea la lista vacía sin precios.
- *
- * @package App\Http\Requests\Api\Financiero\Lp
  */
 class CloneLpListaPrecioRequest extends FormRequest
 {
     /**
      * Determina si el usuario está autorizado para hacer esta solicitud.
      * La autorización se maneja mediante middleware y permisos.
-     *
-     * @return bool
      */
     public function authorize(): bool
     {
@@ -42,12 +37,12 @@ class CloneLpListaPrecioRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'nombre'        => 'required|string|max:255',
-            'codigo'        => 'nullable|string|max:100|unique:lp_listas_precios,codigo',
-            'fecha_inicio'  => 'required|date|after_or_equal:today',
-            'fecha_fin'     => 'required|date|after:fecha_inicio',
-            'descripcion'   => 'sometimes|nullable|string',
-            'poblaciones'   => 'sometimes|array',
+            'nombre' => 'required|string|max:255',
+            'codigo' => 'nullable|string|max:100|unique:lp_listas_precios,codigo',
+            'fecha_inicio' => 'required|date|after_or_equal:today',
+            'fecha_fin' => 'required|date|after:fecha_inicio',
+            'descripcion' => 'sometimes|nullable|string',
+            'poblaciones' => 'sometimes|array',
             'poblaciones.*' => 'integer|exists:poblacions,id',
             'copiar_precios' => 'sometimes|boolean',
         ];
@@ -61,20 +56,20 @@ class CloneLpListaPrecioRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'nombre.required'           => 'El nombre de la nueva lista es obligatorio.',
-            'nombre.max'                => 'El nombre no puede exceder 255 caracteres.',
-            'codigo.string'             => 'El código debe ser una cadena de texto.',
-            'codigo.max'                => 'El código no puede exceder 100 caracteres.',
-            'codigo.unique'             => 'El código de la lista de precios ya existe.',
-            'fecha_inicio.required'     => 'La fecha de inicio es obligatoria.',
-            'fecha_inicio.date'         => 'La fecha de inicio debe ser una fecha válida.',
+            'nombre.required' => 'El nombre de la nueva lista es obligatorio.',
+            'nombre.max' => 'El nombre no puede exceder 255 caracteres.',
+            'codigo.string' => 'El código debe ser una cadena de texto.',
+            'codigo.max' => 'El código no puede exceder 100 caracteres.',
+            'codigo.unique' => 'El código de la lista de precios ya existe.',
+            'fecha_inicio.required' => 'La fecha de inicio es obligatoria.',
+            'fecha_inicio.date' => 'La fecha de inicio debe ser una fecha válida.',
             'fecha_inicio.after_or_equal' => 'La fecha de inicio debe ser hoy o una fecha futura.',
-            'fecha_fin.required'        => 'La fecha de fin es obligatoria.',
-            'fecha_fin.date'            => 'La fecha de fin debe ser una fecha válida.',
-            'fecha_fin.after'           => 'La fecha de fin debe ser posterior a la fecha de inicio.',
-            'poblaciones.array'         => 'Las poblaciones deben ser un array de IDs.',
-            'poblaciones.*.integer'     => 'Cada población debe ser un número entero.',
-            'poblaciones.*.exists'      => 'Una de las poblaciones indicadas no existe.',
+            'fecha_fin.required' => 'La fecha de fin es obligatoria.',
+            'fecha_fin.date' => 'La fecha de fin debe ser una fecha válida.',
+            'fecha_fin.after' => 'La fecha de fin debe ser posterior a la fecha de inicio.',
+            'poblaciones.array' => 'Las poblaciones deben ser un array de IDs.',
+            'poblaciones.*.integer' => 'Cada población debe ser un número entero.',
+            'poblaciones.*.exists' => 'Una de las poblaciones indicadas no existe.',
         ];
     }
 }

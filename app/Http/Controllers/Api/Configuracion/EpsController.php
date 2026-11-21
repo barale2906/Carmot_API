@@ -18,8 +18,6 @@ use Illuminate\Support\Facades\DB;
  *
  * Administra el ciclo de vida de las EPS, incluyendo CRUD, soft delete,
  * restauración, eliminación permanente y carga masiva desde CSV.
- *
- * @package App\Http\Controllers\Api\Configuracion
  */
 class EpsController extends Controller
 {
@@ -38,9 +36,6 @@ class EpsController extends Controller
 
     /**
      * Muestra una lista paginada de EPS con filtros y ordenamiento.
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function index(Request $request): JsonResponse
     {
@@ -55,19 +50,17 @@ class EpsController extends Controller
             'data' => EpsResource::collection($eps),
             'meta' => [
                 'current_page' => $eps->currentPage(),
-                'last_page'    => $eps->lastPage(),
-                'per_page'     => $eps->perPage(),
-                'total'        => $eps->total(),
-                'from'         => $eps->firstItem(),
-                'to'           => $eps->lastItem(),
+                'last_page' => $eps->lastPage(),
+                'per_page' => $eps->perPage(),
+                'total' => $eps->total(),
+                'from' => $eps->firstItem(),
+                'to' => $eps->lastItem(),
             ],
         ]);
     }
 
     /**
      * Lista todas las EPS activas sin paginación, pensado para selectores en formularios.
-     *
-     * @return JsonResponse
      */
     public function activas(): JsonResponse
     {
@@ -76,8 +69,8 @@ class EpsController extends Controller
         return response()->json([
             'data' => EpsResource::collection($eps),
             'meta' => [
-                'total'       => $eps->count(),
-                'scope'       => 'activas',
+                'total' => $eps->count(),
+                'scope' => 'activas',
                 'descripcion' => 'EPS activas y sin eliminación lógica.',
             ],
         ]);
@@ -85,29 +78,23 @@ class EpsController extends Controller
 
     /**
      * Almacena una nueva EPS en la base de datos.
-     *
-     * @param StoreEpsRequest $request
-     * @return JsonResponse
      */
     public function store(StoreEpsRequest $request): JsonResponse
     {
         $eps = Eps::create([
-            'nombre'    => $request->nombre,
+            'nombre' => $request->nombre,
             'direccion' => $request->direccion,
-            'status'    => $request->status ?? 1,
+            'status' => $request->status ?? 1,
         ]);
 
         return response()->json([
             'message' => 'EPS creada exitosamente.',
-            'data'    => new EpsResource($eps),
+            'data' => new EpsResource($eps),
         ], 201);
     }
 
     /**
      * Muestra la EPS especificada.
-     *
-     * @param Eps $ep
-     * @return JsonResponse
      */
     public function show(Eps $ep): JsonResponse
     {
@@ -120,10 +107,6 @@ class EpsController extends Controller
 
     /**
      * Actualiza la EPS especificada en la base de datos.
-     *
-     * @param UpdateEpsRequest $request
-     * @param Eps $ep
-     * @return JsonResponse
      */
     public function update(UpdateEpsRequest $request, Eps $ep): JsonResponse
     {
@@ -131,16 +114,13 @@ class EpsController extends Controller
 
         return response()->json([
             'message' => 'EPS actualizada exitosamente.',
-            'data'    => new EpsResource($ep),
+            'data' => new EpsResource($ep),
         ]);
     }
 
     /**
      * Elimina la EPS especificada de la base de datos (soft delete).
      * No permite eliminar si tiene matrículas activas asociadas.
-     *
-     * @param Eps $ep
-     * @return JsonResponse
      */
     public function destroy(Eps $ep): JsonResponse
     {
@@ -159,9 +139,6 @@ class EpsController extends Controller
 
     /**
      * Restaura una EPS eliminada (soft delete).
-     *
-     * @param int $id
-     * @return JsonResponse
      */
     public function restore(int $id): JsonResponse
     {
@@ -170,15 +147,12 @@ class EpsController extends Controller
 
         return response()->json([
             'message' => 'EPS restaurada exitosamente.',
-            'data'    => new EpsResource($eps),
+            'data' => new EpsResource($eps),
         ]);
     }
 
     /**
      * Elimina permanentemente una EPS (solo si está en soft delete y sin matrículas).
-     *
-     * @param int $id
-     * @return JsonResponse
      */
     public function forceDelete(int $id): JsonResponse
     {
@@ -199,9 +173,6 @@ class EpsController extends Controller
 
     /**
      * Obtiene solo las EPS eliminadas (soft delete).
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function trashed(Request $request): JsonResponse
     {
@@ -217,19 +188,17 @@ class EpsController extends Controller
             'data' => EpsResource::collection($eps),
             'meta' => [
                 'current_page' => $eps->currentPage(),
-                'last_page'    => $eps->lastPage(),
-                'per_page'     => $eps->perPage(),
-                'total'        => $eps->total(),
-                'from'         => $eps->firstItem(),
-                'to'           => $eps->lastItem(),
+                'last_page' => $eps->lastPage(),
+                'per_page' => $eps->perPage(),
+                'total' => $eps->total(),
+                'from' => $eps->firstItem(),
+                'to' => $eps->lastItem(),
             ],
         ]);
     }
 
     /**
      * Obtiene las opciones de filtros disponibles para el módulo EPS.
-     *
-     * @return JsonResponse
      */
     public function filters(): JsonResponse
     {
@@ -242,30 +211,28 @@ class EpsController extends Controller
 
     /**
      * Obtiene estadísticas del catálogo de EPS.
-     *
-     * @return JsonResponse
      */
     public function statistics(): JsonResponse
     {
         $stats = [
             'totales' => [
-                'total'      => Eps::withTrashed()->count(),
-                'activas'    => Eps::where('status', 1)->count(),
-                'inactivas'  => Eps::where('status', 0)->count(),
+                'total' => Eps::withTrashed()->count(),
+                'activas' => Eps::where('status', 1)->count(),
+                'inactivas' => Eps::where('status', 0)->count(),
                 'eliminadas' => Eps::onlyTrashed()->count(),
             ],
             'con_matriculas' => [
-                'con_matriculas'    => Eps::has('matriculas')->count(),
-                'sin_matriculas'    => Eps::doesntHave('matriculas')->count(),
+                'con_matriculas' => Eps::has('matriculas')->count(),
+                'sin_matriculas' => Eps::doesntHave('matriculas')->count(),
             ],
             'top_eps' => Eps::withCount('matriculas')
                 ->orderByDesc('matriculas_count')
                 ->limit(10)
                 ->get()
                 ->map(fn ($e) => [
-                    'id'                => $e->id,
-                    'nombre'            => $e->nombre,
-                    'matriculas_count'  => $e->matriculas_count,
+                    'id' => $e->id,
+                    'nombre' => $e->nombre,
+                    'matriculas_count' => $e->matriculas_count,
                 ]),
         ];
 
@@ -282,14 +249,14 @@ class EpsController extends Controller
     public function plantilla()
     {
         $headers = [
-            'Content-Type'        => 'text/csv; charset=UTF-8',
+            'Content-Type' => 'text/csv; charset=UTF-8',
             'Content-Disposition' => 'attachment; filename="plantilla_eps.csv"',
         ];
 
         $callback = function () {
             $handle = fopen('php://output', 'w');
             // BOM para compatibilidad con Excel en Windows
-            fputs($handle, "\xEF\xBB\xBF");
+            fwrite($handle, "\xEF\xBB\xBF");
             fputcsv($handle, ['nombre', 'direccion', 'status']);
             fputcsv($handle, ['EPS Ejemplo S.A.', 'Calle 123 # 45-67, Bogotá', '1']);
             fclose($handle);
@@ -303,9 +270,6 @@ class EpsController extends Controller
      *
      * El archivo debe tener encabezados: nombre, direccion, status
      * Las filas con nombre duplicado (ignorando eliminadas) se omiten.
-     *
-     * @param ImportarEpsRequest $request
-     * @return JsonResponse
      */
     public function importar(ImportarEpsRequest $request): JsonResponse
     {
@@ -314,9 +278,9 @@ class EpsController extends Controller
 
         $columnasFaltantes = array_diff(['nombre', 'direccion', 'status'], $encabezados);
 
-        if (!empty($columnasFaltantes)) {
+        if (! empty($columnasFaltantes)) {
             return response()->json([
-                'message' => 'El archivo no tiene el formato correcto. Columnas faltantes: ' . implode(', ', $columnasFaltantes),
+                'message' => 'El archivo no tiene el formato correcto. Columnas faltantes: '.implode(', ', $columnasFaltantes),
             ], 422);
         }
 
@@ -330,6 +294,7 @@ class EpsController extends Controller
                 if (empty($datos['nombre'])) {
                     $resumen['errores'][] = "Fila {$fila}: el nombre es obligatorio.";
                     $resumen['omitidas']++;
+
                     continue;
                 }
 
@@ -341,6 +306,7 @@ class EpsController extends Controller
                 if ($existe) {
                     $resumen['errores'][] = "Fila {$fila}: la EPS '{$datos['nombre']}' ya existe.";
                     $resumen['omitidas']++;
+
                     continue;
                 }
 
@@ -349,9 +315,9 @@ class EpsController extends Controller
                     : 1;
 
                 Eps::create([
-                    'nombre'    => $datos['nombre'],
+                    'nombre' => $datos['nombre'],
                     'direccion' => $datos['direccion'] ?? null,
-                    'status'    => $status,
+                    'status' => $status,
                 ]);
 
                 $resumen['insertadas']++;
@@ -360,14 +326,15 @@ class EpsController extends Controller
             DB::commit();
         } catch (\Throwable $e) {
             DB::rollBack();
+
             return response()->json([
-                'message' => 'Error al procesar el archivo: ' . $e->getMessage(),
+                'message' => 'Error al procesar el archivo: '.$e->getMessage(),
             ], 500);
         }
 
         return response()->json([
             'message' => "Carga masiva completada. Insertadas: {$resumen['insertadas']}, Omitidas: {$resumen['omitidas']}.",
-            'data'    => $resumen,
+            'data' => $resumen,
         ]);
     }
 }

@@ -43,8 +43,8 @@ class ClonarCicloRequest extends FormRequest
     {
         return [
             'fecha_inicio' => 'required|date|after_or_equal:today',
-            'nombre'       => 'nullable|string|max:255|unique:ciclos,nombre',
-            'fecha_fin'    => 'nullable|date|after:fecha_inicio',
+            'nombre' => 'nullable|string|max:255|unique:ciclos,nombre',
+            'fecha_fin' => 'nullable|date|after:fecha_inicio',
         ];
     }
 
@@ -61,10 +61,10 @@ class ClonarCicloRequest extends FormRequest
                 return;
             }
 
-            $clonar      = app(ClonarCicloService::class);
-            $origen      = $this->route('ciclo');
+            $clonar = app(ClonarCicloService::class);
+            $origen = $this->route('ciclo');
             $terminacion = $clonar->fechaTerminacion($origen);
-            $fecha       = $this->date('fecha_inicio');
+            $fecha = $this->date('fecha_inicio');
 
             if (! $terminacion) {
                 $validator->errors()->add('fecha_inicio', 'El ciclo a clonar no tiene fechas calculadas; calcule su fecha de fin antes de clonarlo.');
@@ -90,14 +90,14 @@ class ClonarCicloRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'fecha_inicio.required'       => 'La fecha de inicio es obligatoria.',
-            'fecha_inicio.date'           => 'La fecha de inicio debe ser una fecha válida.',
+            'fecha_inicio.required' => 'La fecha de inicio es obligatoria.',
+            'fecha_inicio.date' => 'La fecha de inicio debe ser una fecha válida.',
             'fecha_inicio.after_or_equal' => 'La fecha de inicio debe ser igual o posterior a hoy.',
-            'nombre.string'               => 'El nombre del ciclo debe ser una cadena de texto.',
-            'nombre.max'                  => 'El nombre del ciclo no puede tener más de 255 caracteres.',
-            'nombre.unique'               => 'Ya existe un ciclo con este nombre.',
-            'fecha_fin.date'              => 'La fecha de fin debe ser una fecha válida.',
-            'fecha_fin.after'             => 'La fecha de fin debe ser posterior a la fecha de inicio.',
+            'nombre.string' => 'El nombre del ciclo debe ser una cadena de texto.',
+            'nombre.max' => 'El nombre del ciclo no puede tener más de 255 caracteres.',
+            'nombre.unique' => 'Ya existe un ciclo con este nombre.',
+            'fecha_fin.date' => 'La fecha de fin debe ser una fecha válida.',
+            'fecha_fin.after' => 'La fecha de fin debe ser posterior a la fecha de inicio.',
         ];
     }
 
@@ -110,7 +110,7 @@ class ClonarCicloRequest extends FormRequest
     {
         return [
             'fecha_inicio' => 'fecha de inicio',
-            'fecha_fin'    => 'fecha de fin',
+            'fecha_fin' => 'fecha de fin',
         ];
     }
 }

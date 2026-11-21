@@ -19,21 +19,21 @@ class ResultadoModuloResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-            'estudiante'           => $this->resource['estudiante'],
-            'ciclo'                => $this->resource['ciclo'],
-            'grupo'                => $this->resource['grupo'],
-            'modulo'               => $this->resource['modulo'],
-            'profesor'             => $this->resource['profesor'],
+            'estudiante' => $this->resource['estudiante'],
+            'ciclo' => $this->resource['ciclo'],
+            'grupo' => $this->resource['grupo'],
+            'modulo' => $this->resource['modulo'],
+            'profesor' => $this->resource['profesor'],
             'esquema_calificacion' => $this->resource['esquema_calificacion'],
-            'tipos_nota'           => $this->resource['tipos_nota'],
-            'nota_final'           => $this->resource['nota_final'],
-            'completo'             => $this->resource['completo'],
-            'recuperacion'         => $this->resource['recuperacion'],
-            'nota_definitiva'      => $this->resource['nota_definitiva'],
-            'aprobado'             => $this->resource['aprobado'],
-            'estado'               => $this->resource['estado'],
-            'puede_recuperar'      => $this->resource['puede_recuperar'],
-            'notas_cerradas'       => $this->resource['notas_cerradas'],
+            'tipos_nota' => $this->resource['tipos_nota'],
+            'nota_final' => $this->resource['nota_final'],
+            'completo' => $this->resource['completo'],
+            'recuperacion' => $this->resource['recuperacion'],
+            'nota_definitiva' => $this->resource['nota_definitiva'],
+            'aprobado' => $this->resource['aprobado'],
+            'estado' => $this->resource['estado'],
+            'puede_recuperar' => $this->resource['puede_recuperar'],
+            'notas_cerradas' => $this->resource['notas_cerradas'],
         ];
     }
 }

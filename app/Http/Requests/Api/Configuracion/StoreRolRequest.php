@@ -22,11 +22,11 @@ class StoreRolRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name'           => ['required', 'string', 'max:125', 'unique:roles,name'],
-            'guard_name'     => ['sometimes', 'string', 'max:125'],
-            'status'         => ['sometimes', 'boolean'],
-            'permissions'    => ['sometimes', 'array'],
-            'permissions.*'  => ['string', 'exists:permissions,name'],
+            'name' => ['required', 'string', 'max:125', 'unique:roles,name'],
+            'guard_name' => ['sometimes', 'string', 'max:125'],
+            'status' => ['sometimes', 'boolean'],
+            'permissions' => ['sometimes', 'array'],
+            'permissions.*' => ['string', 'exists:permissions,name'],
         ];
     }
 
@@ -38,11 +38,11 @@ class StoreRolRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'name.required'         => 'El nombre del rol es obligatorio.',
-            'name.unique'           => 'Ya existe un rol con ese nombre.',
-            'name.max'              => 'El nombre del rol no puede exceder los 125 caracteres.',
-            'permissions.array'     => 'Los permisos deben ser un array.',
-            'permissions.*.exists'  => 'Uno o más permisos indicados no existen.',
+            'name.required' => 'El nombre del rol es obligatorio.',
+            'name.unique' => 'Ya existe un rol con ese nombre.',
+            'name.max' => 'El nombre del rol no puede exceder los 125 caracteres.',
+            'permissions.array' => 'Los permisos deben ser un array.',
+            'permissions.*.exists' => 'Uno o más permisos indicados no existen.',
         ];
     }
 
@@ -54,11 +54,11 @@ class StoreRolRequest extends FormRequest
     public function attributes(): array
     {
         return [
-            'name'           => 'nombre del rol',
-            'guard_name'     => 'guard',
-            'status'         => 'estado',
-            'permissions'    => 'permisos',
-            'permissions.*'  => 'permiso',
+            'name' => 'nombre del rol',
+            'guard_name' => 'guard',
+            'status' => 'estado',
+            'permissions' => 'permisos',
+            'permissions.*' => 'permiso',
         ];
     }
 }

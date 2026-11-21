@@ -33,7 +33,7 @@ class UpdateTopicoRequest extends FormRequest
                 'required',
                 'string',
                 'max:255',
-                Rule::unique('topicos', 'nombre')->ignore($topicoId)
+                Rule::unique('topicos', 'nombre')->ignore($topicoId),
             ],
             'descripcion' => 'required|string|max:1000',
             'duracion' => 'sometimes|numeric|min:0|max:999',

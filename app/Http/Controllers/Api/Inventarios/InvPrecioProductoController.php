@@ -114,7 +114,7 @@ class InvPrecioProductoController extends Controller
         if ($producto->tipo === 'grupo') {
             return response()->json([
                 'message' => "Precio asignado a {$precios->count()} variante(s) del grupo {$producto->nombre}.",
-                'data'    => InvPrecioProductoResource::collection($precios),
+                'data' => InvPrecioProductoResource::collection($precios),
             ], 201);
         }
 
@@ -286,7 +286,7 @@ class InvPrecioProductoController extends Controller
 
                 foreach ($producto->idsReceptoresDePrecio() as $productoId) {
                     $itemsExpandidos->put($productoId, [
-                        'precio'        => $item['precio'],
+                        'precio' => $item['precio'],
                         'observaciones' => $item['observaciones'] ?? null,
                     ]);
                 }

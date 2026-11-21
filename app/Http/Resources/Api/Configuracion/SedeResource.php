@@ -9,10 +9,10 @@ use Illuminate\Http\Resources\Json\JsonResource;
 class SedeResource extends JsonResource
 {
     use HasActiveStatus;
+
     /**
      * Transforma el recurso en un array.
      *
-     * @param Request $request
      * @return array<string, mixed>
      */
     public function toArray(Request $request): array
@@ -23,7 +23,7 @@ class SedeResource extends JsonResource
             'direccion' => $this->direccion,
             'telefono' => $this->telefono,
             'email' => $this->email,
-            'codigo_academico'  => $this->codigo_academico,
+            'codigo_academico' => $this->codigo_academico,
             'codigo_inventario' => $this->codigo_inventario,
             'hora_inicio' => $this->hora_inicio?->format('H:i:s'),
             'hora_fin' => $this->hora_fin?->format('H:i:s'),
@@ -46,6 +46,7 @@ class SedeResource extends JsonResource
 
             'areas' => $this->whenLoaded('areas', function () {
                 $statusOptions = self::getActiveStatusOptions();
+
                 return $this->areas->map(function ($area) use ($statusOptions) {
                     return [
                         'id' => $area->id,
@@ -107,5 +108,4 @@ class SedeResource extends JsonResource
             'grupos_count' => $this->when(isset($this->grupos_count), $this->grupos_count),
         ];
     }
-
 }

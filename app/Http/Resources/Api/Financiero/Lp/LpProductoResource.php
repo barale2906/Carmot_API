@@ -26,7 +26,6 @@ use Illuminate\Http\Resources\Json\JsonResource;
  *     listas_precios_count
  *
  * @mixin \App\Models\Financiero\Lp\LpProducto
- * @package App\Http\Resources\Api\Financiero\Lp
  */
 class LpProductoResource extends JsonResource
 {
@@ -35,22 +34,22 @@ class LpProductoResource extends JsonResource
     /**
      * Transforma el recurso en un array.
      *
-     * @param Request $request Solicitud HTTP actual
+     * @param  Request  $request  Solicitud HTTP actual
      * @return array<string, mixed> Array con los datos formateados del producto
      */
     public function toArray(Request $request): array
     {
         return [
-            'id'          => $this->id,
+            'id' => $this->id,
             'tipo_producto_id' => $this->tipo_producto_id,
-            'nombre'      => $this->nombre,
-            'codigo'      => $this->codigo,
+            'nombre' => $this->nombre,
+            'codigo' => $this->codigo,
             'descripcion' => $this->descripcion,
-            'status'      => $this->status,
+            'status' => $this->status,
             'status_text' => self::getActiveStatusText($this->status),
-            'created_at'  => $this->created_at?->format('Y-m-d H:i:s'),
-            'updated_at'  => $this->updated_at?->format('Y-m-d H:i:s'),
-            'deleted_at'  => $this->deleted_at?->format('Y-m-d H:i:s'),
+            'created_at' => $this->created_at?->format('Y-m-d H:i:s'),
+            'updated_at' => $this->updated_at?->format('Y-m-d H:i:s'),
+            'deleted_at' => $this->deleted_at?->format('Y-m-d H:i:s'),
 
             // Relaciones cargadas
             'tipo_producto' => $this->whenLoaded('tipoProducto', function () {
@@ -65,7 +64,7 @@ class LpProductoResource extends JsonResource
             // Cursos vinculados directamente
             'cursos' => $this->whenLoaded('cursos', function () {
                 return $this->cursos->map(fn ($curso) => [
-                    'id'     => $curso->id,
+                    'id' => $curso->id,
                     'nombre' => $curso->nombre,
                     'codigo' => $curso->codigo ?? null,
                 ]);
@@ -74,7 +73,7 @@ class LpProductoResource extends JsonResource
             // Módulos vinculados directamente
             'modulos' => $this->whenLoaded('modulos', function () {
                 return $this->modulos->map(fn ($modulo) => [
-                    'id'     => $modulo->id,
+                    'id' => $modulo->id,
                     'nombre' => $modulo->nombre,
                     'codigo' => $modulo->codigo ?? null,
                 ]);
@@ -89,10 +88,10 @@ class LpProductoResource extends JsonResource
             }),
 
             // Contadores
-            'referencias_count'    => $this->when(isset($this->referencias_count), $this->referencias_count),
-            'cursos_count'         => $this->when(isset($this->cursos_count), $this->cursos_count),
-            'modulos_count'        => $this->when(isset($this->modulos_count), $this->modulos_count),
-            'precios_count'        => $this->when(isset($this->precios_count), $this->precios_count),
+            'referencias_count' => $this->when(isset($this->referencias_count), $this->referencias_count),
+            'cursos_count' => $this->when(isset($this->cursos_count), $this->cursos_count),
+            'modulos_count' => $this->when(isset($this->modulos_count), $this->modulos_count),
+            'precios_count' => $this->when(isset($this->precios_count), $this->precios_count),
             'listas_precios_count' => $this->when(isset($this->listas_precios_count), $this->listas_precios_count),
         ];
     }

@@ -10,8 +10,8 @@ use App\Models\Academico\Curso;
 use App\Models\Academico\Modulo;
 use App\Traits\HasActiveStatus;
 use App\Traits\HasTipo;
-use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 /**
  * Controlador para la gestión de cursos académicos.
@@ -19,12 +19,10 @@ use Illuminate\Http\JsonResponse;
  * Expone endpoints para crear, leer, actualizar y eliminar cursos,
  * incluyendo la asociación con módulos, referidos y estudiantes.
  * Soporta soft delete, restore, force delete y estadísticas.
- *
- * @package App\Http\Controllers\Api\Academico
  */
 class CursoController extends Controller
 {
-    use HasTipo, HasActiveStatus;
+    use HasActiveStatus, HasTipo;
 
     /**
      * Registra los middlewares de permisos para cada acción del controlador.
@@ -39,9 +37,6 @@ class CursoController extends Controller
 
     /**
      * Muestra una lista de los cursos.
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function index(Request $request): JsonResponse
     {
@@ -77,9 +72,6 @@ class CursoController extends Controller
 
     /**
      * Almacena un nuevo curso en la base de datos.
-     *
-     * @param StoreCursoRequest $request
-     * @return JsonResponse
      */
     public function store(StoreCursoRequest $request): JsonResponse
     {
@@ -109,10 +101,6 @@ class CursoController extends Controller
 
     /**
      * Muestra el curso especificado.
-     *
-     * @param Request $request
-     * @param Curso $curso
-     * @return JsonResponse
      */
     public function show(Request $request, Curso $curso): JsonResponse
     {
@@ -133,10 +121,6 @@ class CursoController extends Controller
 
     /**
      * Actualiza el curso especificado en la base de datos.
-     *
-     * @param UpdateCursoRequest $request
-     * @param Curso $curso
-     * @return JsonResponse
      */
     public function update(UpdateCursoRequest $request, Curso $curso): JsonResponse
     {
@@ -163,9 +147,6 @@ class CursoController extends Controller
 
     /**
      * Elimina el curso especificado de la base de datos (soft delete).
-     *
-     * @param Curso $curso
-     * @return JsonResponse
      */
     public function destroy(Curso $curso): JsonResponse
     {
@@ -192,9 +173,6 @@ class CursoController extends Controller
 
     /**
      * Restaura un curso eliminado (soft delete).
-     *
-     * @param int $id
-     * @return JsonResponse
      */
     public function restore(int $id): JsonResponse
     {
@@ -209,9 +187,6 @@ class CursoController extends Controller
 
     /**
      * Elimina permanentemente un curso.
-     *
-     * @param int $id
-     * @return JsonResponse
      */
     public function forceDelete(int $id): JsonResponse
     {
@@ -240,9 +215,6 @@ class CursoController extends Controller
 
     /**
      * Obtiene solo los cursos eliminados (soft delete).
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function trashed(Request $request): JsonResponse
     {
@@ -283,21 +255,17 @@ class CursoController extends Controller
      * Recibe el listado completo de módulos del curso con su nuevo orden y
      * actualiza el campo `orden` en la tabla pivote `modulo_curso`. El orden
      * es la base que usa CalendarioGrupoService para calcular fechas cíclicas.
-     *
-     * @param Request $request
-     * @param Curso   $curso
-     * @return JsonResponse
      */
     public function sincronizarOrdenModulos(Request $request, Curso $curso): JsonResponse
     {
         $request->validate([
-            'modulos'              => 'required|array|min:1',
+            'modulos' => 'required|array|min:1',
             'modulos.*.modulo_id' => 'required|integer',
-            'modulos.*.orden'     => 'required|integer|min:1',
+            'modulos.*.orden' => 'required|integer|min:1',
         ]);
 
-        $idsEnviados    = collect($request->modulos)->pluck('modulo_id')->sort()->values();
-        $idsDelCurso    = $curso->modulos()->pluck('modulos.id')->sort()->values();
+        $idsEnviados = collect($request->modulos)->pluck('modulo_id')->sort()->values();
+        $idsDelCurso = $curso->modulos()->pluck('modulos.id')->sort()->values();
 
         if ($idsEnviados->toArray() !== $idsDelCurso->toArray()) {
             return response()->json([
@@ -313,14 +281,12 @@ class CursoController extends Controller
 
         return response()->json([
             'message' => 'Orden de módulos actualizado exitosamente.',
-            'data'    => new CursoResource($curso),
+            'data' => new CursoResource($curso),
         ]);
     }
 
     /**
      * Obtiene las opciones de filtros disponibles.
-     *
-     * @return JsonResponse
      */
     public function filters(): JsonResponse
     {
@@ -337,8 +303,6 @@ class CursoController extends Controller
 
     /**
      * Obtiene estadísticas de cursos.
-     *
-     * @return JsonResponse
      */
     public function statistics(): JsonResponse
     {

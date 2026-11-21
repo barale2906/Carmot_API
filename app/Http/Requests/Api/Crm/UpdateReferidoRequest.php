@@ -10,8 +10,6 @@ class UpdateReferidoRequest extends FormRequest
 {
     /**
      * Determina si el usuario está autorizado para realizar esta petición.
-     *
-     * @return bool
      */
     public function authorize(): bool
     {
@@ -36,7 +34,7 @@ class UpdateReferidoRequest extends FormRequest
                 'sometimes',
                 'string',
                 'max:20',
-                Rule::unique('referidos', 'celular')->ignore($referidoId)
+                Rule::unique('referidos', 'celular')->ignore($referidoId),
             ],
             'ciudad' => ['sometimes', 'string', 'max:100'],
             'status' => ['sometimes', 'integer', 'in:0,1,2,3,4'],

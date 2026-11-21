@@ -49,6 +49,7 @@ class ExportarDemoCommand extends Command
 
         if ($conexion->getDriverName() !== 'mysql') {
             $this->error('Este comando solo soporta conexiones MySQL.');
+
             return Command::FAILURE;
         }
 
@@ -57,6 +58,7 @@ class ExportarDemoCommand extends Command
 
         if ($archivo === false) {
             $this->error("No se pudo escribir el archivo: {$ruta}");
+
             return Command::FAILURE;
         }
 
@@ -92,24 +94,23 @@ class ExportarDemoCommand extends Command
      * Resuelve el nombre de archivo: si no es ruta absoluta se ubica en database/seeders
      * y se le agrega la extensión .sql cuando falta. Compartido con demo:importar.
      *
-     * @param  string $archivo Nombre o ruta recibida por opción
+     * @param  string  $archivo  Nombre o ruta recibida por opción
      * @return string Ruta absoluta del archivo .sql
      */
     public static function resolverRuta(string $archivo): string
     {
-        if (!str_ends_with(strtolower($archivo), '.sql')) {
+        if (! str_ends_with(strtolower($archivo), '.sql')) {
             $archivo .= '.sql';
         }
 
         return str_starts_with($archivo, DIRECTORY_SEPARATOR)
             ? $archivo
-            : database_path('seeders' . DIRECTORY_SEPARATOR . $archivo);
+            : database_path('seeders'.DIRECTORY_SEPARATOR.$archivo);
     }
 
     /**
      * Lista las tablas base (sin vistas) de la base de datos actual.
      *
-     * @param  Connection $conexion
      * @return array<int, string>
      */
     private function obtenerTablas(Connection $conexion): array
@@ -122,10 +123,6 @@ class ExportarDemoCommand extends Command
     /**
      * Construye el encabezado del archivo con las variables de sesión necesarias
      * para importar sin conflictos de llaves foráneas ni conversión de zona horaria.
-     *
-     * @param  string $baseDatos
-     * @param  int    $cantidadTablas
-     * @return string
      */
     private function encabezado(string $baseDatos, int $cantidadTablas): string
     {
@@ -150,9 +147,7 @@ class ExportarDemoCommand extends Command
     /**
      * Escribe la estructura y los datos de una tabla en el archivo.
      *
-     * @param  Connection $conexion
-     * @param  string     $tabla
-     * @param  resource   $archivo
+     * @param  resource  $archivo
      * @return int Cantidad de filas exportadas
      */
     private function exportarTabla(Connection $conexion, string $tabla, $archivo): int
@@ -177,20 +172,20 @@ class ExportarDemoCommand extends Command
         $total = 0;
 
         foreach ($conexion->cursor("SELECT {$listaColumnas} FROM `{$tabla}`") as $fila) {
-            $valores = '(' . implode(',', array_map([$this, 'valorSql'], (array) $fila)) . ')';
+            $valores = '('.implode(',', array_map([$this, 'valorSql'], (array) $fila)).')';
             $lote[] = $valores;
             $bytesLote += strlen($valores);
             $total++;
 
             if (count($lote) >= self::FILAS_POR_INSERT || $bytesLote >= self::BYTES_POR_INSERT) {
-                fwrite($archivo, $prefijo . implode(",\n", $lote) . ";\n");
+                fwrite($archivo, $prefijo.implode(",\n", $lote).";\n");
                 $lote = [];
                 $bytesLote = 0;
             }
         }
 
         if ($lote !== []) {
-            fwrite($archivo, $prefijo . implode(",\n", $lote) . ";\n");
+            fwrite($archivo, $prefijo.implode(",\n", $lote).";\n");
         }
 
         fwrite($archivo, "\n");
@@ -201,9 +196,6 @@ class ExportarDemoCommand extends Command
     /**
      * Convierte un valor PHP en literal SQL escapado (equivalente a mysql_real_escape_string).
      * Los saltos de línea se escapan, por lo que ninguna fila de datos contiene "\n" literal.
-     *
-     * @param  mixed $valor
-     * @return string
      */
     private function valorSql(mixed $valor): string
     {
@@ -224,13 +216,13 @@ class ExportarDemoCommand extends Command
             return $valor ? '1' : '0';
         }
 
-        return "'" . strtr((string) $valor, [
-            '\\'   => '\\\\',
-            "\0"   => '\\0',
-            "\n"   => '\\n',
-            "\r"   => '\\r',
-            "'"    => "\\'",
+        return "'".strtr((string) $valor, [
+            '\\' => '\\\\',
+            "\0" => '\\0',
+            "\n" => '\\n',
+            "\r" => '\\r',
+            "'" => "\\'",
             "\x1a" => '\\Z',
-        ]) . "'";
+        ])."'";
     }
 }

@@ -11,16 +11,12 @@ use Illuminate\Validation\Rule;
  *
  * Valida los datos para actualizar un recibo de pago existente.
  * Solo permite actualizar recibos en proceso (status = 0).
- *
- * @package App\Http\Requests\Api\Financiero\ReciboPago
  */
 class UpdateReciboPagoRequest extends FormRequest
 {
     /**
      * Determina si el usuario está autorizado para hacer esta solicitud.
      * La autorización se maneja mediante middleware y permisos.
-     *
-     * @return bool
      */
     public function authorize(): bool
     {
@@ -78,8 +74,7 @@ class UpdateReciboPagoRequest extends FormRequest
     /**
      * Configura el validador después de las reglas.
      *
-     * @param \Illuminate\Validation\Validator $validator
-     * @return void
+     * @param  \Illuminate\Validation\Validator  $validator
      */
     public function withValidator($validator): void
     {
@@ -179,4 +174,3 @@ class UpdateReciboPagoRequest extends FormRequest
         ];
     }
 }
-

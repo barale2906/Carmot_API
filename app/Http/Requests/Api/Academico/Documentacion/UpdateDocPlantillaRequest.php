@@ -10,15 +10,11 @@ use Illuminate\Foundation\Http\FormRequest;
 
 /**
  * Valida la actualización de una versión de plantilla de documento.
- *
- * @package App\Http\Requests\Api\Academico\Documentacion
  */
 class UpdateDocPlantillaRequest extends FormRequest
 {
     /**
      * Determina si el usuario está autorizado (los permisos se validan por middleware).
-     *
-     * @return bool
      */
     public function authorize(): bool
     {
@@ -33,16 +29,13 @@ class UpdateDocPlantillaRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'nombre'         => 'sometimes|string|max:255',
+            'nombre' => 'sometimes|string|max:255',
             'contenido_html' => 'sometimes|string',
         ];
     }
 
     /**
      * Verifica que el contenido solo use variables y bloques habilitados para el tipo.
-     *
-     * @param Validator $validator
-     * @return void
      */
     public function withValidator(Validator $validator): void
     {
@@ -50,7 +43,7 @@ class UpdateDocPlantillaRequest extends FormRequest
             /** @var DocPlantilla|null $plantilla */
             $plantilla = $this->route('plantilla');
 
-            if (!$plantilla || !$this->has('contenido_html') || $validator->errors()->isNotEmpty()) {
+            if (! $plantilla || ! $this->has('contenido_html') || $validator->errors()->isNotEmpty()) {
                 return;
             }
 
@@ -84,7 +77,7 @@ class UpdateDocPlantillaRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'nombre.string'         => 'El nombre de la versión debe ser texto.',
+            'nombre.string' => 'El nombre de la versión debe ser texto.',
             'contenido_html.string' => 'El contenido de la plantilla debe ser texto.',
         ];
     }
@@ -97,7 +90,7 @@ class UpdateDocPlantillaRequest extends FormRequest
     public function attributes(): array
     {
         return [
-            'nombre'         => 'nombre',
+            'nombre' => 'nombre',
             'contenido_html' => 'contenido',
         ];
     }

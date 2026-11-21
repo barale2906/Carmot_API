@@ -20,9 +20,9 @@ class ValidarMatriculaRequest extends StoreMatriculaRequest
         }
 
         $rules['estudiante_id'] = 'nullable|integer';
-        $rules['estudiante']    = 'required|array';
+        $rules['estudiante'] = 'required|array';
 
-        foreach ((new StoreEstudianteRequest())->rules() as $campo => $regla) {
+        foreach ((new StoreEstudianteRequest)->rules() as $campo => $regla) {
             // `sedes` las deriva el asistente del ciclo elegido; no se validan aquí.
             if (str_starts_with($campo, 'sedes')) {
                 continue;
@@ -41,7 +41,7 @@ class ValidarMatriculaRequest extends StoreMatriculaRequest
     {
         $mensajes = parent::messages();
 
-        foreach ((new StoreEstudianteRequest())->messages() as $campo => $mensaje) {
+        foreach ((new StoreEstudianteRequest)->messages() as $campo => $mensaje) {
             $mensajes["estudiante.$campo"] = $mensaje;
         }
 

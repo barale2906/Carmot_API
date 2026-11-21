@@ -11,7 +11,6 @@ class UpdateTipoAplazamientoRequest extends FormRequest
 {
     use HasActiveStatus, HasActiveStatusValidation;
 
-    /** @return bool */
     public function authorize(): bool
     {
         return true;
@@ -23,9 +22,9 @@ class UpdateTipoAplazamientoRequest extends FormRequest
         $tipoId = $this->route('tipo_aplazamiento')?->id;
 
         return [
-            'nombre'      => ['sometimes', 'string', 'max:255', Rule::unique('tipo_aplazamientos', 'nombre')->ignore($tipoId)],
+            'nombre' => ['sometimes', 'string', 'max:255', Rule::unique('tipo_aplazamientos', 'nombre')->ignore($tipoId)],
             'descripcion' => 'sometimes|nullable|string|max:1000',
-            'status'      => self::getStatusValidationRule(),
+            'status' => self::getStatusValidationRule(),
         ];
     }
 
@@ -34,7 +33,7 @@ class UpdateTipoAplazamientoRequest extends FormRequest
     {
         return array_merge(self::getStatusValidationMessages(), [
             'nombre.unique' => 'Ya existe un tipo de aplazamiento con ese nombre.',
-            'nombre.max'    => 'El nombre no puede superar los 255 caracteres.',
+            'nombre.max' => 'El nombre no puede superar los 255 caracteres.',
         ]);
     }
 
@@ -42,9 +41,9 @@ class UpdateTipoAplazamientoRequest extends FormRequest
     public function attributes(): array
     {
         return [
-            'nombre'      => 'nombre',
+            'nombre' => 'nombre',
             'descripcion' => 'descripción',
-            'status'      => 'estado',
+            'status' => 'estado',
         ];
     }
 }

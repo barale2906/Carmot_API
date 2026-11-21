@@ -2,11 +2,11 @@
 
 namespace App\Http\Requests\Api\Financiero\Lp;
 
+use App\Models\Financiero\Lp\LpListaPrecio;
 use App\Models\Financiero\Lp\LpPrecioProducto;
 use App\Models\Financiero\Lp\LpProducto;
 use App\Models\Financiero\Lp\LpProductoReferencia;
 use App\Services\Financiero\LpPrecioProductoService;
-use App\Models\Financiero\Lp\LpListaPrecio;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -17,16 +17,12 @@ use Illuminate\Validation\Rule;
  * Valida los datos para actualizar un precio de producto existente en una lista de precios.
  * Todos los campos son opcionales (sometimes) para permitir actualizaciones parciales.
  * Incluye validación condicional de campos financiables según el tipo de producto.
- *
- * @package App\Http\Requests\Api\Financiero\Lp
  */
 class UpdateLpPrecioProductoRequest extends FormRequest
 {
     /**
      * Determina si el usuario está autorizado para hacer esta solicitud.
      * La autorización se maneja mediante middleware y permisos.
-     *
-     * @return bool
      */
     public function authorize(): bool
     {
@@ -63,7 +59,7 @@ class UpdateLpPrecioProductoRequest extends FormRequest
                     $productoId = $this->input('producto_id') ?? ($precioProducto ? $precioProducto->producto_id : null);
                     if ($productoId) {
                         $producto = LpProducto::find($productoId);
-                        if ($producto && $producto->esFinanciable() && !$value) {
+                        if ($producto && $producto->esFinanciable() && ! $value) {
                             $fail('El precio total es obligatorio para productos financiables.');
                         }
                     }
@@ -80,7 +76,7 @@ class UpdateLpPrecioProductoRequest extends FormRequest
                     $productoId = $this->input('producto_id') ?? ($precioProducto ? $precioProducto->producto_id : null);
                     if ($productoId) {
                         $producto = LpProducto::find($productoId);
-                        if ($producto && $producto->esFinanciable() && (!$value || $value <= 0)) {
+                        if ($producto && $producto->esFinanciable() && (! $value || $value <= 0)) {
                             $fail('El número de cuotas es obligatorio y debe ser mayor a 0 para productos financiables.');
                         }
                     }
@@ -91,15 +87,13 @@ class UpdateLpPrecioProductoRequest extends FormRequest
             'cuotas_detalle.*' => 'required|numeric|min:0',
             'observaciones' => 'nullable|string',
             'referencia_tipo' => ['sometimes', 'nullable', 'string', Rule::in(LpProductoReferencia::tiposValidos())],
-            'referencia_id'   => 'sometimes|nullable|required_with:referencia_tipo|integer',
+            'referencia_id' => 'sometimes|nullable|required_with:referencia_tipo|integer',
         ];
     }
 
     /**
      * Configurar validaciones adicionales después de las reglas básicas.
      * Valida que los campos financiables estén presentes para productos financiables.
-     *
-     * @return void
      */
     public function withValidator($validator): void
     {
@@ -123,7 +117,7 @@ class UpdateLpPrecioProductoRequest extends FormRequest
                     $matricula = $this->input('matricula') ?? ($precioProducto ? $precioProducto->matricula : null);
                     $precioContado = $this->input('precio_contado') ?? ($precioProducto ? $precioProducto->precio_contado : null);
 
-                    if ($this->filled('precio_total') && !$precioTotal) {
+                    if ($this->filled('precio_total') && ! $precioTotal) {
                         $validator->errors()->add('precio_total', 'El precio total es obligatorio para productos financiables.');
                     }
 
@@ -135,7 +129,7 @@ class UpdateLpPrecioProductoRequest extends FormRequest
                     // Estado combinado (payload + registro) para productos financiables
                     if ($precioProducto && $precioContado !== null && $precioTotal !== null && $matricula !== null) {
                         $service = app(LpPrecioProductoService::class);
-                        if (!$service->precioContadoCuadraConFinanciacion(
+                        if (! $service->precioContadoCuadraConFinanciacion(
                             (float) $precioContado,
                             (float) $matricula,
                             (float) $precioTotal
@@ -174,7 +168,7 @@ class UpdateLpPrecioProductoRequest extends FormRequest
 
             // Validar que la entidad académica exista si se envía referencia
             if ($this->filled('referencia_id') && $this->filled('referencia_tipo')) {
-                $tabla  = $this->input('referencia_tipo') === LpProductoReferencia::TIPO_CURSO ? 'cursos' : 'modulos';
+                $tabla = $this->input('referencia_tipo') === LpProductoReferencia::TIPO_CURSO ? 'cursos' : 'modulos';
                 $existe = DB::table($tabla)
                     ->whereNull('deleted_at')
                     ->where('id', $this->integer('referencia_id'))
@@ -246,9 +240,9 @@ class UpdateLpPrecioProductoRequest extends FormRequest
             'cuotas_detalle.*.min' => 'El valor de cada cuota debe ser mayor o igual a 0.',
             'valor_cuota.numeric' => 'El valor de la cuota debe ser un número.',
             'valor_cuota.min' => 'El valor de la cuota debe ser mayor o igual a 0.',
-            'observaciones.string'        => 'Las observaciones deben ser una cadena de texto.',
-            'referencia_tipo.in'          => 'El tipo de referencia debe ser "curso" o "modulo".',
-            'referencia_id.integer'       => 'El ID de la referencia debe ser un número entero.',
+            'observaciones.string' => 'Las observaciones deben ser una cadena de texto.',
+            'referencia_tipo.in' => 'El tipo de referencia debe ser "curso" o "modulo".',
+            'referencia_id.integer' => 'El ID de la referencia debe ser un número entero.',
             'referencia_id.required_with' => 'El ID de referencia es obligatorio cuando se indica el tipo de referencia.',
         ];
     }

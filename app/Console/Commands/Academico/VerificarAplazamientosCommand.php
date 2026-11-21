@@ -24,8 +24,6 @@ class VerificarAplazamientosCommand extends Command
 
     /**
      * Ejecuta el comando.
-     *
-     * @return int
      */
     public function handle(): int
     {
@@ -40,6 +38,7 @@ class VerificarAplazamientosCommand extends Command
 
             if ($aplazamientosVencidos->isEmpty()) {
                 $this->info('No hay aplazamientos pendientes vencidos.');
+
                 return Command::SUCCESS;
             }
 
@@ -50,10 +49,12 @@ class VerificarAplazamientosCommand extends Command
             }
 
             $this->info('Verificación de aplazamientos completada exitosamente.');
+
             return Command::SUCCESS;
         } catch (\Exception $e) {
             $this->error("Error al verificar aplazamientos: {$e->getMessage()}");
             $this->error("Trace: {$e->getTraceAsString()}");
+
             return Command::FAILURE;
         }
     }
@@ -63,8 +64,8 @@ class VerificarAplazamientosCommand extends Command
      */
     private function procesarAplazamiento(Aplazamiento $aplazamiento): void
     {
-        $ciclo    = $aplazamiento->ciclo;
-        $notif    = new AplazamientoVencidoNotification($aplazamiento);
+        $ciclo = $aplazamiento->ciclo;
+        $notif = new AplazamientoVencidoNotification($aplazamiento);
         $notificados = collect();
 
         // Notificar al usuario que registró el aplazamiento
@@ -80,9 +81,9 @@ class VerificarAplazamientosCommand extends Command
             $permiso->users()
                 ->where('users.id', '!=', $aplazamiento->user_id)
                 ->get()
-                ->each(function ($usuario) use ($aplazamiento, $ciclo, $notif, $notificados) {
+                ->each(function ($usuario) use ($notif, $notificados) {
                     // Notificar sin filtro de sede ya que no todos los usuarios tienen sede asignada directamente
-                    if (!$notificados->contains($usuario->id)) {
+                    if (! $notificados->contains($usuario->id)) {
                         $usuario->notify($notif);
                         $notificados->push($usuario->id);
                         $this->line("  → Notificado: {$usuario->name} (permiso aca_aplazamientoCrear)");
@@ -92,8 +93,8 @@ class VerificarAplazamientosCommand extends Command
 
         $this->info(
             "  Aplazamiento #{$aplazamiento->id} — Ciclo '{$ciclo?->nombre}' "
-            . "(vencido: {$aplazamiento->fecha_reinicio_probable->format('d/m/Y')}) "
-            . "— {$notificados->count()} usuarios notificados."
+            ."(vencido: {$aplazamiento->fecha_reinicio_probable->format('d/m/Y')}) "
+            ."— {$notificados->count()} usuarios notificados."
         );
     }
 }

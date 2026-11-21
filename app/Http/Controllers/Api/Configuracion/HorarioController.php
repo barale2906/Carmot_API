@@ -6,11 +6,11 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\Configuracion\StoreHorarioRequest;
 use App\Http\Requests\Api\Configuracion\UpdateHorarioRequest;
 use App\Http\Resources\Api\Configuracion\HorarioResource;
+use App\Models\Configuracion\Area;
 use App\Models\Configuracion\Horario;
 use App\Models\Configuracion\Sede;
-use App\Models\Configuracion\Area;
-use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 /**
  * Controlador para la gestión de horarios de sede.
@@ -19,8 +19,6 @@ use Illuminate\Http\JsonResponse;
  * diferenciando entre horarios de disponibilidad de sede y horarios
  * ocupados por grupos. Incluye el endpoint de semanario para visualizar
  * la ocupación semanal de un área dentro de una sede.
- *
- * @package App\Http\Controllers\Api\Configuracion
  */
 class HorarioController extends Controller
 {
@@ -43,18 +41,18 @@ class HorarioController extends Controller
      * Soporta paginación y ordenamiento personalizado.
      * Puede incluir relaciones con sede y área.
      *
-     * @param Request $request Parámetros de consulta:
-     *   - search: Búsqueda general
-     *   - sede_id: Filtrar por sede específica
-     *   - area_id: Filtrar por área específica
-     *   - dia: Filtrar por día de la semana
-     *   - tipo: Filtrar por tipo (true: sede, false: grupo)
-     *   - periodo: Filtrar por período (true: inicio, false: fin)
-     *   - status: Filtrar por estado (1: activo, 0: inactivo)
-     *   - with: Relaciones a incluir (sede,area)
-     *   - sort_by: Campo para ordenar
-     *   - sort_direction: Dirección del ordenamiento (asc,desc)
-     *   - per_page: Elementos por página
+     * @param  Request  $request  Parámetros de consulta:
+     *                            - search: Búsqueda general
+     *                            - sede_id: Filtrar por sede específica
+     *                            - area_id: Filtrar por área específica
+     *                            - dia: Filtrar por día de la semana
+     *                            - tipo: Filtrar por tipo (true: sede, false: grupo)
+     *                            - periodo: Filtrar por período (true: inicio, false: fin)
+     *                            - status: Filtrar por estado (1: activo, 0: inactivo)
+     *                            - with: Relaciones a incluir (sede,area)
+     *                            - sort_by: Campo para ordenar
+     *                            - sort_direction: Dirección del ordenamiento (asc,desc)
+     *                            - per_page: Elementos por página
      * @return JsonResponse Respuesta con lista paginada de horarios
      */
     public function index(Request $request): JsonResponse
@@ -96,15 +94,15 @@ class HorarioController extends Controller
      * El horario se crea con estado activo por defecto.
      * Incluye validación de datos mediante StoreHorarioRequest.
      *
-     * @param StoreHorarioRequest $request Datos del horario:
-     *   - sede_id: ID de la sede (requerido)
-     *   - area_id: ID del área (requerido)
-     *   - grupo_id: ID del grupo (opcional)
-     *   - grupo_nombre: Nombre del grupo (opcional)
-     *   - tipo: Tipo de horario (true: sede, false: grupo)
-     *   - periodo: Período (true: inicio, false: fin)
-     *   - dia: Día de la semana
-     *   - hora: Hora del horario
+     * @param  StoreHorarioRequest  $request  Datos del horario:
+     *                                        - sede_id: ID de la sede (requerido)
+     *                                        - area_id: ID del área (requerido)
+     *                                        - grupo_id: ID del grupo (opcional)
+     *                                        - grupo_nombre: Nombre del grupo (opcional)
+     *                                        - tipo: Tipo de horario (true: sede, false: grupo)
+     *                                        - periodo: Período (true: inicio, false: fin)
+     *                                        - dia: Día de la semana
+     *                                        - hora: Hora del horario
      * @return JsonResponse Respuesta con el horario creado
      */
     public function store(StoreHorarioRequest $request): JsonResponse
@@ -135,9 +133,9 @@ class HorarioController extends Controller
      * Obtiene los detalles de un horario específico.
      * Puede incluir relaciones con sede y área.
      *
-     * @param Request $request Parámetros de consulta:
-     *   - with: Relaciones a incluir (sede,area)
-     * @param Horario $horario Horario a mostrar
+     * @param  Request  $request  Parámetros de consulta:
+     *                            - with: Relaciones a incluir (sede,area)
+     * @param  Horario  $horario  Horario a mostrar
      * @return JsonResponse Respuesta con los datos del horario
      */
     public function show(Request $request, Horario $horario): JsonResponse
@@ -162,16 +160,16 @@ class HorarioController extends Controller
      * Incluye validación de datos mediante UpdateHorarioRequest.
      * No permite modificar el estado (status) directamente.
      *
-     * @param UpdateHorarioRequest $request Datos a actualizar:
-     *   - sede_id: ID de la sede
-     *   - area_id: ID del área
-     *   - grupo_id: ID del grupo
-     *   - grupo_nombre: Nombre del grupo
-     *   - tipo: Tipo de horario
-     *   - periodo: Período del horario
-     *   - dia: Día de la semana
-     *   - hora: Hora del horario
-     * @param Horario $horario Horario a actualizar
+     * @param  UpdateHorarioRequest  $request  Datos a actualizar:
+     *                                         - sede_id: ID de la sede
+     *                                         - area_id: ID del área
+     *                                         - grupo_id: ID del grupo
+     *                                         - grupo_nombre: Nombre del grupo
+     *                                         - tipo: Tipo de horario
+     *                                         - periodo: Período del horario
+     *                                         - dia: Día de la semana
+     *                                         - hora: Hora del horario
+     * @param  Horario  $horario  Horario a actualizar
      * @return JsonResponse Respuesta con el horario actualizado
      */
     public function update(UpdateHorarioRequest $request, Horario $horario): JsonResponse
@@ -197,9 +195,6 @@ class HorarioController extends Controller
 
     /**
      * Elimina el horario especificado de la base de datos (soft delete).
-     *
-     * @param Horario $horario
-     * @return JsonResponse
      */
     public function destroy(Horario $horario): JsonResponse
     {
@@ -212,9 +207,6 @@ class HorarioController extends Controller
 
     /**
      * Restaura un horario eliminado (soft delete).
-     *
-     * @param int $id
-     * @return JsonResponse
      */
     public function restore(int $id): JsonResponse
     {
@@ -229,9 +221,6 @@ class HorarioController extends Controller
 
     /**
      * Elimina permanentemente un horario.
-     *
-     * @param int $id
-     * @return JsonResponse
      */
     public function forceDelete(int $id): JsonResponse
     {
@@ -245,9 +234,6 @@ class HorarioController extends Controller
 
     /**
      * Obtiene solo los horarios eliminados (soft delete).
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function trashed(Request $request): JsonResponse
     {
@@ -292,8 +278,7 @@ class HorarioController extends Controller
      *   restricción de exclusividad); el frontend debe mostrar todos los bloques sin bloquear
      *   la asignación de grupos adicionales al mismo slot.
      *
-     * @param Request $request Parámetros: sede_id (requerido), area_id (requerido)
-     * @return JsonResponse
+     * @param  Request  $request  Parámetros: sede_id (requerido), area_id (requerido)
      */
     public function semanario(Request $request): JsonResponse
     {
@@ -328,7 +313,7 @@ class HorarioController extends Controller
             $inicio = $horariosSede->where('periodo', true)->first()?->hora;
             $fin = $horariosSede->where('periodo', false)->first()?->hora;
 
-            if (!$inicio || !$fin) {
+            if (! $inicio || ! $fin) {
                 $inicio = $sede->hora_inicio;
                 $fin = $sede->hora_fin;
             }
@@ -380,11 +365,11 @@ class HorarioController extends Controller
      * Incluye listas de sedes, áreas, días de la semana, tipos y períodos.
      *
      * @return JsonResponse Respuesta con opciones de filtros:
-     *   - sedes: Lista de sedes disponibles
-     *   - areas: Lista de áreas activas
-     *   - dias: Días de la semana disponibles
-     *   - tipos: Tipos de horario (sede/grupo)
-     *   - periodos: Períodos disponibles (inicio/fin)
+     *                      - sedes: Lista de sedes disponibles
+     *                      - areas: Lista de áreas activas
+     *                      - dias: Días de la semana disponibles
+     *                      - tipos: Tipos de horario (sede/grupo)
+     *                      - periodos: Períodos disponibles (inicio/fin)
      */
     public function filters(): JsonResponse
     {
@@ -431,10 +416,10 @@ class HorarioController extends Controller
      * Incluye totales, distribución por sede, día y tipo.
      *
      * @return JsonResponse Respuesta con estadísticas:
-     *   - totales: Conteos generales (total, activos, eliminados)
-     *   - por_sede: Distribución de horarios por sede
-     *   - por_dia: Distribución de horarios por día de la semana
-     *   - por_tipo: Distribución de horarios por tipo (sede/grupo)
+     *                      - totales: Conteos generales (total, activos, eliminados)
+     *                      - por_sede: Distribución de horarios por sede
+     *                      - por_dia: Distribución de horarios por día de la semana
+     *                      - por_tipo: Distribución de horarios por tipo (sede/grupo)
      */
     public function statistics(): JsonResponse
     {

@@ -16,8 +16,6 @@ class RecibirTrasladoActActivoRequest extends FormRequest
 
     /**
      * Determina si el usuario está autorizado para realizar esta petición.
-     *
-     * @return bool
      */
     public function authorize(): bool
     {
@@ -32,9 +30,9 @@ class RecibirTrasladoActActivoRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'fecha_recepcion'         => ['required', 'date', 'before_or_equal:today'],
+            'fecha_recepcion' => ['required', 'date', 'before_or_equal:today'],
             'observaciones_recepcion' => ['nullable', 'string', 'max:1000'],
-            'responsable_id'          => ['sometimes', 'nullable', 'integer', 'exists:users,id', $this->reglaResponsable()],
+            'responsable_id' => ['sometimes', 'nullable', 'integer', 'exists:users,id', $this->reglaResponsable()],
         ];
     }
 
@@ -58,17 +56,16 @@ class RecibirTrasladoActActivoRequest extends FormRequest
     public function attributes(): array
     {
         return [
-            'fecha_recepcion'         => 'fecha de recepción',
+            'fecha_recepcion' => 'fecha de recepción',
             'observaciones_recepcion' => 'observaciones de la recepción',
-            'responsable_id'          => 'responsable',
+            'responsable_id' => 'responsable',
         ];
     }
 
     /**
      * Solo se recibe un traslado pendiente de un activo vigente, y no antes de la fecha en que se envió.
      *
-     * @param \Illuminate\Validation\Validator $validator
-     * @return void
+     * @param  \Illuminate\Validation\Validator  $validator
      */
     public function withValidator($validator): void
     {

@@ -24,14 +24,11 @@ class AsistenciaClaseProgramadaController extends Controller
 
     /**
      * Muestra una lista de clases programadas.
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function index(Request $request): JsonResponse
     {
         $filters = $request->only([
-            'grupo_id', 'ciclo_id', 'fecha_clase', 'estado', 'include_trashed', 'only_trashed'
+            'grupo_id', 'ciclo_id', 'fecha_clase', 'estado', 'include_trashed', 'only_trashed',
         ]);
 
         $relations = $request->has('with')
@@ -59,9 +56,6 @@ class AsistenciaClaseProgramadaController extends Controller
     /**
      * Almacena una nueva clase programada manualmente. Solo el profesor del grupo o el
      * personal de su sede (N18).
-     *
-     * @param StoreAsistenciaClaseProgramadaRequest $request
-     * @return JsonResponse
      */
     public function store(StoreAsistenciaClaseProgramadaRequest $request): JsonResponse
     {
@@ -99,9 +93,6 @@ class AsistenciaClaseProgramadaController extends Controller
      * en el pivot ciclo_grupo. Omite clases ya existentes para ese slot y las
      * sesiones que caen en días no laborables (reportadas en clases_omitidas).
      * Solo el profesor del grupo o el personal de su sede (N18).
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function generarAutomaticas(Request $request): JsonResponse
     {
@@ -120,17 +111,14 @@ class AsistenciaClaseProgramadaController extends Controller
         $status = $resultado['success'] ? 200 : 422;
 
         return response()->json([
-            'message'          => $resultado['message'],
+            'message' => $resultado['message'],
             'clases_generadas' => $resultado['clases_generadas'],
-            'clases_omitidas'  => $resultado['clases_omitidas'] ?? 0,
+            'clases_omitidas' => $resultado['clases_omitidas'] ?? 0,
         ], $status);
     }
 
     /**
      * Muestra una clase programada específica.
-     *
-     * @param int $id
-     * @return JsonResponse
      */
     public function show(int $id): JsonResponse
     {
@@ -145,10 +133,6 @@ class AsistenciaClaseProgramadaController extends Controller
     /**
      * Actualiza una clase programada específica. Solo el profesor del grupo o el
      * personal de su sede (N18).
-     *
-     * @param UpdateAsistenciaClaseProgramadaRequest $request
-     * @param int $id
-     * @return JsonResponse
      */
     public function update(UpdateAsistenciaClaseProgramadaRequest $request, int $id): JsonResponse
     {
@@ -173,10 +157,6 @@ class AsistenciaClaseProgramadaController extends Controller
 
     /**
      * Elimina una clase programada. Solo el profesor del grupo o el personal de su sede (N18).
-     *
-     * @param Request $request
-     * @param int $id
-     * @return JsonResponse
      */
     public function destroy(Request $request, int $id): JsonResponse
     {
@@ -200,10 +180,6 @@ class AsistenciaClaseProgramadaController extends Controller
     /**
      * Corta con 403 si el usuario no puede gestionar las clases del grupo: solo su
      * profesor o el personal con la sede del grupo asignada (como asistencia y notas).
-     *
-     * @param Request $request
-     * @param Grupo|null $grupo
-     * @return void
      */
     private function autorizarGrupo(Request $request, ?Grupo $grupo): void
     {

@@ -7,10 +7,10 @@ use App\Http\Requests\Api\Inventarios\AbonarInvPedidoRequest;
 use App\Http\Requests\Api\Inventarios\PreciosVigentesInvVentaRequest;
 use App\Http\Requests\Api\Inventarios\StoreInvVentaRequest;
 use App\Http\Requests\Api\Inventarios\VerificarDisponibilidadRequest;
+use App\Http\Resources\Api\Financiero\ReciboPago\ReciboPagoResource;
 use App\Http\Resources\Api\Inventarios\InvListaPrecioResource;
 use App\Http\Resources\Api\Inventarios\InvPedidoResource;
 use App\Http\Resources\Api\Inventarios\InvPrecioProductoResource;
-use App\Http\Resources\Api\Financiero\ReciboPago\ReciboPagoResource;
 use App\Models\Configuracion\CuentaBancaria;
 use App\Models\Configuracion\Sede;
 use App\Models\Financiero\Descuento\Descuento;
@@ -41,8 +41,6 @@ use Illuminate\Support\Facades\Storage;
  *
  * Aplica la misma metodología de medios de pago y sobrecargos que el módulo
  * académico, diferenciando siempre el origen=INVENTARIOS para numeración y datos.
- *
- * @package App\Http\Controllers\Api\Inventarios
  */
 class InvVentaController extends Controller
 {
@@ -66,9 +64,6 @@ class InvVentaController extends Controller
      * Aplica sobrecargos por medio de pago si se informan.
      * Si el medio de pago es transferencia, el recibo queda en PENDIENTE_APROBACION y el
      * pedido queda 'activo' sin abono ni entregas hasta que se apruebe.
-     *
-     * @param StoreInvVentaRequest $request
-     * @return JsonResponse
      */
     public function store(StoreInvVentaRequest $request): JsonResponse
     {
@@ -82,16 +77,16 @@ class InvVentaController extends Controller
 
             $resultado = InvVentaService::crearPedido($data);
 
-            $recibo            = $resultado['recibo'];
+            $recibo = $resultado['recibo'];
             $mediosPagoCreados = $resultado['mediosPagoCreados'];
-            $esTransferencia   = $resultado['esTransferencia'];
+            $esTransferencia = $resultado['esTransferencia'];
 
             // Aplicar sobrecargos (misma lógica que flujo académico)
             $sobrecargoTotal = 0.0;
             foreach ($data['sobrecargos'] ?? [] as $sc) {
                 $sobrecargo = Descuento::findOrFail($sc['descuento_id']);
-                $medioPago  = $mediosPagoCreados[$sc['medio_pago_index']];
-                $registro   = $this->ajusteService->aplicarSobrecargo($sobrecargo, $recibo, $medioPago);
+                $medioPago = $mediosPagoCreados[$sc['medio_pago_index']];
+                $registro = $this->ajusteService->aplicarSobrecargo($sobrecargo, $recibo, $medioPago);
                 $sobrecargoTotal += (float) $registro->valor_sobrecargo;
             }
 
@@ -110,7 +105,7 @@ class InvVentaController extends Controller
                 } catch (\Exception $e) {
                     Log::warning('No se pudo guardar el comprobante de transferencia (inventario)', [
                         'recibo_id' => $recibo->id,
-                        'error'     => $e->getMessage(),
+                        'error' => $e->getMessage(),
                     ]);
                 }
             }
@@ -127,12 +122,12 @@ class InvVentaController extends Controller
 
             return response()->json([
                 'message' => $mensaje,
-                'data'    => new InvPedidoResource($resultado['pedido']),
-                'recibo'  => [
-                    'id'            => $recibo->id,
+                'data' => new InvPedidoResource($resultado['pedido']),
+                'recibo' => [
+                    'id' => $recibo->id,
                     'numero_recibo' => $recibo->numero_recibo,
-                    'valor_total'   => $recibo->valor_total,
-                    'status'        => $recibo->status,
+                    'valor_total' => $recibo->valor_total,
+                    'status' => $recibo->status,
                 ],
             ], 201);
         } catch (\RuntimeException $e) {
@@ -147,10 +142,6 @@ class InvVentaController extends Controller
      * Un abono por transferencia solo crea el recibo pendiente: el pedido se
      * actualiza al aprobarlo. El monto permitido descuenta las transferencias por aprobar.
      * Aplica sobrecargos por medio de pago si se informan.
-     *
-     * @param AbonarInvPedidoRequest $request
-     * @param InvPedido              $pedido
-     * @return JsonResponse
      */
     public function abonar(AbonarInvPedidoRequest $request, InvPedido $pedido): JsonResponse
     {
@@ -165,16 +156,16 @@ class InvVentaController extends Controller
 
             $resultado = InvVentaService::abonarPedido($pedido, $data);
 
-            $recibo            = $resultado['recibo'];
+            $recibo = $resultado['recibo'];
             $mediosPagoCreados = $resultado['mediosPagoCreados'];
-            $esTransferencia   = $resultado['esTransferencia'];
+            $esTransferencia = $resultado['esTransferencia'];
 
             // Aplicar sobrecargos
             $sobrecargoTotal = 0.0;
             foreach ($data['sobrecargos'] ?? [] as $sc) {
                 $sobrecargo = Descuento::findOrFail($sc['descuento_id']);
-                $medioPago  = $mediosPagoCreados[$sc['medio_pago_index']];
-                $registro   = $this->ajusteService->aplicarSobrecargo($sobrecargo, $recibo, $medioPago);
+                $medioPago = $mediosPagoCreados[$sc['medio_pago_index']];
+                $registro = $this->ajusteService->aplicarSobrecargo($sobrecargo, $recibo, $medioPago);
                 $sobrecargoTotal += (float) $registro->valor_sobrecargo;
             }
 
@@ -193,7 +184,7 @@ class InvVentaController extends Controller
                 } catch (\Exception $e) {
                     Log::warning('No se pudo guardar el comprobante de transferencia (inventario-abonar)', [
                         'recibo_id' => $recibo->id,
-                        'error'     => $e->getMessage(),
+                        'error' => $e->getMessage(),
                     ]);
                 }
             }
@@ -210,12 +201,12 @@ class InvVentaController extends Controller
 
             return response()->json([
                 'message' => $mensaje,
-                'data'    => new InvPedidoResource($resultado['pedido']),
-                'recibo'  => [
-                    'id'            => $recibo->id,
+                'data' => new InvPedidoResource($resultado['pedido']),
+                'recibo' => [
+                    'id' => $recibo->id,
                     'numero_recibo' => $recibo->numero_recibo,
-                    'valor_total'   => $recibo->valor_total,
-                    'status'        => $recibo->status,
+                    'valor_total' => $recibo->valor_total,
+                    'status' => $recibo->status,
                 ],
             ]);
         } catch (\RuntimeException $e) {
@@ -230,9 +221,6 @@ class InvVentaController extends Controller
      * puede entregar en el acto y qué quedará pendiente. Es informativo: la falta de
      * stock nunca impide vender, solo determina si el ítem se despacha de inmediato
      * o genera una entrega pendiente con su necesidad de compra.
-     *
-     * @param VerificarDisponibilidadRequest $request
-     * @return JsonResponse
      */
     public function verificarDisponibilidad(VerificarDisponibilidadRequest $request): JsonResponse
     {
@@ -251,9 +239,6 @@ class InvVentaController extends Controller
      * (habilita la opción de venta). Con `sede_id` restringe a las listas de la
      * población de la sede y devuelve el precio vigente de cada producto — el mismo
      * que usará `store`, de modo que el cajero nunca ve un precio de una lista inactiva.
-     *
-     * @param PreciosVigentesInvVentaRequest $request
-     * @return JsonResponse
      */
     public function preciosVigentes(PreciosVigentesInvVentaRequest $request): JsonResponse
     {
@@ -270,8 +255,8 @@ class InvVentaController extends Controller
         return response()->json([
             'data' => [
                 'disponible' => $listas->isNotEmpty(),
-                'listas'     => InvListaPrecioResource::collection($listas),
-                'precios'    => InvPrecioProductoResource::collection($precios),
+                'listas' => InvListaPrecioResource::collection($listas),
+                'precios' => InvPrecioProductoResource::collection($precios),
             ],
         ]);
     }
@@ -280,17 +265,17 @@ class InvVentaController extends Controller
      * Pre-calcula los sobrecargos aplicables a una lista de medios de pago sin persistir nada.
      * El cajero lo llama al seleccionar el medio de pago para ver el recargo antes de confirmar.
      *
-     * @param Request $request medios_pago: [{medio_pago, tipo_tarjeta, valor}]
+     * @param  Request  $request  medios_pago: [{medio_pago, tipo_tarjeta, valor}]
      * @return JsonResponse Sobrecargos calculados y total
      */
     public function precalcularSobrecargos(Request $request): JsonResponse
     {
         try {
             $request->validate([
-                'medios_pago'                  => 'required|array|min:1',
-                'medios_pago.*.medio_pago'     => ['required', 'string'],
-                'medios_pago.*.tipo_tarjeta'   => 'nullable|string|max:60',
-                'medios_pago.*.valor'          => 'required|numeric|min:0',
+                'medios_pago' => 'required|array|min:1',
+                'medios_pago.*.medio_pago' => ['required', 'string'],
+                'medios_pago.*.tipo_tarjeta' => 'nullable|string|max:60',
+                'medios_pago.*.valor' => 'required|numeric|min:0',
             ]);
 
             $resultado = $this->ajusteService->precalcular($request->input('medios_pago'));
@@ -306,9 +291,6 @@ class InvVentaController extends Controller
     /**
      * El cajero notifica al validador que el recibo de transferencia de inventario está listo.
      * Solo aplica a recibos en estado PENDIENTE_APROBACION con origen=INVENTARIOS.
-     *
-     * @param ReciboPago $reciboPago
-     * @return JsonResponse
      */
     public function notificarTransferencia(ReciboPago $reciboPago): JsonResponse
     {
@@ -335,7 +317,7 @@ class InvVentaController extends Controller
         }
 
         return response()->json([
-            'message'     => "Notificación enviada a {$aprobadores->count()} validador(es).",
+            'message' => "Notificación enviada a {$aprobadores->count()} validador(es).",
             'aprobadores' => $aprobadores->count(),
         ]);
     }
@@ -350,10 +332,6 @@ class InvVentaController extends Controller
      * existencias): el estudiante retira los productos después, desde Entregas.
      * Responde 422 si el pedido ya no está activo o el abono supera su saldo, y 403
      * si quien aprueba es quien registró el recibo.
-     *
-     * @param Request    $request
-     * @param ReciboPago $reciboPago
-     * @return JsonResponse
      */
     public function aprobarTransferencia(Request $request, ReciboPago $reciboPago): JsonResponse
     {
@@ -375,7 +353,7 @@ class InvVentaController extends Controller
             );
             preg_match('/-(\d+)$/', $numeroRecibo, $matches);
             $consecutivo = isset($matches[1]) ? (int) $matches[1] : 1;
-            $prefijo     = $this->numeracionService->obtenerPrefijo($reciboPago->sede_id, ReciboPago::ORIGEN_INVENTARIOS);
+            $prefijo = $this->numeracionService->obtenerPrefijo($reciboPago->sede_id, ReciboPago::ORIGEN_INVENTARIOS);
 
             $reciboPago->aprobar(auth()->id(), $numeroRecibo, $consecutivo, $prefijo);
 
@@ -389,14 +367,14 @@ class InvVentaController extends Controller
             $reciboPago->cajero?->notify(new TransferenciaAprobadaNotification($reciboPago));
 
             Log::info('Recibo de transferencia de inventario aprobado', [
-                'recibo_id'     => $reciboPago->id,
+                'recibo_id' => $reciboPago->id,
                 'numero_recibo' => $reciboPago->numero_recibo,
-                'aprobado_por'  => auth()->id(),
+                'aprobado_por' => auth()->id(),
             ]);
 
             return response()->json([
                 'message' => "Recibo {$reciboPago->numero_recibo} aprobado. Si el pedido quedó pagado, sus productos quedan pendientes en Entregas.",
-                'data'    => new ReciboPagoResource($reciboPago),
+                'data' => new ReciboPagoResource($reciboPago),
             ]);
         } catch (\RuntimeException $e) {
             DB::rollBack();
@@ -404,7 +382,8 @@ class InvVentaController extends Controller
             return response()->json(['message' => $e->getMessage()], 422);
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Error al aprobar recibo de transferencia (inventario): ' . $e->getMessage());
+            Log::error('Error al aprobar recibo de transferencia (inventario): '.$e->getMessage());
+
             return response()->json(['message' => 'Error al aprobar el recibo.', 'error' => $e->getMessage()], 500);
         }
     }
@@ -412,9 +391,7 @@ class InvVentaController extends Controller
     /**
      * El validador rechaza un recibo de transferencia de inventario e informa el motivo al cajero.
      *
-     * @param Request    $request motivo_rechazo (requerido)
-     * @param ReciboPago $reciboPago
-     * @return JsonResponse
+     * @param  Request  $request  motivo_rechazo (requerido)
      */
     public function rechazarTransferencia(Request $request, ReciboPago $reciboPago): JsonResponse
     {
@@ -438,14 +415,14 @@ class InvVentaController extends Controller
         );
 
         Log::info('Recibo de transferencia de inventario rechazado', [
-            'recibo_id'      => $reciboPago->id,
-            'rechazado_por'  => auth()->id(),
+            'recibo_id' => $reciboPago->id,
+            'rechazado_por' => auth()->id(),
             'motivo_rechazo' => $request->string('motivo_rechazo'),
         ]);
 
         return response()->json([
             'message' => 'Recibo rechazado. Se notificó al cajero con el motivo.',
-            'data'    => new ReciboPagoResource($reciboPago->fresh()),
+            'data' => new ReciboPagoResource($reciboPago->fresh()),
         ]);
     }
 
@@ -454,18 +431,16 @@ class InvVentaController extends Controller
      * La cuenta destino debe estar activa y aplicar a la sede del recibo; banco_id se
      * mantiene por compatibilidad.
      *
-     * @param Request    $request cuenta_bancaria_id, banco_id, numero_transaccion, fecha_transferencia, comprobante (file)
-     * @param ReciboPago $reciboPago
-     * @return JsonResponse
+     * @param  Request  $request  cuenta_bancaria_id, banco_id, numero_transaccion, fecha_transferencia, comprobante (file)
      */
     public function reenviarTransferencia(Request $request, ReciboPago $reciboPago): JsonResponse
     {
         $request->validate([
             'cuenta_bancaria_id' => ['nullable', 'integer', CuentaBancaria::reglaActivaDeSede($reciboPago->sede_id)],
-            'banco_id'           => 'nullable|exists:bancos,id',
+            'banco_id' => 'nullable|exists:bancos,id',
             'numero_transaccion' => 'nullable|string|max:100',
             'fecha_transferencia' => 'nullable|date|before_or_equal:today',
-            'comprobante'        => 'nullable|file|mimes:jpg,jpeg,png,pdf,webp|max:' . ArchivoService::MAX_KB,
+            'comprobante' => 'nullable|file|mimes:jpg,jpeg,png,pdf,webp|max:'.ArchivoService::MAX_KB,
         ], [
             'cuenta_bancaria_id.in' => 'La cuenta seleccionada no está activa o no aplica a la sede del recibo.',
             'fecha_transferencia.before_or_equal' => 'La fecha de la transferencia no puede ser futura.',
@@ -485,16 +460,16 @@ class InvVentaController extends Controller
             return response()->json(['message' => 'No se encontró el medio de pago por transferencia.'], 422);
         }
 
-        $updateData  = [];
+        $updateData = [];
         $bancoNombre = null;
 
         if ($request->filled('cuenta_bancaria_id')) {
-            $updateData  = CuentaBancaria::datosParaMedioPago($request->integer('cuenta_bancaria_id'));
+            $updateData = CuentaBancaria::datosParaMedioPago($request->integer('cuenta_bancaria_id'));
             $bancoNombre = $updateData['banco'];
         } elseif ($request->filled('banco_id')) {
             $bancoNombre = \App\Models\Configuracion\Banco::find($request->integer('banco_id'))?->nombre;
             $updateData['banco_id'] = $request->integer('banco_id');
-            $updateData['banco']    = $bancoNombre;
+            $updateData['banco'] = $bancoNombre;
         }
         if ($request->filled('numero_transaccion')) {
             $updateData['numero_transaccion'] = $request->string('numero_transaccion');
@@ -514,7 +489,7 @@ class InvVentaController extends Controller
             } catch (\Exception $e) {
                 Log::warning('No se pudo guardar el comprobante en reenvío (inventario)', [
                     'recibo_id' => $reciboPago->id,
-                    'error'     => $e->getMessage(),
+                    'error' => $e->getMessage(),
                 ]);
             }
         }
@@ -544,7 +519,7 @@ class InvVentaController extends Controller
 
         return response()->json([
             'message' => 'Recibo corregido y reenviado a aprobación.',
-            'data'    => new ReciboPagoResource($reciboPago->fresh(['mediosPago.banco', 'mediosPago.cuentaBancaria.banco'])),
+            'data' => new ReciboPagoResource($reciboPago->fresh(['mediosPago.banco', 'mediosPago.cuentaBancaria.banco'])),
         ]);
     }
 }

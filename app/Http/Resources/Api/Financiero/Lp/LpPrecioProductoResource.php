@@ -10,15 +10,13 @@ use Illuminate\Http\Resources\Json\JsonResource;
  *
  * Transforma el modelo LpPrecioProducto en una respuesta JSON estructurada.
  * Incluye todos los campos del precio de producto y sus relaciones.
- *
- * @package App\Http\Resources\Api\Financiero\Lp
  */
 class LpPrecioProductoResource extends JsonResource
 {
     /**
      * Transforma el recurso en un array.
      *
-     * @param Request $request Solicitud HTTP actual
+     * @param  Request  $request  Solicitud HTTP actual
      * @return array<string, mixed> Array con los datos formateados del precio de producto
      */
     public function toArray(Request $request): array

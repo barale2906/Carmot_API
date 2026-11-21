@@ -17,10 +17,9 @@ trait ValidaGruposDelCiclo
     /**
      * Agrega un error en `grupos` por cada grupo enviado que incumpla alguna regla.
      *
-     * @param \Illuminate\Validation\Validator $validator
-     * @param mixed $sedeId  Sede del ciclo
-     * @param mixed $cursoId Curso del ciclo
-     * @return void
+     * @param  \Illuminate\Validation\Validator  $validator
+     * @param  mixed  $sedeId  Sede del ciclo
+     * @param  mixed  $cursoId  Curso del ciclo
      */
     protected function validarGruposDelCiclo($validator, $sedeId, $cursoId): void
     {

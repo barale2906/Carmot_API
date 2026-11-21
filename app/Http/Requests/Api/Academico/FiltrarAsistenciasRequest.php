@@ -19,8 +19,6 @@ class FiltrarAsistenciasRequest extends FormRequest
 
     /**
      * Determina si el usuario está autorizado para realizar esta petición.
-     *
-     * @return bool
      */
     public function authorize(): bool
     {
@@ -61,7 +59,7 @@ class FiltrarAsistenciasRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'estado.in' => 'El estado debe ser: ' . implode(', ', Asistencia::ESTADOS) . '.',
+            'estado.in' => 'El estado debe ser: '.implode(', ', Asistencia::ESTADOS).'.',
             'fecha_hasta.after_or_equal' => 'La fecha final no puede ser anterior a la inicial.',
         ];
     }

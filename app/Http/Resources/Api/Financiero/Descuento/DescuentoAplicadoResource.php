@@ -10,15 +10,13 @@ use Illuminate\Http\Resources\Json\JsonResource;
  *
  * Transforma el modelo DescuentoAplicado en una respuesta JSON estructurada.
  * Incluye todos los campos del registro de descuento aplicado y sus relaciones.
- *
- * @package App\Http\Resources\Api\Financiero\Descuento
  */
 class DescuentoAplicadoResource extends JsonResource
 {
     /**
      * Transforma el recurso en un array.
      *
-     * @param Request $request Solicitud HTTP actual
+     * @param  Request  $request  Solicitud HTTP actual
      * @return array<string, mixed> Array con los datos formateados del descuento aplicado
      */
     public function toArray(Request $request): array
@@ -72,4 +70,3 @@ class DescuentoAplicadoResource extends JsonResource
         ];
     }
 }
-

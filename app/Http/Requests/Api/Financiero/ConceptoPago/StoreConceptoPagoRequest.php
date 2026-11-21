@@ -4,24 +4,18 @@ namespace App\Http\Requests\Api\Financiero\ConceptoPago;
 
 use App\Models\Financiero\ConceptoPago\ConceptoPago;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
-use Illuminate\Validation\Validator;
 
 /**
  * Request StoreConceptoPagoRequest
  *
  * Valida los datos para crear un nuevo concepto de pago en el sistema financiero.
  * Incluye validación de campos requeridos y tipos de concepto.
- *
- * @package App\Http\Requests\Api\Financiero\ConceptoPago
  */
 class StoreConceptoPagoRequest extends FormRequest
 {
     /**
      * Determina si el usuario está autorizado para hacer esta solicitud.
      * La autorización se maneja mediante middleware y permisos.
-     *
-     * @return bool
      */
     public function authorize(): bool
     {
@@ -43,13 +37,13 @@ class StoreConceptoPagoRequest extends FormRequest
                     // Permitir tanto integer (índice) como string (nombre del tipo)
                     if (is_numeric($value)) {
                         $indice = (int) $value;
-                        if (!ConceptoPago::esIndiceValido($indice)) {
+                        if (! ConceptoPago::esIndiceValido($indice)) {
                             $fail('El índice de tipo no es válido.');
                         }
                     } elseif (is_string($value)) {
                         $indice = ConceptoPago::getIndicePorNombre($value);
                         if ($indice === null) {
-                            $fail('El nombre de tipo no es válido. Tipos permitidos: ' . implode(', ', ConceptoPago::getTiposDisponibles()));
+                            $fail('El nombre de tipo no es válido. Tipos permitidos: '.implode(', ', ConceptoPago::getTiposDisponibles()));
                         }
                     } else {
                         $fail('El tipo debe ser un número (índice) o un string (nombre del tipo).');
@@ -63,12 +57,10 @@ class StoreConceptoPagoRequest extends FormRequest
     /**
      * Prepara los datos para la validación.
      * Convierte el nombre del tipo a índice si es necesario.
-     *
-     * @return void
      */
     protected function prepareForValidation(): void
     {
-        if ($this->has('tipo') && is_string($this->tipo) && !is_numeric($this->tipo)) {
+        if ($this->has('tipo') && is_string($this->tipo) && ! is_numeric($this->tipo)) {
             $indice = ConceptoPago::getIndicePorNombre($this->tipo);
             if ($indice !== null) {
                 $this->merge(['tipo' => $indice]);
@@ -97,4 +89,3 @@ class StoreConceptoPagoRequest extends FormRequest
         ];
     }
 }
-

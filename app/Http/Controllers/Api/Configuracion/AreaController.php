@@ -8,8 +8,8 @@ use App\Http\Requests\Api\Configuracion\UpdateAreaRequest;
 use App\Http\Resources\Api\Configuracion\AreaResource;
 use App\Models\Configuracion\Area;
 use App\Models\Configuracion\Sede;
-use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class AreaController extends Controller
 {
@@ -27,9 +27,6 @@ class AreaController extends Controller
 
     /**
      * Muestra una lista de las áreas.
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function index(Request $request): JsonResponse
     {
@@ -65,9 +62,6 @@ class AreaController extends Controller
 
     /**
      * Almacena una nueva área en la base de datos.
-     *
-     * @param StoreAreaRequest $request
-     * @return JsonResponse
      */
     public function store(StoreAreaRequest $request): JsonResponse
     {
@@ -91,10 +85,6 @@ class AreaController extends Controller
 
     /**
      * Muestra el área especificada.
-     *
-     * @param Request $request
-     * @param Area $area
-     * @return JsonResponse
      */
     public function show(Request $request, Area $area): JsonResponse
     {
@@ -113,10 +103,6 @@ class AreaController extends Controller
 
     /**
      * Actualiza el área especificada en la base de datos.
-     *
-     * @param UpdateAreaRequest $request
-     * @param Area $area
-     * @return JsonResponse
      */
     public function update(UpdateAreaRequest $request, Area $area): JsonResponse
     {
@@ -144,9 +130,6 @@ class AreaController extends Controller
 
     /**
      * Elimina el área especificada de la base de datos (soft delete).
-     *
-     * @param Area $area
-     * @return JsonResponse
      */
     public function destroy(Area $area): JsonResponse
     {
@@ -159,9 +142,6 @@ class AreaController extends Controller
 
     /**
      * Restaura un área eliminada (soft delete).
-     *
-     * @param int $id
-     * @return JsonResponse
      */
     public function restore(int $id): JsonResponse
     {
@@ -176,9 +156,6 @@ class AreaController extends Controller
 
     /**
      * Elimina permanentemente un área.
-     *
-     * @param int $id
-     * @return JsonResponse
      */
     public function forceDelete(int $id): JsonResponse
     {
@@ -192,9 +169,6 @@ class AreaController extends Controller
 
     /**
      * Obtiene solo las áreas eliminadas (soft delete).
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function trashed(Request $request): JsonResponse
     {
@@ -231,8 +205,6 @@ class AreaController extends Controller
 
     /**
      * Obtiene las opciones de filtros disponibles.
-     *
-     * @return JsonResponse
      */
     public function filters(): JsonResponse
     {
@@ -249,8 +221,6 @@ class AreaController extends Controller
 
     /**
      * Obtiene estadísticas de áreas.
-     *
-     * @return JsonResponse
      */
     public function statistics(): JsonResponse
     {

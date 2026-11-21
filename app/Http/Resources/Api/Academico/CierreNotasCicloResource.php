@@ -19,17 +19,17 @@ class CierreNotasCicloResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-            'ciclo'             => ['id' => $this->id, 'nombre' => $this->nombre],
-            'notas_cerradas'    => $this->notasCerradas(),
+            'ciclo' => ['id' => $this->id, 'nombre' => $this->nombre],
+            'notas_cerradas' => $this->notasCerradas(),
             'notas_cerradas_at' => $this->notas_cerradas_at?->format('Y-m-d H:i:s'),
-            'cerradas_por'      => $this->whenLoaded('notasCerradasPor', fn () => $this->notasCerradasPor
+            'cerradas_por' => $this->whenLoaded('notasCerradasPor', fn () => $this->notasCerradasPor
                 ? ['id' => $this->notasCerradasPor->id, 'name' => $this->notasCerradasPor->name]
                 : null),
-            'historial'         => $this->whenLoaded('cierresNotas', fn () => $this->cierresNotas->map(fn ($evento) => [
-                'id'         => $evento->id,
-                'accion'     => $evento->accion,
-                'motivo'     => $evento->motivo,
-                'usuario'    => $evento->usuario ? ['id' => $evento->usuario->id, 'name' => $evento->usuario->name] : null,
+            'historial' => $this->whenLoaded('cierresNotas', fn () => $this->cierresNotas->map(fn ($evento) => [
+                'id' => $evento->id,
+                'accion' => $evento->accion,
+                'motivo' => $evento->motivo,
+                'usuario' => $evento->usuario ? ['id' => $evento->usuario->id, 'name' => $evento->usuario->name] : null,
                 'created_at' => $evento->created_at?->format('Y-m-d H:i:s'),
             ])->values()),
         ];

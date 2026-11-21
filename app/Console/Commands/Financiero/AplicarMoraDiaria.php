@@ -24,8 +24,6 @@ use Illuminate\Support\Facades\DB;
  *  3. Incrementa cartera.mora_acumulada.
  *  4. Registra en descuento_aplicado (tipo_movimiento='sobrecargo').
  *  5. Actualiza fecha_ultimo_cobro_mora = hoy.
- *
- * @package App\Console\Commands\Financiero
  */
 class AplicarMoraDiaria extends Command
 {
@@ -36,7 +34,6 @@ class AplicarMoraDiaria extends Command
     /**
      * Ejecuta el comando.
      *
-     * @param ReciboPagoDistribucionService $distribucion
      * @return int Código de salida
      */
     public function handle(ReciboPagoDistribucionService $distribucion): int
@@ -50,6 +47,7 @@ class AplicarMoraDiaria extends Command
 
         if ($sobrecargos->isEmpty()) {
             $this->line('No hay sobrecargos de mora activos configurados.');
+
             return Command::SUCCESS;
         }
 
@@ -59,7 +57,7 @@ class AplicarMoraDiaria extends Command
             ->whereIn('status', [Cartera::getStatusKey('Activa'), Cartera::getStatusKey('Abonada')])
             ->where(function ($q) use ($hoy) {
                 $q->whereNull('fecha_ultimo_cobro_mora')
-                  ->orWhereDate('fecha_ultimo_cobro_mora', '<', $hoy);
+                    ->orWhereDate('fecha_ultimo_cobro_mora', '<', $hoy);
             })
             ->get();
 
@@ -71,10 +69,11 @@ class AplicarMoraDiaria extends Command
 
         if ($carteras->isEmpty()) {
             $this->line('No hay carteras vencidas pendientes de cobro de mora.');
+
             return Command::SUCCESS;
         }
 
-        $totalMora    = 0.0;
+        $totalMora = 0.0;
         $totalCartera = 0;
 
         DB::transaction(function () use ($carteras, $sobrecargos, $hoy, &$totalMora, &$totalCartera) {
@@ -83,8 +82,8 @@ class AplicarMoraDiaria extends Command
                 $moraPorCartera = 0.0;
 
                 foreach ($sobrecargos as $sobrecargo) {
-                    $saldo      = (float) $cartera->saldo;
-                    $valorMora  = $sobrecargo->calcularSobrecargo($saldo);
+                    $saldo = (float) $cartera->saldo;
+                    $valorMora = $sobrecargo->calcularSobrecargo($saldo);
 
                     if ($valorMora <= 0) {
                         continue;
@@ -92,15 +91,15 @@ class AplicarMoraDiaria extends Command
 
                     // Registrar en historial de ajustes aplicados
                     DescuentoAplicado::create([
-                        'descuento_id'   => $sobrecargo->id,
+                        'descuento_id' => $sobrecargo->id,
                         'tipo_movimiento' => Descuento::MOVIMIENTO_SOBRECARGO,
-                        'concepto_tipo'  => 'cartera',
-                        'concepto_id'    => $cartera->id,
+                        'concepto_tipo' => 'cartera',
+                        'concepto_id' => $cartera->id,
                         'valor_original' => $saldo,
                         'valor_descuento' => $valorMora,
-                        'valor_final'    => $saldo + $valorMora,
-                        'sede_id'        => $cartera->sede_id,
-                        'observaciones'  => "Mora diaria {$hoy->toDateString()} — {$sobrecargo->nombre}",
+                        'valor_final' => $saldo + $valorMora,
+                        'sede_id' => $cartera->sede_id,
+                        'observaciones' => "Mora diaria {$hoy->toDateString()} — {$sobrecargo->nombre}",
                     ]);
 
                     $moraPorCartera += $valorMora;
@@ -109,13 +108,13 @@ class AplicarMoraDiaria extends Command
                 if ($moraPorCartera > 0) {
                     $cartera->increment('mora_acumulada', $moraPorCartera);
                     $cartera->update(['fecha_ultimo_cobro_mora' => $hoy]);
-                    $totalMora    += $moraPorCartera;
+                    $totalMora += $moraPorCartera;
                     $totalCartera++;
                 }
             }
         });
 
-        $this->info("Mora aplicada a {$totalCartera} cartera(s). Total mora: $" . number_format($totalMora, 2));
+        $this->info("Mora aplicada a {$totalCartera} cartera(s). Total mora: $".number_format($totalMora, 2));
 
         return Command::SUCCESS;
     }

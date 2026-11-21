@@ -10,34 +10,32 @@ use Illuminate\Http\Resources\Json\JsonResource;
  *
  * Transforma el modelo Descuento en una respuesta JSON estructurada.
  * Incluye todos los campos del descuento, sus relaciones y información formateada.
- *
- * @package App\Http\Resources\Api\Financiero\Descuento
  */
 class DescuentoResource extends JsonResource
 {
     /**
      * Transforma el recurso en un array.
      *
-     * @param Request $request Solicitud HTTP actual
+     * @param  Request  $request  Solicitud HTTP actual
      * @return array<string, mixed> Array con los datos formateados del descuento
      */
     public function toArray(Request $request): array
     {
         return [
-            'id'                   => $this->id,
-            'tipo_movimiento'      => $this->tipo_movimiento,
+            'id' => $this->id,
+            'tipo_movimiento' => $this->tipo_movimiento,
             'tipo_movimiento_text' => $this->getTipoMovimientoText(),
-            'es_sobrecargo'        => $this->esSobrecargo(),
-            'nombre'               => $this->nombre,
-            'codigo_descuento'     => $this->codigo_descuento,
-            'descripcion'          => $this->descripcion,
-            'tipo'                 => $this->tipo,
-            'tipo_text'            => $this->getTipoText(),
-            'valor'                => (float) $this->valor,
-            'valor_formatted'      => number_format((float) $this->valor, 2, '.', ','),
-            'aplicacion'           => $this->aplicacion,
-            'aplicacion_text'      => $this->getAplicacionText(),
-            'tipo_activacion'      => $this->tipo_activacion,
+            'es_sobrecargo' => $this->esSobrecargo(),
+            'nombre' => $this->nombre,
+            'codigo_descuento' => $this->codigo_descuento,
+            'descripcion' => $this->descripcion,
+            'tipo' => $this->tipo,
+            'tipo_text' => $this->getTipoText(),
+            'valor' => (float) $this->valor,
+            'valor_formatted' => number_format((float) $this->valor, 2, '.', ','),
+            'aplicacion' => $this->aplicacion,
+            'aplicacion_text' => $this->getAplicacionText(),
+            'tipo_activacion' => $this->tipo_activacion,
             'tipo_activacion_text' => $this->getTipoActivacionText(),
             'dias_anticipacion' => $this->dias_anticipacion,
             'permite_acumulacion' => (bool) $this->permite_acumulacion,
@@ -62,12 +60,10 @@ class DescuentoResource extends JsonResource
     /**
      * Obtiene el array de listas de precios.
      * Siempre devuelve un array, cargando la relación si es necesario.
-     *
-     * @return array
      */
     private function getListasPreciosArray(): array
     {
-        if (!$this->relationLoaded('listasPrecios')) {
+        if (! $this->relationLoaded('listasPrecios')) {
             $this->load('listasPrecios');
         }
 
@@ -83,12 +79,10 @@ class DescuentoResource extends JsonResource
     /**
      * Obtiene el array de productos.
      * Siempre devuelve un array, cargando la relación si es necesario.
-     *
-     * @return array
      */
     private function getProductosArray(): array
     {
-        if (!$this->relationLoaded('productos')) {
+        if (! $this->relationLoaded('productos')) {
             $this->load('productos');
         }
 
@@ -104,12 +98,10 @@ class DescuentoResource extends JsonResource
     /**
      * Obtiene el array de sedes.
      * Siempre devuelve un array, cargando la relación si es necesario.
-     *
-     * @return array
      */
     private function getSedesArray(): array
     {
-        if (!$this->relationLoaded('sedes')) {
+        if (! $this->relationLoaded('sedes')) {
             $this->load('sedes');
         }
 
@@ -124,12 +116,10 @@ class DescuentoResource extends JsonResource
     /**
      * Obtiene el array de poblaciones.
      * Siempre devuelve un array, cargando la relación si es necesario.
-     *
-     * @return array
      */
     private function getPoblacionesArray(): array
     {
-        if (!$this->relationLoaded('poblaciones')) {
+        if (! $this->relationLoaded('poblaciones')) {
             $this->load('poblaciones');
         }
 
@@ -160,9 +150,9 @@ class DescuentoResource extends JsonResource
     private function getTipoMovimientoText(): string
     {
         return match ($this->tipo_movimiento) {
-            'descuento'  => 'Descuento',
+            'descuento' => 'Descuento',
             'sobrecargo' => 'Sobrecargo',
-            default      => 'Desconocido',
+            default => 'Desconocido',
         };
     }
 
@@ -171,32 +161,31 @@ class DescuentoResource extends JsonResource
         return match ($this->tipo) {
             'porcentual' => 'Porcentual',
             'valor_fijo' => 'Valor Fijo',
-            default      => 'Desconocido',
+            default => 'Desconocido',
         };
     }
 
     private function getAplicacionText(): string
     {
         return match ($this->aplicacion) {
-            'valor_total'   => 'Valor Total',
-            'matricula'     => 'Matrícula',
-            'cuota'         => 'Cuota',
-            'valor_recibo'  => 'Valor del Recibo',
+            'valor_total' => 'Valor Total',
+            'matricula' => 'Matrícula',
+            'cuota' => 'Cuota',
+            'valor_recibo' => 'Valor del Recibo',
             'saldo_cartera' => 'Saldo de Cartera (Mora)',
-            default         => 'Desconocido',
+            default => 'Desconocido',
         };
     }
 
     private function getTipoActivacionText(): string
     {
         return match ($this->tipo_activacion) {
-            'pago_anticipado'     => 'Pago Anticipado',
+            'pago_anticipado' => 'Pago Anticipado',
             'promocion_matricula' => 'Promoción de Matrícula',
-            'codigo_promocional'  => 'Código Promocional',
-            'medio_pago'          => 'Medio de Pago',
-            'mora_automatica'     => 'Mora Automática',
-            default               => 'Desconocido',
+            'codigo_promocional' => 'Código Promocional',
+            'medio_pago' => 'Medio de Pago',
+            'mora_automatica' => 'Mora Automática',
+            default => 'Desconocido',
         };
     }
 }
-

@@ -20,27 +20,25 @@ class KpiModelController extends Controller
      * Útil para poblar selects de group_by y filtros en el frontend.
      * Ejemplo: GET /dashboard/kpis/models/1/group-by/curso_id?filters[sede_id]=10
      *
-     * @param Request $request
-     * @param int $modelId ID del modelo en config/kpis.php
-     * @param string $field Campo por el cual agrupar
-     * @return JsonResponse
+     * @param  int  $modelId  ID del modelo en config/kpis.php
+     * @param  string  $field  Campo por el cual agrupar
      */
     public function groupBy(Request $request, int $modelId, string $field): JsonResponse
     {
         // Validar que el modelo existe
         $modelConfig = $this->getModelConfig($modelId);
-        if (!$modelConfig) {
+        if (! $modelConfig) {
             return response()->json(['error' => 'Modelo no encontrado'], 404);
         }
 
         // Validar que el campo existe en el modelo
-        if (!array_key_exists($field, $modelConfig['fields'])) {
+        if (! array_key_exists($field, $modelConfig['fields'])) {
             return response()->json(['error' => 'Campo no válido para este modelo'], 400);
         }
 
         // Obtener la clase del modelo
         $modelClass = $modelConfig['class'];
-        if (!class_exists($modelClass)) {
+        if (! class_exists($modelClass)) {
             return response()->json(['error' => 'Clase de modelo no encontrada'], 500);
         }
 
@@ -98,13 +96,11 @@ class KpiModelController extends Controller
 
     /**
      * Obtiene la configuración de un modelo desde config/kpis.php
-     *
-     * @param int $modelId
-     * @return array|null
      */
     private function getModelConfig(int $modelId): ?array
     {
         $models = config('kpis.available_kpi_models', []);
+
         return $models[$modelId] ?? null;
     }
 
@@ -112,10 +108,7 @@ class KpiModelController extends Controller
      * Genera una etiqueta legible para un valor de campo
      * Resuelve automáticamente las relaciones definidas en el modelo Eloquent
      *
-     * @param array $modelConfig
-     * @param string $field
-     * @param mixed $value
-     * @return string
+     * @param  mixed  $value
      */
     private function getFieldLabel(array $modelConfig, string $field, $value): string
     {
@@ -126,7 +119,7 @@ class KpiModelController extends Controller
 
             try {
                 // Verificar si el modelo tiene la relación definida
-                $model = new $modelClass();
+                $model = new $modelClass;
                 if (method_exists($model, $relationName)) {
                     // Obtener el modelo relacionado
                     $relatedModel = $model->{$relationName}()->getRelated();
@@ -135,7 +128,8 @@ class KpiModelController extends Controller
                     if ($relatedRecord) {
                         // Intentar obtener un campo 'name' o 'nombre' o el primer campo de texto
                         $labelField = $this->getLabelField($relatedRecord);
-                        $label = $relatedRecord->{$labelField} ?? (string)$value;
+                        $label = $relatedRecord->{$labelField} ?? (string) $value;
+
                         return "{$value} - {$label}";
                     }
                 }
@@ -144,15 +138,14 @@ class KpiModelController extends Controller
             }
         }
 
-        return (string)$value;
+        return (string) $value;
     }
 
     /**
      * Obtiene el campo más apropiado para usar como etiqueta
      * Busca campos como 'name', 'nombre', 'title', 'titulo' o el primer campo de texto
      *
-     * @param mixed $model
-     * @return string
+     * @param  mixed  $model
      */
     private function getLabelField($model): string
     {
@@ -168,13 +161,14 @@ class KpiModelController extends Controller
         // Si no encuentra campos preferidos, buscar el primer campo de texto
         $attributes = $model->getAttributes();
         foreach ($attributes as $key => $value) {
-            if (is_string($value) && !in_array($key, ['id', 'created_at', 'updated_at'])) {
+            if (is_string($value) && ! in_array($key, ['id', 'created_at', 'updated_at'])) {
                 return $key;
             }
         }
 
         // Fallback al primer campo disponible
         $firstField = array_key_first($attributes);
+
         return $firstField ?? 'id';
     }
 }

@@ -2,9 +2,9 @@
 
 namespace App\Http\Requests\Api\Academico;
 
+use App\Http\Requests\Api\Academico\Concerns\ValidaEstudiantesDelGrupo;
 use App\Models\Academico\Asistencia;
 use App\Models\Academico\AsistenciaClaseProgramada;
-use App\Http\Requests\Api\Academico\Concerns\ValidaEstudiantesDelGrupo;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -71,8 +71,7 @@ class StoreAsistenciaMasivaRequest extends FormRequest
      * solo a estudiantes con matrícula vigente en el grupo de la clase, y solo se justifica
      * una ausencia o una tardanza (quien está presente no tiene nada que justificar).
      *
-     * @param \Illuminate\Validation\Validator $validator
-     * @return void
+     * @param  \Illuminate\Validation\Validator  $validator
      */
     public function withValidator($validator): void
     {
@@ -92,7 +91,7 @@ class StoreAsistenciaMasivaRequest extends FormRequest
             if ($clase->estado === 'cancelada') {
                 $validator->errors()->add('clase_programada_id', 'La clase está cancelada: no se puede tomar asistencia.');
             } elseif ($clase->fecha_clase->isAfter(today())) {
-                $validator->errors()->add('clase_programada_id', 'La clase es del ' . $clase->fecha_clase->format('d/m/Y') . ': la asistencia se toma el día de la clase o después.');
+                $validator->errors()->add('clase_programada_id', 'La clase es del '.$clase->fecha_clase->format('d/m/Y').': la asistencia se toma el día de la clase o después.');
             }
 
             $this->validarEstudiantesDelGrupo(

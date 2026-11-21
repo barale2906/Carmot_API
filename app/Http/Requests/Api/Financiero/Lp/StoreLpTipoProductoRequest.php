@@ -11,8 +11,6 @@ use Illuminate\Foundation\Http\FormRequest;
  *
  * Valida los datos para crear un nuevo tipo de producto en el sistema de listas de precios.
  * Incluye validación de campos requeridos, códigos únicos y estados.
- *
- * @package App\Http\Requests\Api\Financiero\Lp
  */
 class StoreLpTipoProductoRequest extends FormRequest
 {
@@ -21,8 +19,6 @@ class StoreLpTipoProductoRequest extends FormRequest
     /**
      * Determina si el usuario está autorizado para hacer esta solicitud.
      * La autorización se maneja mediante middleware y permisos.
-     *
-     * @return bool
      */
     public function authorize(): bool
     {

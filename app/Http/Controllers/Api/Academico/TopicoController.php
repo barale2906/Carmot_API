@@ -8,8 +8,8 @@ use App\Http\Requests\Api\Academico\UpdateTopicoRequest;
 use App\Http\Resources\Api\Academico\TopicoResource;
 use App\Models\Academico\Topico;
 use App\Traits\HasActiveStatus;
-use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 /**
  * Controlador para la gestión de tópicos académicos.
@@ -17,8 +17,6 @@ use Illuminate\Http\JsonResponse;
  * Los tópicos son las unidades temáticas que componen los módulos.
  * Cada tópico agrupa temas y su duración se calcula automáticamente
  * a partir de la suma de las duraciones de sus temas asociados.
- *
- * @package App\Http\Controllers\Api\Academico
  */
 class TopicoController extends Controller
 {
@@ -37,9 +35,6 @@ class TopicoController extends Controller
 
     /**
      * Muestra una lista de los tópicos.
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function index(Request $request): JsonResponse
     {
@@ -75,9 +70,6 @@ class TopicoController extends Controller
 
     /**
      * Almacena un nuevo tópico en la base de datos.
-     *
-     * @param StoreTopicoRequest $request
-     * @return JsonResponse
      */
     public function store(StoreTopicoRequest $request): JsonResponse
     {
@@ -119,10 +111,6 @@ class TopicoController extends Controller
 
     /**
      * Muestra el tópico especificado.
-     *
-     * @param Request $request
-     * @param Topico $topico
-     * @return JsonResponse
      */
     public function show(Request $request, Topico $topico): JsonResponse
     {
@@ -145,10 +133,6 @@ class TopicoController extends Controller
 
     /**
      * Actualiza el tópico especificado en la base de datos.
-     *
-     * @param UpdateTopicoRequest $request
-     * @param Topico $topico
-     * @return JsonResponse
      */
     public function update(UpdateTopicoRequest $request, Topico $topico): JsonResponse
     {
@@ -209,9 +193,6 @@ class TopicoController extends Controller
 
     /**
      * Elimina el tópico especificado de la base de datos (soft delete).
-     *
-     * @param Topico $topico
-     * @return JsonResponse
      */
     public function destroy(Topico $topico): JsonResponse
     {
@@ -231,9 +212,6 @@ class TopicoController extends Controller
 
     /**
      * Restaura un tópico eliminado (soft delete).
-     *
-     * @param int $id
-     * @return JsonResponse
      */
     public function restore(int $id): JsonResponse
     {
@@ -248,9 +226,6 @@ class TopicoController extends Controller
 
     /**
      * Elimina permanentemente un tópico.
-     *
-     * @param int $id
-     * @return JsonResponse
      */
     public function forceDelete(int $id): JsonResponse
     {
@@ -272,9 +247,6 @@ class TopicoController extends Controller
 
     /**
      * Obtiene solo los tópicos eliminados (soft delete).
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function trashed(Request $request): JsonResponse
     {
@@ -311,8 +283,6 @@ class TopicoController extends Controller
 
     /**
      * Obtiene las opciones de filtros disponibles.
-     *
-     * @return JsonResponse
      */
     public function filters(): JsonResponse
     {
@@ -328,8 +298,6 @@ class TopicoController extends Controller
 
     /**
      * Obtiene estadísticas de tópicos.
-     *
-     * @return JsonResponse
      */
     public function statistics(): JsonResponse
     {

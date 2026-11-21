@@ -20,8 +20,6 @@ use Illuminate\Support\Facades\DB;
  * Administra listas de precios con origen=0 (inventarios), que definen los precios
  * de venta de productos para un período de vigencia y una o más poblaciones.
  * Sigue el flujo de estados: En Proceso → Aprobada → Activa / Inactiva.
- *
- * @package App\Http\Controllers\Api\Inventarios
  */
 class InvListaPrecioController extends Controller
 {
@@ -41,9 +39,6 @@ class InvListaPrecioController extends Controller
 
     /**
      * Lista paginada de listas de precios de inventario con filtros opcionales.
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function index(Request $request): JsonResponse
     {
@@ -94,11 +89,11 @@ class InvListaPrecioController extends Controller
             'data' => InvListaPrecioResource::collection($listas),
             'meta' => [
                 'current_page' => $listas->currentPage(),
-                'last_page'    => $listas->lastPage(),
-                'per_page'     => $listas->perPage(),
-                'total'        => $listas->total(),
-                'from'         => $listas->firstItem(),
-                'to'           => $listas->lastItem(),
+                'last_page' => $listas->lastPage(),
+                'per_page' => $listas->perPage(),
+                'total' => $listas->total(),
+                'from' => $listas->firstItem(),
+                'to' => $listas->lastItem(),
             ],
         ]);
     }
@@ -106,8 +101,6 @@ class InvListaPrecioController extends Controller
     /**
      * Poblaciones que tienen al menos una lista de precios de inventario: alimenta el filtro
      * del listado para ofrecer solo opciones que devuelven resultados.
-     *
-     * @return JsonResponse
      */
     public function poblaciones(): JsonResponse
     {
@@ -124,9 +117,6 @@ class InvListaPrecioController extends Controller
 
     /**
      * Crea una nueva lista de precios de inventario (origen=0, status=En Proceso).
-     *
-     * @param StoreInvListaPrecioRequest $request
-     * @return JsonResponse
      */
     public function store(StoreInvListaPrecioRequest $request): JsonResponse
     {
@@ -149,15 +139,12 @@ class InvListaPrecioController extends Controller
 
         return response()->json([
             'message' => 'Lista de precios creada exitosamente.',
-            'data'    => new InvListaPrecioResource($lista),
+            'data' => new InvListaPrecioResource($lista),
         ], 201);
     }
 
     /**
      * Muestra el detalle de una lista de precios de inventario con sus precios y poblaciones.
-     *
-     * @param LpListaPrecio $listaPrecio
-     * @return JsonResponse
      */
     public function show(LpListaPrecio $listaPrecio): JsonResponse
     {
@@ -174,10 +161,6 @@ class InvListaPrecioController extends Controller
      * Actualiza los datos descriptivos y las poblaciones de una lista de inventario.
      *
      * Solo se permite modificar listas en estado En Proceso.
-     *
-     * @param UpdateInvListaPrecioRequest $request
-     * @param LpListaPrecio              $listaPrecio
-     * @return JsonResponse
      */
     public function update(UpdateInvListaPrecioRequest $request, LpListaPrecio $listaPrecio): JsonResponse
     {
@@ -204,15 +187,12 @@ class InvListaPrecioController extends Controller
 
         return response()->json([
             'message' => 'Lista de precios actualizada exitosamente.',
-            'data'    => new InvListaPrecioResource($listaPrecio->fresh()->load('poblaciones')),
+            'data' => new InvListaPrecioResource($listaPrecio->fresh()->load('poblaciones')),
         ]);
     }
 
     /**
      * Elimina lógicamente una lista de precios de inventario.
-     *
-     * @param LpListaPrecio $listaPrecio
-     * @return JsonResponse
      */
     public function destroy(LpListaPrecio $listaPrecio): JsonResponse
     {
@@ -227,9 +207,6 @@ class InvListaPrecioController extends Controller
 
     /**
      * Aprueba una lista de precios pasando de En Proceso → Aprobada.
-     *
-     * @param LpListaPrecio $listaPrecio
-     * @return JsonResponse
      */
     public function aprobar(LpListaPrecio $listaPrecio): JsonResponse
     {
@@ -245,15 +222,12 @@ class InvListaPrecioController extends Controller
 
         return response()->json([
             'message' => 'Lista de precios aprobada exitosamente.',
-            'data'    => new InvListaPrecioResource($listaPrecio->fresh()->load('poblaciones')),
+            'data' => new InvListaPrecioResource($listaPrecio->fresh()->load('poblaciones')),
         ]);
     }
 
     /**
      * Activa una lista de precios pasando de Aprobada → Activa.
-     *
-     * @param LpListaPrecio $listaPrecio
-     * @return JsonResponse
      */
     public function activar(LpListaPrecio $listaPrecio): JsonResponse
     {
@@ -269,15 +243,12 @@ class InvListaPrecioController extends Controller
 
         return response()->json([
             'message' => 'Lista de precios activada exitosamente.',
-            'data'    => new InvListaPrecioResource($listaPrecio->fresh()->load('poblaciones')),
+            'data' => new InvListaPrecioResource($listaPrecio->fresh()->load('poblaciones')),
         ]);
     }
 
     /**
      * Inactiva una lista de precios (cualquier estado → Inactiva).
-     *
-     * @param LpListaPrecio $listaPrecio
-     * @return JsonResponse
      */
     public function inactivar(LpListaPrecio $listaPrecio): JsonResponse
     {
@@ -287,7 +258,7 @@ class InvListaPrecioController extends Controller
 
         return response()->json([
             'message' => 'Lista de precios inactivada exitosamente.',
-            'data'    => new InvListaPrecioResource($listaPrecio->fresh()->load('poblaciones')),
+            'data' => new InvListaPrecioResource($listaPrecio->fresh()->load('poblaciones')),
         ]);
     }
 
@@ -296,10 +267,6 @@ class InvListaPrecioController extends Controller
      *
      * Crea la nueva lista en estado En Proceso y copia los InvPrecioProducto
      * vigentes de la lista origen si copiar_precios=true (por defecto).
-     *
-     * @param CloneInvListaPrecioRequest $request
-     * @param LpListaPrecio             $listaPrecio
-     * @return JsonResponse
      */
     public function clonar(CloneInvListaPrecioRequest $request, LpListaPrecio $listaPrecio): JsonResponse
     {
@@ -308,19 +275,19 @@ class InvListaPrecioController extends Controller
         DB::beginTransaction();
 
         $nueva = LpListaPrecio::create([
-            'nombre'       => $request->string('nombre'),
+            'nombre' => $request->string('nombre'),
             'fecha_inicio' => $request->date('fecha_inicio'),
-            'fecha_fin'    => $request->date('fecha_fin'),
-            'descripcion'  => $request->input('descripcion', $listaPrecio->descripcion),
-            'origen'       => 0,
-            'status'       => LpListaPrecio::STATUS_EN_PROCESO,
+            'fecha_fin' => $request->date('fecha_fin'),
+            'descripcion' => $request->input('descripcion', $listaPrecio->descripcion),
+            'origen' => 0,
+            'status' => LpListaPrecio::STATUS_EN_PROCESO,
         ]);
 
         $poblaciones = $request->has('poblaciones')
             ? $request->input('poblaciones')
             : $listaPrecio->poblaciones()->pluck('poblacions.id')->toArray();
 
-        if (!empty($poblaciones)) {
+        if (! empty($poblaciones)) {
             $nueva->poblaciones()->attach($poblaciones);
         }
 
@@ -330,9 +297,9 @@ class InvListaPrecioController extends Controller
             $listaPrecio->preciosInventario()->whereNull('deleted_at')->each(function ($precio) use ($nueva, &$preciosCopiados) {
                 InvPrecioProducto::create([
                     'lista_precio_id' => $nueva->id,
-                    'producto_id'     => $precio->producto_id,
-                    'precio'          => $precio->precio,
-                    'observaciones'   => $precio->observaciones,
+                    'producto_id' => $precio->producto_id,
+                    'precio' => $precio->precio,
+                    'observaciones' => $precio->observaciones,
                 ]);
                 $preciosCopiados++;
             });
@@ -344,9 +311,9 @@ class InvListaPrecioController extends Controller
         $nueva->loadCount('preciosInventario');
 
         return response()->json([
-            'message'         => 'Lista de precios clonada exitosamente.',
+            'message' => 'Lista de precios clonada exitosamente.',
             'precios_copiados' => $preciosCopiados,
-            'data'            => new InvListaPrecioResource($nueva),
+            'data' => new InvListaPrecioResource($nueva),
         ], 201);
     }
 }

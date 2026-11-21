@@ -12,8 +12,6 @@ class RecibirInvOrdenCompraRequest extends FormRequest
 {
     /**
      * La autorización se resuelve con el middleware de permisos de la ruta.
-     *
-     * @return bool
      */
     public function authorize(): bool
     {
@@ -26,10 +24,10 @@ class RecibirInvOrdenCompraRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'items'                             => ['required', 'array', 'min:1'],
-            'items.*.orden_item_id'             => ['required', 'integer', 'exists:inv_orden_compra_items,id'],
-            'items.*.cantidad_recibida'         => ['required', 'integer', 'min:1'],
-            'items.*.precio_costo_unitario'     => ['nullable', 'numeric', 'min:0'],
+            'items' => ['required', 'array', 'min:1'],
+            'items.*.orden_item_id' => ['required', 'integer', 'exists:inv_orden_compra_items,id'],
+            'items.*.cantidad_recibida' => ['required', 'integer', 'min:1'],
+            'items.*.precio_costo_unitario' => ['nullable', 'numeric', 'min:0'],
         ];
     }
 
@@ -39,11 +37,11 @@ class RecibirInvOrdenCompraRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'items.required'                          => 'Debe indicar al menos un ítem a recibir.',
-            'items.*.orden_item_id.required'          => 'El ID del ítem de la orden es obligatorio.',
-            'items.*.orden_item_id.exists'            => 'El ítem seleccionado no existe en esta orden.',
-            'items.*.cantidad_recibida.required'      => 'La cantidad recibida es obligatoria.',
-            'items.*.cantidad_recibida.min'           => 'La cantidad recibida debe ser al menos 1.',
+            'items.required' => 'Debe indicar al menos un ítem a recibir.',
+            'items.*.orden_item_id.required' => 'El ID del ítem de la orden es obligatorio.',
+            'items.*.orden_item_id.exists' => 'El ítem seleccionado no existe en esta orden.',
+            'items.*.cantidad_recibida.required' => 'La cantidad recibida es obligatoria.',
+            'items.*.cantidad_recibida.min' => 'La cantidad recibida debe ser al menos 1.',
         ];
     }
 
@@ -51,8 +49,7 @@ class RecibirInvOrdenCompraRequest extends FormRequest
      * Cada ítem debe ser de esta orden y no se puede recibir más de lo pendiente: antes se
      * recortaba en silencio y la orden se cerraba sin avisar (B34).
      *
-     * @param \Illuminate\Validation\Validator $validator
-     * @return void
+     * @param  \Illuminate\Validation\Validator  $validator
      */
     public function withValidator($validator): void
     {

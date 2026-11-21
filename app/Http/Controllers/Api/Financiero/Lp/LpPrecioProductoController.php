@@ -22,8 +22,6 @@ use Illuminate\Http\Request;
  * Gestiona las operaciones CRUD para los precios de productos en las listas de precios.
  * Permite crear, listar, mostrar, actualizar y eliminar precios de productos.
  * Incluye método especial para obtener el precio vigente de un producto.
- *
- * @package App\Http\Controllers\Api\Financiero\Lp
  */
 class LpPrecioProductoController extends Controller
 {
@@ -54,7 +52,7 @@ class LpPrecioProductoController extends Controller
      * Muestra una lista de precios de productos.
      * Permite filtrar por lista_precio_id y producto_id.
      *
-     * @param Request $request Solicitud HTTP con parámetros de filtrado y paginación
+     * @param  Request  $request  Solicitud HTTP con parámetros de filtrado y paginación
      * @return JsonResponse Respuesta JSON con la lista paginada de precios de productos
      */
     public function index(Request $request): JsonResponse
@@ -65,7 +63,7 @@ class LpPrecioProductoController extends Controller
                 'lista_precio_id',
                 'producto_id',
                 'include_trashed',
-                'only_trashed'
+                'only_trashed',
             ]);
 
             // Preparar relaciones
@@ -94,7 +92,7 @@ class LpPrecioProductoController extends Controller
             }
 
             // Aplicar relaciones
-            if (!empty($relations)) {
+            if (! empty($relations)) {
                 $query->with($relations);
             }
 
@@ -129,7 +127,7 @@ class LpPrecioProductoController extends Controller
      * Almacena un nuevo precio de producto en la base de datos.
      * El valor de la cuota se calcula automáticamente mediante el evento saving del modelo.
      *
-     * @param StoreLpPrecioProductoRequest $request Datos validados del precio de producto
+     * @param  StoreLpPrecioProductoRequest  $request  Datos validados del precio de producto
      * @return JsonResponse Respuesta JSON con el precio de producto creado
      */
     public function store(StoreLpPrecioProductoRequest $request): JsonResponse
@@ -142,8 +140,8 @@ class LpPrecioProductoController extends Controller
             // Si se envió referencia académica, crear/confirmar el vínculo en lp_producto_referencias
             if ($request->filled('referencia_id') && $request->filled('referencia_tipo')) {
                 LpProductoReferencia::firstOrCreate([
-                    'lp_producto_id'  => $precioProducto->producto_id,
-                    'referencia_id'   => $request->integer('referencia_id'),
+                    'lp_producto_id' => $precioProducto->producto_id,
+                    'referencia_id' => $request->integer('referencia_id'),
                     'referencia_tipo' => $request->input('referencia_tipo'),
                 ]);
             }
@@ -166,8 +164,8 @@ class LpPrecioProductoController extends Controller
     /**
      * Muestra el precio de producto especificado.
      *
-     * @param Request $request Solicitud HTTP con parámetros opcionales
-     * @param LpPrecioProducto $lpPrecioProducto Precio de producto a mostrar
+     * @param  Request  $request  Solicitud HTTP con parámetros opcionales
+     * @param  LpPrecioProducto  $lpPrecioProducto  Precio de producto a mostrar
      * @return JsonResponse Respuesta JSON con los datos del precio de producto
      */
     public function show(Request $request, LpPrecioProducto $lpPrecioProducto): JsonResponse
@@ -196,8 +194,8 @@ class LpPrecioProductoController extends Controller
      * Actualiza el precio de producto especificado en la base de datos.
      * El valor de la cuota se recalcula automáticamente mediante el evento saving del modelo.
      *
-     * @param UpdateLpPrecioProductoRequest $request Datos validados para actualizar
-     * @param LpPrecioProducto $lpPrecioProducto Precio de producto a actualizar
+     * @param  UpdateLpPrecioProductoRequest  $request  Datos validados para actualizar
+     * @param  LpPrecioProducto  $lpPrecioProducto  Precio de producto a actualizar
      * @return JsonResponse Respuesta JSON con el precio de producto actualizado
      */
     public function update(UpdateLpPrecioProductoRequest $request, LpPrecioProducto $lpPrecioProducto): JsonResponse
@@ -210,8 +208,8 @@ class LpPrecioProductoController extends Controller
             // Si se envió referencia académica, crear/confirmar el vínculo en lp_producto_referencias
             if ($request->filled('referencia_id') && $request->filled('referencia_tipo')) {
                 LpProductoReferencia::firstOrCreate([
-                    'lp_producto_id'  => $lpPrecioProducto->producto_id,
-                    'referencia_id'   => $request->integer('referencia_id'),
+                    'lp_producto_id' => $lpPrecioProducto->producto_id,
+                    'referencia_id' => $request->integer('referencia_id'),
                     'referencia_tipo' => $request->input('referencia_tipo'),
                 ]);
             }
@@ -236,7 +234,7 @@ class LpPrecioProductoController extends Controller
      *
      * No se permite si la lista ya está aprobada o activa (422).
      *
-     * @param LpPrecioProducto $lpPrecioProducto Precio de producto a eliminar
+     * @param  LpPrecioProducto  $lpPrecioProducto  Precio de producto a eliminar
      * @return JsonResponse Respuesta JSON de confirmación
      */
     public function destroy(LpPrecioProducto $lpPrecioProducto): JsonResponse
@@ -276,22 +274,21 @@ class LpPrecioProductoController extends Controller
      * La respuesta es siempre un array, ya que puede haber múltiples opciones de precio
      * (ej. contado y financiado). El frontend presenta estas opciones al usuario.
      *
-     * @param  Request      $request
      * @return JsonResponse Array de LpPrecioProductoResource con todas las opciones de precio.
      */
     public function obtenerPrecio(Request $request): JsonResponse
     {
         try {
             $request->validate([
-                'referencia_id'   => 'required_with:referencia_tipo|integer',
+                'referencia_id' => 'required_with:referencia_tipo|integer',
                 'referencia_tipo' => 'required_with:referencia_id|string|in:curso,modulo',
-                'producto_id'     => 'required_without:referencia_id|integer|exists:lp_productos,id',
-                'poblacion_id'    => 'required|integer|exists:poblacions,id',
-                'fecha'           => 'sometimes|date',
+                'producto_id' => 'required_without:referencia_id|integer|exists:lp_productos,id',
+                'poblacion_id' => 'required|integer|exists:poblacions,id',
+                'fecha' => 'sometimes|date',
             ]);
 
             $poblacionId = $request->integer('poblacion_id');
-            $fecha       = $request->filled('fecha')
+            $fecha = $request->filled('fecha')
                 ? Carbon::parse($request->string('fecha'))
                 : null;
 
@@ -316,25 +313,25 @@ class LpPrecioProductoController extends Controller
             if ($precios->isEmpty()) {
                 return response()->json([
                     'message' => 'No se encontró una lista de precios vigente para los parámetros especificados.',
-                    'total'   => 0,
-                    'data'    => [],
+                    'total' => 0,
+                    'data' => [],
                 ], 404);
             }
 
             return response()->json([
                 'message' => 'Precios obtenidos exitosamente.',
-                'total'   => $precios->count(),
-                'data'    => LpPrecioProductoResource::collection($precios),
+                'total' => $precios->count(),
+                'data' => LpPrecioProductoResource::collection($precios),
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
                 'message' => 'Error de validación.',
-                'errors'  => $e->errors(),
+                'errors' => $e->errors(),
             ], 422);
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Error al obtener los precios.',
-                'error'   => $e->getMessage(),
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -353,15 +350,15 @@ class LpPrecioProductoController extends Controller
      * - per_page        (int, opcional)   Registros por página. Default: 15.
      *
      * @param  Request  $request  Solicitud HTTP con los filtros.
-     * @return JsonResponse       Lista paginada de LpProductoResource sin precio en la lista.
+     * @return JsonResponse Lista paginada de LpProductoResource sin precio en la lista.
      */
     public function sinPrecioEnLista(Request $request): JsonResponse
     {
         try {
             $request->validate([
                 'lista_precio_id' => 'required|integer|exists:lp_listas_precios,id',
-                'search'          => 'sometimes|string|max:150',
-                'per_page'        => 'sometimes|integer|min:1|max:100',
+                'search' => 'sometimes|string|max:150',
+                'per_page' => 'sometimes|integer|min:1|max:100',
             ]);
 
             $listaId = $request->integer('lista_precio_id');
@@ -380,7 +377,7 @@ class LpPrecioProductoController extends Controller
                 $search = $request->string('search');
                 $query->where(function ($q) use ($search) {
                     $q->where('nombre', 'like', "%{$search}%")
-                      ->orWhere('codigo', 'like', "%{$search}%");
+                        ->orWhere('codigo', 'like', "%{$search}%");
                 });
             }
 
@@ -397,26 +394,26 @@ class LpPrecioProductoController extends Controller
 
             return response()->json([
                 'lista_precio_id' => $listaId,
-                'lista_nombre'    => $lista->nombre,
+                'lista_nombre' => $lista->nombre,
                 'data' => LpProductoResource::collection($productos),
                 'meta' => [
                     'current_page' => $productos->currentPage(),
-                    'last_page'    => $productos->lastPage(),
-                    'per_page'     => $productos->perPage(),
-                    'total'        => $productos->total(),
-                    'from'         => $productos->firstItem(),
-                    'to'           => $productos->lastItem(),
+                    'last_page' => $productos->lastPage(),
+                    'per_page' => $productos->perPage(),
+                    'total' => $productos->total(),
+                    'from' => $productos->firstItem(),
+                    'to' => $productos->lastItem(),
                 ],
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
                 'message' => 'Error de validación.',
-                'errors'  => $e->errors(),
+                'errors' => $e->errors(),
             ], 422);
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Error al obtener productos sin precio.',
-                'error'   => $e->getMessage(),
+                'error' => $e->getMessage(),
             ], 500);
         }
     }

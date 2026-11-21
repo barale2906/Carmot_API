@@ -25,9 +25,6 @@ class PerfilController extends Controller
     /**
      * Cambia la contraseña del usuario autenticado y cierra sus demás sesiones
      * (conserva el token con el que hizo el cambio).
-     *
-     * @param CambiarContrasenaRequest $request
-     * @return JsonResponse
      */
     public function cambiarContrasena(CambiarContrasenaRequest $request): JsonResponse
     {

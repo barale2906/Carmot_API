@@ -116,9 +116,6 @@ class StoreCicloRequest extends FormRequest
 
     /**
      * Validaciones posteriores: los grupos deben ser de la sede y del curso del ciclo y tener horarios.
-     *
-     * @param Validator $validator
-     * @return void
      */
     public function withValidator(Validator $validator): void
     {

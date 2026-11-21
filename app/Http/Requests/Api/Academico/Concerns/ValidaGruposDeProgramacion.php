@@ -15,10 +15,9 @@ trait ValidaGruposDeProgramacion
     /**
      * Agrega un error en `grupos` por cada grupo de otra sede o de un módulo ajeno al curso.
      *
-     * @param \Illuminate\Validation\Validator $validator
-     * @param mixed $sedeId  Sede de la programación
-     * @param mixed $cursoId Curso de la programación
-     * @return void
+     * @param  \Illuminate\Validation\Validator  $validator
+     * @param  mixed  $sedeId  Sede de la programación
+     * @param  mixed  $cursoId  Curso de la programación
      */
     protected function validarGruposDeProgramacion($validator, $sedeId, $cursoId): void
     {

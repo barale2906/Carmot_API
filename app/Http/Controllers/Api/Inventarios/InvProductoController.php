@@ -12,8 +12,8 @@ use App\Models\Inventarios\InvProducto;
 use App\Models\Inventarios\InvUnidadMedida;
 use App\Services\ArchivoService;
 use App\Services\ArchivoTabularService;
-use Illuminate\Http\JsonResponse;
 use Illuminate\Database\QueryException;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -22,8 +22,6 @@ use Illuminate\Support\Facades\DB;
  *
  * Administra el ciclo de vida de los productos (simple, kit, grupo):
  * CRUD, soft delete, restauración, eliminación permanente y carga masiva CSV.
- *
- * @package App\Http\Controllers\Api\Inventarios
  */
 class InvProductoController extends Controller
 {
@@ -45,9 +43,6 @@ class InvProductoController extends Controller
      *
      * Filtros soportados: search, status, tipo, categoria_id y producto_padre_id
      * (este último lista únicamente las variantes de un grupo).
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function index(Request $request): JsonResponse
     {
@@ -62,11 +57,11 @@ class InvProductoController extends Controller
             'data' => InvProductoResource::collection($productos),
             'meta' => [
                 'current_page' => $productos->currentPage(),
-                'last_page'    => $productos->lastPage(),
-                'per_page'     => $productos->perPage(),
-                'total'        => $productos->total(),
-                'from'         => $productos->firstItem(),
-                'to'           => $productos->lastItem(),
+                'last_page' => $productos->lastPage(),
+                'per_page' => $productos->perPage(),
+                'total' => $productos->total(),
+                'from' => $productos->firstItem(),
+                'to' => $productos->lastItem(),
             ],
         ]);
     }
@@ -74,9 +69,6 @@ class InvProductoController extends Controller
     /**
      * Lista todos los productos activos sin paginación (para selectores).
      * Permite filtrar por tipo mediante query param.
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function activos(Request $request): JsonResponse
     {
@@ -91,8 +83,8 @@ class InvProductoController extends Controller
         return response()->json([
             'data' => InvProductoResource::collection($productos),
             'meta' => [
-                'total'       => $productos->count(),
-                'scope'       => 'activos',
+                'total' => $productos->count(),
+                'scope' => 'activos',
                 'descripcion' => 'Productos activos y sin eliminación lógica.',
             ],
         ]);
@@ -104,35 +96,32 @@ class InvProductoController extends Controller
      * Solo devuelve resultados cuando el término tiene al menos 2 caracteres.
      * Limita a 20 resultados ordenados por coincidencia exacta primero.
      * Acepta filtro opcional por tipo (simple, kit, grupo).
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function buscar(Request $request): JsonResponse
     {
         $request->validate([
-            'q'    => ['required', 'string', 'min:2', 'max:100'],
+            'q' => ['required', 'string', 'min:2', 'max:100'],
             'tipo' => ['nullable', 'string', 'in:simple,kit,grupo'],
         ], [
             'q.required' => 'El término de búsqueda es obligatorio.',
-            'q.min'      => 'El término de búsqueda debe tener al menos :min caracteres.',
-            'q.max'      => 'El término de búsqueda no puede superar :max caracteres.',
-            'tipo.in'    => 'El tipo debe ser simple, kit o grupo.',
+            'q.min' => 'El término de búsqueda debe tener al menos :min caracteres.',
+            'q.max' => 'El término de búsqueda no puede superar :max caracteres.',
+            'tipo.in' => 'El tipo debe ser simple, kit o grupo.',
         ]);
 
         $q = $request->get('q');
 
         $productos = InvProducto::where('status', 1)
             ->where(function ($query) use ($q) {
-                $query->where('nombre', 'like', '%' . $q . '%')
-                      ->orWhere('codigo', 'like', '%' . $q . '%');
+                $query->where('nombre', 'like', '%'.$q.'%')
+                    ->orWhere('codigo', 'like', '%'.$q.'%');
             })
             ->when($request->filled('tipo'), fn ($query) => $query->where('tipo', $request->get('tipo')))
             ->with(['categoria', 'unidadMedida'])
             ->orderByRaw(
-                "CASE WHEN LOWER(codigo) = LOWER(?) THEN 0
+                'CASE WHEN LOWER(codigo) = LOWER(?) THEN 0
                       WHEN LOWER(nombre) = LOWER(?) THEN 1
-                      ELSE 2 END",
+                      ELSE 2 END',
                 [$q, $q]
             )
             ->orderBy('nombre')
@@ -142,8 +131,8 @@ class InvProductoController extends Controller
         return response()->json([
             'data' => InvProductoResource::collection($productos),
             'meta' => [
-                'total'       => $productos->count(),
-                'scope'       => 'buscar',
+                'total' => $productos->count(),
+                'scope' => 'buscar',
                 'descripcion' => 'Resultados de autocompletado por nombre o código.',
             ],
         ]);
@@ -151,43 +140,37 @@ class InvProductoController extends Controller
 
     /**
      * Almacena un nuevo producto en la base de datos.
-     *
-     * @param StoreInvProductoRequest $request
-     * @return JsonResponse
      */
     public function store(StoreInvProductoRequest $request): JsonResponse
     {
         $imagenPath = null;
         if ($request->hasFile('imagen')) {
-            $imagenPath = 'storage/' . app(ArchivoService::class)
+            $imagenPath = 'storage/'.app(ArchivoService::class)
                 ->guardar($request->file('imagen'), 'public', ArchivoService::CARPETA_PRODUCTOS);
         }
 
         $producto = InvProducto::create([
-            'codigo'            => $request->codigo,
-            'nombre'            => $request->nombre,
-            'descripcion'       => $request->descripcion,
-            'tipo'              => $request->tipo,
-            'imagen'            => $imagenPath,
-            'categoria_id'      => $request->categoria_id,
-            'unidad_medida_id'  => $request->unidad_medida_id,
+            'codigo' => $request->codigo,
+            'nombre' => $request->nombre,
+            'descripcion' => $request->descripcion,
+            'tipo' => $request->tipo,
+            'imagen' => $imagenPath,
+            'categoria_id' => $request->categoria_id,
+            'unidad_medida_id' => $request->unidad_medida_id,
             'producto_padre_id' => $request->producto_padre_id,
-            'status'            => $request->status ?? 1,
+            'status' => $request->status ?? 1,
         ]);
 
         $producto->load(['categoria', 'unidadMedida']);
 
         return response()->json([
             'message' => 'Producto creado exitosamente.',
-            'data'    => new InvProductoResource($producto),
+            'data' => new InvProductoResource($producto),
         ], 201);
     }
 
     /**
      * Muestra el producto especificado con sus relaciones principales.
-     *
-     * @param InvProducto $producto
-     * @return JsonResponse
      */
     public function show(InvProducto $producto): JsonResponse
     {
@@ -201,10 +184,6 @@ class InvProductoController extends Controller
 
     /**
      * Actualiza el producto especificado en la base de datos.
-     *
-     * @param UpdateInvProductoRequest $request
-     * @param InvProducto $producto
-     * @return JsonResponse
      */
     public function update(UpdateInvProductoRequest $request, InvProducto $producto): JsonResponse
     {
@@ -214,7 +193,7 @@ class InvProductoController extends Controller
         ]);
 
         if ($request->hasFile('imagen')) {
-            $datos['imagen'] = 'storage/' . app(ArchivoService::class)
+            $datos['imagen'] = 'storage/'.app(ArchivoService::class)
                 ->guardar($request->file('imagen'), 'public', ArchivoService::CARPETA_PRODUCTOS);
         }
 
@@ -223,15 +202,12 @@ class InvProductoController extends Controller
 
         return response()->json([
             'message' => 'Producto actualizado exitosamente.',
-            'data'    => new InvProductoResource($producto),
+            'data' => new InvProductoResource($producto),
         ]);
     }
 
     /**
      * Elimina el producto (soft delete). No permite eliminar si tiene pedidos.
-     *
-     * @param InvProducto $producto
-     * @return JsonResponse
      */
     public function destroy(InvProducto $producto): JsonResponse
     {
@@ -250,9 +226,6 @@ class InvProductoController extends Controller
 
     /**
      * Restaura un producto eliminado (soft delete).
-     *
-     * @param int $id
-     * @return JsonResponse
      */
     public function restore(int $id): JsonResponse
     {
@@ -261,7 +234,7 @@ class InvProductoController extends Controller
 
         return response()->json([
             'message' => 'Producto restaurado exitosamente.',
-            'data'    => new InvProductoResource($producto),
+            'data' => new InvProductoResource($producto),
         ]);
     }
 
@@ -270,9 +243,6 @@ class InvProductoController extends Controller
      *
      * Si otros registros aún lo referencian (precios, componentes de kit, pedidos,
      * stock, movimientos...) la BD lo impide por FK y se responde 422 en vez de 500.
-     *
-     * @param int $id
-     * @return JsonResponse
      */
     public function forceDelete(int $id): JsonResponse
     {
@@ -304,9 +274,6 @@ class InvProductoController extends Controller
 
     /**
      * Obtiene solo los productos eliminados (soft delete).
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function trashed(Request $request): JsonResponse
     {
@@ -322,26 +289,24 @@ class InvProductoController extends Controller
             'data' => InvProductoResource::collection($productos),
             'meta' => [
                 'current_page' => $productos->currentPage(),
-                'last_page'    => $productos->lastPage(),
-                'per_page'     => $productos->perPage(),
-                'total'        => $productos->total(),
-                'from'         => $productos->firstItem(),
-                'to'           => $productos->lastItem(),
+                'last_page' => $productos->lastPage(),
+                'per_page' => $productos->perPage(),
+                'total' => $productos->total(),
+                'from' => $productos->firstItem(),
+                'to' => $productos->lastItem(),
             ],
         ]);
     }
 
     /**
      * Obtiene las opciones de filtros disponibles para el catálogo de productos.
-     *
-     * @return JsonResponse
      */
     public function filters(): JsonResponse
     {
         return response()->json([
             'data' => [
-                'status'     => InvProducto::getActiveStatusOptions(),
-                'tipos'      => [
+                'status' => InvProducto::getActiveStatusOptions(),
+                'tipos' => [
                     ['value' => 'simple', 'label' => 'Simple'],
                     ['value' => 'kit',    'label' => 'Kit'],
                     ['value' => 'grupo',  'label' => 'Grupo'],
@@ -355,22 +320,20 @@ class InvProductoController extends Controller
 
     /**
      * Obtiene estadísticas del catálogo de productos.
-     *
-     * @return JsonResponse
      */
     public function statistics(): JsonResponse
     {
         $stats = [
             'totales' => [
-                'total'      => InvProducto::withTrashed()->count(),
-                'activos'    => InvProducto::where('status', 1)->count(),
-                'inactivos'  => InvProducto::where('status', 0)->count(),
+                'total' => InvProducto::withTrashed()->count(),
+                'activos' => InvProducto::where('status', 1)->count(),
+                'inactivos' => InvProducto::where('status', 0)->count(),
                 'eliminados' => InvProducto::onlyTrashed()->count(),
             ],
             'por_tipo' => [
                 'simples' => InvProducto::where('tipo', 'simple')->count(),
-                'kits'    => InvProducto::where('tipo', 'kit')->count(),
-                'grupos'  => InvProducto::where('tipo', 'grupo')->count(),
+                'kits' => InvProducto::where('tipo', 'kit')->count(),
+                'grupos' => InvProducto::where('tipo', 'grupo')->count(),
             ],
         ];
 
@@ -387,13 +350,13 @@ class InvProductoController extends Controller
     public function plantilla()
     {
         $headers = [
-            'Content-Type'        => 'text/csv; charset=UTF-8',
+            'Content-Type' => 'text/csv; charset=UTF-8',
             'Content-Disposition' => 'attachment; filename="plantilla_catalogo_inventario.csv"',
         ];
 
         $callback = function () {
             $handle = fopen('php://output', 'w');
-            fputs($handle, "\xEF\xBB\xBF");
+            fwrite($handle, "\xEF\xBB\xBF");
             fputcsv($handle, ['codigo', 'nombre', 'tipo', 'categoria', 'unidad_medida', 'descripcion', 'status']);
             fputcsv($handle, ['CAM-001', 'Camisa Escolar', 'simple', 'Uniformes', 'Unidad', 'Camisa blanca manga larga', '1']);
             fputcsv($handle, ['KIT-UNIF-001', 'Kit Uniforme Completo', 'kit', 'Uniformes', 'Kit', 'Camisa + Pantalón + Botas', '1']);
@@ -409,9 +372,6 @@ class InvProductoController extends Controller
      * Las columnas requeridas son: codigo, nombre, tipo.
      * Las columnas opcionales son: categoria, unidad_medida, descripcion, status.
      * Las filas con código duplicado (incluida la papelera) se omiten.
-     *
-     * @param ImportarInvCatalogoRequest $request
-     * @return JsonResponse
      */
     public function importar(ImportarInvCatalogoRequest $request): JsonResponse
     {
@@ -420,16 +380,16 @@ class InvProductoController extends Controller
 
         $columnasFalt = array_diff(['codigo', 'nombre', 'tipo'], $encabezados);
 
-        if (!empty($columnasFalt)) {
+        if (! empty($columnasFalt)) {
             return response()->json([
-                'message' => 'El archivo no tiene el formato correcto. Columnas faltantes: ' . implode(', ', $columnasFalt),
+                'message' => 'El archivo no tiene el formato correcto. Columnas faltantes: '.implode(', ', $columnasFalt),
             ], 422);
         }
 
         $resumen = ['insertadas' => 0, 'omitidas' => 0, 'errores' => []];
         // Pre-cargar catálogos para evitar N+1 en el archivo
-        $categorias  = InvCategoria::pluck('id', 'nombre');
-        $unidades    = InvUnidadMedida::pluck('id', 'nombre');
+        $categorias = InvCategoria::pluck('id', 'nombre');
+        $unidades = InvUnidadMedida::pluck('id', 'nombre');
         $tiposValidos = ['simple', 'kit', 'grupo'];
 
         DB::beginTransaction();
@@ -440,19 +400,22 @@ class InvProductoController extends Controller
                 if (empty($datos['codigo'])) {
                     $resumen['errores'][] = "Fila {$fila}: el código es obligatorio.";
                     $resumen['omitidas']++;
+
                     continue;
                 }
 
                 if (empty($datos['nombre'])) {
                     $resumen['errores'][] = "Fila {$fila}: el nombre es obligatorio.";
                     $resumen['omitidas']++;
+
                     continue;
                 }
 
                 $tipo = strtolower($datos['tipo'] ?? 'simple');
-                if (!in_array($tipo, $tiposValidos)) {
+                if (! in_array($tipo, $tiposValidos)) {
                     $resumen['errores'][] = "Fila {$fila}: tipo inválido '{$datos['tipo']}'. Use: simple, kit, grupo.";
                     $resumen['omitidas']++;
+
                     continue;
                 }
 
@@ -466,10 +429,11 @@ class InvProductoController extends Controller
                         ? "Fila {$fila}: el código '{$datos['codigo']}' pertenece a un producto en la papelera; restáuralo."
                         : "Fila {$fila}: el código '{$datos['codigo']}' ya existe.";
                     $resumen['omitidas']++;
+
                     continue;
                 }
 
-                $categoriaId   = isset($datos['categoria']) && $datos['categoria']
+                $categoriaId = isset($datos['categoria']) && $datos['categoria']
                     ? $categorias->get($datos['categoria'])
                     : null;
 
@@ -482,13 +446,13 @@ class InvProductoController extends Controller
                     : 1;
 
                 InvProducto::create([
-                    'codigo'           => $datos['codigo'],
-                    'nombre'           => $datos['nombre'],
-                    'tipo'             => $tipo,
-                    'descripcion'      => $datos['descripcion'] ?? null,
-                    'categoria_id'     => $categoriaId,
+                    'codigo' => $datos['codigo'],
+                    'nombre' => $datos['nombre'],
+                    'tipo' => $tipo,
+                    'descripcion' => $datos['descripcion'] ?? null,
+                    'categoria_id' => $categoriaId,
                     'unidad_medida_id' => $unidadId,
-                    'status'           => $status,
+                    'status' => $status,
                 ]);
 
                 $resumen['insertadas']++;
@@ -497,14 +461,15 @@ class InvProductoController extends Controller
             DB::commit();
         } catch (\Throwable $e) {
             DB::rollBack();
+
             return response()->json([
-                'message' => 'Error al procesar el archivo: ' . $e->getMessage(),
+                'message' => 'Error al procesar el archivo: '.$e->getMessage(),
             ], 500);
         }
 
         return response()->json([
             'message' => "Carga masiva completada. Insertadas: {$resumen['insertadas']}, Omitidas: {$resumen['omitidas']}.",
-            'data'    => $resumen,
+            'data' => $resumen,
         ]);
     }
 }

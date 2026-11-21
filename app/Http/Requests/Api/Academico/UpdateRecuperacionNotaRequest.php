@@ -26,9 +26,9 @@ class UpdateRecuperacionNotaRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'nota'           => 'sometimes|required|numeric|min:0',
+            'nota' => 'sometimes|required|numeric|min:0',
             'fecha_registro' => 'sometimes|required|date',
-            'observaciones'  => 'nullable|string|max:1000',
+            'observaciones' => 'nullable|string|max:1000',
         ];
     }
 
@@ -40,9 +40,9 @@ class UpdateRecuperacionNotaRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'nota.required'       => 'La nota de recuperación es obligatoria.',
-            'nota.numeric'        => 'La nota de recuperación debe ser un número.',
-            'nota.min'            => 'La nota de recuperación no puede ser menor a 0.',
+            'nota.required' => 'La nota de recuperación es obligatoria.',
+            'nota.numeric' => 'La nota de recuperación debe ser un número.',
+            'nota.min' => 'La nota de recuperación no puede ser menor a 0.',
             'fecha_registro.date' => 'La fecha de registro debe ser una fecha válida.',
         ];
     }
@@ -55,17 +55,16 @@ class UpdateRecuperacionNotaRequest extends FormRequest
     public function attributes(): array
     {
         return [
-            'nota'           => 'nota de recuperación',
+            'nota' => 'nota de recuperación',
             'fecha_registro' => 'fecha de registro',
-            'observaciones'  => 'observaciones',
+            'observaciones' => 'observaciones',
         ];
     }
 
     /**
      * Las notas del ciclo deben seguir abiertas y la nota caber en la escala del esquema.
      *
-     * @param \Illuminate\Validation\Validator $validator
-     * @return void
+     * @param  \Illuminate\Validation\Validator  $validator
      */
     public function withValidator($validator): void
     {

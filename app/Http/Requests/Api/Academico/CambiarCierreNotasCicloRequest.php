@@ -39,8 +39,8 @@ class CambiarCierreNotasCicloRequest extends FormRequest
     {
         return [
             'motivo.required' => 'Indique el motivo para reabrir las notas del ciclo.',
-            'motivo.min'      => 'El motivo debe tener al menos 5 caracteres.',
-            'motivo.max'      => 'El motivo no puede superar 500 caracteres.',
+            'motivo.min' => 'El motivo debe tener al menos 5 caracteres.',
+            'motivo.max' => 'El motivo no puede superar 500 caracteres.',
         ];
     }
 
@@ -57,8 +57,7 @@ class CambiarCierreNotasCicloRequest extends FormRequest
     /**
      * No se cierra un ciclo ya cerrado ni se reabre uno abierto.
      *
-     * @param \Illuminate\Validation\Validator $validator
-     * @return void
+     * @param  \Illuminate\Validation\Validator  $validator
      */
     public function withValidator($validator): void
     {
@@ -76,8 +75,6 @@ class CambiarCierreNotasCicloRequest extends FormRequest
 
     /**
      * Indica si la petición es para reabrir las notas.
-     *
-     * @return bool
      */
     public function esReapertura(): bool
     {

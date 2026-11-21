@@ -32,7 +32,7 @@ class UpdateInvCategoriaRequest extends FormRequest
         $categoriaId = $this->route('categoria');
 
         return [
-            'nombre'      => [
+            'nombre' => [
                 'required',
                 'string',
                 'max:150',
@@ -41,7 +41,7 @@ class UpdateInvCategoriaRequest extends FormRequest
                     ->whereNull('deleted_at'),
             ],
             'descripcion' => ['nullable', 'string', 'max:1000'],
-            'status'      => self::getStatusValidationRule(),
+            'status' => self::getStatusValidationRule(),
         ];
     }
 
@@ -52,8 +52,8 @@ class UpdateInvCategoriaRequest extends FormRequest
     {
         return array_merge([
             'nombre.required' => 'El nombre de la categoría es obligatorio.',
-            'nombre.max'      => 'El nombre no puede superar 150 caracteres.',
-            'nombre.unique'   => 'Ya existe otra categoría con ese nombre.',
+            'nombre.max' => 'El nombre no puede superar 150 caracteres.',
+            'nombre.unique' => 'Ya existe otra categoría con ese nombre.',
         ], self::getStatusValidationMessages());
     }
 
@@ -63,9 +63,9 @@ class UpdateInvCategoriaRequest extends FormRequest
     public function attributes(): array
     {
         return [
-            'nombre'      => 'nombre',
+            'nombre' => 'nombre',
             'descripcion' => 'descripción',
-            'status'      => 'estado',
+            'status' => 'estado',
         ];
     }
 }

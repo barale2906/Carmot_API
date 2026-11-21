@@ -20,8 +20,6 @@ use Illuminate\Support\Facades\DB;
  * Administra el catálogo de documentos que el instituto puede generar
  * (contrato, pagaré, hoja de matrícula, certificados, cartas) y la selección
  * de variables del sistema que quedan disponibles para redactar sus plantillas.
- *
- * @package App\Http\Controllers\Api\Academico\Documentacion
  */
 class DocTipoDocumentoController extends Controller
 {
@@ -41,7 +39,7 @@ class DocTipoDocumentoController extends Controller
     /**
      * Registra los middlewares de permisos del módulo.
      *
-     * @param DocVariableResolverService $variables Catálogo de variables del sistema.
+     * @param  DocVariableResolverService  $variables  Catálogo de variables del sistema.
      */
     public function __construct(private DocVariableResolverService $variables)
     {
@@ -54,13 +52,10 @@ class DocTipoDocumentoController extends Controller
 
     /**
      * Lista paginada de tipos de documento con filtros opcionales.
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function index(Request $request): JsonResponse
     {
-        $filters   = $request->only(['search', 'status', 'include_trashed', 'only_trashed']);
+        $filters = $request->only(['search', 'status', 'include_trashed', 'only_trashed']);
         $relations = $request->has('with') ? explode(',', $request->with) : [];
 
         $tipos = DocTipoDocumento::withFilters($filters)
@@ -72,24 +67,21 @@ class DocTipoDocumentoController extends Controller
             'data' => DocTipoDocumentoResource::collection($tipos),
             'meta' => [
                 'current_page' => $tipos->currentPage(),
-                'last_page'    => $tipos->lastPage(),
-                'per_page'     => $tipos->perPage(),
-                'total'        => $tipos->total(),
-                'from'         => $tipos->firstItem(),
-                'to'           => $tipos->lastItem(),
+                'last_page' => $tipos->lastPage(),
+                'per_page' => $tipos->perPage(),
+                'total' => $tipos->total(),
+                'from' => $tipos->firstItem(),
+                'to' => $tipos->lastItem(),
             ],
         ]);
     }
 
     /**
      * Crea un nuevo tipo de documento con sus variables habilitadas.
-     *
-     * @param StoreDocTipoDocumentoRequest $request
-     * @return JsonResponse
      */
     public function store(StoreDocTipoDocumentoRequest $request): JsonResponse
     {
-        $data           = $request->only(self::FILLABLE_FIELDS);
+        $data = $request->only(self::FILLABLE_FIELDS);
         $data['status'] = $data['status'] ?? 1;
 
         $tipoDocumento = DB::transaction(function () use ($request, $data) {
@@ -101,15 +93,12 @@ class DocTipoDocumentoController extends Controller
 
         return response()->json([
             'message' => 'Tipo de documento creado exitosamente.',
-            'data'    => new DocTipoDocumentoResource($tipoDocumento->load('variables')),
+            'data' => new DocTipoDocumentoResource($tipoDocumento->load('variables')),
         ], 201);
     }
 
     /**
      * Muestra el detalle de un tipo de documento con sus variables habilitadas.
-     *
-     * @param DocTipoDocumento $tipoDocumento
-     * @return JsonResponse
      */
     public function show(DocTipoDocumento $tipoDocumento): JsonResponse
     {
@@ -120,10 +109,6 @@ class DocTipoDocumentoController extends Controller
 
     /**
      * Actualiza un tipo de documento.
-     *
-     * @param UpdateDocTipoDocumentoRequest $request
-     * @param DocTipoDocumento              $tipoDocumento
-     * @return JsonResponse
      */
     public function update(UpdateDocTipoDocumentoRequest $request, DocTipoDocumento $tipoDocumento): JsonResponse
     {
@@ -131,15 +116,12 @@ class DocTipoDocumentoController extends Controller
 
         return response()->json([
             'message' => 'Tipo de documento actualizado exitosamente.',
-            'data'    => new DocTipoDocumentoResource($tipoDocumento->fresh()->load('variables')),
+            'data' => new DocTipoDocumentoResource($tipoDocumento->fresh()->load('variables')),
         ]);
     }
 
     /**
      * Elimina (soft delete) un tipo de documento.
-     *
-     * @param DocTipoDocumento $tipoDocumento
-     * @return JsonResponse
      */
     public function destroy(DocTipoDocumento $tipoDocumento): JsonResponse
     {
@@ -158,9 +140,6 @@ class DocTipoDocumentoController extends Controller
 
     /**
      * Restaura un tipo de documento eliminado.
-     *
-     * @param int $id
-     * @return JsonResponse
      */
     public function restore(int $id): JsonResponse
     {
@@ -169,15 +148,12 @@ class DocTipoDocumentoController extends Controller
 
         return response()->json([
             'message' => 'Tipo de documento restaurado exitosamente.',
-            'data'    => new DocTipoDocumentoResource($tipoDocumento->load('variables')),
+            'data' => new DocTipoDocumentoResource($tipoDocumento->load('variables')),
         ]);
     }
 
     /**
      * Elimina permanentemente un tipo de documento y sus variables habilitadas.
-     *
-     * @param int $id
-     * @return JsonResponse
      */
     public function forceDelete(int $id): JsonResponse
     {
@@ -198,13 +174,10 @@ class DocTipoDocumentoController extends Controller
 
     /**
      * Lista los tipos de documento eliminados (soft delete).
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function trashed(Request $request): JsonResponse
     {
-        $filters                 = $request->only(['search', 'status']);
+        $filters = $request->only(['search', 'status']);
         $filters['only_trashed'] = true;
 
         $tipos = DocTipoDocumento::withFilters($filters)
@@ -215,11 +188,11 @@ class DocTipoDocumentoController extends Controller
             'data' => DocTipoDocumentoResource::collection($tipos),
             'meta' => [
                 'current_page' => $tipos->currentPage(),
-                'last_page'    => $tipos->lastPage(),
-                'per_page'     => $tipos->perPage(),
-                'total'        => $tipos->total(),
-                'from'         => $tipos->firstItem(),
-                'to'           => $tipos->lastItem(),
+                'last_page' => $tipos->lastPage(),
+                'per_page' => $tipos->perPage(),
+                'total' => $tipos->total(),
+                'from' => $tipos->firstItem(),
+                'to' => $tipos->lastItem(),
             ],
         ]);
     }
@@ -230,8 +203,6 @@ class DocTipoDocumentoController extends Controller
      * Devuelve los estados disponibles y las entidades del sistema a las que se
      * puede asociar un documento, con los campos de fecha válidos de cada una
      * para configurar la vigencia atada a fecha.
-     *
-     * @return JsonResponse
      */
     public function filters(): JsonResponse
     {
@@ -240,7 +211,7 @@ class DocTipoDocumentoController extends Controller
         foreach (config('documentacion.entidades', []) as $clase => $definicion) {
             $entidades[] = [
                 'entidad_type' => $clase,
-                'nombre'       => $definicion['nombre'],
+                'nombre' => $definicion['nombre'],
                 'campos_fecha' => $definicion['campos_fecha'],
             ];
         }
@@ -248,7 +219,7 @@ class DocTipoDocumentoController extends Controller
         return response()->json([
             'data' => [
                 'status_options' => self::getActiveStatusOptions(),
-                'entidades'      => $entidades,
+                'entidades' => $entidades,
             ],
         ]);
     }
@@ -258,9 +229,6 @@ class DocTipoDocumentoController extends Controller
      *
      * Lista las variables de la entidad asociada más las globales, marcando
      * cuáles están habilitadas actualmente para insertarse en las plantillas.
-     *
-     * @param DocTipoDocumento $tipoDocumento
-     * @return JsonResponse
      */
     public function variablesDisponibles(DocTipoDocumento $tipoDocumento): JsonResponse
     {
@@ -281,10 +249,6 @@ class DocTipoDocumentoController extends Controller
      *
      * Reemplaza la selección completa: las variables que no vengan en la
      * petición dejan de estar disponibles para las plantillas de este tipo.
-     *
-     * @param SyncDocTipoDocumentoVariablesRequest $request
-     * @param DocTipoDocumento                     $tipoDocumento
-     * @return JsonResponse
      */
     public function sincronizarVariables(
         SyncDocTipoDocumentoVariablesRequest $request,
@@ -297,16 +261,14 @@ class DocTipoDocumentoController extends Controller
 
         return response()->json([
             'message' => 'Variables habilitadas actualizadas exitosamente.',
-            'data'    => new DocTipoDocumentoResource($tipoDocumento->fresh()->load('variables')),
+            'data' => new DocTipoDocumentoResource($tipoDocumento->fresh()->load('variables')),
         ]);
     }
 
     /**
      * Registra las variables habilitadas de un tipo de documento.
      *
-     * @param DocTipoDocumento   $tipoDocumento
-     * @param array<int, string> $claves
-     * @return void
+     * @param  array<int, string>  $claves
      */
     private function guardarVariables(DocTipoDocumento $tipoDocumento, array $claves): void
     {

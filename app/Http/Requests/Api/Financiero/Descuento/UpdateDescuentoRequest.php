@@ -11,16 +11,12 @@ use Illuminate\Validation\Rule;
  *
  * Valida los datos para actualizar un descuento existente en el sistema financiero.
  * Similar a StoreDescuentoRequest pero con reglas `sometimes` para permitir actualizaciones parciales.
- *
- * @package App\Http\Requests\Api\Financiero\Descuento
  */
 class UpdateDescuentoRequest extends FormRequest
 {
     /**
      * Determina si el usuario está autorizado para hacer esta solicitud.
      * La autorización se maneja mediante middleware y permisos.
-     *
-     * @return bool
      */
     public function authorize(): bool
     {
@@ -34,14 +30,14 @@ class UpdateDescuentoRequest extends FormRequest
      */
     public function rules(): array
     {
-        $descuentoId  = $this->route('descuento')?->id ?? $this->route('id');
+        $descuentoId = $this->route('descuento')?->id ?? $this->route('id');
         // tipo_movimiento puede venir en el request o se toma del modelo existente
-        $movimiento   = $this->input('tipo_movimiento', $this->route('descuento')?->tipo_movimiento);
+        $movimiento = $this->input('tipo_movimiento', $this->route('descuento')?->tipo_movimiento);
         $esSobrecargo = $movimiento === Descuento::MOVIMIENTO_SOBRECARGO;
 
         return [
             'tipo_movimiento' => ['sometimes', Rule::in([Descuento::MOVIMIENTO_DESCUENTO, Descuento::MOVIMIENTO_SOBRECARGO])],
-            'nombre'          => 'sometimes|string|max:255',
+            'nombre' => 'sometimes|string|max:255',
             'codigo_descuento' => [
                 'nullable', 'string', 'max:50',
                 Rule::unique('descuentos', 'codigo_descuento')->ignore($descuentoId),
@@ -77,7 +73,7 @@ class UpdateDescuentoRequest extends FormRequest
                 'nullable', 'integer', 'min:1',
             ],
             'permite_acumulacion' => 'sometimes|boolean',
-            'medios_pago'   => [
+            'medios_pago' => [
                 Rule::requiredIf(fn () => $this->input('tipo_activacion') === Descuento::ACTIVACION_MEDIO_PAGO),
                 'nullable', 'array', 'min:1',
             ],
@@ -85,7 +81,7 @@ class UpdateDescuentoRequest extends FormRequest
                 'string',
                 Rule::in(['efectivo', 'transferencia', 'tarjeta_debito', 'tarjeta_credito', 'cheque', 'consignacion']),
             ],
-            'marca_tarjeta'   => 'nullable|array',
+            'marca_tarjeta' => 'nullable|array',
             'marca_tarjeta.*' => 'string|max:60',
             'fecha_inicio' => 'sometimes|date',
             'fecha_fin' => [
@@ -97,8 +93,8 @@ class UpdateDescuentoRequest extends FormRequest
                     }
                 },
             ],
-            'status'           => Descuento::getStatusValidationRule(),
-            'listas_precios'   => 'nullable|array',
+            'status' => Descuento::getStatusValidationRule(),
+            'listas_precios' => 'nullable|array',
             'listas_precios.*' => 'exists:lp_listas_precios,id',
             'productos' => 'nullable|array',
             'productos.*' => 'exists:lp_productos,id',
@@ -118,7 +114,7 @@ class UpdateDescuentoRequest extends FormRequest
      * descuento aprobado o activo (N06): se rechazan solo si cambian su valor, para que
      * el formulario pueda reenviar el registro completo.
      *
-     * @param \Illuminate\Validation\Validator $validator
+     * @param  \Illuminate\Validation\Validator  $validator
      */
     public function withValidator($validator): void
     {
@@ -156,27 +152,26 @@ class UpdateDescuentoRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'tipo_movimiento.in'       => 'El tipo de movimiento debe ser: descuento o sobrecargo.',
-            'codigo_descuento.unique'  => 'El código de descuento ya está en uso.',
-            'tipo.in'                  => 'El tipo de cálculo debe ser porcentual o valor_fijo.',
-            'valor.max'                => 'El valor no puede superar 100.',
-            'valor.regex'              => 'El valor admite máximo 2 decimales.',
-            'aplicacion.in'            => 'Valor de aplicación no válido para este tipo de movimiento.',
-            'tipo_activacion.in'       => 'Tipo de activación no válido para este tipo de movimiento.',
+            'tipo_movimiento.in' => 'El tipo de movimiento debe ser: descuento o sobrecargo.',
+            'codigo_descuento.unique' => 'El código de descuento ya está en uso.',
+            'tipo.in' => 'El tipo de cálculo debe ser porcentual o valor_fijo.',
+            'valor.max' => 'El valor no puede superar 100.',
+            'valor.regex' => 'El valor admite máximo 2 decimales.',
+            'aplicacion.in' => 'Valor de aplicación no válido para este tipo de movimiento.',
+            'tipo_activacion.in' => 'Tipo de activación no válido para este tipo de movimiento.',
             'dias_anticipacion.required' => 'Los días de anticipación son obligatorios para pago anticipado.',
-            'medios_pago.required'     => 'Los medios de pago son obligatorios para sobrecargos por medio de pago.',
-            'medios_pago.*.in'         => 'Medio de pago no válido.',
-            'fecha_fin.required'       => 'La fecha de fin es obligatoria cuando se proporciona fecha de inicio.',
-            'status.in'                => Descuento::getStatusValidationMessages()['status.in'] ?? 'Estado no válido.',
+            'medios_pago.required' => 'Los medios de pago son obligatorios para sobrecargos por medio de pago.',
+            'medios_pago.*.in' => 'Medio de pago no válido.',
+            'fecha_fin.required' => 'La fecha de fin es obligatoria cuando se proporciona fecha de inicio.',
+            'status.in' => Descuento::getStatusValidationMessages()['status.in'] ?? 'Estado no válido.',
         ];
     }
 
     /**
      * Compara el valor guardado con el enviado sin distinguir tipos ni el orden de las listas.
      *
-     * @param mixed $actual
-     * @param mixed $nuevo
-     * @return bool
+     * @param  mixed  $actual
+     * @param  mixed  $nuevo
      */
     private function valorCambia($actual, $nuevo): bool
     {

@@ -17,8 +17,6 @@ class UpdateActActivoRequest extends FormRequest
 
     /**
      * Determina si el usuario está autorizado para realizar esta petición.
-     *
-     * @return bool
      */
     public function authorize(): bool
     {
@@ -33,24 +31,23 @@ class UpdateActActivoRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'nombre'         => ['sometimes', 'string', 'max:200'],
-            'descripcion'    => ['sometimes', 'nullable', 'string', 'max:2000'],
-            'categoria_id'   => ['sometimes', 'integer', Rule::exists('act_categorias', 'id')->where('status', 1)->whereNull('deleted_at')],
+            'nombre' => ['sometimes', 'string', 'max:200'],
+            'descripcion' => ['sometimes', 'nullable', 'string', 'max:2000'],
+            'categoria_id' => ['sometimes', 'integer', Rule::exists('act_categorias', 'id')->where('status', 1)->whereNull('deleted_at')],
             'responsable_id' => ['sometimes', 'nullable', 'integer', 'exists:users,id', $this->reglaResponsable()],
-            'marca'          => ['sometimes', 'nullable', 'string', 'max:100'],
-            'modelo'         => ['sometimes', 'nullable', 'string', 'max:100'],
-            'serial'         => ['sometimes', 'nullable', 'string', 'max:100'],
-            'fecha_ingreso'  => ['sometimes', 'date', 'before_or_equal:today'],
-            'valor'          => ['sometimes', 'numeric', 'min:0', 'max:9999999999999'],
-            'observaciones'  => ['sometimes', 'nullable', 'string', 'max:2000'],
+            'marca' => ['sometimes', 'nullable', 'string', 'max:100'],
+            'modelo' => ['sometimes', 'nullable', 'string', 'max:100'],
+            'serial' => ['sometimes', 'nullable', 'string', 'max:100'],
+            'fecha_ingreso' => ['sometimes', 'date', 'before_or_equal:today'],
+            'valor' => ['sometimes', 'numeric', 'min:0', 'max:9999999999999'],
+            'observaciones' => ['sometimes', 'nullable', 'string', 'max:2000'],
         ];
     }
 
     /**
      * Rechaza la edición de un activo dado de baja.
      *
-     * @param \Illuminate\Validation\Validator $validator
-     * @return void
+     * @param  \Illuminate\Validation\Validator  $validator
      */
     public function withValidator($validator): void
     {
@@ -69,7 +66,7 @@ class UpdateActActivoRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'categoria_id.exists'          => 'La categoría no existe o está inactiva.',
+            'categoria_id.exists' => 'La categoría no existe o está inactiva.',
             'fecha_ingreso.before_or_equal' => 'La fecha de ingreso no puede ser futura.',
         ];
     }
@@ -82,9 +79,9 @@ class UpdateActActivoRequest extends FormRequest
     public function attributes(): array
     {
         return [
-            'categoria_id'   => 'categoría',
+            'categoria_id' => 'categoría',
             'responsable_id' => 'responsable',
-            'fecha_ingreso'  => 'fecha de ingreso',
+            'fecha_ingreso' => 'fecha de ingreso',
         ];
     }
 }

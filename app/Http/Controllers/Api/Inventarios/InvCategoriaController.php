@@ -15,8 +15,6 @@ use Illuminate\Http\Request;
  *
  * Administra el ciclo de vida de las categorías: CRUD, soft delete,
  * restauración y eliminación permanente.
- *
- * @package App\Http\Controllers\Api\Inventarios
  */
 class InvCategoriaController extends Controller
 {
@@ -34,9 +32,6 @@ class InvCategoriaController extends Controller
 
     /**
      * Muestra una lista paginada de categorías con filtros y ordenamiento.
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function index(Request $request): JsonResponse
     {
@@ -51,19 +46,17 @@ class InvCategoriaController extends Controller
             'data' => InvCategoriaResource::collection($categorias),
             'meta' => [
                 'current_page' => $categorias->currentPage(),
-                'last_page'    => $categorias->lastPage(),
-                'per_page'     => $categorias->perPage(),
-                'total'        => $categorias->total(),
-                'from'         => $categorias->firstItem(),
-                'to'           => $categorias->lastItem(),
+                'last_page' => $categorias->lastPage(),
+                'per_page' => $categorias->perPage(),
+                'total' => $categorias->total(),
+                'from' => $categorias->firstItem(),
+                'to' => $categorias->lastItem(),
             ],
         ]);
     }
 
     /**
      * Lista todas las categorías activas sin paginación (para selectores).
-     *
-     * @return JsonResponse
      */
     public function activas(): JsonResponse
     {
@@ -72,8 +65,8 @@ class InvCategoriaController extends Controller
         return response()->json([
             'data' => InvCategoriaResource::collection($categorias),
             'meta' => [
-                'total'       => $categorias->count(),
-                'scope'       => 'activas',
+                'total' => $categorias->count(),
+                'scope' => 'activas',
                 'descripcion' => 'Categorías activas y sin eliminación lógica.',
             ],
         ]);
@@ -81,29 +74,23 @@ class InvCategoriaController extends Controller
 
     /**
      * Almacena una nueva categoría en la base de datos.
-     *
-     * @param StoreInvCategoriaRequest $request
-     * @return JsonResponse
      */
     public function store(StoreInvCategoriaRequest $request): JsonResponse
     {
         $categoria = InvCategoria::create([
-            'nombre'      => $request->nombre,
+            'nombre' => $request->nombre,
             'descripcion' => $request->descripcion,
-            'status'      => $request->status ?? 1,
+            'status' => $request->status ?? 1,
         ]);
 
         return response()->json([
             'message' => 'Categoría creada exitosamente.',
-            'data'    => new InvCategoriaResource($categoria),
+            'data' => new InvCategoriaResource($categoria),
         ], 201);
     }
 
     /**
      * Muestra la categoría especificada.
-     *
-     * @param InvCategoria $categoria
-     * @return JsonResponse
      */
     public function show(InvCategoria $categoria): JsonResponse
     {
@@ -116,10 +103,6 @@ class InvCategoriaController extends Controller
 
     /**
      * Actualiza la categoría especificada en la base de datos.
-     *
-     * @param UpdateInvCategoriaRequest $request
-     * @param InvCategoria $categoria
-     * @return JsonResponse
      */
     public function update(UpdateInvCategoriaRequest $request, InvCategoria $categoria): JsonResponse
     {
@@ -127,15 +110,12 @@ class InvCategoriaController extends Controller
 
         return response()->json([
             'message' => 'Categoría actualizada exitosamente.',
-            'data'    => new InvCategoriaResource($categoria),
+            'data' => new InvCategoriaResource($categoria),
         ]);
     }
 
     /**
      * Elimina la categoría (soft delete). No permite eliminar si tiene productos activos.
-     *
-     * @param InvCategoria $categoria
-     * @return JsonResponse
      */
     public function destroy(InvCategoria $categoria): JsonResponse
     {
@@ -154,9 +134,6 @@ class InvCategoriaController extends Controller
 
     /**
      * Restaura una categoría eliminada (soft delete).
-     *
-     * @param int $id
-     * @return JsonResponse
      */
     public function restore(int $id): JsonResponse
     {
@@ -165,15 +142,12 @@ class InvCategoriaController extends Controller
 
         return response()->json([
             'message' => 'Categoría restaurada exitosamente.',
-            'data'    => new InvCategoriaResource($categoria),
+            'data' => new InvCategoriaResource($categoria),
         ]);
     }
 
     /**
      * Elimina permanentemente una categoría (solo si está en soft delete y sin productos).
-     *
-     * @param int $id
-     * @return JsonResponse
      */
     public function forceDelete(int $id): JsonResponse
     {
@@ -194,9 +168,6 @@ class InvCategoriaController extends Controller
 
     /**
      * Obtiene solo las categorías eliminadas (soft delete).
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function trashed(Request $request): JsonResponse
     {
@@ -212,19 +183,17 @@ class InvCategoriaController extends Controller
             'data' => InvCategoriaResource::collection($categorias),
             'meta' => [
                 'current_page' => $categorias->currentPage(),
-                'last_page'    => $categorias->lastPage(),
-                'per_page'     => $categorias->perPage(),
-                'total'        => $categorias->total(),
-                'from'         => $categorias->firstItem(),
-                'to'           => $categorias->lastItem(),
+                'last_page' => $categorias->lastPage(),
+                'per_page' => $categorias->perPage(),
+                'total' => $categorias->total(),
+                'from' => $categorias->firstItem(),
+                'to' => $categorias->lastItem(),
             ],
         ]);
     }
 
     /**
      * Obtiene las opciones de filtros disponibles para el módulo de categorías.
-     *
-     * @return JsonResponse
      */
     public function filters(): JsonResponse
     {

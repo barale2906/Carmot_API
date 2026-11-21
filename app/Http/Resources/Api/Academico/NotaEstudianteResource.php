@@ -71,12 +71,10 @@ class NotaEstudianteResource extends JsonResource
 
     /**
      * Obtiene el texto del estado.
-     *
-     * @return string
      */
     private function getStatusText(): string
     {
-        return match($this->status) {
+        return match ($this->status) {
             0 => 'Pendiente',
             1 => 'Registrada',
             2 => 'Cerrada',

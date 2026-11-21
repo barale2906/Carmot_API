@@ -18,8 +18,6 @@ class CierreNotasCicloController extends Controller
 {
     /**
      * Constructor del controlador.
-     *
-     * @param CierreNotasCicloService $cierre
      */
     public function __construct(private CierreNotasCicloService $cierre)
     {
@@ -30,9 +28,6 @@ class CierreNotasCicloController extends Controller
 
     /**
      * Estado del registro de notas del ciclo y su bitácora de cierres y reaperturas.
-     *
-     * @param Ciclo $ciclo
-     * @return JsonResponse
      */
     public function show(Ciclo $ciclo): JsonResponse
     {
@@ -44,10 +39,6 @@ class CierreNotasCicloController extends Controller
     /**
      * Cierra las notas del ciclo: desde ese momento no se registran, editan ni eliminan
      * notas ni recuperaciones de sus estudiantes.
-     *
-     * @param CambiarCierreNotasCicloRequest $request
-     * @param Ciclo $ciclo
-     * @return JsonResponse
      */
     public function cerrar(CambiarCierreNotasCicloRequest $request, Ciclo $ciclo): JsonResponse
     {
@@ -55,16 +46,12 @@ class CierreNotasCicloController extends Controller
 
         return response()->json([
             'message' => 'Notas del ciclo cerradas.',
-            'data'    => new CierreNotasCicloResource($this->cierre->cerrar($ciclo, $request->user())),
+            'data' => new CierreNotasCicloResource($this->cierre->cerrar($ciclo, $request->user())),
         ]);
     }
 
     /**
      * Reabre las notas del ciclo. Exige un motivo, que queda en la bitácora.
-     *
-     * @param CambiarCierreNotasCicloRequest $request
-     * @param Ciclo $ciclo
-     * @return JsonResponse
      */
     public function reabrir(CambiarCierreNotasCicloRequest $request, Ciclo $ciclo): JsonResponse
     {
@@ -72,16 +59,12 @@ class CierreNotasCicloController extends Controller
 
         return response()->json([
             'message' => 'Notas del ciclo reabiertas.',
-            'data'    => new CierreNotasCicloResource($this->cierre->reabrir($ciclo, $request->user(), $request->validated('motivo'))),
+            'data' => new CierreNotasCicloResource($this->cierre->reabrir($ciclo, $request->user(), $request->validated('motivo'))),
         ]);
     }
 
     /**
      * Corta con 403 si el usuario no tiene asignada la sede del ciclo.
-     *
-     * @param CambiarCierreNotasCicloRequest $request
-     * @param Ciclo $ciclo
-     * @return void
      */
     private function autorizarSede(CambiarCierreNotasCicloRequest $request, Ciclo $ciclo): void
     {

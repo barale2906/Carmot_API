@@ -8,15 +8,11 @@ use Illuminate\Foundation\Http\FormRequest;
 
 /**
  * Valida la previsualización de una versión de plantilla.
- *
- * @package App\Http\Requests\Api\Academico\Documentacion
  */
 class PrevisualizarDocPlantillaRequest extends FormRequest
 {
     /**
      * Determina si el usuario está autorizado (los permisos se validan por middleware).
-     *
-     * @return bool
      */
     public function authorize(): bool
     {
@@ -40,9 +36,6 @@ class PrevisualizarDocPlantillaRequest extends FormRequest
      *
      * Sin registro no hay datos con los que resolver variables ni bloques, y la
      * previsualización no mostraría nada útil.
-     *
-     * @param Validator $validator
-     * @return void
      */
     public function withValidator(Validator $validator): void
     {
@@ -50,17 +43,17 @@ class PrevisualizarDocPlantillaRequest extends FormRequest
             /** @var DocPlantilla|null $plantilla */
             $plantilla = $this->route('plantilla');
 
-            if (!$plantilla) {
+            if (! $plantilla) {
                 return;
             }
 
             $entidadType = $plantilla->tipoDocumento->entidad_type;
 
-            if (!$entidadType) {
+            if (! $entidadType) {
                 return;
             }
 
-            if (!$this->filled('entidad_id')) {
+            if (! $this->filled('entidad_id')) {
                 $validator->errors()->add(
                     'entidad_id',
                     'Indique el registro con el que desea previsualizar el documento.'
@@ -69,7 +62,7 @@ class PrevisualizarDocPlantillaRequest extends FormRequest
                 return;
             }
 
-            if (!$entidadType::find($this->integer('entidad_id'))) {
+            if (! $entidadType::find($this->integer('entidad_id'))) {
                 $validator->errors()->add('entidad_id', 'El registro indicado no existe.');
             }
         });

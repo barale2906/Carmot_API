@@ -10,8 +10,6 @@ class StoreAgendaRequest extends FormRequest
 {
     /**
      * Determina si el usuario está autorizado para realizar esta solicitud.
-     *
-     * @return bool
      */
     public function authorize(): bool
     {
@@ -29,44 +27,44 @@ class StoreAgendaRequest extends FormRequest
             'referido_id' => [
                 'required',
                 'integer',
-                'exists:referidos,id'
+                'exists:referidos,id',
             ],
             'agendador_id' => [
                 'sometimes',
                 'integer',
-                'exists:users,id'
+                'exists:users,id',
             ],
             'fecha' => [
                 'required',
                 'date',
-                'after_or_equal:today'
+                'after_or_equal:today',
             ],
             'hora' => [
                 'required',
-                'date_format:H:i'
+                'date_format:H:i',
             ],
             'jornada' => [
                 'required',
                 'string',
-                Rule::in(['am', 'pm'])
+                Rule::in(['am', 'pm']),
             ],
             // Sin tipo, la agenda es una visita (cita presencial)
             'tipo' => [
                 'sometimes',
                 'string',
-                Rule::in(array_keys(Agenda::TIPOS))
+                Rule::in(array_keys(Agenda::TIPOS)),
             ],
             'nota' => [
                 'sometimes',
                 'nullable',
                 'string',
-                'max:1000'
+                'max:1000',
             ],
             'status' => [
                 'sometimes',
                 'integer',
-                Rule::in([0, 1, 2, 3, 4])
-            ]
+                Rule::in([0, 1, 2, 3, 4]),
+            ],
         ];
     }
 
@@ -88,17 +86,15 @@ class StoreAgendaRequest extends FormRequest
             'hora.date_format' => 'La hora debe tener el formato HH:MM.',
             'jornada.required' => 'La jornada es obligatoria.',
             'jornada.in' => 'La jornada debe ser "am" o "pm".',
-            'tipo.in' => 'El tipo debe ser: ' . implode(', ', Agenda::TIPOS) . '.',
+            'tipo.in' => 'El tipo debe ser: '.implode(', ', Agenda::TIPOS).'.',
             'nota.max' => 'La nota no puede exceder los 1000 caracteres.',
-            'status.in' => 'El estado debe ser: 0 (Agendado), 1 (Realizada: asistió, contestó o respondió), 2 (No realizada), 3 (Reprogramó) o 4 (Canceló).'
+            'status.in' => 'El estado debe ser: 0 (Agendado), 1 (Realizada: asistió, contestó o respondió), 2 (No realizada), 3 (Reprogramó) o 4 (Canceló).',
         ];
     }
 
     /**
      * Prepara los datos para la validación: agendador por defecto, estado inicial y
      * jornada derivada de la hora.
-     *
-     * @return void
      */
     protected function prepareForValidation(): void
     {

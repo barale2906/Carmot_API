@@ -40,6 +40,7 @@ class AsistenciaResource extends JsonResource
                 'en_mora' => $this->saldo_vencido > 0,
                 'dias_mora' => (int) $this->dias_mora,
                 'mora_detalle' => $this->mora_detalle ?? [],
+                'prorroga_pago' => $this->prorroga_pago,
                 'transferencias_pendientes' => (int) $this->transferencias_pendientes,
                 'valor_transferencias_pendientes' => (float) $this->valor_transferencias_pendientes,
                 'fallas_consecutivas' => (int) $this->fallas_consecutivas,
@@ -100,12 +101,10 @@ class AsistenciaResource extends JsonResource
 
     /**
      * Obtiene el texto legible del estado.
-     *
-     * @return string
      */
     private function getEstadoText(): string
     {
-        return match($this->estado) {
+        return match ($this->estado) {
             'presente' => 'Presente',
             'ausente' => 'Ausente',
             'tardanza' => 'Tardanza',

@@ -6,15 +6,11 @@ use Illuminate\Foundation\Http\FormRequest;
 
 /**
  * Valida la activación de una versión de plantilla.
- *
- * @package App\Http\Requests\Api\Academico\Documentacion
  */
 class ActivarDocPlantillaRequest extends FormRequest
 {
     /**
      * Determina si el usuario está autorizado (los permisos se validan por middleware).
-     *
-     * @return bool
      */
     public function authorize(): bool
     {

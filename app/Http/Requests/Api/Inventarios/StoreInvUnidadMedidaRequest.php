@@ -13,12 +13,10 @@ use Illuminate\Validation\Rule;
 class StoreInvUnidadMedidaRequest extends FormRequest
 {
     use HasActiveStatus, HasActiveStatusValidation;
+
     /**
      * La autorización se resuelve con el middleware de permisos de la ruta.
-     *
-     * @return bool
      */
-
     public function authorize(): bool
     {
         return true;
@@ -30,14 +28,14 @@ class StoreInvUnidadMedidaRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'nombre'      => [
+            'nombre' => [
                 'required',
                 'string',
                 'max:100',
                 Rule::unique('inv_unidades_medida', 'nombre')->whereNull('deleted_at'),
             ],
             'abreviatura' => ['nullable', 'string', 'max:20'],
-            'status'      => self::getStatusValidationRule(),
+            'status' => self::getStatusValidationRule(),
         ];
     }
 
@@ -48,8 +46,8 @@ class StoreInvUnidadMedidaRequest extends FormRequest
     {
         return array_merge([
             'nombre.required' => 'El nombre de la unidad de medida es obligatorio.',
-            'nombre.max'      => 'El nombre no puede superar 100 caracteres.',
-            'nombre.unique'   => 'Ya existe una unidad de medida con ese nombre.',
+            'nombre.max' => 'El nombre no puede superar 100 caracteres.',
+            'nombre.unique' => 'Ya existe una unidad de medida con ese nombre.',
         ], self::getStatusValidationMessages());
     }
 
@@ -59,9 +57,9 @@ class StoreInvUnidadMedidaRequest extends FormRequest
     public function attributes(): array
     {
         return [
-            'nombre'      => 'nombre',
+            'nombre' => 'nombre',
             'abreviatura' => 'abreviatura',
-            'status'      => 'estado',
+            'status' => 'estado',
         ];
     }
 }

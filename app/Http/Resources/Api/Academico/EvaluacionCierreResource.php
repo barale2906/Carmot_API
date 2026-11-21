@@ -17,14 +17,14 @@ class EvaluacionCierreResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-            'ciclo_terminado'  => $this->resource['ciclo_terminado'],
+            'ciclo_terminado' => $this->resource['ciclo_terminado'],
             'nota_aprobatoria' => $this->resource['nota_aprobatoria'],
-            'modulos'          => $this->resource['modulos'],
-            'asistencia'       => $this->resource['asistencia'],
-            'saldo_pendiente'  => $this->resource['saldo_pendiente'],
-            'aprueba'          => $this->resource['aprueba'],
-            'motivos'          => $this->resource['motivos'],
-            'advertencias'     => $this->resource['advertencias'],
+            'modulos' => $this->resource['modulos'],
+            'asistencia' => $this->resource['asistencia'],
+            'saldo_pendiente' => $this->resource['saldo_pendiente'],
+            'aprueba' => $this->resource['aprueba'],
+            'motivos' => $this->resource['motivos'],
+            'advertencias' => $this->resource['advertencias'],
         ];
     }
 }

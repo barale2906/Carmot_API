@@ -10,15 +10,13 @@ use Illuminate\Http\Resources\Json\JsonResource;
  *
  * Transforma el modelo ConceptoPago en una respuesta JSON estructurada.
  * Incluye todos los campos del concepto de pago y su información formateada.
- *
- * @package App\Http\Resources\Api\Financiero\ConceptoPago
  */
 class ConceptoPagoResource extends JsonResource
 {
     /**
      * Transforma el recurso en un array.
      *
-     * @param Request $request Solicitud HTTP actual
+     * @param  Request  $request  Solicitud HTTP actual
      * @return array<string, mixed> Array con los datos formateados del concepto de pago
      */
     public function toArray(Request $request): array
@@ -36,4 +34,3 @@ class ConceptoPagoResource extends JsonResource
         ];
     }
 }
-

@@ -15,8 +15,6 @@ use Illuminate\Http\Request;
  *
  * Gestiona las operaciones CRUD para los conceptos de pago del sistema financiero.
  * Permite crear, listar, mostrar, actualizar y eliminar conceptos de pago.
- *
- * @package App\Http\Controllers\Api\Financiero\ConceptoPago
  */
 class ConceptoPagoController extends Controller
 {
@@ -37,7 +35,7 @@ class ConceptoPagoController extends Controller
      * Muestra una lista de conceptos de pago.
      * Permite filtrar, ordenar y cargar relaciones.
      *
-     * @param Request $request Solicitud HTTP con parámetros de filtrado y paginación
+     * @param  Request  $request  Solicitud HTTP con parámetros de filtrado y paginación
      * @return JsonResponse Respuesta JSON con la lista paginada de conceptos de pago
      */
     public function index(Request $request): JsonResponse
@@ -50,7 +48,7 @@ class ConceptoPagoController extends Controller
                 'valor_min',
                 'valor_max',
                 'include_trashed',
-                'only_trashed'
+                'only_trashed',
             ]);
 
             // Construir query
@@ -118,7 +116,7 @@ class ConceptoPagoController extends Controller
     /**
      * Almacena un nuevo concepto de pago en la base de datos.
      *
-     * @param StoreConceptoPagoRequest $request Datos validados del concepto de pago
+     * @param  StoreConceptoPagoRequest  $request  Datos validados del concepto de pago
      * @return JsonResponse Respuesta JSON con el concepto de pago creado
      */
     public function store(StoreConceptoPagoRequest $request): JsonResponse
@@ -141,8 +139,8 @@ class ConceptoPagoController extends Controller
     /**
      * Muestra el concepto de pago especificado.
      *
-     * @param Request $request Solicitud HTTP con parámetros opcionales
-     * @param ConceptoPago $conceptoPago Concepto de pago a mostrar
+     * @param  Request  $request  Solicitud HTTP con parámetros opcionales
+     * @param  ConceptoPago  $conceptoPago  Concepto de pago a mostrar
      * @return JsonResponse Respuesta JSON con los datos del concepto de pago
      */
     public function show(Request $request, ConceptoPago $conceptoPago): JsonResponse
@@ -162,8 +160,8 @@ class ConceptoPagoController extends Controller
     /**
      * Actualiza el concepto de pago especificado en la base de datos.
      *
-     * @param UpdateConceptoPagoRequest $request Datos validados para actualizar
-     * @param ConceptoPago $conceptoPago Concepto de pago a actualizar
+     * @param  UpdateConceptoPagoRequest  $request  Datos validados para actualizar
+     * @param  ConceptoPago  $conceptoPago  Concepto de pago a actualizar
      * @return JsonResponse Respuesta JSON con el concepto de pago actualizado
      */
     public function update(UpdateConceptoPagoRequest $request, ConceptoPago $conceptoPago): JsonResponse
@@ -186,7 +184,7 @@ class ConceptoPagoController extends Controller
     /**
      * Elimina (soft delete) el concepto de pago especificado.
      *
-     * @param ConceptoPago $conceptoPago Concepto de pago a eliminar
+     * @param  ConceptoPago  $conceptoPago  Concepto de pago a eliminar
      * @return JsonResponse Respuesta JSON de confirmación
      */
     public function destroy(ConceptoPago $conceptoPago): JsonResponse
@@ -209,7 +207,7 @@ class ConceptoPagoController extends Controller
      * Agrega un nuevo tipo al array de tipos disponibles del sistema.
      * Este método agrega un nuevo tipo que podrá ser usado por todos los conceptos de pago.
      *
-     * @param Request $request Solicitud HTTP con el nuevo tipo
+     * @param  Request  $request  Solicitud HTTP con el nuevo tipo
      * @return JsonResponse Respuesta JSON con el nuevo índice del tipo agregado
      */
     public function agregarTipo(Request $request): JsonResponse
@@ -264,4 +262,3 @@ class ConceptoPagoController extends Controller
         }
     }
 }
-

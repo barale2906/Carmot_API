@@ -6,12 +6,10 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\Configuracion\StoreSedeRequest;
 use App\Http\Requests\Api\Configuracion\UpdateSedeRequest;
 use App\Http\Resources\Api\Configuracion\SedeResource;
-use App\Http\Resources\Api\Configuracion\HorarioResource;
-use App\Models\Configuracion\Sede;
 use App\Models\Configuracion\Poblacion;
-use App\Models\Configuracion\Horario;
-use Illuminate\Http\Request;
+use App\Models\Configuracion\Sede;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 /**
  * Controlador para la gestión de sedes.
@@ -19,8 +17,6 @@ use Illuminate\Http\JsonResponse;
  * Administra el ciclo de vida de las sedes, incluyendo la asignación
  * de áreas, la generación automática de horarios de atención y las
  * consultas de disponibilidad. Soporta soft delete, restore y force delete.
- *
- * @package App\Http\Controllers\Api\Configuracion
  */
 class SedeController extends Controller
 {
@@ -38,9 +34,6 @@ class SedeController extends Controller
 
     /**
      * Muestra una lista de las sedes.
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function index(Request $request): JsonResponse
     {
@@ -126,9 +119,6 @@ class SedeController extends Controller
 
     /**
      * Almacena una nueva sede en la base de datos.
-     *
-     * @param StoreSedeRequest $request
-     * @return JsonResponse
      */
     public function store(StoreSedeRequest $request): JsonResponse
     {
@@ -175,10 +165,6 @@ class SedeController extends Controller
 
     /**
      * Muestra la sede especificada.
-     *
-     * @param Request $request
-     * @param Sede $sede
-     * @return JsonResponse
      */
     public function show(Request $request, Sede $sede): JsonResponse
     {
@@ -198,10 +184,6 @@ class SedeController extends Controller
 
     /**
      * Actualiza la sede especificada en la base de datos. Solo sobre sedes asignadas al usuario (403 en otra, B45).
-     *
-     * @param UpdateSedeRequest $request
-     * @param Sede $sede
-     * @return JsonResponse
      */
     public function update(UpdateSedeRequest $request, Sede $sede): JsonResponse
     {
@@ -261,10 +243,6 @@ class SedeController extends Controller
 
     /**
      * Elimina la sede especificada de la base de datos (soft delete). Solo sobre sedes asignadas al usuario (403 en otra, B45).
-     *
-     * @param Request $request
-     * @param Sede $sede
-     * @return JsonResponse
      */
     public function destroy(Request $request, Sede $sede): JsonResponse
     {
@@ -286,10 +264,6 @@ class SedeController extends Controller
 
     /**
      * Restaura una sede eliminada (soft delete). Solo sobre sedes asignadas al usuario (403 en otra, B45).
-     *
-     * @param Request $request
-     * @param int $id
-     * @return JsonResponse
      */
     public function restore(Request $request, int $id): JsonResponse
     {
@@ -305,10 +279,6 @@ class SedeController extends Controller
 
     /**
      * Elimina permanentemente una sede. Solo sobre sedes asignadas al usuario (403 en otra, B45).
-     *
-     * @param Request $request
-     * @param int $id
-     * @return JsonResponse
      */
     public function forceDelete(Request $request, int $id): JsonResponse
     {
@@ -331,9 +301,6 @@ class SedeController extends Controller
 
     /**
      * Obtiene solo las sedes eliminadas (soft delete).
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function trashed(Request $request): JsonResponse
     {
@@ -376,13 +343,10 @@ class SedeController extends Controller
     /**
      * Genera horarios de sede para cada área usando hora_inicio y hora_fin de la sede.
      * Crea un registro de apertura (periodo=true) y cierre (periodo=false) por cada día de la semana.
-     *
-     * @param Sede $sede
-     * @return void
      */
     private function generarHorariosDesdeSede(Sede $sede): void
     {
-        if (!$sede->hora_inicio || !$sede->hora_fin) {
+        if (! $sede->hora_inicio || ! $sede->hora_fin) {
             return;
         }
 
@@ -423,8 +387,6 @@ class SedeController extends Controller
 
     /**
      * Obtiene las opciones de filtros disponibles.
-     *
-     * @return JsonResponse
      */
     public function filters(): JsonResponse
     {
@@ -442,8 +404,6 @@ class SedeController extends Controller
 
     /**
      * Obtiene estadísticas de sedes.
-     *
-     * @return JsonResponse
      */
     public function statistics(): JsonResponse
     {

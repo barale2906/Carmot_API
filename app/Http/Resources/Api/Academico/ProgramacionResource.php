@@ -15,7 +15,7 @@ class ProgramacionResource extends JsonResource
      * Transforma el recurso en un array.
      *
      * @return array<string, mixed>
-     * 
+     *
      * @property array grupos Array de objetos con información de los grupos asignados a la programación.
      * Cada objeto contiene: id, nombre, inscritos, jornada, jornada_nombre, status, status_text,
      * fecha_inicio_grupo, fecha_fin_grupo, modulo, profesor, horarios
@@ -74,7 +74,7 @@ class ProgramacionResource extends JsonResource
 
     /**
      * Obtiene los datos de grupos como array.
-     * 
+     *
      * @return array<int, array{
      *   id: int,
      *   nombre: string,
@@ -92,7 +92,7 @@ class ProgramacionResource extends JsonResource
      */
     private function getGruposData(): array
     {
-        if (!$this->relationLoaded('grupos')) {
+        if (! $this->relationLoaded('grupos')) {
             return [];
         }
 

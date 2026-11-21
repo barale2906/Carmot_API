@@ -8,8 +8,6 @@ class StoreSedeRequest extends FormRequest
 {
     /**
      * Determina si el usuario está autorizado para realizar esta petición.
-     *
-     * @return bool
      */
     public function authorize(): bool
     {
@@ -28,7 +26,7 @@ class StoreSedeRequest extends FormRequest
             'direccion' => ['required', 'string', 'max:500'],
             'telefono' => ['required', 'string', 'max:20'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:sedes,email'],
-            'codigo_academico'  => ['nullable', 'string', 'max:10', 'unique:sedes,codigo_academico'],
+            'codigo_academico' => ['nullable', 'string', 'max:10', 'unique:sedes,codigo_academico'],
             'codigo_inventario' => ['nullable', 'string', 'max:10', 'unique:sedes,codigo_inventario'],
             'hora_inicio' => ['required', 'date_format:H:i:s'],
             'hora_fin' => ['required', 'date_format:H:i:s', 'after:hora_inicio'],
@@ -64,9 +62,9 @@ class StoreSedeRequest extends FormRequest
             'email.email' => 'El email debe tener un formato válido.',
             'email.unique' => 'Este email ya está registrado.',
             'email.max' => 'El email no puede exceder los 255 caracteres.',
-            'codigo_academico.max'    => 'El código académico no puede exceder los 10 caracteres.',
+            'codigo_academico.max' => 'El código académico no puede exceder los 10 caracteres.',
             'codigo_academico.unique' => 'Este código académico ya está en uso por otra sede.',
-            'codigo_inventario.max'    => 'El código de inventario no puede exceder los 10 caracteres.',
+            'codigo_inventario.max' => 'El código de inventario no puede exceder los 10 caracteres.',
             'codigo_inventario.unique' => 'Este código de inventario ya está en uso por otra sede.',
             'hora_inicio.required' => 'La hora de inicio es obligatoria.',
             'hora_inicio.date_format' => 'La hora de inicio debe tener el formato HH:MM:SS.',
@@ -107,7 +105,7 @@ class StoreSedeRequest extends FormRequest
             'direccion' => 'dirección',
             'telefono' => 'teléfono',
             'email' => 'email',
-            'codigo_academico'  => 'código académico',
+            'codigo_academico' => 'código académico',
             'codigo_inventario' => 'código de inventario',
             'hora_inicio' => 'hora de inicio',
             'hora_fin' => 'hora de fin',

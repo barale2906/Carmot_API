@@ -59,7 +59,7 @@ class CicloResourceSchema
                         'hora_fin' => ['type' => 'string', 'format' => 'time'],
                         'status' => ['type' => 'integer'],
                         'status_text' => ['type' => 'string'],
-                    ]
+                    ],
                 ],
                 'curso' => [
                     'type' => 'object',
@@ -70,7 +70,7 @@ class CicloResourceSchema
                         'duracion' => ['type' => 'integer'],
                         'status' => ['type' => 'integer'],
                         'status_text' => ['type' => 'string'],
-                    ]
+                    ],
                 ],
                 'grupos' => [
                     'type' => 'array',
@@ -96,7 +96,7 @@ class CicloResourceSchema
                                     'id' => ['type' => 'integer'],
                                     'nombre' => ['type' => 'string'],
                                     'duracion' => ['type' => 'integer'],
-                                ]
+                                ],
                             ],
                             'profesor' => [
                                 'type' => 'object',
@@ -105,7 +105,7 @@ class CicloResourceSchema
                                     'id' => ['type' => 'integer'],
                                     'name' => ['type' => 'string'],
                                     'email' => ['type' => 'string'],
-                                ]
+                                ],
                             ],
                             'horarios' => [
                                 'type' => 'array',
@@ -117,16 +117,16 @@ class CicloResourceSchema
                                         'dia' => ['type' => 'string'],
                                         'hora' => ['type' => 'string', 'format' => 'time'],
                                         'duracion_horas' => ['type' => 'integer'],
-                                    ]
-                                ]
+                                    ],
+                                ],
                             ],
-                        ]
-                    ]
+                        ],
+                    ],
                 ],
                 'sede_count' => ['type' => 'integer', 'nullable' => true],
                 'curso_count' => ['type' => 'integer', 'nullable' => true],
                 'grupos_count' => ['type' => 'integer', 'nullable' => true],
-            ]
+            ],
         ];
     }
 }

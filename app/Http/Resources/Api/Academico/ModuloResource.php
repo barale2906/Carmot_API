@@ -13,7 +13,6 @@ use Illuminate\Http\Resources\Json\JsonResource;
  * de cursos, grupos y tópicos cuando están disponibles en la instancia.
  *
  * @mixin \App\Models\Academico\Modulo
- * @package App\Http\Resources\Api\Academico
  */
 class ModuloResource extends JsonResource
 {

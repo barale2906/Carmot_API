@@ -9,6 +9,7 @@ use Illuminate\Http\Resources\Json\JsonResource;
 class ReferidoResource extends JsonResource
 {
     use HasStatus;
+
     /**
      * Transforma el recurso en un array.
      *
@@ -82,5 +83,4 @@ class ReferidoResource extends JsonResource
             'next_suggested_status_text' => $this->getNextSuggestedStatusText(),
         ];
     }
-
 }

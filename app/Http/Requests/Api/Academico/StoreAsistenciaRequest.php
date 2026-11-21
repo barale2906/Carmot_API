@@ -3,8 +3,8 @@
 namespace App\Http\Requests\Api\Academico;
 
 use App\Http\Requests\Api\Academico\Concerns\ValidaEstudiantesDelGrupo;
-use App\Models\Academico\AsistenciaClaseProgramada;
 use App\Models\Academico\Asistencia;
+use App\Models\Academico\AsistenciaClaseProgramada;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -69,7 +69,7 @@ class StoreAsistenciaRequest extends FormRequest
     protected function prepareForValidation(): void
     {
         // Si no se proporciona hora_registro, usar la hora actual
-        if (!$this->has('hora_registro')) {
+        if (! $this->has('hora_registro')) {
             $this->merge([
                 'hora_registro' => now()->format('H:i:s'),
             ]);
@@ -80,8 +80,7 @@ class StoreAsistenciaRequest extends FormRequest
      * Solo se registra asistencia a estudiantes con matrícula vigente en el grupo de la clase,
      * y solo se justifica una ausencia o una tardanza.
      *
-     * @param \Illuminate\Validation\Validator $validator
-     * @return void
+     * @param  \Illuminate\Validation\Validator  $validator
      */
     public function withValidator($validator): void
     {

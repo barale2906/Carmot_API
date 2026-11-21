@@ -15,7 +15,7 @@ class KpiComputeResource extends JsonResource
     /**
      * Transform the resource into an array.
      *
-     * @param \Illuminate\Http\Request $request
+     * @param  \Illuminate\Http\Request  $request
      * @return array<string, mixed>
      */
     public function toArray($request): array
@@ -23,7 +23,7 @@ class KpiComputeResource extends JsonResource
         // La estructura ya viene normalizada desde el servicio.
         // Aquí garantizamos claves consistentes para el frontend.
         $base = [
-            'is_grouped' => (bool)($this['is_grouped'] ?? false),
+            'is_grouped' => (bool) ($this['is_grouped'] ?? false),
             'factor' => $this['factor'] ?? null,
             'formula' => $this['formula'] ?? null,
             'description' => $this['description'] ?? null,

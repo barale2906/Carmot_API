@@ -28,15 +28,12 @@ class EsquemaCalificacionController extends Controller
 
     /**
      * Muestra una lista de esquemas de calificación.
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function index(Request $request): JsonResponse
     {
         $filters = $request->only([
             'search', 'status', 'modulo_id', 'grupo_id', 'profesor_id',
-            'include_trashed', 'only_trashed'
+            'include_trashed', 'only_trashed',
         ]);
 
         $relations = $request->has('with')
@@ -69,9 +66,6 @@ class EsquemaCalificacionController extends Controller
     /**
      * Almacena un nuevo esquema de calificación. El profesor solo crea esquemas de sus
      * grupos; el general del módulo (sin grupo) es de la coordinación (N16).
-     *
-     * @param StoreEsquemaCalificacionRequest $request
-     * @return JsonResponse
      */
     public function store(StoreEsquemaCalificacionRequest $request): JsonResponse
     {
@@ -115,6 +109,7 @@ class EsquemaCalificacionController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
+
             return response()->json([
                 'message' => 'Error al crear el esquema de calificación.',
                 'error' => $e->getMessage(),
@@ -124,10 +119,6 @@ class EsquemaCalificacionController extends Controller
 
     /**
      * Muestra el esquema de calificación especificado.
-     *
-     * @param EsquemaCalificacion $esquemaCalificacion
-     * @param Request $request
-     * @return JsonResponse
      */
     public function show(EsquemaCalificacion $esquemaCalificacion, Request $request): JsonResponse
     {
@@ -145,10 +136,6 @@ class EsquemaCalificacionController extends Controller
     /**
      * Actualiza el esquema de calificación especificado. El profesor solo edita esquemas
      * de sus grupos y no los puede pasar a otro grupo ni volverlos generales (N16).
-     *
-     * @param UpdateEsquemaCalificacionRequest $request
-     * @param EsquemaCalificacion $esquemaCalificacion
-     * @return JsonResponse
      */
     public function update(UpdateEsquemaCalificacionRequest $request, EsquemaCalificacion $esquemaCalificacion): JsonResponse
     {
@@ -163,7 +150,7 @@ class EsquemaCalificacionController extends Controller
             // Actualizar el esquema
             $esquemaCalificacion->update($request->only([
                 'modulo_id', 'grupo_id', 'nombre_esquema', 'descripcion',
-                'condicion_aplicacion', 'status'
+                'condicion_aplicacion', 'status',
             ]));
 
             // Si se proporcionan tipos de nota, actualizarlos
@@ -215,6 +202,7 @@ class EsquemaCalificacionController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
+
             return response()->json([
                 'message' => 'Error al actualizar el esquema de calificación.',
                 'error' => $e->getMessage(),
@@ -225,10 +213,6 @@ class EsquemaCalificacionController extends Controller
     /**
      * Elimina el esquema de calificación especificado (soft delete). El profesor solo
      * elimina esquemas de sus grupos (N16).
-     *
-     * @param Request $request
-     * @param EsquemaCalificacion $esquemaCalificacion
-     * @return JsonResponse
      */
     public function destroy(Request $request, EsquemaCalificacion $esquemaCalificacion): JsonResponse
     {
@@ -251,10 +235,6 @@ class EsquemaCalificacionController extends Controller
     /**
      * Restaura un esquema eliminado (soft delete). El profesor solo restaura esquemas de
      * sus grupos (N16).
-     *
-     * @param Request $request
-     * @param int $id
-     * @return JsonResponse
      */
     public function restore(Request $request, int $id): JsonResponse
     {
@@ -270,17 +250,12 @@ class EsquemaCalificacionController extends Controller
 
     /**
      * Obtiene el esquema activo para un módulo y grupo específicos.
-     *
-     * @param Request $request
-     * @param int $moduloId
-     * @param int|null $grupoId
-     * @return JsonResponse
      */
     public function getByModuloGrupo(Request $request, int $moduloId, ?int $grupoId = null): JsonResponse
     {
         $esquema = EsquemaCalificacion::activoParaModuloGrupo($moduloId, $grupoId)->first();
 
-        if (!$esquema) {
+        if (! $esquema) {
             return response()->json([
                 'message' => 'No se encontró un esquema activo para este módulo y grupo.',
                 'data' => null,
@@ -299,9 +274,7 @@ class EsquemaCalificacionController extends Controller
      * módulo (sin grupo) o el de un grupo que no dicta. El profesor se ciñe a la planeación
      * del curso; lo que controla es cómo obtiene las notas de sus grupos (N16).
      *
-     * @param Request $request
-     * @param int|string|null $grupoId
-     * @return void
+     * @param  int|string|null  $grupoId
      */
     private function autorizarEsquema(Request $request, $grupoId): void
     {

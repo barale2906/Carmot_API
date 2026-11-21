@@ -15,8 +15,6 @@ use Illuminate\Http\Request;
  *
  * Gestiona las operaciones CRUD para los tipos de productos del sistema de listas de precios.
  * Permite crear, listar, mostrar, actualizar y eliminar tipos de productos.
- *
- * @package App\Http\Controllers\Api\Financiero\Lp
  */
 class LpTipoProductoController extends Controller
 {
@@ -37,7 +35,7 @@ class LpTipoProductoController extends Controller
      * Muestra una lista de tipos de productos.
      * Permite filtrar, ordenar y cargar relaciones.
      *
-     * @param Request $request Solicitud HTTP con parámetros de filtrado y paginación
+     * @param  Request  $request  Solicitud HTTP con parámetros de filtrado y paginación
      * @return JsonResponse Respuesta JSON con la lista paginada de tipos de productos
      */
     public function index(Request $request): JsonResponse
@@ -50,7 +48,7 @@ class LpTipoProductoController extends Controller
                 'es_financiable',
                 'codigo',
                 'include_trashed',
-                'only_trashed'
+                'only_trashed',
             ]);
 
             // Preparar relaciones
@@ -66,8 +64,8 @@ class LpTipoProductoController extends Controller
                 $search = $request->string('search');
                 $query->where(function ($q) use ($search) {
                     $q->where('nombre', 'like', "%{$search}%")
-                      ->orWhere('codigo', 'like', "%{$search}%")
-                      ->orWhere('descripcion', 'like', "%{$search}%");
+                        ->orWhere('codigo', 'like', "%{$search}%")
+                        ->orWhere('descripcion', 'like', "%{$search}%");
                 });
             }
 
@@ -93,7 +91,7 @@ class LpTipoProductoController extends Controller
             }
 
             // Aplicar relaciones
-            if (!empty($relations)) {
+            if (! empty($relations)) {
                 $query->with($relations);
             }
 
@@ -127,7 +125,7 @@ class LpTipoProductoController extends Controller
     /**
      * Almacena un nuevo tipo de producto en la base de datos.
      *
-     * @param StoreLpTipoProductoRequest $request Datos validados del tipo de producto
+     * @param  StoreLpTipoProductoRequest  $request  Datos validados del tipo de producto
      * @return JsonResponse Respuesta JSON con el tipo de producto creado
      */
     public function store(StoreLpTipoProductoRequest $request): JsonResponse
@@ -150,8 +148,8 @@ class LpTipoProductoController extends Controller
     /**
      * Muestra el tipo de producto especificado.
      *
-     * @param Request $request Solicitud HTTP con parámetros opcionales
-     * @param LpTipoProducto $lpTipoProducto Tipo de producto a mostrar
+     * @param  Request  $request  Solicitud HTTP con parámetros opcionales
+     * @param  LpTipoProducto  $lpTipoProducto  Tipo de producto a mostrar
      * @return JsonResponse Respuesta JSON con los datos del tipo de producto
      */
     public function show(Request $request, LpTipoProducto $lpTipoProducto): JsonResponse
@@ -163,7 +161,7 @@ class LpTipoProductoController extends Controller
                 : [];
 
             // Cargar relaciones
-            if (!empty($relations)) {
+            if (! empty($relations)) {
                 $lpTipoProducto->load($relations);
             }
 
@@ -181,8 +179,8 @@ class LpTipoProductoController extends Controller
     /**
      * Actualiza el tipo de producto especificado en la base de datos.
      *
-     * @param UpdateLpTipoProductoRequest $request Datos validados para actualizar
-     * @param LpTipoProducto $lpTipoProducto Tipo de producto a actualizar
+     * @param  UpdateLpTipoProductoRequest  $request  Datos validados para actualizar
+     * @param  LpTipoProducto  $lpTipoProducto  Tipo de producto a actualizar
      * @return JsonResponse Respuesta JSON con el tipo de producto actualizado
      */
     public function update(UpdateLpTipoProductoRequest $request, LpTipoProducto $lpTipoProducto): JsonResponse
@@ -205,7 +203,7 @@ class LpTipoProductoController extends Controller
     /**
      * Elimina (soft delete) el tipo de producto especificado.
      *
-     * @param LpTipoProducto $lpTipoProducto Tipo de producto a eliminar
+     * @param  LpTipoProducto  $lpTipoProducto  Tipo de producto a eliminar
      * @return JsonResponse Respuesta JSON de confirmación
      */
     public function destroy(LpTipoProducto $lpTipoProducto): JsonResponse

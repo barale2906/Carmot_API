@@ -13,10 +13,7 @@ use App\Models\User;
 trait ValidaUbicacionActivo
 {
     /**
-     * @param \Illuminate\Validation\Validator $validator
-     * @param int|null $sedeId
-     * @param int|null $areaId
-     * @return void
+     * @param  \Illuminate\Validation\Validator  $validator
      */
     protected function validarUbicacion($validator, ?int $sedeId, ?int $areaId): void
     {
@@ -39,8 +36,6 @@ trait ValidaUbicacionActivo
 
     /**
      * Regla del responsable: debe ser personal, no un estudiante (F15).
-     *
-     * @return \Closure
      */
     protected function reglaResponsable(): \Closure
     {

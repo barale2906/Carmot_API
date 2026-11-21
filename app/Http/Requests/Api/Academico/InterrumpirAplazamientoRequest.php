@@ -7,7 +7,6 @@ use Illuminate\Validation\Validator;
 
 class InterrumpirAplazamientoRequest extends FormRequest
 {
-    /** @return bool */
     public function authorize(): bool
     {
         return true;
@@ -18,7 +17,7 @@ class InterrumpirAplazamientoRequest extends FormRequest
     {
         return [
             'fecha_reinicio_real' => 'required|date',
-            'observaciones'       => 'nullable|string|max:1000',
+            'observaciones' => 'nullable|string|max:1000',
         ];
     }
 
@@ -30,13 +29,14 @@ class InterrumpirAplazamientoRequest extends FormRequest
         $validator->after(function (Validator $v) {
             $aplazamiento = $this->route('aplazamiento');
 
-            if (!$aplazamiento || !$aplazamiento->esPendiente()) {
+            if (! $aplazamiento || ! $aplazamiento->esPendiente()) {
                 $v->errors()->add('aplazamiento', 'Solo se puede interrumpir un aplazamiento en estado Pendiente.');
+
                 return;
             }
 
             $fechaReal = $this->date('fecha_reinicio_real');
-            if (!$fechaReal) {
+            if (! $fechaReal) {
                 return;
             }
 
@@ -44,7 +44,7 @@ class InterrumpirAplazamientoRequest extends FormRequest
                 $v->errors()->add(
                     'fecha_reinicio_real',
                     'La fecha de reinicio real debe ser posterior a la fecha de inicio original ('
-                    . $aplazamiento->fecha_inicio_original->format('Y-m-d') . ').'
+                    .$aplazamiento->fecha_inicio_original->format('Y-m-d').').'
                 );
             }
 
@@ -52,8 +52,8 @@ class InterrumpirAplazamientoRequest extends FormRequest
                 $v->errors()->add(
                     'fecha_reinicio_real',
                     'La fecha de reinicio real debe ser anterior a la fecha probable ('
-                    . $aplazamiento->fecha_reinicio_probable->format('Y-m-d')
-                    . '). Si el ciclo reinicia en la fecha probable o después, use Confirmar o Ampliar.'
+                    .$aplazamiento->fecha_reinicio_probable->format('Y-m-d')
+                    .'). Si el ciclo reinicia en la fecha probable o después, use Confirmar o Ampliar.'
                 );
             }
         });
@@ -64,8 +64,8 @@ class InterrumpirAplazamientoRequest extends FormRequest
     {
         return [
             'fecha_reinicio_real.required' => 'La fecha de reinicio real es obligatoria para interrumpir el aplazamiento.',
-            'fecha_reinicio_real.date'     => 'La fecha de reinicio real debe ser una fecha válida.',
-            'observaciones.max'            => 'Las observaciones no pueden superar los 1000 caracteres.',
+            'fecha_reinicio_real.date' => 'La fecha de reinicio real debe ser una fecha válida.',
+            'observaciones.max' => 'Las observaciones no pueden superar los 1000 caracteres.',
         ];
     }
 
@@ -74,7 +74,7 @@ class InterrumpirAplazamientoRequest extends FormRequest
     {
         return [
             'fecha_reinicio_real' => 'fecha de reinicio real',
-            'observaciones'       => 'observaciones',
+            'observaciones' => 'observaciones',
         ];
     }
 }

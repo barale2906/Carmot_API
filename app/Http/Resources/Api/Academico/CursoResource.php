@@ -15,11 +15,10 @@ use Illuminate\Http\Resources\Json\JsonResource;
  * cuando las relaciones han sido cargadas con eager loading.
  *
  * @mixin \App\Models\Academico\Curso
- * @package App\Http\Resources\Api\Academico
  */
 class CursoResource extends JsonResource
 {
-    use HasTipo, HasActiveStatus;
+    use HasActiveStatus, HasTipo;
 
     /**
      * Transforma el recurso en un array.
@@ -92,12 +91,8 @@ class CursoResource extends JsonResource
         ];
     }
 
-
     /**
      * Obtiene el texto del estado del referido.
-     *
-     * @param int $status
-     * @return string
      */
     private function getReferidoStatusText(int $status): string
     {

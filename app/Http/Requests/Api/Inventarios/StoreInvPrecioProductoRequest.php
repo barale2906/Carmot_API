@@ -17,8 +17,6 @@ class StoreInvPrecioProductoRequest extends FormRequest
 {
     /**
      * La autorización se resuelve con el middleware de permisos de la ruta.
-     *
-     * @return bool
      */
     public function authorize(): bool
     {
@@ -35,17 +33,14 @@ class StoreInvPrecioProductoRequest extends FormRequest
     {
         return [
             'lista_precio_id' => ['required', 'integer', 'exists:lp_listas_precios,id'],
-            'producto_id'     => ['required', 'integer', 'exists:inv_productos,id'],
-            'precio'          => ['required', 'numeric', 'min:0'],
-            'observaciones'   => ['nullable', 'string', 'max:1000'],
+            'producto_id' => ['required', 'integer', 'exists:inv_productos,id'],
+            'precio' => ['required', 'numeric', 'min:0'],
+            'observaciones' => ['nullable', 'string', 'max:1000'],
         ];
     }
 
     /**
      * Un grupo sin variantes activas no tiene a quién asignarle el precio.
-     *
-     * @param Validator $validator
-     * @return void
      */
     public function withValidator(Validator $validator): void
     {
@@ -53,6 +48,7 @@ class StoreInvPrecioProductoRequest extends FormRequest
             // Lista aprobada o activa: el cambio entraría en vigor sin aprobación (N14)
             if (LpListaPrecio::find($this->lista_precio_id)?->preciosBloqueados()) {
                 $v->errors()->add('lista_precio_id', LpListaPrecio::MENSAJE_PRECIOS_BLOQUEADOS);
+
                 return;
             }
 
@@ -71,11 +67,11 @@ class StoreInvPrecioProductoRequest extends FormRequest
     {
         return [
             'lista_precio_id.required' => 'La lista de precios es obligatoria.',
-            'lista_precio_id.exists'   => 'La lista de precios seleccionada no existe.',
-            'producto_id.required'     => 'El producto es obligatorio.',
-            'producto_id.exists'       => 'El producto no existe.',
-            'precio.required'          => 'El precio es obligatorio.',
-            'precio.min'               => 'El precio no puede ser negativo.',
+            'lista_precio_id.exists' => 'La lista de precios seleccionada no existe.',
+            'producto_id.required' => 'El producto es obligatorio.',
+            'producto_id.exists' => 'El producto no existe.',
+            'precio.required' => 'El precio es obligatorio.',
+            'precio.min' => 'El precio no puede ser negativo.',
         ];
     }
 
@@ -86,9 +82,9 @@ class StoreInvPrecioProductoRequest extends FormRequest
     {
         return [
             'lista_precio_id' => 'lista de precios',
-            'producto_id'     => 'producto',
-            'precio'          => 'precio',
-            'observaciones'   => 'observaciones',
+            'producto_id' => 'producto',
+            'precio' => 'precio',
+            'observaciones' => 'observaciones',
         ];
     }
 }

@@ -38,10 +38,10 @@ class UpdateBancoRequest extends FormRequest
     {
         return array_merge([
             'nombre.required' => 'El nombre del banco es obligatorio.',
-            'nombre.max'      => 'El nombre no puede exceder los 200 caracteres.',
-            'nombre.unique'   => 'Ya existe un banco con este nombre.',
-            'codigo.max'      => 'El código no puede exceder los 20 caracteres.',
-            'codigo.unique'   => 'Ya existe un banco con este código.',
+            'nombre.max' => 'El nombre no puede exceder los 200 caracteres.',
+            'nombre.unique' => 'Ya existe un banco con este nombre.',
+            'codigo.max' => 'El código no puede exceder los 20 caracteres.',
+            'codigo.unique' => 'Ya existe un banco con este código.',
         ], self::getStatusValidationMessages());
     }
 

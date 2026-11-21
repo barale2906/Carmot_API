@@ -12,8 +12,6 @@ class StoreInvKitComponenteRequest extends FormRequest
 {
     /**
      * La autorización se resuelve con el middleware de permisos de la ruta.
-     *
-     * @return bool
      */
     public function authorize(): bool
     {
@@ -35,7 +33,7 @@ class StoreInvKitComponenteRequest extends FormRequest
                 Rule::unique('inv_kit_componentes', 'grupo_producto_id')->where('kit_id', $kitId),
             ],
             'cantidad' => ['required', 'integer', 'min:1', 'max:999'],
-            'orden'    => ['nullable', 'integer', 'min:0'],
+            'orden' => ['nullable', 'integer', 'min:0'],
         ];
     }
 
@@ -46,11 +44,11 @@ class StoreInvKitComponenteRequest extends FormRequest
     {
         return [
             'grupo_producto_id.required' => 'El producto componente es obligatorio.',
-            'grupo_producto_id.exists'   => 'El producto componente seleccionado no existe.',
-            'grupo_producto_id.unique'   => 'Este componente ya está incluido en el kit.',
-            'cantidad.required'          => 'La cantidad es obligatoria.',
-            'cantidad.min'               => 'La cantidad mínima es 1.',
-            'cantidad.max'               => 'La cantidad máxima es 999.',
+            'grupo_producto_id.exists' => 'El producto componente seleccionado no existe.',
+            'grupo_producto_id.unique' => 'Este componente ya está incluido en el kit.',
+            'cantidad.required' => 'La cantidad es obligatoria.',
+            'cantidad.min' => 'La cantidad mínima es 1.',
+            'cantidad.max' => 'La cantidad máxima es 999.',
         ];
     }
 
@@ -61,8 +59,8 @@ class StoreInvKitComponenteRequest extends FormRequest
     {
         return [
             'grupo_producto_id' => 'componente',
-            'cantidad'          => 'cantidad',
-            'orden'             => 'orden',
+            'cantidad' => 'cantidad',
+            'orden' => 'orden',
         ];
     }
 }

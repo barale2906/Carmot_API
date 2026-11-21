@@ -11,9 +11,6 @@ use Illuminate\Validation\Rule;
  */
 class UpdateEstudianteRequest extends FormRequest
 {
-    /**
-     * @return bool
-     */
     public function authorize(): bool
     {
         return true;
@@ -27,12 +24,12 @@ class UpdateEstudianteRequest extends FormRequest
         $id = $this->route('estudiante')?->id;
 
         return [
-            'primer_nombre'    => ['sometimes', 'string', 'max:80'],
-            'segundo_nombre'   => ['sometimes', 'nullable', 'string', 'max:80'],
-            'primer_apellido'  => ['sometimes', 'string', 'max:80'],
+            'primer_nombre' => ['sometimes', 'string', 'max:80'],
+            'segundo_nombre' => ['sometimes', 'nullable', 'string', 'max:80'],
+            'primer_apellido' => ['sometimes', 'string', 'max:80'],
             'segundo_apellido' => ['sometimes', 'nullable', 'string', 'max:80'],
-            'email'            => ['sometimes', 'string', 'email', 'max:255', Rule::unique('users')->ignore($id)],
-            'documento'        => ['sometimes', 'string', 'max:255', Rule::unique('users')->ignore($id)],
+            'email' => ['sometimes', 'string', 'email', 'max:255', Rule::unique('users')->ignore($id)],
+            'documento' => ['sometimes', 'string', 'max:255', Rule::unique('users')->ignore($id)],
         ];
     }
 }

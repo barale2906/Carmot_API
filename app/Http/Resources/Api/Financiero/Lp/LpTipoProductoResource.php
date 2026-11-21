@@ -11,8 +11,6 @@ use Illuminate\Http\Resources\Json\JsonResource;
  *
  * Transforma el modelo LpTipoProducto en una respuesta JSON estructurada.
  * Incluye todos los campos del tipo de producto y su estado formateado.
- *
- * @package App\Http\Resources\Api\Financiero\Lp
  */
 class LpTipoProductoResource extends JsonResource
 {
@@ -21,7 +19,7 @@ class LpTipoProductoResource extends JsonResource
     /**
      * Transforma el recurso en un array.
      *
-     * @param Request $request Solicitud HTTP actual
+     * @param  Request  $request  Solicitud HTTP actual
      * @return array<string, mixed> Array con los datos formateados del tipo de producto
      */
     public function toArray(Request $request): array

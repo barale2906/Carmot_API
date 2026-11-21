@@ -38,7 +38,7 @@ class TemaController extends Controller
     /**
      * Muestra una lista de los temas.
      *
-     * @param Request $request Solicitud HTTP con parámetros de filtrado, ordenamiento y paginación
+     * @param  Request  $request  Solicitud HTTP con parámetros de filtrado, ordenamiento y paginación
      * @return JsonResponse Respuesta JSON con la lista paginada de temas
      */
     public function index(Request $request): JsonResponse
@@ -76,7 +76,7 @@ class TemaController extends Controller
     /**
      * Almacena un nuevo tema en la base de datos.
      *
-     * @param StoreTemaRequest $request Solicitud validada con los datos del tema
+     * @param  StoreTemaRequest  $request  Solicitud validada con los datos del tema
      * @return JsonResponse Respuesta JSON con el tema creado
      */
     public function store(StoreTemaRequest $request): JsonResponse
@@ -104,8 +104,8 @@ class TemaController extends Controller
     /**
      * Muestra el tema especificado.
      *
-     * @param Request $request Solicitud HTTP con parámetros opcionales
-     * @param Tema $tema Instancia del tema a mostrar
+     * @param  Request  $request  Solicitud HTTP con parámetros opcionales
+     * @param  Tema  $tema  Instancia del tema a mostrar
      * @return JsonResponse Respuesta JSON con los datos del tema
      */
     public function show(Request $request, Tema $tema): JsonResponse
@@ -127,8 +127,8 @@ class TemaController extends Controller
     /**
      * Actualiza el tema especificado en la base de datos.
      *
-     * @param UpdateTemaRequest $request Solicitud validada con los datos actualizados
-     * @param Tema $tema Instancia del tema a actualizar
+     * @param  UpdateTemaRequest  $request  Solicitud validada con los datos actualizados
+     * @param  Tema  $tema  Instancia del tema a actualizar
      * @return JsonResponse Respuesta JSON con el tema actualizado
      */
     public function update(UpdateTemaRequest $request, Tema $tema): JsonResponse
@@ -156,7 +156,7 @@ class TemaController extends Controller
     /**
      * Elimina el tema especificado de la base de datos (soft delete).
      *
-     * @param Tema $tema Instancia del tema a eliminar
+     * @param  Tema  $tema  Instancia del tema a eliminar
      * @return JsonResponse Respuesta JSON con mensaje de confirmación
      */
     public function destroy(Tema $tema): JsonResponse
@@ -178,7 +178,7 @@ class TemaController extends Controller
     /**
      * Restaura un tema eliminado (soft delete).
      *
-     * @param int $id ID del tema a restaurar
+     * @param  int  $id  ID del tema a restaurar
      * @return JsonResponse Respuesta JSON con el tema restaurado
      */
     public function restore(int $id): JsonResponse
@@ -195,7 +195,7 @@ class TemaController extends Controller
     /**
      * Elimina permanentemente un tema.
      *
-     * @param int $id ID del tema a eliminar permanentemente
+     * @param  int  $id  ID del tema a eliminar permanentemente
      * @return JsonResponse Respuesta JSON con mensaje de confirmación
      */
     public function forceDelete(int $id): JsonResponse
@@ -219,7 +219,7 @@ class TemaController extends Controller
     /**
      * Obtiene solo los temas eliminados (soft delete).
      *
-     * @param Request $request Solicitud HTTP con parámetros de filtrado y paginación
+     * @param  Request  $request  Solicitud HTTP con parámetros de filtrado y paginación
      * @return JsonResponse Respuesta JSON con la lista paginada de temas eliminados
      */
     public function trashed(Request $request): JsonResponse

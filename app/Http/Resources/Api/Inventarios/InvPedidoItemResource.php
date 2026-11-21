@@ -11,35 +11,34 @@ use Illuminate\Http\Resources\Json\JsonResource;
 class InvPedidoItemResource extends JsonResource
 {
     /**
-     * @param  Request  $request
      * @return array<string, mixed>
      */
     public function toArray(Request $request): array
     {
         return [
-            'id'              => $this->id,
-            'pedido_id'       => $this->pedido_id,
-            'producto'        => [
-                'id'     => $this->producto_id,
+            'id' => $this->id,
+            'pedido_id' => $this->pedido_id,
+            'producto' => [
+                'id' => $this->producto_id,
                 'nombre' => $this->whenLoaded('producto', fn () => $this->producto->nombre),
                 'codigo' => $this->whenLoaded('producto', fn () => $this->producto->codigo),
-                'tipo'   => $this->whenLoaded('producto', fn () => $this->producto->tipo),
+                'tipo' => $this->whenLoaded('producto', fn () => $this->producto->tipo),
             ],
-            'cantidad'           => $this->cantidad,
-            'entrega_completa'   => (bool) $this->entrega_completa,
-            'precio_lista'       => $this->precio_lista,
+            'cantidad' => $this->cantidad,
+            'entrega_completa' => (bool) $this->entrega_completa,
+            'precio_lista' => $this->precio_lista,
             'descuento_unitario' => $this->descuento_unitario,
-            'precio_unitario'    => $this->precio_unitario,
-            'subtotal'           => $this->subtotal,
-            'entrega_simple'  => $this->whenLoaded(
+            'precio_unitario' => $this->precio_unitario,
+            'subtotal' => $this->subtotal,
+            'entrega_simple' => $this->whenLoaded(
                 'entregaSimple',
                 fn () => new InvEntregaSimpleResource($this->entregaSimple)
             ),
-            'entrega_kit'     => $this->whenLoaded(
+            'entrega_kit' => $this->whenLoaded(
                 'entregaKit',
                 fn () => new InvEntregaKitResource($this->entregaKit)
             ),
-            'created_at'      => $this->created_at,
+            'created_at' => $this->created_at,
         ];
     }
 }

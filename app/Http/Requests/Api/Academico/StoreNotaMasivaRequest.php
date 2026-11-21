@@ -2,10 +2,10 @@
 
 namespace App\Http\Requests\Api\Academico;
 
-use App\Models\Academico\EsquemaCalificacion;
-use App\Models\Academico\Grupo;
 use App\Http\Requests\Api\Academico\Concerns\ValidaEstudiantesDelGrupo;
 use App\Http\Requests\Api\Academico\Concerns\ValidaNotasAbiertas;
+use App\Models\Academico\EsquemaCalificacion;
+use App\Models\Academico\Grupo;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreNotaMasivaRequest extends FormRequest
@@ -92,7 +92,7 @@ class StoreNotaMasivaRequest extends FormRequest
     protected function prepareForValidation(): void
     {
         // Establecer fecha_registro por defecto si no se proporciona
-        if (!$this->has('fecha_registro')) {
+        if (! $this->has('fecha_registro')) {
             $this->merge(['fecha_registro' => now()->toDateString()]);
         }
     }
@@ -101,8 +101,7 @@ class StoreNotaMasivaRequest extends FormRequest
      * El tipo de nota debe pertenecer al esquema, el esquema aplicar al grupo y a su módulo,
      * y cada estudiante estar en el grupo con las notas del ciclo abiertas.
      *
-     * @param \Illuminate\Validation\Validator $validator
-     * @return void
+     * @param  \Illuminate\Validation\Validator  $validator
      */
     public function withValidator($validator): void
     {
@@ -111,7 +110,7 @@ class StoreNotaMasivaRequest extends FormRequest
                 return;
             }
 
-            $grupo   = Grupo::find($this->grupo_id);
+            $grupo = Grupo::find($this->grupo_id);
             $esquema = EsquemaCalificacion::find($this->esquema_calificacion_id);
 
             if ((int) $grupo->modulo_id !== (int) $this->modulo_id) {

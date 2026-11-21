@@ -51,8 +51,7 @@ class UpdateNotaEstudianteRequest extends FormRequest
     /**
      * No se modifica una nota si las notas del ciclo del estudiante están cerradas.
      *
-     * @param \Illuminate\Validation\Validator $validator
-     * @return void
+     * @param  \Illuminate\Validation\Validator  $validator
      */
     public function withValidator($validator): void
     {

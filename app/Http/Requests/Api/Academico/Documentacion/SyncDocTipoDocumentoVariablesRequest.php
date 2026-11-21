@@ -9,15 +9,11 @@ use Illuminate\Foundation\Http\FormRequest;
 
 /**
  * Valida la selección de variables habilitadas para un tipo de documento.
- *
- * @package App\Http\Requests\Api\Academico\Documentacion
  */
 class SyncDocTipoDocumentoVariablesRequest extends FormRequest
 {
     /**
      * Determina si el usuario está autorizado (los permisos se validan por middleware).
-     *
-     * @return bool
      */
     public function authorize(): bool
     {
@@ -32,25 +28,22 @@ class SyncDocTipoDocumentoVariablesRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'variables'   => 'present|array',
+            'variables' => 'present|array',
             'variables.*' => 'string|max:150',
         ];
     }
 
     /**
      * Verifica que cada variable exista en el catálogo de la entidad del tipo.
-     *
-     * @param Validator $validator
-     * @return void
      */
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $validator) {
             /** @var DocTipoDocumento|null $tipoDocumento */
             $tipoDocumento = $this->route('tipo_documento');
-            $variables     = $this->input('variables', []);
+            $variables = $this->input('variables', []);
 
-            if (!$tipoDocumento || empty($variables)) {
+            if (! $tipoDocumento || empty($variables)) {
                 return;
             }
 
@@ -74,7 +67,7 @@ class SyncDocTipoDocumentoVariablesRequest extends FormRequest
     {
         return [
             'variables.present' => 'Debe enviar la lista de variables habilitadas.',
-            'variables.array'   => 'Las variables habilitadas deben enviarse como una lista.',
+            'variables.array' => 'Las variables habilitadas deben enviarse como una lista.',
         ];
     }
 

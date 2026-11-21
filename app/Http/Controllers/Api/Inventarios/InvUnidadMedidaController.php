@@ -15,8 +15,6 @@ use Illuminate\Http\Request;
  *
  * Administra el ciclo de vida de las unidades: CRUD, soft delete,
  * restauración y eliminación permanente.
- *
- * @package App\Http\Controllers\Api\Inventarios
  */
 class InvUnidadMedidaController extends Controller
 {
@@ -34,9 +32,6 @@ class InvUnidadMedidaController extends Controller
 
     /**
      * Muestra una lista paginada de unidades de medida con filtros y ordenamiento.
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function index(Request $request): JsonResponse
     {
@@ -51,19 +46,17 @@ class InvUnidadMedidaController extends Controller
             'data' => InvUnidadMedidaResource::collection($unidades),
             'meta' => [
                 'current_page' => $unidades->currentPage(),
-                'last_page'    => $unidades->lastPage(),
-                'per_page'     => $unidades->perPage(),
-                'total'        => $unidades->total(),
-                'from'         => $unidades->firstItem(),
-                'to'           => $unidades->lastItem(),
+                'last_page' => $unidades->lastPage(),
+                'per_page' => $unidades->perPage(),
+                'total' => $unidades->total(),
+                'from' => $unidades->firstItem(),
+                'to' => $unidades->lastItem(),
             ],
         ]);
     }
 
     /**
      * Lista todas las unidades activas sin paginación (para selectores).
-     *
-     * @return JsonResponse
      */
     public function activas(): JsonResponse
     {
@@ -72,8 +65,8 @@ class InvUnidadMedidaController extends Controller
         return response()->json([
             'data' => InvUnidadMedidaResource::collection($unidades),
             'meta' => [
-                'total'       => $unidades->count(),
-                'scope'       => 'activas',
+                'total' => $unidades->count(),
+                'scope' => 'activas',
                 'descripcion' => 'Unidades de medida activas y sin eliminación lógica.',
             ],
         ]);
@@ -81,29 +74,23 @@ class InvUnidadMedidaController extends Controller
 
     /**
      * Almacena una nueva unidad de medida en la base de datos.
-     *
-     * @param StoreInvUnidadMedidaRequest $request
-     * @return JsonResponse
      */
     public function store(StoreInvUnidadMedidaRequest $request): JsonResponse
     {
         $unidad = InvUnidadMedida::create([
-            'nombre'      => $request->nombre,
+            'nombre' => $request->nombre,
             'abreviatura' => $request->abreviatura,
-            'status'      => $request->status ?? 1,
+            'status' => $request->status ?? 1,
         ]);
 
         return response()->json([
             'message' => 'Unidad de medida creada exitosamente.',
-            'data'    => new InvUnidadMedidaResource($unidad),
+            'data' => new InvUnidadMedidaResource($unidad),
         ], 201);
     }
 
     /**
      * Muestra la unidad de medida especificada.
-     *
-     * @param InvUnidadMedida $unidadMedida
-     * @return JsonResponse
      */
     public function show(InvUnidadMedida $unidadMedida): JsonResponse
     {
@@ -116,10 +103,6 @@ class InvUnidadMedidaController extends Controller
 
     /**
      * Actualiza la unidad de medida especificada.
-     *
-     * @param UpdateInvUnidadMedidaRequest $request
-     * @param InvUnidadMedida $unidadMedida
-     * @return JsonResponse
      */
     public function update(UpdateInvUnidadMedidaRequest $request, InvUnidadMedida $unidadMedida): JsonResponse
     {
@@ -127,15 +110,12 @@ class InvUnidadMedidaController extends Controller
 
         return response()->json([
             'message' => 'Unidad de medida actualizada exitosamente.',
-            'data'    => new InvUnidadMedidaResource($unidadMedida),
+            'data' => new InvUnidadMedidaResource($unidadMedida),
         ]);
     }
 
     /**
      * Elimina la unidad de medida (soft delete). No permite eliminar si tiene productos.
-     *
-     * @param InvUnidadMedida $unidadMedida
-     * @return JsonResponse
      */
     public function destroy(InvUnidadMedida $unidadMedida): JsonResponse
     {
@@ -154,9 +134,6 @@ class InvUnidadMedidaController extends Controller
 
     /**
      * Restaura una unidad de medida eliminada (soft delete).
-     *
-     * @param int $id
-     * @return JsonResponse
      */
     public function restore(int $id): JsonResponse
     {
@@ -165,15 +142,12 @@ class InvUnidadMedidaController extends Controller
 
         return response()->json([
             'message' => 'Unidad de medida restaurada exitosamente.',
-            'data'    => new InvUnidadMedidaResource($unidad),
+            'data' => new InvUnidadMedidaResource($unidad),
         ]);
     }
 
     /**
      * Elimina permanentemente una unidad de medida.
-     *
-     * @param int $id
-     * @return JsonResponse
      */
     public function forceDelete(int $id): JsonResponse
     {
@@ -194,9 +168,6 @@ class InvUnidadMedidaController extends Controller
 
     /**
      * Obtiene solo las unidades de medida eliminadas (soft delete).
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function trashed(Request $request): JsonResponse
     {
@@ -212,19 +183,17 @@ class InvUnidadMedidaController extends Controller
             'data' => InvUnidadMedidaResource::collection($unidades),
             'meta' => [
                 'current_page' => $unidades->currentPage(),
-                'last_page'    => $unidades->lastPage(),
-                'per_page'     => $unidades->perPage(),
-                'total'        => $unidades->total(),
-                'from'         => $unidades->firstItem(),
-                'to'           => $unidades->lastItem(),
+                'last_page' => $unidades->lastPage(),
+                'per_page' => $unidades->perPage(),
+                'total' => $unidades->total(),
+                'from' => $unidades->firstItem(),
+                'to' => $unidades->lastItem(),
             ],
         ]);
     }
 
     /**
      * Obtiene las opciones de filtros disponibles para unidades de medida.
-     *
-     * @return JsonResponse
      */
     public function filters(): JsonResponse
     {

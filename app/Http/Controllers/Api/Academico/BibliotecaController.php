@@ -19,8 +19,6 @@ use Illuminate\Support\Facades\Storage;
  * Maneja el ciclo de vida completo de los documentos: subida de archivos,
  * listado con filtros avanzados, descarga, sincronización de cursos asociados
  * y operaciones de soft delete / restore / force delete.
- *
- * @package App\Http\Controllers\Api\Academico
  */
 class BibliotecaController extends Controller
 {
@@ -88,22 +86,22 @@ class BibliotecaController extends Controller
                 'data' => BibliotecaResource::collection($documentos),
                 'meta' => [
                     'current_page' => $documentos->currentPage(),
-                    'last_page'    => $documentos->lastPage(),
-                    'per_page'     => $documentos->perPage(),
-                    'total'        => $documentos->total(),
-                    'from'         => $documentos->firstItem(),
-                    'to'           => $documentos->lastItem(),
+                    'last_page' => $documentos->lastPage(),
+                    'per_page' => $documentos->perPage(),
+                    'total' => $documentos->total(),
+                    'from' => $documentos->firstItem(),
+                    'to' => $documentos->lastItem(),
                 ],
             ]);
         } catch (\Exception $e) {
             Log::error('Error al listar documentos de biblioteca', [
                 'exception' => $e->getMessage(),
-                'trace'     => $e->getTraceAsString(),
+                'trace' => $e->getTraceAsString(),
             ]);
 
             return response()->json([
                 'message' => 'Error al obtener los documentos de la biblioteca.',
-                'error'   => $e->getMessage(),
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -114,18 +112,18 @@ class BibliotecaController extends Controller
     public function store(StoreBibliotecaRequest $request): JsonResponse
     {
         try {
-            $archivo     = $request->file('archivo');
+            $archivo = $request->file('archivo');
             $tipoArchivo = $archivo->getClientOriginalExtension();
-            $tamanio     = $archivo->getSize();
+            $tamanio = $archivo->getSize();
             $rutaDestino = app(ArchivoService::class)->guardar($archivo, 'public', ArchivoService::CARPETA_BIBLIOTECA);
 
             $documento = Biblioteca::create([
-                'nombre'              => $request->nombre,
-                'fecha_carga'         => $request->fecha_carga,
+                'nombre' => $request->nombre,
+                'fecha_carga' => $request->fecha_carga,
                 'fecha_obsolescencia' => $request->fecha_obsolescencia,
-                'ruta'                => $rutaDestino,
-                'tipo_archivo'        => $tipoArchivo,
-                'tamanio'             => $tamanio,
+                'ruta' => $rutaDestino,
+                'tipo_archivo' => $tipoArchivo,
+                'tamanio' => $tamanio,
             ]);
 
             if ($request->filled('cursos')) {
@@ -136,17 +134,17 @@ class BibliotecaController extends Controller
 
             return response()->json([
                 'message' => 'Documento agregado a la biblioteca exitosamente.',
-                'data'    => new BibliotecaResource($documento),
+                'data' => new BibliotecaResource($documento),
             ], 201);
         } catch (\Exception $e) {
             Log::error('Error al crear documento de biblioteca', [
                 'exception' => $e->getMessage(),
-                'trace'     => $e->getTraceAsString(),
+                'trace' => $e->getTraceAsString(),
             ]);
 
             return response()->json([
                 'message' => 'Error al crear el documento.',
-                'error'   => $e->getMessage(),
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -187,10 +185,10 @@ class BibliotecaController extends Controller
             if ($request->hasFile('archivo')) {
                 $this->eliminarArchivo($biblioteca->ruta);
 
-                $archivo               = $request->file('archivo');
+                $archivo = $request->file('archivo');
                 $datos['tipo_archivo'] = $archivo->getClientOriginalExtension();
-                $datos['tamanio']      = $archivo->getSize();
-                $datos['ruta']         = app(ArchivoService::class)->guardar($archivo, 'public', ArchivoService::CARPETA_BIBLIOTECA);
+                $datos['tamanio'] = $archivo->getSize();
+                $datos['ruta'] = app(ArchivoService::class)->guardar($archivo, 'public', ArchivoService::CARPETA_BIBLIOTECA);
             }
 
             $biblioteca->update($datos);
@@ -204,17 +202,17 @@ class BibliotecaController extends Controller
 
             return response()->json([
                 'message' => 'Documento de biblioteca actualizado exitosamente.',
-                'data'    => new BibliotecaResource($biblioteca),
+                'data' => new BibliotecaResource($biblioteca),
             ]);
         } catch (\Exception $e) {
             Log::error('Error al actualizar documento de biblioteca', [
                 'exception' => $e->getMessage(),
-                'trace'     => $e->getTraceAsString(),
+                'trace' => $e->getTraceAsString(),
             ]);
 
             return response()->json([
                 'message' => 'Error al actualizar el documento.',
-                'error'   => $e->getMessage(),
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -246,7 +244,7 @@ class BibliotecaController extends Controller
 
         return response()->json([
             'message' => 'Documento restaurado exitosamente.',
-            'data'    => new BibliotecaResource($documento->load('cursos')),
+            'data' => new BibliotecaResource($documento->load('cursos')),
         ]);
     }
 
@@ -284,11 +282,11 @@ class BibliotecaController extends Controller
             'data' => BibliotecaResource::collection($documentos),
             'meta' => [
                 'current_page' => $documentos->currentPage(),
-                'last_page'    => $documentos->lastPage(),
-                'per_page'     => $documentos->perPage(),
-                'total'        => $documentos->total(),
-                'from'         => $documentos->firstItem(),
-                'to'           => $documentos->lastItem(),
+                'last_page' => $documentos->lastPage(),
+                'per_page' => $documentos->perPage(),
+                'total' => $documentos->total(),
+                'from' => $documentos->firstItem(),
+                'to' => $documentos->lastItem(),
             ],
         ]);
     }
@@ -301,7 +299,7 @@ class BibliotecaController extends Controller
     public function syncCursos(Request $request, Biblioteca $biblioteca): JsonResponse
     {
         $request->validate([
-            'cursos'   => ['required', 'array'],
+            'cursos' => ['required', 'array'],
             'cursos.*' => ['integer', 'exists:cursos,id'],
         ]);
 
@@ -310,7 +308,7 @@ class BibliotecaController extends Controller
 
         return response()->json([
             'message' => 'Cursos sincronizados correctamente.',
-            'data'    => new BibliotecaResource($biblioteca),
+            'data' => new BibliotecaResource($biblioteca),
         ]);
     }
 
@@ -327,10 +325,10 @@ class BibliotecaController extends Controller
 
         return response()->json([
             'data' => [
-                'url'          => asset('storage/' . $biblioteca->ruta),
-                'nombre'       => $biblioteca->nombre,
+                'url' => asset('storage/'.$biblioteca->ruta),
+                'nombre' => $biblioteca->nombre,
                 'tipo_archivo' => $biblioteca->tipo_archivo,
-                'tamanio'      => $biblioteca->tamanio,
+                'tamanio' => $biblioteca->tamanio,
             ],
         ]);
     }
@@ -349,7 +347,7 @@ class BibliotecaController extends Controller
         return response()->json([
             'data' => [
                 'tipos_archivo' => $tiposArchivo,
-                'status'        => [
+                'status' => [
                     ['value' => 1, 'label' => 'Activo'],
                     ['value' => 0, 'label' => 'Inactivo'],
                 ],
@@ -364,12 +362,12 @@ class BibliotecaController extends Controller
     {
         $stats = [
             'totales' => [
-                'total'      => Biblioteca::count(),
-                'activos'    => Biblioteca::where('status', 1)->count(),
-                'inactivos'  => Biblioteca::where('status', 0)->count(),
+                'total' => Biblioteca::count(),
+                'activos' => Biblioteca::where('status', 1)->count(),
+                'inactivos' => Biblioteca::where('status', 0)->count(),
                 'eliminados' => Biblioteca::onlyTrashed()->count(),
-                'vigentes'   => Biblioteca::vigentes()->count(),
-                'obsoletos'  => Biblioteca::obsoletos()->count(),
+                'vigentes' => Biblioteca::vigentes()->count(),
+                'obsoletos' => Biblioteca::obsoletos()->count(),
             ],
             'por_tipo_archivo' => Biblioteca::selectRaw('tipo_archivo, count(*) as total')
                 ->whereNotNull('tipo_archivo')
@@ -377,7 +375,7 @@ class BibliotecaController extends Controller
                 ->orderByDesc('total')
                 ->get()
                 ->map(fn ($row) => [
-                    'tipo'  => $row->tipo_archivo,
+                    'tipo' => $row->tipo_archivo,
                     'total' => $row->total,
                 ]),
             'por_curso' => Biblioteca::with('cursos')

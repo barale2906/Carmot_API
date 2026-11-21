@@ -8,8 +8,6 @@ class GenerarFestivosRequest extends FormRequest
 {
     /**
      * Determina si el usuario está autorizado para realizar esta petición.
-     *
-     * @return bool
      */
     public function authorize(): bool
     {
@@ -25,7 +23,7 @@ class GenerarFestivosRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'anio'    => ['required', 'integer', 'between:2000,2100'],
+            'anio' => ['required', 'integer', 'between:2000,2100'],
             'sede_id' => ['nullable', 'integer', 'exists:sedes,id'],
         ];
     }
@@ -38,9 +36,9 @@ class GenerarFestivosRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'anio.required'  => 'El año es obligatorio.',
-            'anio.integer'   => 'El año debe ser un número entero.',
-            'anio.between'   => 'El año debe estar entre 2000 y 2100.',
+            'anio.required' => 'El año es obligatorio.',
+            'anio.integer' => 'El año debe ser un número entero.',
+            'anio.between' => 'El año debe estar entre 2000 y 2100.',
             'sede_id.exists' => 'La sede seleccionada no existe.',
         ];
     }
@@ -53,7 +51,7 @@ class GenerarFestivosRequest extends FormRequest
     public function attributes(): array
     {
         return [
-            'anio'    => 'año',
+            'anio' => 'año',
             'sede_id' => 'sede',
         ];
     }

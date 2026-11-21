@@ -16,8 +16,6 @@ use Illuminate\Http\Request;
  * Administra el CRUD de bancos, incluyendo soft delete, restauración
  * y eliminación permanente. Los bancos se usan para identificar el origen
  * de los pagos por transferencia en los recibos.
- *
- * @package App\Http\Controllers\Api\Configuracion
  */
 class BancoController extends Controller
 {
@@ -37,9 +35,6 @@ class BancoController extends Controller
 
     /**
      * Muestra una lista paginada de bancos con filtros y ordenamiento.
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function index(Request $request): JsonResponse
     {
@@ -54,19 +49,17 @@ class BancoController extends Controller
             'data' => BancoResource::collection($bancos),
             'meta' => [
                 'current_page' => $bancos->currentPage(),
-                'last_page'    => $bancos->lastPage(),
-                'per_page'     => $bancos->perPage(),
-                'total'        => $bancos->total(),
-                'from'         => $bancos->firstItem(),
-                'to'           => $bancos->lastItem(),
+                'last_page' => $bancos->lastPage(),
+                'per_page' => $bancos->perPage(),
+                'total' => $bancos->total(),
+                'from' => $bancos->firstItem(),
+                'to' => $bancos->lastItem(),
             ],
         ]);
     }
 
     /**
      * Lista todos los bancos activos sin paginación para selectores de formulario.
-     *
-     * @return JsonResponse
      */
     public function activos(): JsonResponse
     {
@@ -75,8 +68,8 @@ class BancoController extends Controller
         return response()->json([
             'data' => BancoResource::collection($bancos),
             'meta' => [
-                'total'       => $bancos->count(),
-                'scope'       => 'activos',
+                'total' => $bancos->count(),
+                'scope' => 'activos',
                 'descripcion' => 'Bancos activos disponibles para pagos por transferencia.',
             ],
         ]);
@@ -84,9 +77,6 @@ class BancoController extends Controller
 
     /**
      * Almacena un nuevo banco en la base de datos.
-     *
-     * @param StoreBancoRequest $request
-     * @return JsonResponse
      */
     public function store(StoreBancoRequest $request): JsonResponse
     {
@@ -98,15 +88,12 @@ class BancoController extends Controller
 
         return response()->json([
             'message' => 'Banco creado exitosamente.',
-            'data'    => new BancoResource($banco),
+            'data' => new BancoResource($banco),
         ], 201);
     }
 
     /**
      * Muestra el banco especificado.
-     *
-     * @param Banco $banco
-     * @return JsonResponse
      */
     public function show(Banco $banco): JsonResponse
     {
@@ -119,10 +106,6 @@ class BancoController extends Controller
 
     /**
      * Actualiza el banco especificado.
-     *
-     * @param UpdateBancoRequest $request
-     * @param Banco $banco
-     * @return JsonResponse
      */
     public function update(UpdateBancoRequest $request, Banco $banco): JsonResponse
     {
@@ -130,16 +113,13 @@ class BancoController extends Controller
 
         return response()->json([
             'message' => 'Banco actualizado exitosamente.',
-            'data'    => new BancoResource($banco),
+            'data' => new BancoResource($banco),
         ]);
     }
 
     /**
      * Elimina el banco (soft delete).
      * No permite eliminar si tiene medios de pago asociados.
-     *
-     * @param Banco $banco
-     * @return JsonResponse
      */
     public function destroy(Banco $banco): JsonResponse
     {
@@ -158,9 +138,6 @@ class BancoController extends Controller
 
     /**
      * Restaura un banco eliminado (soft delete).
-     *
-     * @param int $id
-     * @return JsonResponse
      */
     public function restore(int $id): JsonResponse
     {
@@ -169,15 +146,12 @@ class BancoController extends Controller
 
         return response()->json([
             'message' => 'Banco restaurado exitosamente.',
-            'data'    => new BancoResource($banco),
+            'data' => new BancoResource($banco),
         ]);
     }
 
     /**
      * Elimina permanentemente un banco (solo si está en soft delete y sin medios de pago).
-     *
-     * @param int $id
-     * @return JsonResponse
      */
     public function forceDelete(int $id): JsonResponse
     {
@@ -198,9 +172,6 @@ class BancoController extends Controller
 
     /**
      * Lista los bancos en soft delete.
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function trashed(Request $request): JsonResponse
     {
@@ -215,19 +186,17 @@ class BancoController extends Controller
             'data' => BancoResource::collection($bancos),
             'meta' => [
                 'current_page' => $bancos->currentPage(),
-                'last_page'    => $bancos->lastPage(),
-                'per_page'     => $bancos->perPage(),
-                'total'        => $bancos->total(),
-                'from'         => $bancos->firstItem(),
-                'to'           => $bancos->lastItem(),
+                'last_page' => $bancos->lastPage(),
+                'per_page' => $bancos->perPage(),
+                'total' => $bancos->total(),
+                'from' => $bancos->firstItem(),
+                'to' => $bancos->lastItem(),
             ],
         ]);
     }
 
     /**
      * Devuelve las opciones de filtros disponibles.
-     *
-     * @return JsonResponse
      */
     public function filters(): JsonResponse
     {
@@ -240,31 +209,29 @@ class BancoController extends Controller
 
     /**
      * Devuelve estadísticas del catálogo de bancos.
-     *
-     * @return JsonResponse
      */
     public function statistics(): JsonResponse
     {
         return response()->json([
             'data' => [
                 'totales' => [
-                    'total'      => Banco::withTrashed()->count(),
-                    'activos'    => Banco::where('status', 1)->count(),
-                    'inactivos'  => Banco::where('status', 0)->count(),
+                    'total' => Banco::withTrashed()->count(),
+                    'activos' => Banco::where('status', 1)->count(),
+                    'inactivos' => Banco::where('status', 0)->count(),
                     'eliminados' => Banco::onlyTrashed()->count(),
                 ],
                 'con_transferencias' => [
-                    'con_pagos'    => Banco::has('mediosPago')->count(),
-                    'sin_pagos'    => Banco::doesntHave('mediosPago')->count(),
+                    'con_pagos' => Banco::has('mediosPago')->count(),
+                    'sin_pagos' => Banco::doesntHave('mediosPago')->count(),
                 ],
                 'top_bancos' => Banco::withCount('mediosPago')
                     ->orderByDesc('medios_pago_count')
                     ->limit(10)
                     ->get()
                     ->map(fn ($b) => [
-                        'id'                 => $b->id,
-                        'nombre'             => $b->nombre,
-                        'medios_pago_count'  => $b->medios_pago_count,
+                        'id' => $b->id,
+                        'nombre' => $b->nombre,
+                        'medios_pago_count' => $b->medios_pago_count,
                     ]),
             ],
         ]);

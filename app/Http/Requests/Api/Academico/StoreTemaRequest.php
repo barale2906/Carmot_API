@@ -18,8 +18,6 @@ class StoreTemaRequest extends FormRequest
 
     /**
      * Determina si el usuario está autorizado para hacer esta solicitud.
-     *
-     * @return bool
      */
     public function authorize(): bool
     {

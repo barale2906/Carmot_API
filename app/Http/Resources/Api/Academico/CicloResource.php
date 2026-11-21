@@ -5,7 +5,6 @@ namespace App\Http\Resources\Api\Academico;
 use App\Traits\HasActiveStatus;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
-use App\Http\Resources\Api\Academico\AplazamientoResource;
 
 class CicloResource extends JsonResource
 {
@@ -71,34 +70,34 @@ class CicloResource extends JsonResource
             // Aplazamiento activo (Pendiente), si existe
             'aplazamiento_activo' => $this->whenLoaded('aplazamientoActivo', function () {
                 $activo = $this->aplazamientoActivo->first();
-                if (!$activo) {
+                if (! $activo) {
                     return null;
                 }
+
                 return [
-                    'id'                      => $activo->id,
-                    'tipo_aplazamiento_id'    => $activo->tipo_aplazamiento_id,
-                    'fecha_aplazamiento'      => $activo->fecha_aplazamiento?->format('Y-m-d'),
-                    'fecha_inicio_original'   => $activo->fecha_inicio_original?->format('Y-m-d'),
-                    'fecha_reinicio_probable'  => $activo->fecha_reinicio_probable?->format('Y-m-d'),
-                    'dias_aplazamiento'       => $activo->dias_aplazamiento,
-                    'tipo_aplazamiento'       => $activo->tipoAplazamiento ? [
-                        'id'     => $activo->tipoAplazamiento->id,
+                    'id' => $activo->id,
+                    'tipo_aplazamiento_id' => $activo->tipo_aplazamiento_id,
+                    'fecha_aplazamiento' => $activo->fecha_aplazamiento?->format('Y-m-d'),
+                    'fecha_inicio_original' => $activo->fecha_inicio_original?->format('Y-m-d'),
+                    'fecha_reinicio_probable' => $activo->fecha_reinicio_probable?->format('Y-m-d'),
+                    'dias_aplazamiento' => $activo->dias_aplazamiento,
+                    'tipo_aplazamiento' => $activo->tipoAplazamiento ? [
+                        'id' => $activo->tipoAplazamiento->id,
                         'nombre' => $activo->tipoAplazamiento->nombre,
                     ] : null,
-                    'mover_cartera'           => $activo->mover_cartera,
-                    'observaciones'           => $activo->observaciones,
-                    'estado_text'             => $activo->estado_text,
+                    'mover_cartera' => $activo->mover_cartera,
+                    'observaciones' => $activo->observaciones,
+                    'estado_text' => $activo->estado_text,
                 ];
             }),
 
-            'aplazamientos' => $this->whenLoaded('aplazamientos', fn () =>
-                AplazamientoResource::collection($this->aplazamientos)
+            'aplazamientos' => $this->whenLoaded('aplazamientos', fn () => AplazamientoResource::collection($this->aplazamientos)
             ),
 
             // Contadores
-            'sede_count'          => $this->when(isset($this->sede_count), (int) $this->sede_count),
-            'curso_count'         => $this->when(isset($this->curso_count), (int) $this->curso_count),
-            'grupos_count'        => $this->when(isset($this->grupos_count), (int) $this->grupos_count),
+            'sede_count' => $this->when(isset($this->sede_count), (int) $this->sede_count),
+            'curso_count' => $this->when(isset($this->curso_count), (int) $this->curso_count),
+            'grupos_count' => $this->when(isset($this->grupos_count), (int) $this->grupos_count),
             'aplazamientos_count' => $this->when(isset($this->aplazamientos_count), (int) $this->aplazamientos_count),
         ];
     }
@@ -110,7 +109,7 @@ class CicloResource extends JsonResource
      */
     private function getGruposData(): array
     {
-        if (!$this->relationLoaded('grupos')) {
+        if (! $this->relationLoaded('grupos')) {
             return [];
         }
 
@@ -149,5 +148,4 @@ class CicloResource extends JsonResource
             ];
         })->toArray();
     }
-
 }

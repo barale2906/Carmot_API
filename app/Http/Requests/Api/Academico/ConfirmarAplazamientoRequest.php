@@ -7,7 +7,6 @@ use Illuminate\Validation\Validator;
 
 class ConfirmarAplazamientoRequest extends FormRequest
 {
-    /** @return bool */
     public function authorize(): bool
     {
         return true;
@@ -18,7 +17,7 @@ class ConfirmarAplazamientoRequest extends FormRequest
     {
         return [
             'fecha_reinicio_real' => 'nullable|date',
-            'observaciones'       => 'nullable|string|max:1000',
+            'observaciones' => 'nullable|string|max:1000',
         ];
     }
 
@@ -33,7 +32,7 @@ class ConfirmarAplazamientoRequest extends FormRequest
 
             if ($aplazamiento && ($ampliacion = $aplazamiento->ampliacionVigente())) {
                 $v->errors()->add('aplazamiento', "Este aplazamiento fue ampliado: confirme la ampliación #{$ampliacion->id}, que es la vigente.");
-            } elseif (!$aplazamiento || !$aplazamiento->esPendiente()) {
+            } elseif (! $aplazamiento || ! $aplazamiento->esPendiente()) {
                 $v->errors()->add('aplazamiento', 'Solo se puede confirmar un aplazamiento en estado Pendiente.');
             }
         });
@@ -44,7 +43,7 @@ class ConfirmarAplazamientoRequest extends FormRequest
     {
         return [
             'fecha_reinicio_real.date' => 'La fecha de reinicio real debe ser una fecha válida.',
-            'observaciones.max'        => 'Las observaciones no pueden superar los 1000 caracteres.',
+            'observaciones.max' => 'Las observaciones no pueden superar los 1000 caracteres.',
         ];
     }
 
@@ -53,7 +52,7 @@ class ConfirmarAplazamientoRequest extends FormRequest
     {
         return [
             'fecha_reinicio_real' => 'fecha de reinicio real',
-            'observaciones'       => 'observaciones',
+            'observaciones' => 'observaciones',
         ];
     }
 }

@@ -10,7 +10,7 @@ use Illuminate\Http\Resources\Json\JsonResource;
 class KpiResource extends JsonResource
 {
     /**
-     * @param \Illuminate\Http\Request $request
+     * @param  \Illuminate\Http\Request  $request
      * @return array<string, mixed>
      */
     public function toArray($request): array
@@ -21,7 +21,7 @@ class KpiResource extends JsonResource
             'code' => $this->code,
             'description' => $this->description,
             'unit' => $this->unit,
-            'is_active' => (bool)$this->is_active,
+            'is_active' => (bool) $this->is_active,
 
             'numerator_model' => $this->numerator_model,
             'numerator_field' => $this->numerator_field,
@@ -31,7 +31,7 @@ class KpiResource extends JsonResource
             'denominator_field' => $this->denominator_field,
             'denominator_operation' => $this->denominator_operation,
 
-            'calculation_factor' => (float)($this->calculation_factor ?? 1),
+            'calculation_factor' => (float) ($this->calculation_factor ?? 1),
             'target_value' => $this->target_value,
             'date_field' => $this->date_field,
             'period_type' => $this->period_type,

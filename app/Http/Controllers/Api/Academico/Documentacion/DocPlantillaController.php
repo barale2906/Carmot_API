@@ -27,8 +27,6 @@ use Illuminate\Support\Facades\DB;
  * el flujo En Proceso → Aprobada → Activa. Al activar una versión se cierra la
  * vigencia de la anterior, conservando el histórico necesario para volver a
  * generar un documento con el contenido que aplicaba en su momento.
- *
- * @package App\Http\Controllers\Api\Academico\Documentacion
  */
 class DocPlantillaController extends Controller
 {
@@ -42,10 +40,10 @@ class DocPlantillaController extends Controller
     /**
      * Registra los middlewares de permisos del módulo.
      *
-     * @param DocPlantillaPublicacionService $publicacion Publicación y cierre de vigencias.
-     * @param DocVariableResolverService     $variables   Catálogo de variables del sistema.
-     * @param DocBloqueRenderService         $bloques     Catálogo y armado de los bloques.
-     * @param DocGeneracionService           $generacion  Previsualización del contenido.
+     * @param  DocPlantillaPublicacionService  $publicacion  Publicación y cierre de vigencias.
+     * @param  DocVariableResolverService  $variables  Catálogo de variables del sistema.
+     * @param  DocBloqueRenderService  $bloques  Catálogo y armado de los bloques.
+     * @param  DocGeneracionService  $generacion  Previsualización del contenido.
      */
     public function __construct(
         private DocPlantillaPublicacionService $publicacion,
@@ -65,9 +63,6 @@ class DocPlantillaController extends Controller
 
     /**
      * Lista paginada de versiones de plantilla con filtros opcionales.
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function index(Request $request): JsonResponse
     {
@@ -87,11 +82,11 @@ class DocPlantillaController extends Controller
             'data' => DocPlantillaResource::collection($plantillas),
             'meta' => [
                 'current_page' => $plantillas->currentPage(),
-                'last_page'    => $plantillas->lastPage(),
-                'per_page'     => $plantillas->perPage(),
-                'total'        => $plantillas->total(),
-                'from'         => $plantillas->firstItem(),
-                'to'           => $plantillas->lastItem(),
+                'last_page' => $plantillas->lastPage(),
+                'per_page' => $plantillas->perPage(),
+                'total' => $plantillas->total(),
+                'from' => $plantillas->firstItem(),
+                'to' => $plantillas->lastItem(),
             ],
         ]);
     }
@@ -101,32 +96,26 @@ class DocPlantillaController extends Controller
      *
      * El número de versión se asigna automáticamente como el siguiente
      * consecutivo dentro del tipo de documento.
-     *
-     * @param StoreDocPlantillaRequest $request
-     * @return JsonResponse
      */
     public function store(StoreDocPlantillaRequest $request): JsonResponse
     {
         $plantilla = DocPlantilla::create([
             'tipo_documento_id' => $request->integer('tipo_documento_id'),
-            'nombre'            => $request->string('nombre'),
-            'contenido_html'    => $request->input('contenido_html'),
-            'version'           => DocPlantilla::siguienteVersion($request->integer('tipo_documento_id')),
-            'status'            => DocPlantilla::STATUS_EN_PROCESO,
-            'creado_por'        => $request->user()?->id,
+            'nombre' => $request->string('nombre'),
+            'contenido_html' => $request->input('contenido_html'),
+            'version' => DocPlantilla::siguienteVersion($request->integer('tipo_documento_id')),
+            'status' => DocPlantilla::STATUS_EN_PROCESO,
+            'creado_por' => $request->user()?->id,
         ]);
 
         return response()->json([
             'message' => 'Versión de plantilla creada exitosamente.',
-            'data'    => new DocPlantillaResource($plantilla->load('tipoDocumento')),
+            'data' => new DocPlantillaResource($plantilla->load('tipoDocumento')),
         ], 201);
     }
 
     /**
      * Muestra el detalle y el contenido de una versión de plantilla.
-     *
-     * @param DocPlantilla $plantilla
-     * @return JsonResponse
      */
     public function show(DocPlantilla $plantilla): JsonResponse
     {
@@ -141,10 +130,6 @@ class DocPlantillaController extends Controller
      * Solo se permite modificar versiones en estado En Proceso: una vez
      * aprobada, el contenido queda congelado y los cambios deben hacerse
      * clonando la versión.
-     *
-     * @param UpdateDocPlantillaRequest $request
-     * @param DocPlantilla              $plantilla
-     * @return JsonResponse
      */
     public function update(UpdateDocPlantillaRequest $request, DocPlantilla $plantilla): JsonResponse
     {
@@ -158,7 +143,7 @@ class DocPlantillaController extends Controller
 
         return response()->json([
             'message' => 'Versión de plantilla actualizada exitosamente.',
-            'data'    => new DocPlantillaResource($plantilla->fresh()->load('tipoDocumento')),
+            'data' => new DocPlantillaResource($plantilla->fresh()->load('tipoDocumento')),
         ]);
     }
 
@@ -168,9 +153,6 @@ class DocPlantillaController extends Controller
      * Antes de aprobar se revalida el contenido contra las variables
      * habilitadas del tipo, porque la selección pudo cambiar mientras la
      * versión estaba en borrador.
-     *
-     * @param DocPlantilla $plantilla
-     * @return JsonResponse
      */
     public function aprobar(DocPlantilla $plantilla): JsonResponse
     {
@@ -187,7 +169,7 @@ class DocPlantillaController extends Controller
 
         if ($noHabilitadas) {
             return response()->json([
-                'message'   => 'El contenido usa variables que no están habilitadas para este tipo de documento.',
+                'message' => 'El contenido usa variables que no están habilitadas para este tipo de documento.',
                 'variables' => $noHabilitadas,
             ], 422);
         }
@@ -196,7 +178,7 @@ class DocPlantillaController extends Controller
 
         return response()->json([
             'message' => 'Versión de plantilla aprobada exitosamente.',
-            'data'    => new DocPlantillaResource($plantilla->fresh()->load('tipoDocumento')),
+            'data' => new DocPlantillaResource($plantilla->fresh()->load('tipoDocumento')),
         ]);
     }
 
@@ -206,10 +188,6 @@ class DocPlantillaController extends Controller
      * La vigencia arranca en la fecha indicada (hoy por defecto) y debe ser
      * posterior al inicio de la versión activa actual, que queda cerrada el día
      * anterior para que las ventanas de vigencia no se solapen.
-     *
-     * @param ActivarDocPlantillaRequest $request
-     * @param DocPlantilla               $plantilla
-     * @return JsonResponse
      */
     public function activar(ActivarDocPlantillaRequest $request, DocPlantilla $plantilla): JsonResponse
     {
@@ -228,7 +206,7 @@ class DocPlantillaController extends Controller
         if ($vigente && $vigente->fecha_inicio && $fechaInicio->lessThanOrEqualTo($vigente->fecha_inicio)) {
             return response()->json([
                 'message' => 'La fecha de inicio de vigencia debe ser posterior al inicio de la versión activa actual ('
-                    . $vigente->fecha_inicio->toDateString() . ').',
+                    .$vigente->fecha_inicio->toDateString().').',
             ], 422);
         }
 
@@ -236,15 +214,12 @@ class DocPlantillaController extends Controller
 
         return response()->json([
             'message' => 'Versión de plantilla activada exitosamente.',
-            'data'    => new DocPlantillaResource($plantilla->load('tipoDocumento')),
+            'data' => new DocPlantillaResource($plantilla->load('tipoDocumento')),
         ]);
     }
 
     /**
      * Inactiva una versión de plantilla cerrando su vigencia.
-     *
-     * @param DocPlantilla $plantilla
-     * @return JsonResponse
      */
     public function inactivar(DocPlantilla $plantilla): JsonResponse
     {
@@ -252,7 +227,7 @@ class DocPlantillaController extends Controller
 
         return response()->json([
             'message' => 'Versión de plantilla inactivada exitosamente.',
-            'data'    => new DocPlantillaResource($plantilla->load('tipoDocumento')),
+            'data' => new DocPlantillaResource($plantilla->load('tipoDocumento')),
         ]);
     }
 
@@ -261,22 +236,18 @@ class DocPlantillaController extends Controller
      *
      * Es la vía para modificar un documento ya publicado: la versión original
      * queda intacta y la nueva arranca como borrador editable.
-     *
-     * @param CloneDocPlantillaRequest $request
-     * @param DocPlantilla             $plantilla
-     * @return JsonResponse
      */
     public function clonar(CloneDocPlantillaRequest $request, DocPlantilla $plantilla): JsonResponse
     {
         $nueva = DB::transaction(function () use ($request, $plantilla) {
             $nueva = DocPlantilla::create([
-                'tipo_documento_id'   => $plantilla->tipo_documento_id,
-                'nombre'              => $request->string('nombre'),
-                'contenido_html'      => $request->input('contenido_html', $plantilla->contenido_html),
-                'version'             => DocPlantilla::siguienteVersion($plantilla->tipo_documento_id),
-                'status'              => DocPlantilla::STATUS_EN_PROCESO,
+                'tipo_documento_id' => $plantilla->tipo_documento_id,
+                'nombre' => $request->string('nombre'),
+                'contenido_html' => $request->input('contenido_html', $plantilla->contenido_html),
+                'version' => DocPlantilla::siguienteVersion($plantilla->tipo_documento_id),
+                'status' => DocPlantilla::STATUS_EN_PROCESO,
                 'version_anterior_id' => $plantilla->id,
-                'creado_por'          => $request->user()?->id,
+                'creado_por' => $request->user()?->id,
             ]);
 
             foreach ($plantilla->bloques as $bloque) {
@@ -288,7 +259,7 @@ class DocPlantillaController extends Controller
 
         return response()->json([
             'message' => 'Versión de plantilla clonada exitosamente.',
-            'data'    => new DocPlantillaResource($nueva->load('tipoDocumento')),
+            'data' => new DocPlantillaResource($nueva->load('tipoDocumento')),
         ], 201);
     }
 
@@ -298,9 +269,6 @@ class DocPlantillaController extends Controller
      * Es la fuente del selector de bloques del editor: por cada bloque del
      * catálogo indica qué columnas existen y, si ya se configuró, cuáles se
      * imprimen, con qué títulos y si lleva fila de resumen.
-     *
-     * @param DocPlantilla $plantilla
-     * @return JsonResponse
      */
     public function bloquesDisponibles(DocPlantilla $plantilla): JsonResponse
     {
@@ -312,10 +280,10 @@ class DocPlantillaController extends Controller
             $config = $configuradas->get($bloque['clave']);
 
             return $bloque + [
-                'configurado'     => $config !== null,
+                'configurado' => $config !== null,
                 'columnas_activas' => $config?->columnas ?? array_column($bloque['columnas'], 'clave'),
-                'titulos'          => $config?->titulos ?? [],
-                'mostrar_resumen'  => $config?->mostrar_resumen ?? true,
+                'titulos' => $config?->titulos ?? [],
+                'mostrar_resumen' => $config?->mostrar_resumen ?? true,
             ];
         }, $this->bloques->catalogo($plantilla->tipoDocumento->entidad_type));
 
@@ -330,10 +298,6 @@ class DocPlantillaController extends Controller
      * Reemplaza la configuración completa. Solo se permite en versiones En
      * Proceso: cambiar las columnas de una tabla es un cambio de diseño y debe
      * pasar por el mismo flujo de aprobación que cambiar el texto.
-     *
-     * @param SyncDocPlantillaBloquesRequest $request
-     * @param DocPlantilla                   $plantilla
-     * @return JsonResponse
      */
     public function sincronizarBloques(SyncDocPlantillaBloquesRequest $request, DocPlantilla $plantilla): JsonResponse
     {
@@ -348,9 +312,9 @@ class DocPlantillaController extends Controller
 
             foreach ($request->input('bloques', []) as $config) {
                 $plantilla->bloques()->create([
-                    'bloque_key'      => $config['bloque'],
-                    'columnas'        => array_values($config['columnas']),
-                    'titulos'         => $config['titulos'] ?? null,
+                    'bloque_key' => $config['bloque'],
+                    'columnas' => array_values($config['columnas']),
+                    'titulos' => $config['titulos'] ?? null,
                     'mostrar_resumen' => $config['mostrar_resumen'] ?? true,
                 ]);
             }
@@ -358,7 +322,7 @@ class DocPlantillaController extends Controller
 
         return response()->json([
             'message' => 'Bloques de la plantilla actualizados exitosamente.',
-            'data'    => new DocPlantillaResource($plantilla->fresh()->load(['tipoDocumento', 'bloques'])),
+            'data' => new DocPlantillaResource($plantilla->fresh()->load(['tipoDocumento', 'bloques'])),
         ]);
     }
 
@@ -367,10 +331,6 @@ class DocPlantillaController extends Controller
      *
      * Devuelve el HTML con variables y bloques ya resueltos, sin registrar la
      * impresión en la bitácora, para revisar el diseño antes de publicar.
-     *
-     * @param PrevisualizarDocPlantillaRequest $request
-     * @param DocPlantilla                     $plantilla
-     * @return JsonResponse
      */
     public function previsualizar(PrevisualizarDocPlantillaRequest $request, DocPlantilla $plantilla): JsonResponse
     {
@@ -384,8 +344,8 @@ class DocPlantillaController extends Controller
         return response()->json([
             'data' => [
                 'plantilla_id' => $plantilla->id,
-                'version'      => $plantilla->version,
-                'contenido'    => $this->generacion->renderizar($plantilla, $entidad, $request->user()),
+                'version' => $plantilla->version,
+                'contenido' => $this->generacion->renderizar($plantilla, $entidad, $request->user()),
             ],
         ]);
     }
@@ -395,9 +355,6 @@ class DocPlantillaController extends Controller
      *
      * No se permite eliminar la versión activa: primero debe inactivarse o
      * reemplazarse por una versión nueva.
-     *
-     * @param DocPlantilla $plantilla
-     * @return JsonResponse
      */
     public function destroy(DocPlantilla $plantilla): JsonResponse
     {
@@ -416,9 +373,6 @@ class DocPlantillaController extends Controller
 
     /**
      * Restaura una versión de plantilla eliminada.
-     *
-     * @param int $id
-     * @return JsonResponse
      */
     public function restore(int $id): JsonResponse
     {
@@ -427,15 +381,12 @@ class DocPlantillaController extends Controller
 
         return response()->json([
             'message' => 'Versión de plantilla restaurada exitosamente.',
-            'data'    => new DocPlantillaResource($plantilla->load('tipoDocumento')),
+            'data' => new DocPlantillaResource($plantilla->load('tipoDocumento')),
         ]);
     }
 
     /**
      * Elimina permanentemente una versión de plantilla.
-     *
-     * @param int $id
-     * @return JsonResponse
      */
     public function forceDelete(int $id): JsonResponse
     {
@@ -449,13 +400,10 @@ class DocPlantillaController extends Controller
 
     /**
      * Lista las versiones de plantilla eliminadas (soft delete).
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function trashed(Request $request): JsonResponse
     {
-        $filters                 = $request->only(['search', 'status']);
+        $filters = $request->only(['search', 'status']);
         $filters['only_trashed'] = true;
 
         $plantillas = DocPlantilla::withFilters($filters)
@@ -468,19 +416,17 @@ class DocPlantillaController extends Controller
             'data' => DocPlantillaResource::collection($plantillas),
             'meta' => [
                 'current_page' => $plantillas->currentPage(),
-                'last_page'    => $plantillas->lastPage(),
-                'per_page'     => $plantillas->perPage(),
-                'total'        => $plantillas->total(),
-                'from'         => $plantillas->firstItem(),
-                'to'           => $plantillas->lastItem(),
+                'last_page' => $plantillas->lastPage(),
+                'per_page' => $plantillas->perPage(),
+                'total' => $plantillas->total(),
+                'from' => $plantillas->firstItem(),
+                'to' => $plantillas->lastItem(),
             ],
         ]);
     }
 
     /**
      * Opciones de estado disponibles para las versiones de plantilla.
-     *
-     * @return JsonResponse
      */
     public function filters(): JsonResponse
     {

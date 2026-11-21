@@ -2,7 +2,6 @@
 
 namespace App\Http\Resources\Api\Dashboard;
 
-use App\Http\Resources\Api\Dashboard\KpiResource;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -17,7 +16,6 @@ class DashboardCardResource extends JsonResource
     /**
      * Transforma el recurso en un array.
      *
-     * @param Request $request
      * @return array<string, mixed>
      */
     public function toArray(Request $request): array

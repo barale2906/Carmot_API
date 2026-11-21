@@ -22,7 +22,7 @@ class SyncPermisosRolRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'permissions'   => ['required', 'array'],
+            'permissions' => ['required', 'array'],
             'permissions.*' => ['string', 'exists:permissions,name'],
         ];
     }
@@ -35,9 +35,9 @@ class SyncPermisosRolRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'permissions.required'  => 'Debe enviar el array de permisos (puede ser vacío usando []).',
-            'permissions.array'     => 'Los permisos deben ser un array.',
-            'permissions.*.exists'  => 'Uno o más permisos indicados no existen.',
+            'permissions.required' => 'Debe enviar el array de permisos (puede ser vacío usando []).',
+            'permissions.array' => 'Los permisos deben ser un array.',
+            'permissions.*.exists' => 'Uno o más permisos indicados no existen.',
         ];
     }
 
@@ -49,7 +49,7 @@ class SyncPermisosRolRequest extends FormRequest
     public function attributes(): array
     {
         return [
-            'permissions'   => 'permisos',
+            'permissions' => 'permisos',
             'permissions.*' => 'permiso',
         ];
     }

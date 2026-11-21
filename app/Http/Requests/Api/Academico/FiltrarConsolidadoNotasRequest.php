@@ -24,8 +24,6 @@ class FiltrarConsolidadoNotasRequest extends FormRequest
 
     /**
      * Determina si el usuario está autorizado para realizar esta petición.
-     *
-     * @return bool
      */
     public function authorize(): bool
     {
@@ -44,15 +42,15 @@ class FiltrarConsolidadoNotasRequest extends FormRequest
         $alcance = 'required_without_all:ciclo_id,grupo_id,profesor_id,estudiante_id,buscar';
 
         return [
-            'ciclo_id'      => ['nullable', $alcance, 'integer', 'exists:ciclos,id'],
-            'grupo_id'      => ['nullable', 'integer', 'exists:grupos,id'],
-            'profesor_id'   => ['nullable', 'integer', 'exists:users,id'],
+            'ciclo_id' => ['nullable', $alcance, 'integer', 'exists:ciclos,id'],
+            'grupo_id' => ['nullable', 'integer', 'exists:grupos,id'],
+            'profesor_id' => ['nullable', 'integer', 'exists:users,id'],
             'estudiante_id' => ['nullable', 'integer', 'exists:users,id'],
-            'buscar'        => ['nullable', 'string', 'min:2', 'max:100'],
-            'estado'        => ['nullable', Rule::in(self::ESTADOS)],
+            'buscar' => ['nullable', 'string', 'min:2', 'max:100'],
+            'estado' => ['nullable', Rule::in(self::ESTADOS)],
             'por_recuperar' => ['nullable', 'boolean'],
-            'page'          => ['nullable', 'integer', 'min:1'],
-            'per_page'      => ['nullable', 'integer', 'min:1', 'max:500'],
+            'page' => ['nullable', 'integer', 'min:1'],
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:500'],
         ];
     }
 
@@ -65,8 +63,8 @@ class FiltrarConsolidadoNotasRequest extends FormRequest
     {
         return [
             'ciclo_id.required_without_all' => 'Indique al menos un ciclo, grupo, profesor o estudiante.',
-            'buscar.min'                    => 'La búsqueda de estudiante debe tener al menos 2 caracteres.',
-            'estado.in'                     => 'El estado debe ser: ' . implode(', ', self::ESTADOS) . '.',
+            'buscar.min' => 'La búsqueda de estudiante debe tener al menos 2 caracteres.',
+            'estado.in' => 'El estado debe ser: '.implode(', ', self::ESTADOS).'.',
         ];
     }
 
@@ -78,14 +76,14 @@ class FiltrarConsolidadoNotasRequest extends FormRequest
     public function attributes(): array
     {
         return [
-            'ciclo_id'      => 'ciclo',
-            'grupo_id'      => 'grupo',
-            'profesor_id'   => 'profesor',
+            'ciclo_id' => 'ciclo',
+            'grupo_id' => 'grupo',
+            'profesor_id' => 'profesor',
             'estudiante_id' => 'estudiante',
-            'buscar'        => 'búsqueda de estudiante',
-            'estado'        => 'estado',
+            'buscar' => 'búsqueda de estudiante',
+            'estado' => 'estado',
             'por_recuperar' => 'por recuperar',
-            'per_page'      => 'registros por página',
+            'per_page' => 'registros por página',
         ];
     }
 

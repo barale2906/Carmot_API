@@ -14,12 +14,10 @@ use Illuminate\Validation\Rule;
 class UpdateInvProductoRequest extends FormRequest
 {
     use HasActiveStatus, HasActiveStatusValidation;
+
     /**
      * La autorización se resuelve con el middleware de permisos de la ruta.
-     *
-     * @return bool
      */
-
     public function authorize(): bool
     {
         return true;
@@ -36,24 +34,24 @@ class UpdateInvProductoRequest extends FormRequest
         // por eso la validación no los excluye: evita un error 1062 al insertar.
 
         return [
-            'codigo'            => [
+            'codigo' => [
                 'required',
                 'string',
                 'max:100',
                 Rule::unique('inv_productos', 'codigo')->ignore($productoId),
             ],
-            'nombre'            => ['required', 'string', 'max:255'],
-            'descripcion'       => ['nullable', 'string', 'max:2000'],
-            'tipo'              => ['required', Rule::in(['simple', 'kit', 'grupo'])],
-            'imagen'            => ['nullable', 'image', 'max:' . ArchivoService::MAX_KB],
-            'categoria_id'      => ['nullable', 'integer', 'exists:inv_categorias,id'],
-            'unidad_medida_id'  => ['nullable', 'integer', 'exists:inv_unidades_medida,id'],
+            'nombre' => ['required', 'string', 'max:255'],
+            'descripcion' => ['nullable', 'string', 'max:2000'],
+            'tipo' => ['required', Rule::in(['simple', 'kit', 'grupo'])],
+            'imagen' => ['nullable', 'image', 'max:'.ArchivoService::MAX_KB],
+            'categoria_id' => ['nullable', 'integer', 'exists:inv_categorias,id'],
+            'unidad_medida_id' => ['nullable', 'integer', 'exists:inv_unidades_medida,id'],
             'producto_padre_id' => [
                 'nullable',
                 'integer',
                 Rule::exists('inv_productos', 'id')->where('tipo', 'grupo')->whereNull('deleted_at'),
             ],
-            'status'            => self::getStatusValidationRule(),
+            'status' => self::getStatusValidationRule(),
         ];
     }
 
@@ -63,17 +61,17 @@ class UpdateInvProductoRequest extends FormRequest
     public function messages(): array
     {
         return array_merge([
-            'codigo.required'            => 'El código del producto es obligatorio.',
-            'codigo.unique'              => 'Ya existe otro producto con ese código. Si fue eliminado, restáuralo desde la papelera.',
-            'nombre.required'            => 'El nombre del producto es obligatorio.',
-            'tipo.required'              => 'El tipo de producto es obligatorio.',
-            'tipo.in'                    => 'El tipo debe ser: simple, kit o grupo.',
-            'categoria_id.exists'        => 'La categoría seleccionada no existe.',
-            'unidad_medida_id.exists'    => 'La unidad de medida seleccionada no existe.',
-            'producto_padre_id.exists'   => 'El grupo padre seleccionado no existe o no es de tipo grupo.',
-            'imagen.image'               => 'El archivo debe ser una imagen.',
-            'imagen.max'                 => 'La imagen no puede superar 10 MB.',
-            'imagen.uploaded'            => 'No se recibió el archivo: puede superar el tamaño que permite el servidor.',
+            'codigo.required' => 'El código del producto es obligatorio.',
+            'codigo.unique' => 'Ya existe otro producto con ese código. Si fue eliminado, restáuralo desde la papelera.',
+            'nombre.required' => 'El nombre del producto es obligatorio.',
+            'tipo.required' => 'El tipo de producto es obligatorio.',
+            'tipo.in' => 'El tipo debe ser: simple, kit o grupo.',
+            'categoria_id.exists' => 'La categoría seleccionada no existe.',
+            'unidad_medida_id.exists' => 'La unidad de medida seleccionada no existe.',
+            'producto_padre_id.exists' => 'El grupo padre seleccionado no existe o no es de tipo grupo.',
+            'imagen.image' => 'El archivo debe ser una imagen.',
+            'imagen.max' => 'La imagen no puede superar 10 MB.',
+            'imagen.uploaded' => 'No se recibió el archivo: puede superar el tamaño que permite el servidor.',
         ], self::getStatusValidationMessages());
     }
 
@@ -83,14 +81,14 @@ class UpdateInvProductoRequest extends FormRequest
     public function attributes(): array
     {
         return [
-            'codigo'            => 'código',
-            'nombre'            => 'nombre',
-            'descripcion'       => 'descripción',
-            'tipo'              => 'tipo',
-            'categoria_id'      => 'categoría',
-            'unidad_medida_id'  => 'unidad de medida',
+            'codigo' => 'código',
+            'nombre' => 'nombre',
+            'descripcion' => 'descripción',
+            'tipo' => 'tipo',
+            'categoria_id' => 'categoría',
+            'unidad_medida_id' => 'unidad de medida',
             'producto_padre_id' => 'grupo padre',
-            'status'            => 'estado',
+            'status' => 'estado',
         ];
     }
 }

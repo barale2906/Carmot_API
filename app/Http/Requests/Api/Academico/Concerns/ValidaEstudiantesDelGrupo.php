@@ -16,13 +16,11 @@ trait ValidaEstudiantesDelGrupo
      * Agrega un error en "{campo}.{i}.estudiante_id" (o en "estudiante_id" si $campo es null)
      * por cada estudiante sin matrícula vigente en el grupo.
      *
-     * @param \Illuminate\Validation\Validator $validator
-     * @param Grupo|null $grupo
-     * @param array<int, mixed> $estudianteIds Índice → estudiante_id
-     * @param string|null $campo Arreglo del payload (p. ej. "notas"); null para un solo estudiante
-     * @param AsistenciaClaseProgramada|null $clase Al tomar asistencia de una clase: acepta también a los desertados
-     *        automáticamente (se reactivan al asistir) y a los invitados por reposición
-     * @return void
+     * @param  \Illuminate\Validation\Validator  $validator
+     * @param  array<int, mixed>  $estudianteIds  Índice → estudiante_id
+     * @param  string|null  $campo  Arreglo del payload (p. ej. "notas"); null para un solo estudiante
+     * @param  AsistenciaClaseProgramada|null  $clase  Al tomar asistencia de una clase: acepta también a los desertados
+     *                                                 automáticamente (se reactivan al asistir) y a los invitados por reposición
      */
     protected function validarEstudiantesDelGrupo($validator, ?Grupo $grupo, array $estudianteIds, ?string $campo = null, ?AsistenciaClaseProgramada $clase = null): void
     {

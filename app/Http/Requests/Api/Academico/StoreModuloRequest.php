@@ -9,6 +9,7 @@ use Illuminate\Foundation\Http\FormRequest;
 class StoreModuloRequest extends FormRequest
 {
     use HasActiveStatus, HasActiveStatusValidation;
+
     /**
      * Determina si el usuario está autorizado para hacer esta solicitud.
      */

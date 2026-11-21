@@ -10,6 +10,7 @@ use Illuminate\Validation\Rule;
 class UpdateModuloRequest extends FormRequest
 {
     use HasActiveStatus, HasActiveStatusValidation;
+
     /**
      * Determina si el usuario está autorizado para hacer esta solicitud.
      */
@@ -32,7 +33,7 @@ class UpdateModuloRequest extends FormRequest
                 'sometimes',
                 'string',
                 'max:255',
-                Rule::unique('modulos', 'nombre')->ignore($moduloId)
+                Rule::unique('modulos', 'nombre')->ignore($moduloId),
             ],
             'status' => self::getStatusValidationRule(),
             'curso_ids' => 'sometimes|array',

@@ -17,9 +17,7 @@ class TransferenciaAprobadaNotification extends Notification implements ShouldQu
 {
     use Queueable;
 
-    public function __construct(public readonly ReciboPago $recibo)
-    {
-    }
+    public function __construct(public readonly ReciboPago $recibo) {}
 
     /**
      * @return array<string>
@@ -35,15 +33,15 @@ class TransferenciaAprobadaNotification extends Notification implements ShouldQu
     public function toDatabase(object $notifiable): array
     {
         return [
-            'tipo'             => 'transferencia_aprobada',
-            'recibo_id'        => $this->recibo->id,
-            'numero_recibo'    => $this->recibo->numero_recibo,
-            'validador_id'     => $this->recibo->aprobado_por_id,
+            'tipo' => 'transferencia_aprobada',
+            'recibo_id' => $this->recibo->id,
+            'numero_recibo' => $this->recibo->numero_recibo,
+            'validador_id' => $this->recibo->aprobado_por_id,
             'validador_nombre' => $this->recibo->aprobadoPor?->name,
-            'estudiante_id'    => $this->recibo->estudiante_id,
-            'valor_total'      => (float) $this->recibo->valor_total,
+            'estudiante_id' => $this->recibo->estudiante_id,
+            'valor_total' => (float) $this->recibo->valor_total,
             'fecha_aprobacion' => $this->recibo->fecha_aprobacion?->format('Y-m-d H:i:s'),
-            'mensaje'          => "Recibo {$this->recibo->numero_recibo} aprobado y enviado al estudiante.",
+            'mensaje' => "Recibo {$this->recibo->numero_recibo} aprobado y enviado al estudiante.",
         ];
     }
 }

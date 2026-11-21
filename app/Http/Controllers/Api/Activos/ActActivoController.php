@@ -34,15 +34,11 @@ class ActActivoController extends Controller
 
     /**
      * Registra los middlewares de permisos del módulo.
-     *
-     * @param ActActivoService $activos
-     * @param ActActivoImportacionService $importacion
      */
     public function __construct(
         private readonly ActActivoService $activos,
         private readonly ActActivoImportacionService $importacion,
-    )
-    {
+    ) {
         $this->middleware('permission:act_activos')->only(['index', 'show', 'statistics', 'movimientos']);
         // Quien solo recibe traslados también necesita el catálogo (sus sedes y los responsables).
         $this->middleware('permission:act_activos|act_activoRecibir')->only(['filters']);
@@ -55,9 +51,6 @@ class ActActivoController extends Controller
 
     /**
      * Lista paginada de activos de las sedes del usuario. Oculta los de baja salvo que se filtre por ese estado.
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function index(Request $request): JsonResponse
     {
@@ -71,20 +64,17 @@ class ActActivoController extends Controller
             'data' => ActActivoResource::collection($activos),
             'meta' => [
                 'current_page' => $activos->currentPage(),
-                'last_page'    => $activos->lastPage(),
-                'per_page'     => $activos->perPage(),
-                'total'        => $activos->total(),
-                'from'         => $activos->firstItem(),
-                'to'           => $activos->lastItem(),
+                'last_page' => $activos->lastPage(),
+                'per_page' => $activos->perPage(),
+                'total' => $activos->total(),
+                'from' => $activos->firstItem(),
+                'to' => $activos->lastItem(),
             ],
         ]);
     }
 
     /**
      * Registra un activo y su movimiento de ingreso.
-     *
-     * @param StoreActActivoRequest $request
-     * @return JsonResponse
      */
     public function store(StoreActActivoRequest $request): JsonResponse
     {
@@ -92,16 +82,13 @@ class ActActivoController extends Controller
 
         return response()->json([
             'message' => 'Activo registrado exitosamente.',
-            'data'    => new ActActivoResource($activo->load(self::RELACIONES)),
+            'data' => new ActActivoResource($activo->load(self::RELACIONES)),
         ], 201);
     }
 
     /**
      * Descarga la plantilla Excel de la carga masiva, con las categorías, sedes (y sus áreas),
      * estados y responsables vigentes como listas desplegables, instrucciones y un ejemplo.
-     *
-     * @param Request $request
-     * @return StreamedResponse
      */
     public function plantilla(Request $request): StreamedResponse
     {
@@ -115,9 +102,6 @@ class ActActivoController extends Controller
     /**
      * Carga masiva de activos desde la plantilla. Todo o nada: si alguna fila tiene errores no
      * se registra ninguno y se responde 422 con `errores` (número de fila del archivo y sus mensajes).
-     *
-     * @param ImportarActActivosRequest $request
-     * @return JsonResponse
      */
     public function importar(ImportarActActivosRequest $request): JsonResponse
     {
@@ -134,17 +118,13 @@ class ActActivoController extends Controller
 
         return response()->json([
             'message' => "Se registraron {$activos->count()} activos.",
-            'data'    => ActActivoResource::collection($activos->each->load(self::RELACIONES)),
-            'meta'    => ['total' => $activos->count()],
+            'data' => ActActivoResource::collection($activos->each->load(self::RELACIONES)),
+            'meta' => ['total' => $activos->count()],
         ], 201);
     }
 
     /**
      * Ficha del activo con su historial.
-     *
-     * @param Request $request
-     * @param ActActivo $activo
-     * @return JsonResponse
      */
     public function show(Request $request, ActActivo $activo): JsonResponse
     {
@@ -159,10 +139,6 @@ class ActActivoController extends Controller
 
     /**
      * Actualiza los datos descriptivos del activo (no su ubicación ni su estado).
-     *
-     * @param UpdateActActivoRequest $request
-     * @param ActActivo $activo
-     * @return JsonResponse
      */
     public function update(UpdateActActivoRequest $request, ActActivo $activo): JsonResponse
     {
@@ -172,16 +148,12 @@ class ActActivoController extends Controller
 
         return response()->json([
             'message' => 'Activo actualizado exitosamente.',
-            'data'    => new ActActivoResource($activo->load(self::RELACIONES)),
+            'data' => new ActActivoResource($activo->load(self::RELACIONES)),
         ]);
     }
 
     /**
      * Carga o reemplaza la imagen del activo (multipart, campo `imagen`). La anterior se borra.
-     *
-     * @param ImagenActActivoRequest $request
-     * @param ActActivo $activo
-     * @return JsonResponse
      */
     public function subirImagen(ImagenActActivoRequest $request, ActActivo $activo): JsonResponse
     {
@@ -191,16 +163,12 @@ class ActActivoController extends Controller
 
         return response()->json([
             'message' => 'Imagen del activo actualizada.',
-            'data'    => new ActActivoResource($activo->load(self::RELACIONES)),
+            'data' => new ActActivoResource($activo->load(self::RELACIONES)),
         ]);
     }
 
     /**
      * Quita la imagen del activo.
-     *
-     * @param Request $request
-     * @param ActActivo $activo
-     * @return JsonResponse
      */
     public function eliminarImagen(Request $request, ActActivo $activo): JsonResponse
     {
@@ -210,17 +178,13 @@ class ActActivoController extends Controller
 
         return response()->json([
             'message' => 'Imagen del activo eliminada.',
-            'data'    => new ActActivoResource($activo->load(self::RELACIONES)),
+            'data' => new ActActivoResource($activo->load(self::RELACIONES)),
         ]);
     }
 
     /**
      * Envía el activo a otra sede o área. El traslado queda pendiente y el activo sigue en su
      * ubicación actual hasta que en el destino se registre la recepción.
-     *
-     * @param TrasladarActActivoRequest $request
-     * @param ActActivo $activo
-     * @return JsonResponse
      */
     public function trasladar(TrasladarActActivoRequest $request, ActActivo $activo): JsonResponse
     {
@@ -230,16 +194,12 @@ class ActActivoController extends Controller
 
         return response()->json([
             'message' => 'Traslado enviado: queda pendiente de recepción en el destino.',
-            'data'    => new ActActivoResource($activo->fresh(self::RELACIONES)),
+            'data' => new ActActivoResource($activo->fresh(self::RELACIONES)),
         ]);
     }
 
     /**
      * Cambia el estado del activo (operativo, mantenimiento, disponible o baja definitiva).
-     *
-     * @param CambiarEstadoActActivoRequest $request
-     * @param ActActivo $activo
-     * @return JsonResponse
      */
     public function cambiarEstado(CambiarEstadoActActivoRequest $request, ActActivo $activo): JsonResponse
     {
@@ -249,16 +209,12 @@ class ActActivoController extends Controller
 
         return response()->json([
             'message' => 'Estado del activo actualizado.',
-            'data'    => new ActActivoResource($activo->fresh(self::RELACIONES)),
+            'data' => new ActActivoResource($activo->fresh(self::RELACIONES)),
         ]);
     }
 
     /**
      * Historial de ingresos, traslados y cambios de estado del activo.
-     *
-     * @param Request $request
-     * @param ActActivo $activo
-     * @return JsonResponse
      */
     public function movimientos(Request $request, ActActivo $activo): JsonResponse
     {
@@ -276,10 +232,6 @@ class ActActivoController extends Controller
     /**
      * Elimina el activo (soft delete). Para retirarlo del inventario conviene darlo de baja;
      * eliminar es para registros creados por error.
-     *
-     * @param Request $request
-     * @param ActActivo $activo
-     * @return JsonResponse
      */
     public function destroy(Request $request, ActActivo $activo): JsonResponse
     {
@@ -292,10 +244,6 @@ class ActActivoController extends Controller
 
     /**
      * Restaura un activo eliminado.
-     *
-     * @param Request $request
-     * @param int $id
-     * @return JsonResponse
      */
     public function restore(Request $request, int $id): JsonResponse
     {
@@ -305,16 +253,12 @@ class ActActivoController extends Controller
 
         return response()->json([
             'message' => 'Activo restaurado exitosamente.',
-            'data'    => new ActActivoResource($activo->load(self::RELACIONES)),
+            'data' => new ActActivoResource($activo->load(self::RELACIONES)),
         ]);
     }
 
     /**
      * Elimina permanentemente un activo de la papelera (y su historial).
-     *
-     * @param Request $request
-     * @param int $id
-     * @return JsonResponse
      */
     public function forceDelete(Request $request, int $id): JsonResponse
     {
@@ -327,9 +271,6 @@ class ActActivoController extends Controller
 
     /**
      * Activos en la papelera de las sedes del usuario.
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function trashed(Request $request): JsonResponse
     {
@@ -343,11 +284,11 @@ class ActActivoController extends Controller
             'data' => ActActivoResource::collection($activos),
             'meta' => [
                 'current_page' => $activos->currentPage(),
-                'last_page'    => $activos->lastPage(),
-                'per_page'     => $activos->perPage(),
-                'total'        => $activos->total(),
-                'from'         => $activos->firstItem(),
-                'to'           => $activos->lastItem(),
+                'last_page' => $activos->lastPage(),
+                'per_page' => $activos->perPage(),
+                'total' => $activos->total(),
+                'from' => $activos->firstItem(),
+                'to' => $activos->lastItem(),
             ],
         ]);
     }
@@ -355,9 +296,6 @@ class ActActivoController extends Controller
     /**
      * Opciones de los filtros y formularios: sedes del usuario con sus áreas, categorías activas,
      * estados y posibles responsables.
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function filters(Request $request): JsonResponse
     {
@@ -366,16 +304,16 @@ class ActActivoController extends Controller
             ->orderBy('nombre')
             ->get()
             ->map(fn (Sede $sede) => [
-                'id'     => $sede->id,
+                'id' => $sede->id,
                 'nombre' => $sede->nombre,
-                'areas'  => $sede->areas->map(fn ($area) => ['id' => $area->id, 'nombre' => $area->nombre])->values(),
+                'areas' => $sede->areas->map(fn ($area) => ['id' => $area->id, 'nombre' => $area->nombre])->values(),
             ]);
 
         return response()->json([
             'data' => [
-                'sedes'        => $sedes,
-                'categorias'   => ActCategoria::where('status', 1)->orderBy('nombre')->get(['id', 'nombre']),
-                'estados'      => ActActivo::ESTADOS,
+                'sedes' => $sedes,
+                'categorias' => ActCategoria::where('status', 1)->orderBy('nombre')->get(['id', 'nombre']),
+                'estados' => ActActivo::ESTADOS,
                 // `name` es un accessor (nombre compuesto): se arma en PHP.
                 // Solo personal: antes se listaban también los estudiantes (F15)
                 'responsables' => User::personal()->select('id', 'primer_nombre', 'segundo_nombre', 'primer_apellido', 'segundo_apellido')
@@ -390,9 +328,6 @@ class ActActivoController extends Controller
      * Totales del inventario de activos (sin los de baja) de las sedes del usuario,
      * opcionalmente de una sola sede: cantidad, valor, en tránsito (traslado sin recibir),
      * distribución por estado, área y categoría.
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function statistics(Request $request): JsonResponse
     {
@@ -402,15 +337,15 @@ class ActActivoController extends Controller
 
         return response()->json([
             'data' => [
-                'total'         => $base()->count(),
-                'valor_total'   => (float) $base()->sum('valor'),
-                'de_baja'       => ActActivo::deSedes($request->user()->idsSedesAccesibles())
+                'total' => $base()->count(),
+                'valor_total' => (float) $base()->sum('valor'),
+                'de_baja' => ActActivo::deSedes($request->user()->idsSedesAccesibles())
                     ->when($request->filled('sede_id'), fn ($q) => $q->where('sede_id', $request->sede_id))
                     ->where('estado', ActActivo::ESTADO_BAJA)
                     ->count(),
-                'en_transito'   => $base()->has('trasladoPendiente')->count(),
-                'por_estado'    => $base()->selectRaw('estado, COUNT(*) as total')->groupBy('estado')->pluck('total', 'estado'),
-                'por_area'      => $base()->with('area')
+                'en_transito' => $base()->has('trasladoPendiente')->count(),
+                'por_estado' => $base()->selectRaw('estado, COUNT(*) as total')->groupBy('estado')->pluck('total', 'estado'),
+                'por_area' => $base()->with('area')
                     ->selectRaw('area_id, COUNT(*) as total')
                     ->groupBy('area_id')
                     ->get()
@@ -429,10 +364,6 @@ class ActActivoController extends Controller
 
     /**
      * Responde 403 si el activo es de una sede que el usuario no tiene asignada.
-     *
-     * @param Request $request
-     * @param ActActivo $activo
-     * @return void
      */
     private function autorizarSede(Request $request, ActActivo $activo): void
     {

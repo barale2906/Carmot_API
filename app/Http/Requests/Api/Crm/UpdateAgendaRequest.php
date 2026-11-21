@@ -10,8 +10,6 @@ class UpdateAgendaRequest extends FormRequest
 {
     /**
      * Determina si el usuario está autorizado para realizar esta solicitud.
-     *
-     * @return bool
      */
     public function authorize(): bool
     {
@@ -29,44 +27,44 @@ class UpdateAgendaRequest extends FormRequest
             'referido_id' => [
                 'sometimes',
                 'integer',
-                'exists:referidos,id'
+                'exists:referidos,id',
             ],
             'agendador_id' => [
                 'sometimes',
                 'integer',
-                'exists:users,id'
+                'exists:users,id',
             ],
             'fecha' => [
                 'sometimes',
                 'date',
-                'after_or_equal:today'
+                'after_or_equal:today',
             ],
             'hora' => [
                 'sometimes',
-                'date_format:H:i'
+                'date_format:H:i',
             ],
             'jornada' => [
                 'sometimes',
                 'string',
-                Rule::in(['am', 'pm'])
+                Rule::in(['am', 'pm']),
             ],
             // Sin tipo, la agenda es una visita (cita presencial)
             'tipo' => [
                 'sometimes',
                 'string',
-                Rule::in(array_keys(Agenda::TIPOS))
+                Rule::in(array_keys(Agenda::TIPOS)),
             ],
             'nota' => [
                 'sometimes',
                 'nullable',
                 'string',
-                'max:1000'
+                'max:1000',
             ],
             'status' => [
                 'sometimes',
                 'integer',
-                Rule::in([0, 1, 2, 3, 4])
-            ]
+                Rule::in([0, 1, 2, 3, 4]),
+            ],
         ];
     }
 
@@ -84,17 +82,15 @@ class UpdateAgendaRequest extends FormRequest
             'fecha.after_or_equal' => 'La fecha no puede ser anterior al día de hoy.',
             'hora.date_format' => 'La hora debe tener el formato HH:MM.',
             'jornada.in' => 'La jornada debe ser "am" o "pm".',
-            'tipo.in' => 'El tipo debe ser: ' . implode(', ', Agenda::TIPOS) . '.',
+            'tipo.in' => 'El tipo debe ser: '.implode(', ', Agenda::TIPOS).'.',
             'nota.max' => 'La nota no puede exceder los 1000 caracteres.',
-            'status.in' => 'El estado debe ser: 0 (Agendado), 1 (Realizada: asistió, contestó o respondió), 2 (No realizada), 3 (Reprogramó) o 4 (Canceló).'
+            'status.in' => 'El estado debe ser: 0 (Agendado), 1 (Realizada: asistió, contestó o respondió), 2 (No realizada), 3 (Reprogramó) o 4 (Canceló).',
         ];
     }
 
     /**
      * Prepara los datos para la validación: si cambia el referido sin indicar agendador,
      * queda el usuario autenticado (B46); si cambia la hora, la jornada se deriva de ella (B12).
-     *
-     * @return void
      */
     protected function prepareForValidation(): void
     {

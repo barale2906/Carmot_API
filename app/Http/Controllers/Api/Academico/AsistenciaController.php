@@ -17,6 +17,7 @@ use App\Models\Academico\Curso;
 use App\Models\Academico\Grupo;
 use App\Models\Academico\Matricula;
 use App\Models\Financiero\Cartera\Cartera;
+use App\Models\Financiero\Cartera\ProrrogaPago;
 use App\Models\Financiero\ReciboPago\ReciboPago;
 use App\Services\Academico\AsistenciasExcelService;
 use App\Services\Academico\DesercionAutomaticaService;
@@ -40,8 +41,7 @@ class AsistenciaController extends Controller
         private readonly VerificarCumplimientoService $cumplimiento,
         private readonly AsistenciasExcelService $asistenciasExcel,
         private readonly DesercionAutomaticaService $desercion
-    )
-    {
+    ) {
         $this->middleware('permission:aca_asistencias')->only(['index', 'filters', 'excel', 'show', 'listaAsistencia', 'clasesDelDia', 'reporteEstudiante', 'reporteGrupo']);
         $this->middleware('permission:aca_asistenciaCrear')->only(['store', 'storeMasivo']);
         $this->middleware('permission:aca_asistenciaEditar')->only(['update']);
@@ -53,9 +53,6 @@ class AsistenciaController extends Controller
      * (un día o un rango). Cada registro trae la mora del estudiante (`en_mora`, `saldo_vencido`, `dias_mora` y `mora_detalle` con las cuotas vencidas)
      * y su estado en el curso (`estado_estudiante`, `fallas_consecutivas`; ver Asistencia::estadoEstudiante()).
      * Sin `sort_by` ordena por la clase más reciente. A un alumno solo se le listan las suyas.
-     *
-     * @param FiltrarAsistenciasRequest $request
-     * @return JsonResponse
      */
     public function index(FiltrarAsistenciasRequest $request): JsonResponse
     {
@@ -89,14 +86,11 @@ class AsistenciaController extends Controller
     /**
      * Opciones de los filtros del listado: sedes del usuario, y cursos y grupos que ya tienen
      * asistencia registrada (de sus sedes; a quien solo es profesor, solo sus grupos).
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function filters(Request $request): JsonResponse
     {
         $usuario = $request->user();
-        $sedes   = $usuario->sedesAccesibles()->sortBy('nombre')->values();
+        $sedes = $usuario->sedesAccesibles()->sortBy('nombre')->values();
 
         $grupos = Grupo::whereIn('id', Asistencia::select('grupo_id'))
             ->when(
@@ -129,14 +123,11 @@ class AsistenciaController extends Controller
 
     /**
      * Descarga en Excel el listado de asistencias con los mismos filtros del listado.
-     *
-     * @param FiltrarAsistenciasRequest $request
-     * @return StreamedResponse
      */
     public function excel(FiltrarAsistenciasRequest $request): StreamedResponse
     {
         $spreadsheet = $this->asistenciasExcel->generar($request->filtros());
-        $nombre = 'asistencias-' . now()->format('Y-m-d') . '.xlsx';
+        $nombre = 'asistencias-'.now()->format('Y-m-d').'.xlsx';
 
         return response()->streamDownload(function () use ($spreadsheet) {
             (new Xlsx($spreadsheet))->save('php://output');
@@ -146,9 +137,6 @@ class AsistenciaController extends Controller
     /**
      * Almacena una nueva asistencia individual. Si con ella el estudiante suma 2 fallas seguidas queda
      * Desertado automáticamente, y si estaba desertado por el sistema vuelve a Activo (ver DesercionAutomaticaService).
-     *
-     * @param StoreAsistenciaRequest $request
-     * @return JsonResponse
      */
     public function store(StoreAsistenciaRequest $request): JsonResponse
     {
@@ -189,6 +177,7 @@ class AsistenciaController extends Controller
             ], 201);
         } catch (\Exception $e) {
             DB::rollBack();
+
             return response()->json([
                 'message' => 'Error al registrar la asistencia.',
                 'error' => $e->getMessage(),
@@ -202,9 +191,6 @@ class AsistenciaController extends Controller
      * Volver a enviar la lista de la misma clase actualiza los registros en lugar de
      * duplicarlos; la clase queda marcada como dictada. Tras guardar, los estudiantes con 2 fallas seguidas
      * quedan Desertados y los desertados por el sistema que asistieron vuelven a Activo.
-     *
-     * @param StoreAsistenciaMasivaRequest $request
-     * @return JsonResponse
      */
     public function storeMasivo(StoreAsistenciaMasivaRequest $request): JsonResponse
     {
@@ -215,9 +201,9 @@ class AsistenciaController extends Controller
 
         return response()->json([
             'message' => "Asistencia registrada: {$resultado['creadas']} nuevas, {$resultado['actualizadas']} actualizadas.",
-            'data'    => AsistenciaResource::collection($resultado['asistencias']->load('estudiante')),
-            'meta'    => [
-                'creadas'      => $resultado['creadas'],
+            'data' => AsistenciaResource::collection($resultado['asistencias']->load('estudiante')),
+            'meta' => [
+                'creadas' => $resultado['creadas'],
                 'actualizadas' => $resultado['actualizadas'],
             ],
         ], 201);
@@ -225,10 +211,6 @@ class AsistenciaController extends Controller
 
     /**
      * Muestra una asistencia específica. Un alumno solo puede ver las suyas (403 en las ajenas).
-     *
-     * @param Request $request
-     * @param int $id
-     * @return JsonResponse
      */
     public function show(Request $request, int $id): JsonResponse
     {
@@ -244,10 +226,6 @@ class AsistenciaController extends Controller
 
     /**
      * Actualiza una asistencia específica.
-     *
-     * @param UpdateAsistenciaRequest $request
-     * @param int $id
-     * @return JsonResponse
      */
     public function update(UpdateAsistenciaRequest $request, int $id): JsonResponse
     {
@@ -273,9 +251,6 @@ class AsistenciaController extends Controller
 
     /**
      * Elimina una asistencia (soft delete).
-     *
-     * @param int $id
-     * @return JsonResponse
      */
     public function destroy(int $id): JsonResponse
     {
@@ -296,9 +271,6 @@ class AsistenciaController extends Controller
 
     /**
      * Restaura una asistencia eliminada.
-     *
-     * @param int $id
-     * @return JsonResponse
      */
     public function restore(int $id): JsonResponse
     {
@@ -331,7 +303,7 @@ class AsistenciaController extends Controller
         abort_if($request->user()->esSoloEstudiante(), 403, 'Un estudiante no puede consultar las clases del día.');
 
         $datos = $request->validate([
-            'fecha'   => ['nullable', 'date_format:Y-m-d'],
+            'fecha' => ['nullable', 'date_format:Y-m-d'],
             'sede_id' => ['nullable', 'integer'],
         ]);
 
@@ -355,11 +327,8 @@ class AsistenciaController extends Controller
      * (`academico.dias_cierre_ciclo`). Cada estudiante trae su mora (saldo vencido, días de mora
      * y detalle de cuotas vencidas: concepto, curso, vencimiento y saldo) para que quien toma la
      * asistencia decida si entra a clase, y su estado en el curso (`estado_estudiante`: Desertado si
-     * lleva dos fallas seguidas, En mora o Activo; ver Asistencia::estadoEstudiante()). Prohibida para alumnos.
-     *
-     * @param Request $request
-     * @param int $grupoId
-     * @return JsonResponse
+     * lleva dos fallas seguidas, En mora o Activo; ver Asistencia::estadoEstudiante()) y, si la tiene, su
+     * `prorroga_pago` vigente (plazo nuevo acordado: permite el ingreso hasta su fecha compromiso). Prohibida para alumnos.
      */
     public function listaAsistencia(Request $request, int $grupoId): JsonResponse
     {
@@ -396,18 +365,20 @@ class AsistenciaController extends Controller
                 ->with(['estudiante', 'ciclo'])
                 ->get();
 
-            $estudianteIds  = $matriculas->pluck('estudiante_id')->unique()->values()->all();
-            $moras          = Cartera::moraPorEstudiante($estudianteIds);
+            $estudianteIds = $matriculas->pluck('estudiante_id')->unique()->values()->all();
+            $moras = Cartera::moraPorEstudiante($estudianteIds);
             $transferencias = ReciboPago::transferenciasPendientesPorEstudiante($estudianteIds);
-            $fallas         = Asistencia::fallasConsecutivasPorCurso($estudianteIds);
+            $fallas = Asistencia::fallasConsecutivasPorCurso($estudianteIds);
+            $prorrogas = ProrrogaPago::vigentesPorEstudiante($estudianteIds);
 
             // Extraer estudiantes únicos con información del ciclo, su mora (saldo y cuotas vencidas),
             // sus transferencias en revisión y su estado en el curso
-            $estudiantes = $matriculas->map(function ($matricula) use ($moras, $transferencias, $fallas) {
+            $estudiantes = $matriculas->map(function ($matricula) use ($moras, $transferencias, $fallas, $prorrogas) {
                 $estudiante = $matricula->estudiante;
                 $estudiante->ciclo_id = $matricula->ciclo_id;
                 $estudiante->ciclo_nombre = $matricula->ciclo->nombre;
                 $estudiante->mora = $moras->get($estudiante->id);
+                $estudiante->prorroga_pago = $prorrogas->get($estudiante->id);
                 $estudiante->transferencias_pendientes = $transferencias->get($estudiante->id);
                 $estudiante->fallas_consecutivas = $fallas->get("{$estudiante->id}:{$matricula->curso_id}", 0);
                 $estudiante->estado_estudiante = Asistencia::estadoEstudiante(
@@ -415,6 +386,7 @@ class AsistenciaController extends Controller
                     $estudiante->fallas_consecutivas,
                     ($estudiante->mora['saldo'] ?? 0) > 0
                 );
+
                 return $estudiante;
             })->unique('id');
 
@@ -444,10 +416,6 @@ class AsistenciaController extends Controller
 
     /**
      * Genera reporte de asistencia por estudiante. Un alumno solo puede pedir el suyo.
-     *
-     * @param Request $request
-     * @param int $id
-     * @return JsonResponse
      */
     public function reporteEstudiante(Request $request, int $id): JsonResponse
     {
@@ -524,10 +492,6 @@ class AsistenciaController extends Controller
      * Genera reporte de asistencia por grupo con el cumplimiento de la regla de asistencia
      * de cada estudiante (porcentaje mínimo y alerta de pérdida por fallas). Es informativo:
      * si aprueba o no lo define la nota del profesor. Prohibido para alumnos.
-     *
-     * @param Request $request
-     * @param int $grupoId
-     * @return JsonResponse
      */
     public function reporteGrupo(Request $request, int $grupoId): JsonResponse
     {
@@ -548,9 +512,9 @@ class AsistenciaController extends Controller
 
             // Agrupar por estudiante; el cumplimiento usa la regla del curso y módulo del grupo (N19)
             $reportePorEstudiante = $asistencias->groupBy('estudiante_id')->map(function ($asistenciasEstudiante) use ($grupo) {
-                $estudiante    = $asistenciasEstudiante->first()->estudiante;
+                $estudiante = $asistenciasEstudiante->first()->estudiante;
                 $configuracion = AsistenciaConfiguracion::obtenerPara($asistenciasEstudiante->first()->curso_id, $grupo->modulo_id);
-                $cumplimiento  = $this->cumplimiento->evaluar($asistenciasEstudiante, $configuracion);
+                $cumplimiento = $this->cumplimiento->evaluar($asistenciasEstudiante, $configuracion);
 
                 return [
                     'estudiante' => [
@@ -597,10 +561,6 @@ class AsistenciaController extends Controller
     /**
      * Corta con 403 si el usuario no puede registrar asistencia en el grupo (B22):
      * solo su profesor o el personal con la sede del grupo asignada.
-     *
-     * @param Request $request
-     * @param Grupo|null $grupo
-     * @return void
      */
     private function autorizarGrupo(Request $request, ?Grupo $grupo): void
     {

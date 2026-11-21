@@ -2,7 +2,6 @@
 
 namespace App\Http\Requests\Api\Configuracion;
 
-use App\Models\Configuracion\Eps;
 use App\Traits\HasActiveStatus;
 use App\Traits\HasActiveStatusValidation;
 use Illuminate\Foundation\Http\FormRequest;
@@ -14,8 +13,6 @@ class StoreEpsRequest extends FormRequest
 
     /**
      * Determina si el usuario está autorizado para realizar esta petición.
-     *
-     * @return bool
      */
     public function authorize(): bool
     {
@@ -30,9 +27,9 @@ class StoreEpsRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'nombre'    => ['required', 'string', 'max:255', Rule::unique('eps', 'nombre')->whereNull('deleted_at')],
+            'nombre' => ['required', 'string', 'max:255', Rule::unique('eps', 'nombre')->whereNull('deleted_at')],
             'direccion' => ['nullable', 'string', 'max:500'],
-            'status'    => self::getStatusValidationRule(),
+            'status' => self::getStatusValidationRule(),
         ];
     }
 
@@ -45,9 +42,9 @@ class StoreEpsRequest extends FormRequest
     {
         return array_merge([
             'nombre.required' => 'El nombre de la EPS es obligatorio.',
-            'nombre.max'      => 'El nombre de la EPS no puede exceder los 255 caracteres.',
-            'nombre.unique'   => 'Ya existe una EPS con este nombre.',
-            'direccion.max'   => 'La dirección no puede exceder los 500 caracteres.',
+            'nombre.max' => 'El nombre de la EPS no puede exceder los 255 caracteres.',
+            'nombre.unique' => 'Ya existe una EPS con este nombre.',
+            'direccion.max' => 'La dirección no puede exceder los 500 caracteres.',
         ], self::getStatusValidationMessages());
     }
 
@@ -59,9 +56,9 @@ class StoreEpsRequest extends FormRequest
     public function attributes(): array
     {
         return [
-            'nombre'    => 'nombre de la EPS',
+            'nombre' => 'nombre de la EPS',
             'direccion' => 'dirección',
-            'status'    => 'estado',
+            'status' => 'estado',
         ];
     }
 }

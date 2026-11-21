@@ -29,8 +29,8 @@ class NotaEstudianteController extends Controller
     /**
      * Constructor del controlador.
      *
-     * @param SabanaNotasService      $sabanaNotas  Cálculo de las sábanas de notas (por estudiante y grupal).
-     * @param ConsolidadoNotasService $consolidado  Consulta de resultados por estudiante, grupo, ciclo o profesor.
+     * @param  SabanaNotasService  $sabanaNotas  Cálculo de las sábanas de notas (por estudiante y grupal).
+     * @param  ConsolidadoNotasService  $consolidado  Consulta de resultados por estudiante, grupo, ciclo o profesor.
      */
     public function __construct(
         private SabanaNotasService $sabanaNotas,
@@ -44,15 +44,12 @@ class NotaEstudianteController extends Controller
 
     /**
      * Muestra una lista de notas de estudiantes. A un alumno solo se le listan sus propias notas.
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function index(Request $request): JsonResponse
     {
         $filters = $request->only([
             'estudiante_id', 'grupo_id', 'modulo_id', 'ciclo_id', 'profesor_id', 'esquema_calificacion_id',
-            'tipo_nota_esquema_id', 'status', 'include_trashed', 'only_trashed'
+            'tipo_nota_esquema_id', 'status', 'include_trashed', 'only_trashed',
         ]);
 
         // El alumno solo ve sus propias notas
@@ -84,9 +81,6 @@ class NotaEstudianteController extends Controller
 
     /**
      * Almacena una nueva nota de estudiante.
-     *
-     * @param StoreNotaEstudianteRequest $request
-     * @return JsonResponse
      */
     public function store(StoreNotaEstudianteRequest $request): JsonResponse
     {
@@ -99,7 +93,7 @@ class NotaEstudianteController extends Controller
             $tipoNota = TipoNotaEsquema::findOrFail($request->tipo_nota_esquema_id);
 
             // Validar que la nota esté en el rango permitido
-            if (!$tipoNota->notaValida($request->nota)) {
+            if (! $tipoNota->notaValida($request->nota)) {
                 return response()->json([
                     'message' => "La nota debe estar entre {$tipoNota->nota_minima} y {$tipoNota->nota_maxima}.",
                 ], 422);
@@ -155,6 +149,7 @@ class NotaEstudianteController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
+
             return response()->json([
                 'message' => 'Error al registrar la nota.',
                 'error' => $e->getMessage(),
@@ -164,9 +159,6 @@ class NotaEstudianteController extends Controller
 
     /**
      * Almacena múltiples notas de estudiantes (registro masivo).
-     *
-     * @param StoreNotaMasivaRequest $request
-     * @return JsonResponse
      */
     public function storeMasivo(StoreNotaMasivaRequest $request): JsonResponse
     {
@@ -183,11 +175,12 @@ class NotaEstudianteController extends Controller
             foreach ($request->notas as $notaData) {
                 try {
                     // Validar rango de nota
-                    if (!$tipoNota->notaValida($notaData['nota'])) {
+                    if (! $tipoNota->notaValida($notaData['nota'])) {
                         $errores[] = [
                             'estudiante_id' => $notaData['estudiante_id'],
-                            'error' => "La nota debe estar entre {$tipoNota->nota_minima} y {$tipoNota->nota_maxima}."
+                            'error' => "La nota debe estar entre {$tipoNota->nota_minima} y {$tipoNota->nota_maxima}.",
                         ];
+
                         continue;
                     }
 
@@ -230,7 +223,7 @@ class NotaEstudianteController extends Controller
                 } catch (\Exception $e) {
                     $errores[] = [
                         'estudiante_id' => $notaData['estudiante_id'],
-                        'error' => $e->getMessage()
+                        'error' => $e->getMessage(),
                     ];
                 }
             }
@@ -249,6 +242,7 @@ class NotaEstudianteController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
+
             return response()->json([
                 'message' => 'Error al realizar el registro masivo de notas.',
                 'error' => $e->getMessage(),
@@ -258,10 +252,6 @@ class NotaEstudianteController extends Controller
 
     /**
      * Muestra la nota especificada.
-     *
-     * @param NotaEstudiante $notaEstudiante
-     * @param Request $request
-     * @return JsonResponse
      */
     public function show(NotaEstudiante $notaEstudiante, Request $request): JsonResponse
     {
@@ -280,10 +270,6 @@ class NotaEstudianteController extends Controller
 
     /**
      * Actualiza la nota especificada.
-     *
-     * @param UpdateNotaEstudianteRequest $request
-     * @param NotaEstudiante $notaEstudiante
-     * @return JsonResponse
      */
     public function update(UpdateNotaEstudianteRequest $request, NotaEstudiante $notaEstudiante): JsonResponse
     {
@@ -298,7 +284,7 @@ class NotaEstudianteController extends Controller
             if ($request->has('nota')) {
                 $tipoNota = $notaEstudiante->tipoNotaEsquema;
 
-                if (!$tipoNota->notaValida($request->nota)) {
+                if (! $tipoNota->notaValida($request->nota)) {
                     return response()->json([
                         'message' => "La nota debe estar entre {$tipoNota->nota_minima} y {$tipoNota->nota_maxima}.",
                     ], 422);
@@ -334,6 +320,7 @@ class NotaEstudianteController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
+
             return response()->json([
                 'message' => 'Error al actualizar la nota.',
                 'error' => $e->getMessage(),
@@ -343,9 +330,6 @@ class NotaEstudianteController extends Controller
 
     /**
      * Elimina la nota especificada (soft delete). No se permite si las notas del ciclo están cerradas.
-     *
-     * @param NotaEstudiante $notaEstudiante
-     * @return JsonResponse
      */
     public function destroy(NotaEstudiante $notaEstudiante): JsonResponse
     {
@@ -362,9 +346,6 @@ class NotaEstudianteController extends Controller
 
     /**
      * Restaura una nota eliminada (soft delete). No se permite si las notas del ciclo están cerradas.
-     *
-     * @param int $id
-     * @return JsonResponse
      */
     public function restore(int $id): JsonResponse
     {
@@ -384,12 +365,6 @@ class NotaEstudianteController extends Controller
 
     /**
      * Calcula la nota final de un estudiante en un módulo. Un alumno solo puede calcular la suya.
-     *
-     * @param Request $request
-     * @param int $estudianteId
-     * @param int $moduloId
-     * @param int|null $grupoId
-     * @return JsonResponse
      */
     public function calcularNotaFinal(Request $request, int $estudianteId, int $moduloId, ?int $grupoId = null): JsonResponse
     {
@@ -399,7 +374,7 @@ class NotaEstudianteController extends Controller
             // Obtener el esquema activo
             $esquema = EsquemaCalificacion::activoParaModuloGrupo($moduloId, $grupoId)->first();
 
-            if (!$esquema) {
+            if (! $esquema) {
                 return response()->json([
                     'message' => 'No se encontró un esquema activo para este módulo y grupo.',
                 ], 404);
@@ -457,10 +432,6 @@ class NotaEstudianteController extends Controller
 
     /**
      * Obtiene la sabana de notas de un estudiante (todos sus módulos). Un alumno solo puede pedir la suya.
-     *
-     * @param Request $request
-     * @param int $estudianteId
-     * @return JsonResponse
      */
     public function sabanaEstudiante(Request $request, int $estudianteId): JsonResponse
     {
@@ -474,7 +445,7 @@ class NotaEstudianteController extends Controller
                 $request->get('curso_id')
             );
 
-            if (!$data) {
+            if (! $data) {
                 return response()->json([
                     'message' => 'No se encontró una matrícula activa para este estudiante.',
                 ], 404);
@@ -495,11 +466,6 @@ class NotaEstudianteController extends Controller
     /**
      * Obtiene la sabana de notas grupal (todos los estudiantes de un grupo en un módulo). Prohibida para alumnos.
      * Cada estudiante trae su resultado: nota final, recuperación, nota definitiva, estado y si sus notas están cerradas.
-     *
-     * @param Request $request
-     * @param int $grupoId
-     * @param int $moduloId
-     * @return JsonResponse
      */
     public function sabanaGrupal(Request $request, int $grupoId, int $moduloId): JsonResponse
     {
@@ -515,7 +481,7 @@ class NotaEstudianteController extends Controller
 
         $data = $this->sabanaNotas->porGrupo($grupo);
 
-        if (!$data) {
+        if (! $data) {
             return response()->json([
                 'message' => 'No se encontró un esquema activo para este módulo y grupo.',
             ], 404);
@@ -534,29 +500,26 @@ class NotaEstudianteController extends Controller
      * El alumno solo ve lo suyo, el profesor solo sus grupos y el resto del personal los
      * grupos de sus sedes. `meta` agrega el `resumen` del total filtrado (no solo de la
      * página) y `sin_esquema`, los grupos cuyo módulo no tiene esquema activo.
-     *
-     * @param FiltrarConsolidadoNotasRequest $request
-     * @return JsonResponse
      */
     public function consolidado(FiltrarConsolidadoNotasRequest $request): JsonResponse
     {
         $resultado = $this->consolidado->consultar($request->filtros());
-        $filas     = $resultado['filas'];
-        $perPage   = (int) $request->get('per_page', 50);
-        $page      = (int) $request->get('page', 1);
-        $pagina    = new LengthAwarePaginator($filas->forPage($page, $perPage)->values(), $filas->count(), $perPage, $page);
+        $filas = $resultado['filas'];
+        $perPage = (int) $request->get('per_page', 50);
+        $page = (int) $request->get('page', 1);
+        $pagina = new LengthAwarePaginator($filas->forPage($page, $perPage)->values(), $filas->count(), $perPage, $page);
 
         return response()->json([
             'data' => ResultadoModuloResource::collection($pagina->getCollection()),
             'meta' => [
                 'current_page' => $pagina->currentPage(),
-                'last_page'    => $pagina->lastPage(),
-                'per_page'     => $pagina->perPage(),
-                'total'        => $pagina->total(),
-                'from'         => $pagina->firstItem(),
-                'to'           => $pagina->lastItem(),
-                'resumen'      => $this->consolidado->resumen($filas),
-                'sin_esquema'  => $resultado['sin_esquema'],
+                'last_page' => $pagina->lastPage(),
+                'per_page' => $pagina->perPage(),
+                'total' => $pagina->total(),
+                'from' => $pagina->firstItem(),
+                'to' => $pagina->lastItem(),
+                'resumen' => $this->consolidado->resumen($filas),
+                'sin_esquema' => $resultado['sin_esquema'],
             ],
         ]);
     }
@@ -564,9 +527,6 @@ class NotaEstudianteController extends Controller
     /**
      * Opciones de filtro de la consulta de notas: ciclos (con su estado de cierre), grupos
      * y profesores que el usuario puede consultar, y los estados de resultado.
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function filters(Request $request): JsonResponse
     {
@@ -595,17 +555,17 @@ class NotaEstudianteController extends Controller
         return response()->json([
             'data' => [
                 'ciclos' => $ciclos->map(fn (Ciclo $ciclo) => [
-                    'id'             => $ciclo->id,
-                    'nombre'         => $ciclo->nombre,
-                    'fecha_inicio'   => $ciclo->fecha_inicio?->format('Y-m-d'),
-                    'fecha_fin'      => $ciclo->fecha_fin?->format('Y-m-d'),
+                    'id' => $ciclo->id,
+                    'nombre' => $ciclo->nombre,
+                    'fecha_inicio' => $ciclo->fecha_inicio?->format('Y-m-d'),
+                    'fecha_fin' => $ciclo->fecha_fin?->format('Y-m-d'),
                     'notas_cerradas' => $ciclo->notasCerradas(),
                 ]),
                 'grupos' => $grupos->map(fn (Grupo $grupo) => [
-                    'id'          => $grupo->id,
-                    'nombre'      => $grupo->nombre,
+                    'id' => $grupo->id,
+                    'nombre' => $grupo->nombre,
                     'profesor_id' => $grupo->profesor_id,
-                    'modulo'      => ['id' => $grupo->modulo->id, 'nombre' => $grupo->modulo->nombre],
+                    'modulo' => ['id' => $grupo->modulo->id, 'nombre' => $grupo->modulo->nombre],
                 ]),
                 'profesores' => $profesores->map(fn (User $profesor) => ['id' => $profesor->id, 'name' => $profesor->name]),
                 'estados' => [
@@ -620,10 +580,6 @@ class NotaEstudianteController extends Controller
     /**
      * Corta con 403 si el usuario no puede registrar notas en el grupo (B25):
      * solo su profesor o el personal con la sede del grupo asignada.
-     *
-     * @param Request $request
-     * @param Grupo|null $grupo
-     * @return void
      */
     private function autorizarGrupo(Request $request, ?Grupo $grupo): void
     {
@@ -632,8 +588,6 @@ class NotaEstudianteController extends Controller
 
     /**
      * Respuesta 422 cuando las notas del ciclo del estudiante están cerradas.
-     *
-     * @return JsonResponse
      */
     private function respuestaNotasCerradas(): JsonResponse
     {

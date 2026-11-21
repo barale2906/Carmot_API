@@ -31,9 +31,6 @@ class SeguimientoController extends Controller
 
     /**
      * Muestra una lista de los seguimientos.
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function index(Request $request): JsonResponse
     {
@@ -68,9 +65,6 @@ class SeguimientoController extends Controller
      * Crea un nuevo seguimiento en el sistema. Si llega `estado_referido`, el lead queda en ese
      * estado junto con el seguimiento (Matriculado no: lo asigna la conversión en matrícula);
      * si llega `proxima_accion`, queda programada en la agenda.
-     *
-     * @param StoreSeguimientoRequest $request
-     * @return JsonResponse
      */
     public function store(StoreSeguimientoRequest $request): JsonResponse
     {
@@ -92,10 +86,6 @@ class SeguimientoController extends Controller
 
     /**
      * Muestra un seguimiento específico con sus relaciones.
-     *
-     * @param Request $request
-     * @param Seguimiento $seguimiento
-     * @return JsonResponse
      */
     public function show(Request $request, Seguimiento $seguimiento): JsonResponse
     {
@@ -114,10 +104,6 @@ class SeguimientoController extends Controller
 
     /**
      * Actualiza un seguimiento existente.
-     *
-     * @param UpdateSeguimientoRequest $request
-     * @param Seguimiento $seguimiento
-     * @return JsonResponse
      */
     public function update(UpdateSeguimientoRequest $request, Seguimiento $seguimiento): JsonResponse
     {
@@ -133,9 +119,6 @@ class SeguimientoController extends Controller
 
     /**
      * Elimina un seguimiento (soft delete).
-     *
-     * @param Seguimiento $seguimiento
-     * @return JsonResponse
      */
     public function destroy(Seguimiento $seguimiento): JsonResponse
     {
@@ -149,8 +132,7 @@ class SeguimientoController extends Controller
     /**
      * Restaura un seguimiento eliminado (soft delete).
      *
-     * @param int $id ID del seguimiento a restaurar
-     * @return JsonResponse
+     * @param  int  $id  ID del seguimiento a restaurar
      */
     public function restore(int $id): JsonResponse
     {
@@ -166,8 +148,7 @@ class SeguimientoController extends Controller
     /**
      * Elimina permanentemente un seguimiento.
      *
-     * @param int $id ID del seguimiento a eliminar permanentemente
-     * @return JsonResponse
+     * @param  int  $id  ID del seguimiento a eliminar permanentemente
      */
     public function forceDelete(int $id): JsonResponse
     {
@@ -184,9 +165,6 @@ class SeguimientoController extends Controller
      * antiguo) y el estado en que quedó en cada uno. Incluye los leads sin seguimientos para
      * poder registrarles el primero; `search` busca por nombre o celular del lead y
      * `fecha_desde`/`fecha_hasta` dejan solo los leads con seguimientos en ese rango.
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function porLead(Request $request): JsonResponse
     {
@@ -217,9 +195,6 @@ class SeguimientoController extends Controller
     /**
      * Descarga en Excel los seguimientos de un lapso de fechas (una fila por seguimiento),
      * con los mismos filtros de lead y el mismo orden de la bitácora por lead.
-     *
-     * @param ExportarSeguimientosRequest $request
-     * @return StreamedResponse
      */
     public function excel(ExportarSeguimientosRequest $request): StreamedResponse
     {
@@ -238,9 +213,7 @@ class SeguimientoController extends Controller
     /**
      * Obtiene todos los seguimientos de un referido específico.
      *
-     * @param Request $request
-     * @param int $referidoId ID del referido
-     * @return JsonResponse
+     * @param  int  $referidoId  ID del referido
      */
     public function byReferido(Request $request, int $referidoId): JsonResponse
     {
@@ -271,9 +244,7 @@ class SeguimientoController extends Controller
     /**
      * Obtiene todos los seguimientos realizados por un seguidor específico.
      *
-     * @param Request $request
-     * @param int $seguidorId ID del seguidor
-     * @return JsonResponse
+     * @param  int  $seguidorId  ID del seguidor
      */
     public function bySeguidor(Request $request, int $seguidorId): JsonResponse
     {

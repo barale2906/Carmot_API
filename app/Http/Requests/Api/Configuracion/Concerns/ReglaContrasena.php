@@ -14,7 +14,7 @@ use Illuminate\Validation\Rules\Password;
 trait ReglaContrasena
 {
     /**
-     * @param array<int, string> $roles Roles con los que quedará el usuario
+     * @param  array<int, string>  $roles  Roles con los que quedará el usuario
      * @return array<int, mixed>
      */
     protected function reglaContrasena(array $roles): array

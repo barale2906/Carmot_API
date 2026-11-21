@@ -9,8 +9,8 @@ use App\Http\Resources\Api\Crm\AgendaResource;
 use App\Models\Crm\Agenda;
 use App\Models\Crm\Referido;
 use App\Models\User;
-use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class AgendaController extends Controller
 {
@@ -27,9 +27,6 @@ class AgendaController extends Controller
 
     /**
      * Muestra una lista de las agendas.
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function index(Request $request): JsonResponse
     {
@@ -65,9 +62,6 @@ class AgendaController extends Controller
 
     /**
      * Almacena una nueva agenda en la base de datos.
-     *
-     * @param StoreAgendaRequest $request
-     * @return JsonResponse
      */
     public function store(StoreAgendaRequest $request): JsonResponse
     {
@@ -92,10 +86,6 @@ class AgendaController extends Controller
 
     /**
      * Muestra la agenda especificada.
-     *
-     * @param Request $request
-     * @param Agenda $agenda
-     * @return JsonResponse
      */
     public function show(Request $request, Agenda $agenda): JsonResponse
     {
@@ -114,10 +104,6 @@ class AgendaController extends Controller
 
     /**
      * Actualiza la agenda especificada en la base de datos.
-     *
-     * @param UpdateAgendaRequest $request
-     * @param Agenda $agenda
-     * @return JsonResponse
      */
     public function update(UpdateAgendaRequest $request, Agenda $agenda): JsonResponse
     {
@@ -142,9 +128,6 @@ class AgendaController extends Controller
 
     /**
      * Elimina la agenda especificada de la base de datos (soft delete).
-     *
-     * @param Agenda $agenda
-     * @return JsonResponse
      */
     public function destroy(Agenda $agenda): JsonResponse
     {
@@ -157,9 +140,6 @@ class AgendaController extends Controller
 
     /**
      * Restaura una agenda eliminada (soft delete).
-     *
-     * @param int $id
-     * @return JsonResponse
      */
     public function restore(int $id): JsonResponse
     {
@@ -174,9 +154,6 @@ class AgendaController extends Controller
 
     /**
      * Elimina permanentemente una agenda.
-     *
-     * @param int $id
-     * @return JsonResponse
      */
     public function forceDelete(int $id): JsonResponse
     {
@@ -190,9 +167,6 @@ class AgendaController extends Controller
 
     /**
      * Obtiene solo las agendas eliminadas (soft delete).
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function trashed(Request $request): JsonResponse
     {
@@ -229,8 +203,6 @@ class AgendaController extends Controller
 
     /**
      * Obtiene las opciones de filtros disponibles.
-     *
-     * @return JsonResponse
      */
     public function filters(): JsonResponse
     {
@@ -260,8 +232,6 @@ class AgendaController extends Controller
 
     /**
      * Obtiene estadísticas de agendas.
-     *
-     * @return JsonResponse
      */
     public function statistics(): JsonResponse
     {

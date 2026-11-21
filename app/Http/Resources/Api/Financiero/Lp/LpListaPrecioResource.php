@@ -11,8 +11,6 @@ use Illuminate\Http\Resources\Json\JsonResource;
  *
  * Transforma el modelo LpListaPrecio en una respuesta JSON estructurada.
  * Incluye todos los campos de la lista de precios, sus relaciones y el estado formateado.
- *
- * @package App\Http\Resources\Api\Financiero\Lp
  */
 class LpListaPrecioResource extends JsonResource
 {
@@ -21,7 +19,7 @@ class LpListaPrecioResource extends JsonResource
     /**
      * Transforma el recurso en un array.
      *
-     * @param Request $request Solicitud HTTP actual
+     * @param  Request  $request  Solicitud HTTP actual
      * @return array<string, mixed> Array con los datos formateados de la lista de precios
      */
     public function toArray(Request $request): array

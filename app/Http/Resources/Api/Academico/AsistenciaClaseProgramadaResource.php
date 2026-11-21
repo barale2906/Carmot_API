@@ -68,12 +68,10 @@ class AsistenciaClaseProgramadaResource extends JsonResource
 
     /**
      * Obtiene el texto legible del estado.
-     *
-     * @return string
      */
     private function getEstadoText(): string
     {
-        return match($this->estado) {
+        return match ($this->estado) {
             'programada' => 'Programada',
             'dictada' => 'Dictada',
             'cancelada' => 'Cancelada',

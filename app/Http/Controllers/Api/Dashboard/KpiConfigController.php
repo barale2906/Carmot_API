@@ -21,8 +21,6 @@ class KpiConfigController extends Controller
      * - models: Lista de modelos disponibles con metadatos
      * - allowed_operations: Operaciones permitidas por tipo de campo
      * - period_presets: Periodos soportados por defecto
-     *
-     * @return JsonResponse
      */
     public function index(): JsonResponse
     {
@@ -51,7 +49,7 @@ class KpiConfigController extends Controller
 
                 $models[] = [
                     'id' => $id,
-                    'display_name' => $model['display_name'] ?? ('Model ' . $id),
+                    'display_name' => $model['display_name'] ?? ('Model '.$id),
                     'class' => $model['class'] ?? null,
                     'display_field' => $model['display_field'] ?? null,
                     'date_fields' => $model['date_fields'] ?? [],
@@ -81,7 +79,7 @@ class KpiConfigController extends Controller
         foreach ($modelsConfig as $id => $model) {
             $models[] = [
                 'id' => $id,
-                'display_name' => $model['display_name'] ?? ('Model ' . $id),
+                'display_name' => $model['display_name'] ?? ('Model '.$id),
             ];
         }
 
@@ -96,7 +94,7 @@ class KpiConfigController extends Controller
         $modelsConfig = config('kpis.available_kpi_models', []);
         $model = $modelsConfig[$modelId] ?? null;
 
-        if (!$model) {
+        if (! $model) {
             return response()->json([
                 'message' => 'Modelo no encontrado',
             ], 404);
@@ -114,7 +112,7 @@ class KpiConfigController extends Controller
         return response()->json([
             'model' => [
                 'id' => $modelId,
-                'display_name' => $model['display_name'] ?? ('Model ' . $modelId),
+                'display_name' => $model['display_name'] ?? ('Model '.$modelId),
             ],
             'fields' => $fields,
         ]);

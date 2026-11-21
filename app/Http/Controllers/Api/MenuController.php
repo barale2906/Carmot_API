@@ -13,8 +13,6 @@ use Illuminate\Http\Request;
  * autenticado. Cada módulo (Configuración, CRM, Académico, Financiero,
  * Inventario) y sus submenús son incluidos solo cuando el usuario posee
  * al menos uno de los permisos asociados.
- *
- * @package App\Http\Controllers\Api
  */
 class MenuController extends Controller
 {
@@ -28,9 +26,6 @@ class MenuController extends Controller
 
     /**
      * Obtiene el menú de navegación según los permisos del usuario.
-     *
-     * @param Request $request
-     * @return MenuResponseResource
      */
     public function index(Request $request): MenuResponseResource
     {
@@ -139,7 +134,7 @@ class MenuController extends Controller
                 ];
             }
 
-            if (!empty($configChildren)) {
+            if (! empty($configChildren)) {
                 $menu[] = [
                     'id' => 'configuracion',
                     'title' => 'Configuración',
@@ -187,7 +182,7 @@ class MenuController extends Controller
                 ];
             }
 
-            if (!empty($crmChildren)) {
+            if (! empty($crmChildren)) {
                 $menu[] = [
                     'id' => 'crm',
                     'title' => 'CRM',
@@ -339,7 +334,7 @@ class MenuController extends Controller
                 ];
             }
 
-            if (!empty($academicoChildren)) {
+            if (! empty($academicoChildren)) {
                 $menu[] = [
                     'id' => 'academico',
                     'title' => 'Académico',
@@ -422,7 +417,7 @@ class MenuController extends Controller
                 ];
             }
 
-            if (!empty($listasChildren)) {
+            if (! empty($listasChildren)) {
                 $financieroChildren[] = [
                     'id' => 'financiero-grupo-listas',
                     'title' => 'Listas de precios',
@@ -460,7 +455,7 @@ class MenuController extends Controller
                 ];
             }
 
-            if (!empty($recibosChildren)) {
+            if (! empty($recibosChildren)) {
                 $financieroChildren[] = [
                     'id' => 'financiero-grupo-recibos',
                     'title' => 'Recibos de pago',
@@ -522,7 +517,7 @@ class MenuController extends Controller
                 ];
             }
 
-            if (!empty($libroChildren)) {
+            if (! empty($libroChildren)) {
                 $financieroChildren[] = [
                     'id' => 'financiero-grupo-libro-diario',
                     'title' => 'Libro diario',
@@ -548,7 +543,19 @@ class MenuController extends Controller
                 ];
             }
 
-            if (!empty($carteraChildren)) {
+            if ($user->can('fin_prorrogasPago')) {
+                $carteraChildren[] = [
+                    'id' => 'financiero-prorrogas-pago',
+                    'title' => 'Plazos de pago acordados',
+                    'icon' => 'calendar_today',
+                    'route' => '/financiero/prorrogas-pago',
+                    'permission' => 'fin_prorrogasPago',
+                    'children' => [],
+                    'disabled' => false,
+                ];
+            }
+
+            if (! empty($carteraChildren)) {
                 $financieroChildren[] = [
                     'id' => 'financiero-grupo-cartera',
                     'title' => 'Cartera',
@@ -559,7 +566,7 @@ class MenuController extends Controller
                 ];
             }
 
-            if (!empty($financieroChildren)) {
+            if (! empty($financieroChildren)) {
                 $menu[] = [
                     'id' => 'financiero',
                     'title' => 'Financiero',
@@ -638,7 +645,7 @@ class MenuController extends Controller
                     'disabled' => false,
                 ];
             }
-            if (!empty($catalogosChildren)) {
+            if (! empty($catalogosChildren)) {
                 $inventarioChildren[] = [
                     'id' => 'inv-grupo-catalogos',
                     'title' => 'Catálogos',
@@ -684,7 +691,7 @@ class MenuController extends Controller
                     'disabled' => false,
                 ];
             }
-            if (!empty($stockChildren)) {
+            if (! empty($stockChildren)) {
                 $inventarioChildren[] = [
                     'id' => 'inv-grupo-stock',
                     'title' => 'Stock y movimientos',
@@ -719,7 +726,7 @@ class MenuController extends Controller
                     'disabled' => false,
                 ];
             }
-            if (!empty($ventasChildren)) {
+            if (! empty($ventasChildren)) {
                 $inventarioChildren[] = [
                     'id' => 'inv-grupo-ventas',
                     'title' => 'Ventas y entregas',
@@ -755,7 +762,7 @@ class MenuController extends Controller
                     'disabled' => false,
                 ];
             }
-            if (!empty($facturacionChildren)) {
+            if (! empty($facturacionChildren)) {
                 $inventarioChildren[] = [
                     'id' => 'inv-grupo-facturacion',
                     'title' => 'Facturación',
@@ -782,13 +789,13 @@ class MenuController extends Controller
                             'permission' => 'inv_oc',
                             'children' => [],
                             'disabled' => false,
-                        ]
+                        ],
                     ],
                     'disabled' => false,
                 ];
             }
 
-            if (!empty($inventarioChildren)) {
+            if (! empty($inventarioChildren)) {
                 $menu[] = [
                     'id' => 'inventario',
                     'title' => 'Inventario',
@@ -806,9 +813,7 @@ class MenuController extends Controller
     /**
      * Verifica si el usuario tiene al menos uno de los permisos especificados.
      *
-     * @param \App\Models\User $user
-     * @param array $permissions
-     * @return bool
+     * @param  \App\Models\User  $user
      */
     private function hasAnyPermission($user, array $permissions): bool
     {
@@ -817,6 +822,7 @@ class MenuController extends Controller
                 return true;
             }
         }
+
         return false;
     }
 }

@@ -12,8 +12,6 @@ class TrasladarActActivoRequest extends FormRequest
 
     /**
      * Determina si el usuario está autorizado para realizar esta petición.
-     *
-     * @return bool
      */
     public function authorize(): bool
     {
@@ -28,11 +26,11 @@ class TrasladarActActivoRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'sede_id'        => ['required', 'integer', 'exists:sedes,id'],
-            'area_id'        => ['nullable', 'integer', 'exists:areas,id'],
+            'sede_id' => ['required', 'integer', 'exists:sedes,id'],
+            'area_id' => ['nullable', 'integer', 'exists:areas,id'],
             'responsable_id' => ['sometimes', 'nullable', 'integer', 'exists:users,id', $this->reglaResponsable()],
-            'fecha'          => ['required', 'date', 'before_or_equal:today'],
-            'motivo'         => ['required', 'string', 'min:5', 'max:1000'],
+            'fecha' => ['required', 'date', 'before_or_equal:today'],
+            'motivo' => ['required', 'string', 'min:5', 'max:1000'],
         ];
     }
 
@@ -45,7 +43,7 @@ class TrasladarActActivoRequest extends FormRequest
     {
         return [
             'fecha.before_or_equal' => 'La fecha del traslado no puede ser futura.',
-            'motivo.required'       => 'Indica el motivo del traslado.',
+            'motivo.required' => 'Indica el motivo del traslado.',
         ];
     }
 
@@ -57,8 +55,8 @@ class TrasladarActActivoRequest extends FormRequest
     public function attributes(): array
     {
         return [
-            'sede_id'        => 'sede de destino',
-            'area_id'        => 'área de destino',
+            'sede_id' => 'sede de destino',
+            'area_id' => 'área de destino',
             'responsable_id' => 'responsable',
         ];
     }
@@ -68,8 +66,7 @@ class TrasladarActActivoRequest extends FormRequest
      * recepción), ni a la misma ubicación; el destino debe ser una sede asignada al usuario
      * y el área debe pertenecer a ella.
      *
-     * @param \Illuminate\Validation\Validator $validator
-     * @return void
+     * @param  \Illuminate\Validation\Validator  $validator
      */
     public function withValidator($validator): void
     {
@@ -83,11 +80,13 @@ class TrasladarActActivoRequest extends FormRequest
 
             if ($activo->estaDeBaja()) {
                 $validator->errors()->add('sede_id', 'El activo está dado de baja: no se puede trasladar.');
+
                 return;
             }
 
             if ($activo->estaEnTransito()) {
                 $validator->errors()->add('sede_id', 'El activo ya tiene un traslado pendiente de recepción.');
+
                 return;
             }
 
@@ -95,6 +94,7 @@ class TrasladarActActivoRequest extends FormRequest
                 && ($this->area_id ? (int) $this->area_id : null) === $activo->area_id;
             if ($mismaUbicacion) {
                 $validator->errors()->add('area_id', 'El activo ya está en esa sede y área.');
+
                 return;
             }
 

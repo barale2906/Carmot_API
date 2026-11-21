@@ -17,8 +17,6 @@ class EntregarComponentesKitRequest extends FormRequest
 {
     /**
      * La autorización se resuelve con el middleware de permisos de la ruta.
-     *
-     * @return bool
      */
     public function authorize(): bool
     {
@@ -31,11 +29,11 @@ class EntregarComponentesKitRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'componentes'                         => ['required', 'array', 'min:1'],
-            'componentes.*.kit_componente_id'     => ['required', 'integer', 'exists:inv_kit_componentes,id'],
+            'componentes' => ['required', 'array', 'min:1'],
+            'componentes.*.kit_componente_id' => ['required', 'integer', 'exists:inv_kit_componentes,id'],
             'componentes.*.producto_entregado_id' => ['nullable', 'integer', 'exists:inv_productos,id'],
-            'componentes.*.cantidad'              => ['nullable', 'integer', 'min:1'],
-            'forzar_parcial'                      => ['nullable', 'boolean'],
+            'componentes.*.cantidad' => ['nullable', 'integer', 'min:1'],
+            'forzar_parcial' => ['nullable', 'boolean'],
         ];
     }
 
@@ -44,9 +42,6 @@ class EntregarComponentesKitRequest extends FormRequest
      *
      * Sin esta comprobación un componente de otro kit se ignoraría en silencio y el
      * cajero creería haber entregado algo que nunca se descargó de inventario.
-     *
-     * @param Validator $validator
-     * @return void
      */
     public function withValidator(Validator $validator): void
     {
@@ -80,12 +75,12 @@ class EntregarComponentesKitRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'componentes.required'                       => 'Debe indicar al menos un componente a entregar.',
-            'componentes.min'                            => 'Debe indicar al menos un componente a entregar.',
-            'componentes.*.kit_componente_id.required'   => 'El ID del componente es obligatorio.',
-            'componentes.*.kit_componente_id.exists'     => 'El componente seleccionado no existe.',
+            'componentes.required' => 'Debe indicar al menos un componente a entregar.',
+            'componentes.min' => 'Debe indicar al menos un componente a entregar.',
+            'componentes.*.kit_componente_id.required' => 'El ID del componente es obligatorio.',
+            'componentes.*.kit_componente_id.exists' => 'El componente seleccionado no existe.',
             'componentes.*.producto_entregado_id.exists' => 'La variante seleccionada no existe.',
-            'componentes.*.cantidad.min'                 => 'La cantidad a entregar debe ser al menos 1.',
+            'componentes.*.cantidad.min' => 'La cantidad a entregar debe ser al menos 1.',
         ];
     }
 

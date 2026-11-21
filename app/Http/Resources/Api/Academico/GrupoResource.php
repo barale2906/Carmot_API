@@ -13,7 +13,6 @@ use Illuminate\Http\Resources\Json\JsonResource;
  * incluyendo las relaciones opcionales de sede, módulo y profesor.
  *
  * @mixin \App\Models\Academico\Grupo
- * @package App\Http\Resources\Api\Academico
  */
 class GrupoResource extends JsonResource
 {

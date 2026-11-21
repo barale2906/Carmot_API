@@ -4,11 +4,8 @@ namespace App\Http\Resources\Api\Financiero\ReciboPago;
 
 use App\Http\Resources\Api\Academico\MatriculaResource;
 use App\Http\Resources\Api\Configuracion\SedeResource;
-use App\Http\Resources\Api\Financiero\ConceptoPago\ConceptoPagoResource;
-use App\Http\Resources\Api\Financiero\Descuento\DescuentoResource;
-use App\Http\Resources\Api\Financiero\Lp\LpListaPrecioResource;
-use App\Http\Resources\Api\Financiero\Lp\LpProductoResource;
 use App\Http\Resources\Api\Configuracion\UserResource;
+use App\Http\Resources\Api\Financiero\Lp\LpListaPrecioResource;
 use App\Models\Financiero\ReciboPago\ReciboPago;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -18,15 +15,13 @@ use Illuminate\Http\Resources\Json\JsonResource;
  *
  * Transforma el modelo ReciboPago en una respuesta JSON estructurada.
  * Incluye todos los campos del recibo de pago, relaciones y datos formateados.
- *
- * @package App\Http\Resources\Api\Financiero\ReciboPago
  */
 class ReciboPagoResource extends JsonResource
 {
     /**
      * Transforma el recurso en un array.
      *
-     * @param Request $request Solicitud HTTP actual
+     * @param  Request  $request  Solicitud HTTP actual
      * @return array<string, mixed> Array con los datos formateados del recibo de pago
      */
     public function toArray(Request $request): array
@@ -40,30 +35,30 @@ class ReciboPagoResource extends JsonResource
             'origen_text' => $this->origen_text,
             'fecha_recibo' => $this->fecha_recibo?->format('Y-m-d'),
             'fecha_transaccion' => $this->fecha_transaccion?->format('Y-m-d H:i:s'),
-            'valor_total'               => (float) $this->valor_total,
-            'valor_total_formatted'     => number_format((float) $this->valor_total, 2, '.', ','),
-            'descuento_total'           => (float) $this->descuento_total,
+            'valor_total' => (float) $this->valor_total,
+            'valor_total_formatted' => number_format((float) $this->valor_total, 2, '.', ','),
+            'descuento_total' => (float) $this->descuento_total,
             'descuento_total_formatted' => number_format((float) $this->descuento_total, 2, '.', ','),
-            'sobrecargo_total'          => (float) $this->sobrecargo_total,
+            'sobrecargo_total' => (float) $this->sobrecargo_total,
             'sobrecargo_total_formatted' => number_format((float) $this->sobrecargo_total, 2, '.', ','),
             // Monto neto destinado a cubrir deudas (valor bruto - sobrecargos)
-            'valor_neto'                => (float) $this->valor_total - (float) $this->sobrecargo_total,
-            'banco'             => $this->banco,
+            'valor_neto' => (float) $this->valor_total - (float) $this->sobrecargo_total,
+            'banco' => $this->banco,
             'aplicar_descuento' => (bool) $this->aplicar_descuento,
-            'status'            => $this->status,
-            'status_text'       => $this->status_text,
-            'motivo_anulacion'  => $this->motivo_anulacion,
-            'motivo_rechazo'    => $this->motivo_rechazo,
-            'fecha_aprobacion'  => $this->fecha_aprobacion?->format('Y-m-d H:i:s'),
-            'aprobado_por_id'   => $this->aprobado_por_id,
-            'cierre'            => $this->cierre,
-            'sede_id'           => $this->sede_id,
-            'estudiante_id'     => $this->estudiante_id,
-            'cajero_id'         => $this->cajero_id,
-            'matricula_id'      => $this->matricula_id,
-            'created_at'        => $this->created_at?->format('Y-m-d H:i:s'),
-            'updated_at'        => $this->updated_at?->format('Y-m-d H:i:s'),
-            'deleted_at'        => $this->deleted_at?->format('Y-m-d H:i:s'),
+            'status' => $this->status,
+            'status_text' => $this->status_text,
+            'motivo_anulacion' => $this->motivo_anulacion,
+            'motivo_rechazo' => $this->motivo_rechazo,
+            'fecha_aprobacion' => $this->fecha_aprobacion?->format('Y-m-d H:i:s'),
+            'aprobado_por_id' => $this->aprobado_por_id,
+            'cierre' => $this->cierre,
+            'sede_id' => $this->sede_id,
+            'estudiante_id' => $this->estudiante_id,
+            'cajero_id' => $this->cajero_id,
+            'matricula_id' => $this->matricula_id,
+            'created_at' => $this->created_at?->format('Y-m-d H:i:s'),
+            'updated_at' => $this->updated_at?->format('Y-m-d H:i:s'),
+            'deleted_at' => $this->deleted_at?->format('Y-m-d H:i:s'),
 
             // Relaciones opcionales
             'sede' => $this->whenLoaded('sede', fn () => new SedeResource($this->sede)),
@@ -73,7 +68,7 @@ class ReciboPagoResource extends JsonResource
 
             // Pedidos de inventario que cubre el recibo (origen=0)
             'pedidos_inventario' => $this->whenLoaded('pedidoLinks', fn () => $this->pedidoLinks->map(fn ($link) => [
-                'pedido_id'     => $link->pedido_id,
+                'pedido_id' => $link->pedido_id,
                 'monto_abonado' => $link->monto_abonado,
             ])),
 
@@ -93,7 +88,7 @@ class ReciboPagoResource extends JsonResource
                         'id_relacional' => $concepto->pivot->id_relacional,
                         'observaciones' => $concepto->pivot->observaciones,
                         'status_cartera' => $concepto->pivot->status_cartera !== null ? (int) $concepto->pivot->status_cartera : null,
-                        'saldo_cartera'  => $concepto->pivot->saldo_cartera  !== null ? (float) $concepto->pivot->saldo_cartera  : null,
+                        'saldo_cartera' => $concepto->pivot->saldo_cartera !== null ? (float) $concepto->pivot->saldo_cartera : null,
                     ];
                 });
             }),
@@ -136,29 +131,29 @@ class ReciboPagoResource extends JsonResource
             'medios_pago' => $this->whenLoaded('mediosPago', function () {
                 return $this->mediosPago->map(function ($medio) {
                     return [
-                        'id'                  => $medio->id,
-                        'medio_pago'          => $medio->medio_pago,
-                        'tipo_tarjeta'        => $medio->tipo_tarjeta,
-                        'valor'               => (float) $medio->valor,
-                        'valor_formatted'     => number_format((float) $medio->valor, 2, '.', ','),
-                        'referencia'          => $medio->referencia,
-                        'banco'               => $medio->relationLoaded('banco') ? $medio->getRelation('banco') : null,
-                        'banco_id'            => $medio->banco_id,
-                        'banco_nombre'        => $medio->relationLoaded('banco') ? $medio->getRelation('banco')?->nombre : null,
-                        'cuenta_bancaria_id'  => $medio->cuenta_bancaria_id,
-                        'cuenta_bancaria'     => $medio->relationLoaded('cuentaBancaria') && $medio->cuentaBancaria
+                        'id' => $medio->id,
+                        'medio_pago' => $medio->medio_pago,
+                        'tipo_tarjeta' => $medio->tipo_tarjeta,
+                        'valor' => (float) $medio->valor,
+                        'valor_formatted' => number_format((float) $medio->valor, 2, '.', ','),
+                        'referencia' => $medio->referencia,
+                        'banco' => $medio->relationLoaded('banco') ? $medio->getRelation('banco') : null,
+                        'banco_id' => $medio->banco_id,
+                        'banco_nombre' => $medio->relationLoaded('banco') ? $medio->getRelation('banco')?->nombre : null,
+                        'cuenta_bancaria_id' => $medio->cuenta_bancaria_id,
+                        'cuenta_bancaria' => $medio->relationLoaded('cuentaBancaria') && $medio->cuentaBancaria
                             ? [
-                                'id'            => $medio->cuentaBancaria->id,
-                                'tipo_cuenta'   => $medio->cuentaBancaria->tipo_cuenta,
+                                'id' => $medio->cuentaBancaria->id,
+                                'tipo_cuenta' => $medio->cuentaBancaria->tipo_cuenta,
                                 'numero_cuenta' => $medio->cuentaBancaria->numero_cuenta,
-                                'titular'       => $medio->cuentaBancaria->titular,
-                                'etiqueta'      => $medio->cuentaBancaria->etiqueta,
+                                'titular' => $medio->cuentaBancaria->titular,
+                                'etiqueta' => $medio->cuentaBancaria->etiqueta,
                             ]
                             : null,
-                        'numero_transaccion'  => $medio->numero_transaccion,
+                        'numero_transaccion' => $medio->numero_transaccion,
                         'fecha_transferencia' => $medio->fecha_transferencia?->format('Y-m-d'),
-                        'comprobante_path'    => $medio->comprobante_path,
-                        'comprobante_url'     => $medio->comprobante_url,
+                        'comprobante_path' => $medio->comprobante_path,
+                        'comprobante_url' => $medio->comprobante_url,
                     ];
                 });
             }),
@@ -167,15 +162,15 @@ class ReciboPagoResource extends JsonResource
             'sobrecargos' => $this->whenLoaded('sobrecargos', function () {
                 return $this->sobrecargos->map(function ($s) {
                     return [
-                        'id'                        => $s->id,
-                        'descuento_id'              => $s->descuento_id,
-                        'nombre'                    => $s->sobrecargo?->nombre,
-                        'porcentaje'                => $s->sobrecargo ? (float) $s->sobrecargo->valor : null,
+                        'id' => $s->id,
+                        'descuento_id' => $s->descuento_id,
+                        'nombre' => $s->sobrecargo?->nombre,
+                        'porcentaje' => $s->sobrecargo ? (float) $s->sobrecargo->valor : null,
                         'recibo_pago_medio_pago_id' => $s->recibo_pago_medio_pago_id,
-                        'valor_base'                => (float) $s->valor_base,
-                        'valor_sobrecargo'          => (float) $s->valor_sobrecargo,
+                        'valor_base' => (float) $s->valor_base,
+                        'valor_sobrecargo' => (float) $s->valor_sobrecargo,
                         'valor_sobrecargo_formatted' => number_format((float) $s->valor_sobrecargo, 2, '.', ','),
-                        'valor_final'               => (float) $s->valor_final,
+                        'valor_final' => (float) $s->valor_final,
                     ];
                 });
             }),
@@ -183,13 +178,12 @@ class ReciboPagoResource extends JsonResource
             'aprobado_por' => $this->whenLoaded('aprobadoPor', fn () => new \App\Http\Resources\Api\Configuracion\UserResource($this->aprobadoPor)),
 
             // Métodos de verificación
-            'esta_anulado'              => $this->estaAnulado(),
-            'esta_cerrado'              => $this->estaCerrado(),
-            'esta_en_proceso'           => $this->estaEnProceso(),
+            'esta_anulado' => $this->estaAnulado(),
+            'esta_cerrado' => $this->estaCerrado(),
+            'esta_en_proceso' => $this->estaEnProceso(),
             'esta_pendiente_aprobacion' => $this->estaPendienteAprobacion(),
-            'esta_rechazado'            => $this->estaRechazado(),
-            'es_editable'               => $this->esEditable(),
+            'esta_rechazado' => $this->estaRechazado(),
+            'es_editable' => $this->esEditable(),
         ];
     }
 }
-

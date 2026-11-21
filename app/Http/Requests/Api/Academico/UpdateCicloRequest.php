@@ -54,7 +54,7 @@ class UpdateCicloRequest extends FormRequest
                 'sometimes',
                 'string',
                 'max:255',
-                Rule::unique('ciclos', 'nombre')->ignore($cicloId)
+                Rule::unique('ciclos', 'nombre')->ignore($cicloId),
             ],
             'descripcion' => 'sometimes|nullable|string|max:1000',
             'fecha_inicio' => 'sometimes|date|after_or_equal:today',
@@ -68,18 +68,15 @@ class UpdateCicloRequest extends FormRequest
 
     /**
      * Con fecha fin fija (resultado de lo enviado + lo guardado) la fecha_fin es obligatoria.
-     *
-     * @param Validator $validator
-     * @return void
      */
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $validator) {
-            $ciclo      = $this->route('ciclo');
+            $ciclo = $this->route('ciclo');
             $automatica = $this->has('fecha_fin_automatica')
                 ? $this->boolean('fecha_fin_automatica')
                 : (bool) $ciclo->fecha_fin_automatica;
-            $fechaFin   = $this->has('fecha_fin') ? $this->input('fecha_fin') : $ciclo->fecha_fin;
+            $fechaFin = $this->has('fecha_fin') ? $this->input('fecha_fin') : $ciclo->fecha_fin;
 
             if (! $automatica && ! $fechaFin) {
                 $validator->errors()->add('fecha_fin', $this->messages()['fecha_fin.required']);

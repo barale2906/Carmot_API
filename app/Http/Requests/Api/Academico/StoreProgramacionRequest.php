@@ -27,10 +27,10 @@ class StoreProgramacionRequest extends FormRequest
      * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
      *
      * @var array|null grupos Array de objetos con información de grupos a asignar a la programación.
-     * Cada objeto debe contener:
-     * - grupo_id (integer, required): ID del grupo existente
-     * - fecha_inicio_grupo (date, nullable): Fecha de inicio del grupo dentro de la programación
-     * - fecha_fin_grupo (date, nullable): Fecha de fin del grupo dentro de la programación
+     *                 Cada objeto debe contener:
+     *                 - grupo_id (integer, required): ID del grupo existente
+     *                 - fecha_inicio_grupo (date, nullable): Fecha de inicio del grupo dentro de la programación
+     *                 - fecha_fin_grupo (date, nullable): Fecha de fin del grupo dentro de la programación
      */
     public function rules(): array
     {
@@ -55,8 +55,7 @@ class StoreProgramacionRequest extends FormRequest
     /**
      * Los grupos deben ser de la sede de la programación y de módulos de su curso (N23).
      *
-     * @param \Illuminate\Validation\Validator $validator
-     * @return void
+     * @param  \Illuminate\Validation\Validator  $validator
      */
     public function withValidator($validator): void
     {

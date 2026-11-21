@@ -22,8 +22,7 @@ class ImportarDemoController extends Controller
     /**
      * Muestra el formulario de carga del archivo demo.sql.
      *
-     * @param  string $token Token secreto de la URL
-     * @return View
+     * @param  string  $token  Token secreto de la URL
      */
     public function create(string $token): View
     {
@@ -35,18 +34,16 @@ class ImportarDemoController extends Controller
      * pendientes. Responde JSON si el cliente lo solicita (curl/Postman) o la vista
      * con el resultado en caso contrario.
      *
-     * @param  ImportarDemoRequest $request
-     * @param  string              $token   Token secreto de la URL
-     * @return View|Response|JsonResponse
+     * @param  string  $token  Token secreto de la URL
      */
     public function store(ImportarDemoRequest $request, string $token): View|Response|JsonResponse
     {
         set_time_limit(0);
 
         $directorio = storage_path('app/demo');
-        $nombre = 'importacion_' . now()->format('Ymd_His') . '.sql';
+        $nombre = 'importacion_'.now()->format('Ymd_His').'.sql';
         $request->file('archivo')->move($directorio, $nombre);
-        $ruta = $directorio . DIRECTORY_SEPARATOR . $nombre;
+        $ruta = $directorio.DIRECTORY_SEPARATOR.$nombre;
 
         try {
             $codigo = Artisan::call('demo:importar', ['--file' => $ruta, '--solo-vacia' => true, '--force' => true]);
@@ -71,10 +68,10 @@ class ImportarDemoController extends Controller
         }
 
         return response()->view('demo.importar', [
-            'token'   => $token,
-            'exito'   => $exito,
+            'token' => $token,
+            'exito' => $exito,
             'mensaje' => $mensaje,
-            'salida'  => trim($salida),
+            'salida' => trim($salida),
         ], $estado);
     }
 }

@@ -3,11 +3,11 @@
 namespace App\Http\Controllers\Api\Dashboard;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\Dashboard\KpiComputeRequest;
+use App\Http\Resources\Api\Dashboard\KpiComputeResource;
 use App\Models\Dashboard\Kpi;
 use App\Services\KpiCalculationService;
 use Illuminate\Http\JsonResponse;
-use App\Http\Requests\Api\Dashboard\KpiComputeRequest;
-use App\Http\Resources\Api\Dashboard\KpiComputeResource;
 
 /**
  * Controlador de KPIs
@@ -17,9 +17,7 @@ use App\Http\Resources\Api\Dashboard\KpiComputeResource;
  */
 class KpiController extends Controller
 {
-    public function __construct(private readonly KpiCalculationService $service)
-    {
-    }
+    public function __construct(private readonly KpiCalculationService $service) {}
 
     /**
      * Calcula un KPI con parámetros opcionales de periodo, filtros y agrupación.
@@ -42,15 +40,11 @@ class KpiController extends Controller
      *   (Genera chart con datos nuevos, ignora el guardado)
      * - GET /api/dashboard/kpis/1/compute
      *   (Usa el chart_schema guardado del KPI)
-     *
-     * @param KpiComputeRequest $request
-     * @param Kpi $kpi
-     * @return JsonResponse
      */
     public function compute(KpiComputeRequest $request, Kpi $kpi): JsonResponse
     {
         $opts = $request->validated();
-        
+
         // El servicio ahora maneja el chart_schema de las opciones con prioridad sobre el del KPI
         try {
             $result = $this->service->compute($kpi, $opts);

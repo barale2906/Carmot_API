@@ -35,7 +35,7 @@ class StoreEsquemaCalificacionRequest extends FormRequest
                 'max:255',
                 Rule::unique('esquema_calificacions', 'nombre_esquema')
                     ->where('modulo_id', $this->modulo_id)
-                    ->where('grupo_id', $this->grupo_id ?? null)
+                    ->where('grupo_id', $this->grupo_id ?? null),
             ],
             'descripcion' => 'nullable|string',
             'condicion_aplicacion' => 'nullable|string',

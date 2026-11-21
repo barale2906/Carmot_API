@@ -39,8 +39,7 @@ class EstudianteController extends Controller
      * de comerciales de la matrícula, hasta 200 por página). Con `incluir_personal=1` busca a
      * cualquier persona, para matricular a alguien del personal; solo con `aca_matriculaCrear`.
      *
-     * @param Request $request search, solo_personal, incluir_personal, per_page
-     * @return AnonymousResourceCollection
+     * @param  Request  $request  search, solo_personal, incluir_personal, per_page
      */
     public function index(Request $request): AnonymousResourceCollection
     {
@@ -58,9 +57,6 @@ class EstudianteController extends Controller
 
     /**
      * Muestra una persona.
-     *
-     * @param User $estudiante
-     * @return EstudianteResource
      */
     public function show(User $estudiante): EstudianteResource
     {
@@ -69,9 +65,6 @@ class EstudianteController extends Controller
 
     /**
      * Registra un estudiante nuevo con el rol alumno y, si se indican, sus sedes.
-     *
-     * @param StoreEstudianteRequest $request
-     * @return JsonResponse
      */
     public function store(StoreEstudianteRequest $request): JsonResponse
     {
@@ -91,10 +84,6 @@ class EstudianteController extends Controller
     /**
      * Corrige los datos de identificación de un estudiante. Solo aplica a quien solo tiene
      * el rol alumno: los datos del personal se gestionan en Configuración (403).
-     *
-     * @param UpdateEstudianteRequest $request
-     * @param User $estudiante
-     * @return EstudianteResource
      */
     public function update(UpdateEstudianteRequest $request, User $estudiante): EstudianteResource
     {

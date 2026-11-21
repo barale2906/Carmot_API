@@ -33,10 +33,11 @@ class KpiCrudController extends Controller
         }
 
         if ($request->filled('is_active')) {
-            $query->where('is_active', (bool)$request->boolean('is_active'));
+            $query->where('is_active', (bool) $request->boolean('is_active'));
         }
 
         $kpis = $query->paginate($request->integer('per_page', 15));
+
         return KpiResource::collection($kpis)->response();
     }
 
@@ -46,6 +47,7 @@ class KpiCrudController extends Controller
     public function store(StoreKpiRequest $request): JsonResponse
     {
         $kpi = Kpi::create($request->validated());
+
         return (new KpiResource($kpi))->response()->setStatusCode(201);
     }
 
@@ -63,6 +65,7 @@ class KpiCrudController extends Controller
     public function update(UpdateKpiRequest $request, Kpi $kpi): JsonResponse
     {
         $kpi->update($request->validated());
+
         return (new KpiResource($kpi))->response();
     }
 
@@ -72,6 +75,7 @@ class KpiCrudController extends Controller
     public function destroy(Kpi $kpi): JsonResponse
     {
         $kpi->delete();
+
         return response()->json(['message' => 'KPI eliminado exitosamente.']);
     }
 }

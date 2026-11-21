@@ -13,12 +13,10 @@ use Illuminate\Validation\Rule;
 class UpdateInvUnidadMedidaRequest extends FormRequest
 {
     use HasActiveStatus, HasActiveStatusValidation;
+
     /**
      * La autorización se resuelve con el middleware de permisos de la ruta.
-     *
-     * @return bool
      */
-
     public function authorize(): bool
     {
         return true;
@@ -32,7 +30,7 @@ class UpdateInvUnidadMedidaRequest extends FormRequest
         $unidadId = $this->route('unidad_medida');
 
         return [
-            'nombre'      => [
+            'nombre' => [
                 'required',
                 'string',
                 'max:100',
@@ -41,7 +39,7 @@ class UpdateInvUnidadMedidaRequest extends FormRequest
                     ->whereNull('deleted_at'),
             ],
             'abreviatura' => ['nullable', 'string', 'max:20'],
-            'status'      => self::getStatusValidationRule(),
+            'status' => self::getStatusValidationRule(),
         ];
     }
 
@@ -52,8 +50,8 @@ class UpdateInvUnidadMedidaRequest extends FormRequest
     {
         return array_merge([
             'nombre.required' => 'El nombre de la unidad de medida es obligatorio.',
-            'nombre.max'      => 'El nombre no puede superar 100 caracteres.',
-            'nombre.unique'   => 'Ya existe otra unidad de medida con ese nombre.',
+            'nombre.max' => 'El nombre no puede superar 100 caracteres.',
+            'nombre.unique' => 'Ya existe otra unidad de medida con ese nombre.',
         ], self::getStatusValidationMessages());
     }
 
@@ -63,9 +61,9 @@ class UpdateInvUnidadMedidaRequest extends FormRequest
     public function attributes(): array
     {
         return [
-            'nombre'      => 'nombre',
+            'nombre' => 'nombre',
             'abreviatura' => 'abreviatura',
-            'status'      => 'estado',
+            'status' => 'estado',
         ];
     }
 }

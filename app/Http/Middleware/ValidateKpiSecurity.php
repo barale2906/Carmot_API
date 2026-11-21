@@ -2,10 +2,10 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\Dashboard\Kpi;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
-use App\Models\Dashboard\Kpi;
 
 /**
  * Middleware ValidateKpiSecurity
@@ -33,11 +33,11 @@ class ValidateKpiSecurity
             $denominatorModel = $denominatorModel ?? $routeKpi->denominator_model;
         }
 
-        if (!is_null($numeratorModel)) {
-            $this->validateModelId((int)$numeratorModel);
+        if (! is_null($numeratorModel)) {
+            $this->validateModelId((int) $numeratorModel);
         }
-        if (!is_null($denominatorModel)) {
-            $this->validateModelId((int)$denominatorModel);
+        if (! is_null($denominatorModel)) {
+            $this->validateModelId((int) $denominatorModel);
         }
 
         // Validar campos y operaciones si vienen
@@ -46,23 +46,23 @@ class ValidateKpiSecurity
         $numeratorOp = $request->input('numerator_operation');
         $denominatorOp = $request->input('denominator_operation');
 
-        if (!is_null($numeratorModel)) {
-            $this->validateFieldInModel((int)$numeratorModel, $numeratorField);
-            $this->validateOperation((string)$numeratorOp, $numeratorField, (int)$numeratorModel);
+        if (! is_null($numeratorModel)) {
+            $this->validateFieldInModel((int) $numeratorModel, $numeratorField);
+            $this->validateOperation((string) $numeratorOp, $numeratorField, (int) $numeratorModel);
         }
 
-        if (!is_null($denominatorModel)) {
-            $this->validateFieldInModel((int)$denominatorModel, $denominatorField);
-            $this->validateOperation((string)$denominatorOp, $denominatorField, (int)$denominatorModel);
+        if (! is_null($denominatorModel)) {
+            $this->validateFieldInModel((int) $denominatorModel, $denominatorField);
+            $this->validateOperation((string) $denominatorOp, $denominatorField, (int) $denominatorModel);
         }
 
         // Validar date_field si viene: debe existir en date_fields de alguno de los modelos
-        if ($request->filled('date_field') && (!is_null($numeratorModel) || !is_null($denominatorModel))) {
+        if ($request->filled('date_field') && (! is_null($numeratorModel) || ! is_null($denominatorModel))) {
             $this->validateDateField($request->input('date_field'), $numeratorModel, $denominatorModel);
         }
 
         // Validar group_by si viene en compute
-        if ($request->filled('group_by') && (!is_null($numeratorModel) || !is_null($denominatorModel))) {
+        if ($request->filled('group_by') && (! is_null($numeratorModel) || ! is_null($denominatorModel))) {
             $groupBy = $request->input('group_by');
             $this->validateFieldInEitherModel($numeratorModel, $denominatorModel, $groupBy);
         }
@@ -80,15 +80,13 @@ class ValidateKpiSecurity
     /**
      * Valida que el ID de modelo exista en la configuración.
      *
-     * @param int $modelId
-     * @return void
      * @throws \InvalidArgumentException
      */
     private function validateModelId(int $modelId): void
     {
         $availableModels = config('kpis.available_kpi_models', []);
 
-        if (!array_key_exists($modelId, $availableModels)) {
+        if (! array_key_exists($modelId, $availableModels)) {
             throw new \InvalidArgumentException("El modelo con ID '{$modelId}' no está permitido para KPIs.");
         }
     }
@@ -96,9 +94,6 @@ class ValidateKpiSecurity
     /**
      * Valida que el campo exista para el modelo indicado.
      *
-     * @param int $modelId
-     * @param string|null $fieldName
-     * @return void
      * @throws \InvalidArgumentException
      */
     private function validateFieldInModel(int $modelId, ?string $fieldName): void
@@ -111,14 +106,14 @@ class ValidateKpiSecurity
         $availableModels = config('kpis.available_kpi_models', []);
         $modelConfig = $availableModels[$modelId] ?? null;
 
-        if (!$modelConfig || !isset($modelConfig['fields'])) {
-            throw new \InvalidArgumentException("Configuración no válida para el modelo seleccionado.");
+        if (! $modelConfig || ! isset($modelConfig['fields'])) {
+            throw new \InvalidArgumentException('Configuración no válida para el modelo seleccionado.');
         }
 
         // c/fields puede ser array de meta {label,type}
         $allowedFields = array_keys($modelConfig['fields']);
 
-        if (!in_array($fieldName, $allowedFields)) {
+        if (! in_array($fieldName, $allowedFields)) {
             throw new \InvalidArgumentException("El campo '{$fieldName}' no está permitido para el modelo seleccionado.");
         }
     }
@@ -130,8 +125,9 @@ class ValidateKpiSecurity
     {
         $errors = 0;
         try {
-            if (!is_null($numeratorModel)) {
-                $this->validateFieldInModel((int)$numeratorModel, $fieldName);
+            if (! is_null($numeratorModel)) {
+                $this->validateFieldInModel((int) $numeratorModel, $fieldName);
+
                 return;
             }
         } catch (\Throwable) {
@@ -139,8 +135,9 @@ class ValidateKpiSecurity
         }
 
         try {
-            if (!is_null($denominatorModel)) {
-                $this->validateFieldInModel((int)$denominatorModel, $fieldName);
+            if (! is_null($denominatorModel)) {
+                $this->validateFieldInModel((int) $denominatorModel, $fieldName);
+
                 return;
             }
         } catch (\Throwable) {
@@ -162,14 +159,15 @@ class ValidateKpiSecurity
         $models = config('kpis.available_kpi_models', []);
         $model = $models[$modelId] ?? null;
 
-        if (!$model) {
-            throw new \InvalidArgumentException("Modelo no válido para operación.");
+        if (! $model) {
+            throw new \InvalidArgumentException('Modelo no válido para operación.');
         }
 
         if (empty($fieldName)) {
             if ($operation !== 'count') {
                 throw new \InvalidArgumentException("La operación '{$operation}' requiere un campo válido.");
             }
+
             return;
         }
 
@@ -177,7 +175,7 @@ class ValidateKpiSecurity
         $type = is_array($fieldMeta) ? ($fieldMeta['type'] ?? 'string') : 'string';
         $opsForType = $allowedOps[$type] ?? ['count'];
 
-        if (!in_array($operation, $opsForType)) {
+        if (! in_array($operation, $opsForType)) {
             throw new \InvalidArgumentException("La operación '{$operation}' no está permitida para campos de tipo '{$type}'.");
         }
     }
@@ -191,7 +189,9 @@ class ValidateKpiSecurity
         $valid = false;
 
         foreach ([$numeratorModel, $denominatorModel] as $id) {
-            if (is_null($id)) continue;
+            if (is_null($id)) {
+                continue;
+            }
             $cfg = $models[$id] ?? null;
             $dateFields = $cfg['date_fields'] ?? [];
             if (in_array($dateField, $dateFields)) {
@@ -200,7 +200,7 @@ class ValidateKpiSecurity
             }
         }
 
-        if (!$valid) {
+        if (! $valid) {
             throw new \InvalidArgumentException("El campo de fecha '{$dateField}' no es válido para los modelos seleccionados.");
         }
     }

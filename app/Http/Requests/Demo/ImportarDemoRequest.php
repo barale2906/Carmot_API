@@ -10,8 +10,6 @@ class ImportarDemoRequest extends FormRequest
     /**
      * Determina si el usuario está autorizado para realizar esta petición.
      * El acceso ya lo controla el middleware VerificarTokenDemo.
-     *
-     * @return bool
      */
     public function authorize(): bool
     {
@@ -58,8 +56,8 @@ class ImportarDemoRequest extends FormRequest
     {
         return [
             'archivo.required' => 'El archivo .sql es obligatorio.',
-            'archivo.file'     => 'El campo archivo debe ser un archivo válido.',
-            'archivo.max'      => 'El archivo no puede exceder 100 MB.',
+            'archivo.file' => 'El campo archivo debe ser un archivo válido.',
+            'archivo.max' => 'El archivo no puede exceder 100 MB.',
         ];
     }
 }

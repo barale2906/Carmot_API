@@ -20,8 +20,6 @@ use Illuminate\Support\Facades\DB;
  * Cada acción (entrada, salida, traslado, ajuste, devolución) genera un documento
  * cabecera (InvDocumentoMovimiento) con sus líneas (InvMovimiento) y actualiza
  * el stock atómicamente dentro de una transacción.
- *
- * @package App\Http\Controllers\Api\Inventarios
  */
 class InvMovimientoController extends Controller
 {
@@ -38,9 +36,6 @@ class InvMovimientoController extends Controller
 
     /**
      * Muestra los documentos de movimiento paginados con filtros.
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function index(Request $request): JsonResponse
     {
@@ -56,20 +51,17 @@ class InvMovimientoController extends Controller
             'data' => InvDocumentoMovimientoResource::collection($documentos),
             'meta' => [
                 'current_page' => $documentos->currentPage(),
-                'last_page'    => $documentos->lastPage(),
-                'per_page'     => $documentos->perPage(),
-                'total'        => $documentos->total(),
-                'from'         => $documentos->firstItem(),
-                'to'           => $documentos->lastItem(),
+                'last_page' => $documentos->lastPage(),
+                'per_page' => $documentos->perPage(),
+                'total' => $documentos->total(),
+                'from' => $documentos->firstItem(),
+                'to' => $documentos->lastItem(),
             ],
         ]);
     }
 
     /**
      * Muestra el detalle de un documento de movimiento con todas sus líneas.
-     *
-     * @param InvDocumentoMovimiento $movimiento
-     * @return JsonResponse
      */
     public function show(InvDocumentoMovimiento $movimiento): JsonResponse
     {
@@ -93,40 +85,37 @@ class InvMovimientoController extends Controller
      *
      * Ejecuta todo dentro de una transacción para garantizar consistencia.
      * El documento queda confirmado inmediatamente; no existe estado borrador en este flujo.
-     *
-     * @param StoreInvMovimientoRequest $request
-     * @return JsonResponse
      */
     public function store(StoreInvMovimientoRequest $request): JsonResponse
     {
-        $tipo     = $request->tipo_documento;
-        $numero   = InvDocumentoMovimiento::generarNumero($tipo);
+        $tipo = $request->tipo_documento;
+        $numero = InvDocumentoMovimiento::generarNumero($tipo);
 
         try {
             $documento = DB::transaction(function () use ($request, $tipo, $numero) {
                 $documento = InvDocumentoMovimiento::create([
-                    'numero_documento'   => $numero,
-                    'tipo_documento'     => $tipo,
-                    'almacen_id'         => $request->almacen_id,
+                    'numero_documento' => $numero,
+                    'tipo_documento' => $tipo,
+                    'almacen_id' => $request->almacen_id,
                     'almacen_destino_id' => $request->almacen_destino_id,
-                    'proveedor_id'       => $request->proveedor_id,
-                    'motivo'             => $request->motivo,
-                    'status'             => InvDocumentoMovimiento::STATUS_CONFIRMADO,
-                    'user_id'            => $request->user()->id,
+                    'proveedor_id' => $request->proveedor_id,
+                    'motivo' => $request->motivo,
+                    'status' => InvDocumentoMovimiento::STATUS_CONFIRMADO,
+                    'user_id' => $request->user()->id,
                 ]);
 
                 foreach ($request->lineas as $linea) {
                     $tipoMovimiento = $this->resolverTipoMovimiento($tipo, $linea);
 
                     InvMovimiento::create([
-                        'documento_id'       => $documento->id,
-                        'almacen_id'         => $request->almacen_id,
+                        'documento_id' => $documento->id,
+                        'almacen_id' => $request->almacen_id,
                         'almacen_destino_id' => $request->almacen_destino_id,
-                        'producto_id'        => $linea['producto_id'],
-                        'tipo_movimiento'    => $tipoMovimiento,
-                        'cantidad'           => $linea['cantidad'],
-                        'precio_costo'       => $linea['precio_costo'] ?? null,
-                        'user_id'            => $request->user()->id,
+                        'producto_id' => $linea['producto_id'],
+                        'tipo_movimiento' => $tipoMovimiento,
+                        'cantidad' => $linea['cantidad'],
+                        'precio_costo' => $linea['precio_costo'] ?? null,
+                        'user_id' => $request->user()->id,
                     ]);
 
                     $this->aplicarMovimientoStock(
@@ -151,7 +140,7 @@ class InvMovimientoController extends Controller
 
         return response()->json([
             'message' => 'Movimiento registrado exitosamente.',
-            'data'    => new InvDocumentoMovimientoResource($documento),
+            'data' => new InvDocumentoMovimientoResource($documento),
         ], 201);
     }
 
@@ -159,10 +148,6 @@ class InvMovimientoController extends Controller
      * Anula un documento de movimiento confirmado y revierte el stock.
      *
      * Solo se pueden anular documentos en estado 'confirmado'.
-     *
-     * @param AnularInvMovimientoRequest $request
-     * @param InvDocumentoMovimiento $movimiento
-     * @return JsonResponse
      */
     public function anular(AnularInvMovimientoRequest $request, InvDocumentoMovimiento $movimiento): JsonResponse
     {
@@ -179,7 +164,7 @@ class InvMovimientoController extends Controller
                 }
 
                 $movimiento->update([
-                    'status'           => InvDocumentoMovimiento::STATUS_ANULADO,
+                    'status' => InvDocumentoMovimiento::STATUS_ANULADO,
                     'motivo_anulacion' => $request->motivo_anulacion,
                 ]);
             });
@@ -191,27 +176,25 @@ class InvMovimientoController extends Controller
 
         return response()->json([
             'message' => 'Documento anulado exitosamente.',
-            'data'    => new InvDocumentoMovimientoResource($movimiento->fresh()),
+            'data' => new InvDocumentoMovimientoResource($movimiento->fresh()),
         ]);
     }
 
     /**
      * Obtiene las opciones disponibles para los filtros de movimientos.
-     *
-     * @return JsonResponse
      */
     public function filters(): JsonResponse
     {
         return response()->json([
             'data' => [
-                'tipos'     => [
+                'tipos' => [
                     ['value' => InvDocumentoMovimiento::TIPO_ENTRADA,    'label' => 'Entrada'],
                     ['value' => InvDocumentoMovimiento::TIPO_SALIDA,     'label' => 'Salida'],
                     ['value' => InvDocumentoMovimiento::TIPO_TRASLADO,   'label' => 'Traslado'],
                     ['value' => InvDocumentoMovimiento::TIPO_AJUSTE,     'label' => 'Ajuste'],
                     ['value' => InvDocumentoMovimiento::TIPO_DEVOLUCION, 'label' => 'Devolución'],
                 ],
-                'estados'   => [
+                'estados' => [
                     ['value' => InvDocumentoMovimiento::STATUS_CONFIRMADO, 'label' => 'Confirmado'],
                     ['value' => InvDocumentoMovimiento::STATUS_ANULADO,    'label' => 'Anulado'],
                 ],
@@ -222,33 +205,21 @@ class InvMovimientoController extends Controller
 
     /**
      * Resuelve el tipo_movimiento de la línea según el tipo_documento.
-     *
-     * @param string $tipoDoc
-     * @param array  $linea
-     * @return string
      */
     private function resolverTipoMovimiento(string $tipoDoc, array $linea): string
     {
         return match ($tipoDoc) {
-            InvDocumentoMovimiento::TIPO_ENTRADA    => 'entrada',
-            InvDocumentoMovimiento::TIPO_SALIDA     => 'salida',
-            InvDocumentoMovimiento::TIPO_TRASLADO   => 'traslado',
+            InvDocumentoMovimiento::TIPO_ENTRADA => 'entrada',
+            InvDocumentoMovimiento::TIPO_SALIDA => 'salida',
+            InvDocumentoMovimiento::TIPO_TRASLADO => 'traslado',
             InvDocumentoMovimiento::TIPO_DEVOLUCION => 'devolucion',
-            InvDocumentoMovimiento::TIPO_AJUSTE     => $linea['tipo_ajuste'] ?? 'ajuste_positivo',
-            default                                 => 'entrada',
+            InvDocumentoMovimiento::TIPO_AJUSTE => $linea['tipo_ajuste'] ?? 'ajuste_positivo',
+            default => 'entrada',
         };
     }
 
     /**
      * Aplica la operación de stock correspondiente al tipo de movimiento.
-     *
-     * @param string   $tipoDoc
-     * @param string   $tipoMovimiento
-     * @param int      $almacenId
-     * @param int|null $almacenDestinoId
-     * @param int      $productoId
-     * @param int      $cantidad
-     * @return void
      */
     private function aplicarMovimientoStock(
         string $tipoDoc,
@@ -259,28 +230,25 @@ class InvMovimientoController extends Controller
         int $cantidad
     ): void {
         match ($tipoMovimiento) {
-            'entrada'          => InvStockService::incrementar($almacenId, $productoId, $cantidad),
-            'salida'           => InvStockService::decrementar($almacenId, $productoId, $cantidad),
-            'traslado'         => InvStockService::trasladar($almacenId, $almacenDestinoId, $productoId, $cantidad),
-            'ajuste_positivo'  => InvStockService::incrementar($almacenId, $productoId, $cantidad),
-            'ajuste_negativo'  => InvStockService::decrementar($almacenId, $productoId, $cantidad),
-            'devolucion'       => InvStockService::incrementar($almacenId, $productoId, $cantidad),
-            default            => null,
+            'entrada' => InvStockService::incrementar($almacenId, $productoId, $cantidad),
+            'salida' => InvStockService::decrementar($almacenId, $productoId, $cantidad),
+            'traslado' => InvStockService::trasladar($almacenId, $almacenDestinoId, $productoId, $cantidad),
+            'ajuste_positivo' => InvStockService::incrementar($almacenId, $productoId, $cantidad),
+            'ajuste_negativo' => InvStockService::decrementar($almacenId, $productoId, $cantidad),
+            'devolucion' => InvStockService::incrementar($almacenId, $productoId, $cantidad),
+            default => null,
         };
     }
 
     /**
      * Revierte el stock de una línea de movimiento para anular el documento.
-     *
-     * @param InvMovimiento $linea
-     * @return void
      */
     private function revertirMovimientoStock(InvMovimiento $linea): void
     {
         match ($linea->tipo_movimiento) {
-            'entrada'         => InvStockService::decrementar($linea->almacen_id, $linea->producto_id, $linea->cantidad),
-            'salida'          => InvStockService::incrementar($linea->almacen_id, $linea->producto_id, $linea->cantidad),
-            'traslado'        => InvStockService::trasladar(
+            'entrada' => InvStockService::decrementar($linea->almacen_id, $linea->producto_id, $linea->cantidad),
+            'salida' => InvStockService::incrementar($linea->almacen_id, $linea->producto_id, $linea->cantidad),
+            'traslado' => InvStockService::trasladar(
                 $linea->almacen_destino_id,
                 $linea->almacen_id,
                 $linea->producto_id,
@@ -288,8 +256,8 @@ class InvMovimientoController extends Controller
             ),
             'ajuste_positivo' => InvStockService::decrementar($linea->almacen_id, $linea->producto_id, $linea->cantidad),
             'ajuste_negativo' => InvStockService::incrementar($linea->almacen_id, $linea->producto_id, $linea->cantidad),
-            'devolucion'      => InvStockService::decrementar($linea->almacen_id, $linea->producto_id, $linea->cantidad),
-            default           => null,
+            'devolucion' => InvStockService::decrementar($linea->almacen_id, $linea->producto_id, $linea->cantidad),
+            default => null,
         };
     }
 }

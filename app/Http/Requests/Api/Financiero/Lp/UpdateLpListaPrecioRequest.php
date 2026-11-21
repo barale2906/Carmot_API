@@ -15,8 +15,6 @@ use Illuminate\Validation\Rule;
  * Valida los datos para actualizar una lista de precios existente.
  * Todos los campos son opcionales (sometimes) para permitir actualizaciones parciales.
  * Incluye validación de solapamiento de vigencia al actualizar fechas o poblaciones.
- *
- * @package App\Http\Requests\Api\Financiero\Lp
  */
 class UpdateLpListaPrecioRequest extends FormRequest
 {
@@ -25,8 +23,6 @@ class UpdateLpListaPrecioRequest extends FormRequest
     /**
      * Determina si el usuario está autorizado para hacer esta solicitud.
      * La autorización se maneja mediante middleware y permisos.
-     *
-     * @return bool
      */
     public function authorize(): bool
     {
@@ -76,8 +72,6 @@ class UpdateLpListaPrecioRequest extends FormRequest
     /**
      * Configurar validaciones adicionales después de las reglas básicas.
      * Valida que no existan solapamientos de vigencia para las poblaciones especificadas.
-     *
-     * @return void
      */
     public function withValidator($validator): void
     {
@@ -101,8 +95,8 @@ class UpdateLpListaPrecioRequest extends FormRequest
                         ? $listaPrecio->poblaciones->pluck('id')->toArray()
                         : []);
 
-                if (!empty($poblaciones)) {
-                    $service = new LpPrecioProductoService();
+                if (! empty($poblaciones)) {
+                    $service = new LpPrecioProductoService;
 
                     foreach ($poblaciones as $poblacionId) {
                         $sinSolapamiento = $service->validarSolapamientoVigencia(
@@ -112,7 +106,7 @@ class UpdateLpListaPrecioRequest extends FormRequest
                             $listaPrecioId
                         );
 
-                        if (!$sinSolapamiento) {
+                        if (! $sinSolapamiento) {
                             $validator->errors()->add(
                                 'poblaciones',
                                 "Ya existe una lista de precios activa con vigencia solapada para la población ID {$poblacionId} en el período especificado."

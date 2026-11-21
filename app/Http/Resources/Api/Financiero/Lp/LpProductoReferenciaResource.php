@@ -21,25 +21,23 @@ use Illuminate\Http\Resources\Json\JsonResource;
  *                  codigo, tipo y tipo_label del Curso/Modulo resuelto.
  *
  * @mixin \App\Models\Financiero\Lp\LpProductoReferencia
- * @package App\Http\Resources\Api\Financiero\Lp
  */
 class LpProductoReferenciaResource extends JsonResource
 {
     /**
      * Transforma el recurso en un array.
      *
-     * @param Request $request
      * @return array<string, mixed>
      */
     public function toArray(Request $request): array
     {
         return [
-            'id'              => $this->id,
-            'lp_producto_id'  => $this->lp_producto_id,
-            'referencia_id'   => $this->referencia_id,
+            'id' => $this->id,
+            'lp_producto_id' => $this->lp_producto_id,
+            'referencia_id' => $this->referencia_id,
             'referencia_tipo' => $this->referencia_tipo,
-            'created_at'      => $this->created_at?->format('Y-m-d H:i:s'),
-            'updated_at'      => $this->updated_at?->format('Y-m-d H:i:s'),
+            'created_at' => $this->created_at?->format('Y-m-d H:i:s'),
+            'updated_at' => $this->updated_at?->format('Y-m-d H:i:s'),
 
             // Producto LP — solo si fue cargado con with('producto')
             'producto' => $this->whenLoaded('producto', function () {
@@ -53,15 +51,15 @@ class LpProductoReferenciaResource extends JsonResource
                 function () {
                     $modelo = $this->referenciaModel;
 
-                    if (!$modelo) {
+                    if (! $modelo) {
                         return null;
                     }
 
                     return [
-                        'id'     => $modelo->id,
+                        'id' => $modelo->id,
                         'nombre' => $modelo->nombre ?? ($modelo->name ?? null),
                         'codigo' => $modelo->codigo ?? null,
-                        'tipo'   => $this->referencia_tipo,
+                        'tipo' => $this->referencia_tipo,
                         'tipo_label' => $this->referencia_tipo === LpProductoReferencia::TIPO_CURSO
                             ? 'Curso'
                             : 'Módulo',

@@ -13,12 +13,10 @@ use Illuminate\Validation\Rule;
 class StoreInvAlmacenRequest extends FormRequest
 {
     use HasActiveStatus, HasActiveStatusValidation;
+
     /**
      * La autorización se resuelve con el middleware de permisos de la ruta.
-     *
-     * @return bool
      */
-
     public function authorize(): bool
     {
         return true;
@@ -30,15 +28,15 @@ class StoreInvAlmacenRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'nombre'      => [
+            'nombre' => [
                 'required',
                 'string',
                 'max:150',
                 Rule::unique('inv_almacenes', 'nombre')->whereNull('deleted_at'),
             ],
             'descripcion' => ['nullable', 'string', 'max:1000'],
-            'sede_id'     => ['required', 'integer', 'exists:sedes,id'],
-            'status'      => self::getStatusValidationRule(),
+            'sede_id' => ['required', 'integer', 'exists:sedes,id'],
+            'status' => self::getStatusValidationRule(),
         ];
     }
 
@@ -48,11 +46,11 @@ class StoreInvAlmacenRequest extends FormRequest
     public function messages(): array
     {
         return array_merge([
-            'nombre.required'  => 'El nombre del almacén es obligatorio.',
-            'nombre.max'       => 'El nombre no puede superar 150 caracteres.',
-            'nombre.unique'    => 'Ya existe un almacén con ese nombre.',
+            'nombre.required' => 'El nombre del almacén es obligatorio.',
+            'nombre.max' => 'El nombre no puede superar 150 caracteres.',
+            'nombre.unique' => 'Ya existe un almacén con ese nombre.',
             'sede_id.required' => 'La sede es obligatoria.',
-            'sede_id.exists'   => 'La sede seleccionada no existe.',
+            'sede_id.exists' => 'La sede seleccionada no existe.',
         ], self::getStatusValidationMessages());
     }
 
@@ -62,10 +60,10 @@ class StoreInvAlmacenRequest extends FormRequest
     public function attributes(): array
     {
         return [
-            'nombre'      => 'nombre',
+            'nombre' => 'nombre',
             'descripcion' => 'descripción',
-            'sede_id'     => 'sede',
-            'status'      => 'estado',
+            'sede_id' => 'sede',
+            'status' => 'estado',
         ];
     }
 }

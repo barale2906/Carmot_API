@@ -12,13 +12,13 @@ class MenuItemResource extends JsonResource
         $item = $this->resource;
 
         return [
-            'id'         => $item['id'],
-            'title'      => $item['title'],
-            'icon'       => $item['icon'],
-            'route'      => $item['route'] ?? null,
+            'id' => $item['id'],
+            'title' => $item['title'],
+            'icon' => $item['icon'],
+            'route' => $item['route'] ?? null,
             'permission' => $item['permission'] ?? null,
-            'disabled'   => $item['disabled'] ?? false,
-            'children'   => MenuItemResource::collection($item['children'] ?? []),
+            'disabled' => $item['disabled'] ?? false,
+            'children' => MenuItemResource::collection($item['children'] ?? []),
         ];
     }
 }

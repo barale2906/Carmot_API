@@ -9,8 +9,8 @@ use App\Http\Resources\Api\Academico\ModuloResource;
 use App\Models\Academico\Modulo;
 use App\Models\Academico\Topico;
 use App\Traits\HasActiveStatus;
-use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 /**
  * Controlador para la gestión de módulos académicos.
@@ -18,8 +18,6 @@ use Illuminate\Http\JsonResponse;
  * Permite administrar los módulos que componen los cursos. Cada módulo
  * agrupa tópicos y puede asociarse a varios cursos y grupos.
  * Incluye un endpoint de árbol jerárquico (módulo → tópicos → temas).
- *
- * @package App\Http\Controllers\Api\Academico
  */
 class ModuloController extends Controller
 {
@@ -38,9 +36,6 @@ class ModuloController extends Controller
 
     /**
      * Muestra una lista de los módulos.
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function index(Request $request): JsonResponse
     {
@@ -80,9 +75,6 @@ class ModuloController extends Controller
 
     /**
      * Almacena un nuevo módulo en la base de datos.
-     *
-     * @param StoreModuloRequest $request
-     * @return JsonResponse
      */
     public function store(StoreModuloRequest $request): JsonResponse
     {
@@ -118,10 +110,6 @@ class ModuloController extends Controller
 
     /**
      * Muestra el módulo especificado.
-     *
-     * @param Request $request
-     * @param Modulo $modulo
-     * @return JsonResponse
      */
     public function show(Request $request, Modulo $modulo): JsonResponse
     {
@@ -141,10 +129,6 @@ class ModuloController extends Controller
 
     /**
      * Actualiza el módulo especificado en la base de datos.
-     *
-     * @param UpdateModuloRequest $request
-     * @param Modulo $modulo
-     * @return JsonResponse
      */
     public function update(UpdateModuloRequest $request, Modulo $modulo): JsonResponse
     {
@@ -179,9 +163,6 @@ class ModuloController extends Controller
 
     /**
      * Elimina el módulo especificado de la base de datos (soft delete).
-     *
-     * @param Modulo $modulo
-     * @return JsonResponse
      */
     public function destroy(Modulo $modulo): JsonResponse
     {
@@ -207,9 +188,6 @@ class ModuloController extends Controller
 
     /**
      * Restaura un módulo eliminado (soft delete).
-     *
-     * @param int $id
-     * @return JsonResponse
      */
     public function restore(int $id): JsonResponse
     {
@@ -224,9 +202,6 @@ class ModuloController extends Controller
 
     /**
      * Elimina permanentemente un módulo.
-     *
-     * @param int $id
-     * @return JsonResponse
      */
     public function forceDelete(int $id): JsonResponse
     {
@@ -254,9 +229,6 @@ class ModuloController extends Controller
 
     /**
      * Obtiene solo los módulos eliminados (soft delete).
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function trashed(Request $request): JsonResponse
     {
@@ -297,8 +269,6 @@ class ModuloController extends Controller
 
     /**
      * Obtiene las opciones de filtros disponibles.
-     *
-     * @return JsonResponse
      */
     public function filters(): JsonResponse
     {
@@ -314,9 +284,6 @@ class ModuloController extends Controller
 
     /**
      * Obtiene el módulo con su estructura en árbol (tópicos y temas).
-     *
-     * @param Modulo $modulo
-     * @return JsonResponse
      */
     public function arbol(Modulo $modulo): JsonResponse
     {
@@ -359,8 +326,6 @@ class ModuloController extends Controller
 
     /**
      * Obtiene estadísticas de módulos.
-     *
-     * @return JsonResponse
      */
     public function statistics(): JsonResponse
     {

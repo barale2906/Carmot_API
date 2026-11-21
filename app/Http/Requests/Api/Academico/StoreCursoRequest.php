@@ -9,7 +9,8 @@ use Illuminate\Foundation\Http\FormRequest;
 
 class StoreCursoRequest extends FormRequest
 {
-    use HasTipo, HasActiveStatus, HasActiveStatusValidation;
+    use HasActiveStatus, HasActiveStatusValidation, HasTipo;
+
     /**
      * Determina si el usuario está autorizado para hacer esta solicitud.
      */
@@ -28,7 +29,7 @@ class StoreCursoRequest extends FormRequest
         return [
             'nombre' => 'required|string|max:255|unique:cursos,nombre',
             'duracion' => 'required_without:modulo_ids|nullable|numeric|min:0',
-            'tipo' => 'required|integer|' . self::getTipoValidationRule(),
+            'tipo' => 'required|integer|'.self::getTipoValidationRule(),
             'status' => self::getStatusValidationRule(),
             'modulo_ids' => 'sometimes|array',
             'modulo_ids.*' => 'integer|exists:modulos,id',
@@ -55,7 +56,9 @@ class StoreCursoRequest extends FormRequest
             'modulo_ids.*.exists' => 'Uno o más módulos seleccionados no existen.',
             'tipo.required' => 'El tipo del curso es obligatorio.',
             'tipo.integer' => 'El tipo debe ser un número entero.',
-            'tipo.in' => 'El tipo debe ser uno de los valores válidos: ' . implode(', ', array_map(function($key, $value) { return "$key ($value)"; }, array_keys(self::getTipoOptions()), self::getTipoOptions())) . '.',
+            'tipo.in' => 'El tipo debe ser uno de los valores válidos: '.implode(', ', array_map(function ($key, $value) {
+                return "$key ($value)";
+            }, array_keys(self::getTipoOptions()), self::getTipoOptions())).'.',
         ], self::getStatusValidationMessages());
     }
 }

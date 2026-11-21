@@ -11,37 +11,36 @@ use Illuminate\Http\Resources\Json\JsonResource;
 class InvNecesidadCompraResource extends JsonResource
 {
     /**
-     * @param  Request  $request
      * @return array<string, mixed>
      */
     public function toArray(Request $request): array
     {
         return [
-            'id'                => $this->id,
-            'producto'          => [
-                'id'     => $this->producto_id,
+            'id' => $this->id,
+            'producto' => [
+                'id' => $this->producto_id,
                 'nombre' => $this->whenLoaded('producto', fn () => $this->producto->nombre),
                 'codigo' => $this->whenLoaded('producto', fn () => $this->producto->codigo),
             ],
             'cantidad_necesaria' => $this->cantidad_necesaria,
-            'almacen'           => [
-                'id'     => $this->almacen_id,
+            'almacen' => [
+                'id' => $this->almacen_id,
                 'nombre' => $this->whenLoaded('almacen', fn () => $this->almacen->nombre),
             ],
-            'estudiante'        => [
-                'id'     => $this->estudiante_id,
+            'estudiante' => [
+                'id' => $this->estudiante_id,
                 'nombre' => $this->whenLoaded('estudiante', fn () => $this->estudiante->name),
             ],
-            'entregable_type'   => $this->entregable_type,
-            'entregable_id'     => $this->entregable_id,
-            'pedido_id'         => $this->when(
+            'entregable_type' => $this->entregable_type,
+            'entregable_id' => $this->entregable_id,
+            'pedido_id' => $this->when(
                 array_key_exists('pedido_id', $this->resource->getAttributes()),
                 fn () => $this->pedido_id
             ),
-            'status'            => $this->status,
-            'notificado'        => (bool) $this->notificado,
-            'created_at'        => $this->created_at,
-            'updated_at'        => $this->updated_at,
+            'status' => $this->status,
+            'notificado' => (bool) $this->notificado,
+            'created_at' => $this->created_at,
+            'updated_at' => $this->updated_at,
         ];
     }
 }

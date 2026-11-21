@@ -20,7 +20,7 @@ class TemaResource extends JsonResource
     /**
      * Transforma el recurso en un array.
      *
-     * @param Request $request Solicitud HTTP actual
+     * @param  Request  $request  Solicitud HTTP actual
      * @return array<string, mixed> Array con los datos formateados del tema
      */
     public function toArray(Request $request): array

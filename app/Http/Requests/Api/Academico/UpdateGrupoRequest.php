@@ -2,15 +2,15 @@
 
 namespace App\Http\Requests\Api\Academico;
 
+use App\Http\Requests\Api\Academico\Concerns\ValidaDatosGrupo;
+use App\Models\Academico\Grupo;
 use App\Traits\HasActiveStatus;
 use App\Traits\HasActiveStatusValidation;
 use App\Traits\HasJornadaStatus;
 use App\Traits\HasJornadaStatusValidation;
-use App\Models\Academico\Grupo;
-use App\Http\Requests\Api\Academico\Concerns\ValidaDatosGrupo;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Validator;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class UpdateGrupoRequest extends FormRequest
 {
@@ -86,9 +86,6 @@ class UpdateGrupoRequest extends FormRequest
 
     /**
      * Validaciones posteriores: profesor con rol profesor y áreas de la sede del grupo.
-     *
-     * @param Validator $validator
-     * @return void
      */
     public function withValidator(Validator $validator): void
     {

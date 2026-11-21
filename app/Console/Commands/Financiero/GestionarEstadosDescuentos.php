@@ -13,8 +13,6 @@ use Illuminate\Console\Command;
  * e inactiva los descuentos activos que han perdido su vigencia.
  *
  * Este comando debe ejecutarse diariamente mediante el scheduler de Laravel.
- *
- * @package App\Console\Commands\Financiero
  */
 class GestionarEstadosDescuentos extends Command
 {
@@ -44,7 +42,7 @@ class GestionarEstadosDescuentos extends Command
         try {
             // Activar descuentos aprobados que deben activarse
             $descuentosParaActivar = Descuento::aprobadosParaActivar()->count();
-            
+
             if ($descuentosParaActivar > 0) {
                 Descuento::activarDescuentosAprobados();
                 $this->info("✓ Se activaron {$descuentosParaActivar} descuento(s) aprobado(s).");
@@ -54,7 +52,7 @@ class GestionarEstadosDescuentos extends Command
 
             // Inactivar descuentos activos que han perdido vigencia
             $descuentosParaInactivar = Descuento::activosParaInactivar()->count();
-            
+
             if ($descuentosParaInactivar > 0) {
                 Descuento::inactivarDescuentosVencidos();
                 $this->info("✓ Se inactivaron {$descuentosParaInactivar} descuento(s) vencido(s).");
@@ -66,11 +64,10 @@ class GestionarEstadosDescuentos extends Command
 
             return Command::SUCCESS;
         } catch (\Exception $e) {
-            $this->error('Error al gestionar los estados de los descuentos: ' . $e->getMessage());
-            $this->error('Trace: ' . $e->getTraceAsString());
+            $this->error('Error al gestionar los estados de los descuentos: '.$e->getMessage());
+            $this->error('Trace: '.$e->getTraceAsString());
 
             return Command::FAILURE;
         }
     }
 }
-

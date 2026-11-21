@@ -16,26 +16,25 @@ class InvAlmacenResource extends JsonResource
     /**
      * Transforma el recurso en un array.
      *
-     * @param Request $request
      * @return array<string, mixed>
      */
     public function toArray(Request $request): array
     {
         return [
-            'id'          => $this->id,
-            'nombre'      => $this->nombre,
+            'id' => $this->id,
+            'nombre' => $this->nombre,
             'descripcion' => $this->descripcion,
-            'sede_id'     => $this->sede_id,
-            'status'      => $this->status,
+            'sede_id' => $this->sede_id,
+            'status' => $this->status,
             'status_text' => self::getActiveStatusText($this->status),
-            'created_at'  => $this->created_at?->format('Y-m-d H:i:s'),
-            'updated_at'  => $this->updated_at?->format('Y-m-d H:i:s'),
-            'deleted_at'  => $this->deleted_at?->format('Y-m-d H:i:s'),
+            'created_at' => $this->created_at?->format('Y-m-d H:i:s'),
+            'updated_at' => $this->updated_at?->format('Y-m-d H:i:s'),
+            'deleted_at' => $this->deleted_at?->format('Y-m-d H:i:s'),
 
             'sede' => $this->when(
                 $this->relationLoaded('sede'),
                 fn () => $this->sede ? [
-                    'id'     => $this->sede->id,
+                    'id' => $this->sede->id,
                     'nombre' => $this->sede->nombre,
                 ] : null
             ),
@@ -45,9 +44,9 @@ class InvAlmacenResource extends JsonResource
             'usuarios' => $this->when(
                 $this->relationLoaded('usuarios'),
                 fn () => $this->usuarios->map(fn ($u) => [
-                    'id'     => $u->id,
+                    'id' => $u->id,
                     'nombre' => $u->name,
-                    'email'  => $u->email,
+                    'email' => $u->email,
                 ])
             ),
         ];

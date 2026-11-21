@@ -29,9 +29,6 @@ class ActCategoriaController extends Controller
 
     /**
      * Lista paginada de categorías con su cantidad de activos.
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function index(Request $request): JsonResponse
     {
@@ -44,19 +41,17 @@ class ActCategoriaController extends Controller
             'data' => ActCategoriaResource::collection($categorias),
             'meta' => [
                 'current_page' => $categorias->currentPage(),
-                'last_page'    => $categorias->lastPage(),
-                'per_page'     => $categorias->perPage(),
-                'total'        => $categorias->total(),
-                'from'         => $categorias->firstItem(),
-                'to'           => $categorias->lastItem(),
+                'last_page' => $categorias->lastPage(),
+                'per_page' => $categorias->perPage(),
+                'total' => $categorias->total(),
+                'from' => $categorias->firstItem(),
+                'to' => $categorias->lastItem(),
             ],
         ]);
     }
 
     /**
      * Categorías activas sin paginar, para los selectores del formulario de activos.
-     *
-     * @return JsonResponse
      */
     public function activas(): JsonResponse
     {
@@ -67,9 +62,6 @@ class ActCategoriaController extends Controller
 
     /**
      * Crea una categoría.
-     *
-     * @param StoreActCategoriaRequest $request
-     * @return JsonResponse
      */
     public function store(StoreActCategoriaRequest $request): JsonResponse
     {
@@ -77,15 +69,12 @@ class ActCategoriaController extends Controller
 
         return response()->json([
             'message' => 'Categoría creada exitosamente.',
-            'data'    => new ActCategoriaResource($categoria),
+            'data' => new ActCategoriaResource($categoria),
         ], 201);
     }
 
     /**
      * Muestra una categoría.
-     *
-     * @param ActCategoria $categoria
-     * @return JsonResponse
      */
     public function show(ActCategoria $categoria): JsonResponse
     {
@@ -96,10 +85,6 @@ class ActCategoriaController extends Controller
 
     /**
      * Actualiza una categoría.
-     *
-     * @param UpdateActCategoriaRequest $request
-     * @param ActCategoria $categoria
-     * @return JsonResponse
      */
     public function update(UpdateActCategoriaRequest $request, ActCategoria $categoria): JsonResponse
     {
@@ -107,15 +92,12 @@ class ActCategoriaController extends Controller
 
         return response()->json([
             'message' => 'Categoría actualizada exitosamente.',
-            'data'    => new ActCategoriaResource($categoria),
+            'data' => new ActCategoriaResource($categoria),
         ]);
     }
 
     /**
      * Elimina la categoría (soft delete); no se permite si tiene activos.
-     *
-     * @param ActCategoria $categoria
-     * @return JsonResponse
      */
     public function destroy(ActCategoria $categoria): JsonResponse
     {
@@ -132,9 +114,6 @@ class ActCategoriaController extends Controller
 
     /**
      * Restaura una categoría eliminada.
-     *
-     * @param int $id
-     * @return JsonResponse
      */
     public function restore(int $id): JsonResponse
     {
@@ -143,15 +122,12 @@ class ActCategoriaController extends Controller
 
         return response()->json([
             'message' => 'Categoría restaurada exitosamente.',
-            'data'    => new ActCategoriaResource($categoria),
+            'data' => new ActCategoriaResource($categoria),
         ]);
     }
 
     /**
      * Elimina permanentemente una categoría de la papelera.
-     *
-     * @param int $id
-     * @return JsonResponse
      */
     public function forceDelete(int $id): JsonResponse
     {
@@ -162,9 +138,6 @@ class ActCategoriaController extends Controller
 
     /**
      * Categorías en la papelera.
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function trashed(Request $request): JsonResponse
     {
@@ -177,11 +150,11 @@ class ActCategoriaController extends Controller
             'data' => ActCategoriaResource::collection($categorias),
             'meta' => [
                 'current_page' => $categorias->currentPage(),
-                'last_page'    => $categorias->lastPage(),
-                'per_page'     => $categorias->perPage(),
-                'total'        => $categorias->total(),
-                'from'         => $categorias->firstItem(),
-                'to'           => $categorias->lastItem(),
+                'last_page' => $categorias->lastPage(),
+                'per_page' => $categorias->perPage(),
+                'total' => $categorias->total(),
+                'from' => $categorias->firstItem(),
+                'to' => $categorias->lastItem(),
             ],
         ]);
     }

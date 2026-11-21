@@ -19,8 +19,6 @@ use Illuminate\Support\Facades\DB;
  * Gestiona las operaciones CRUD para las listas de precios.
  * Permite crear, listar, mostrar, actualizar y eliminar listas de precios.
  * Incluye métodos especiales para aprobar, activar e inactivar listas.
- *
- * @package App\Http\Controllers\Api\Financiero\Lp
  */
 class LpListaPrecioController extends Controller
 {
@@ -43,7 +41,7 @@ class LpListaPrecioController extends Controller
      * Muestra una lista de listas de precios.
      * Permite filtrar por status, fecha_inicio, fecha_fin y poblacion_id.
      *
-     * @param Request $request Solicitud HTTP con parámetros de filtrado y paginación
+     * @param  Request  $request  Solicitud HTTP con parámetros de filtrado y paginación
      * @return JsonResponse Respuesta JSON con la lista paginada de listas de precios
      */
     public function index(Request $request): JsonResponse
@@ -57,7 +55,7 @@ class LpListaPrecioController extends Controller
                 'fecha_fin',
                 'codigo',
                 'include_trashed',
-                'only_trashed'
+                'only_trashed',
             ]);
 
             // Preparar relaciones
@@ -73,8 +71,8 @@ class LpListaPrecioController extends Controller
                 $search = $request->string('search');
                 $query->where(function ($q) use ($search) {
                     $q->where('nombre', 'like', "%{$search}%")
-                      ->orWhere('codigo', 'like', "%{$search}%")
-                      ->orWhere('descripcion', 'like', "%{$search}%");
+                        ->orWhere('codigo', 'like', "%{$search}%")
+                        ->orWhere('descripcion', 'like', "%{$search}%");
                 });
             }
 
@@ -112,7 +110,7 @@ class LpListaPrecioController extends Controller
             }
 
             // Aplicar relaciones
-            if (!empty($relations)) {
+            if (! empty($relations)) {
                 $query->with($relations);
             }
 
@@ -147,7 +145,7 @@ class LpListaPrecioController extends Controller
      * Almacena una nueva lista de precios en la base de datos.
      * Valida solapamiento de vigencia antes de crear.
      *
-     * @param StoreLpListaPrecioRequest $request Datos validados de la lista de precios
+     * @param  StoreLpListaPrecioRequest  $request  Datos validados de la lista de precios
      * @return JsonResponse Respuesta JSON con la lista de precios creada
      */
     public function store(StoreLpListaPrecioRequest $request): JsonResponse
@@ -162,7 +160,7 @@ class LpListaPrecioController extends Controller
                 'fecha_inicio',
                 'fecha_fin',
                 'descripcion',
-                'status'
+                'status',
             ]));
 
             // Asociar poblaciones
@@ -193,8 +191,8 @@ class LpListaPrecioController extends Controller
     /**
      * Muestra la lista de precios especificada.
      *
-     * @param Request $request Solicitud HTTP con parámetros opcionales
-     * @param LpListaPrecio $lpListaPrecio Lista de precios a mostrar
+     * @param  Request  $request  Solicitud HTTP con parámetros opcionales
+     * @param  LpListaPrecio  $lpListaPrecio  Lista de precios a mostrar
      * @return JsonResponse Respuesta JSON con los datos de la lista de precios
      */
     public function show(Request $request, LpListaPrecio $lpListaPrecio): JsonResponse
@@ -223,8 +221,8 @@ class LpListaPrecioController extends Controller
      * Actualiza la lista de precios especificada en la base de datos.
      * Valida solapamiento de vigencia antes de actualizar.
      *
-     * @param UpdateLpListaPrecioRequest $request Datos validados para actualizar
-     * @param LpListaPrecio $lpListaPrecio Lista de precios a actualizar
+     * @param  UpdateLpListaPrecioRequest  $request  Datos validados para actualizar
+     * @param  LpListaPrecio  $lpListaPrecio  Lista de precios a actualizar
      * @return JsonResponse Respuesta JSON con la lista de precios actualizada
      */
     public function update(UpdateLpListaPrecioRequest $request, LpListaPrecio $lpListaPrecio): JsonResponse
@@ -239,7 +237,7 @@ class LpListaPrecioController extends Controller
                 'fecha_inicio',
                 'fecha_fin',
                 'descripcion',
-                'status'
+                'status',
             ]));
 
             // Actualizar poblaciones si se proporcionan
@@ -273,7 +271,7 @@ class LpListaPrecioController extends Controller
     /**
      * Elimina (soft delete) la lista de precios especificada.
      *
-     * @param LpListaPrecio $lpListaPrecio Lista de precios a eliminar
+     * @param  LpListaPrecio  $lpListaPrecio  Lista de precios a eliminar
      * @return JsonResponse Respuesta JSON de confirmación
      */
     public function destroy(LpListaPrecio $lpListaPrecio): JsonResponse
@@ -296,7 +294,7 @@ class LpListaPrecioController extends Controller
      * Aprueba una lista de precios cambiando su estado a "Aprobada".
      * Solo las listas en estado "En Proceso" pueden ser aprobadas.
      *
-     * @param LpListaPrecio $lpListaPrecio Lista de precios a aprobar
+     * @param  LpListaPrecio  $lpListaPrecio  Lista de precios a aprobar
      * @return JsonResponse Respuesta JSON con la lista de precios aprobada
      */
     public function aprobar(LpListaPrecio $lpListaPrecio): JsonResponse
@@ -326,7 +324,7 @@ class LpListaPrecioController extends Controller
      * Activa una lista de precios cambiando su estado a "Activa".
      * Solo las listas en estado "Aprobada" pueden ser activadas manualmente.
      *
-     * @param LpListaPrecio $lpListaPrecio Lista de precios a activar
+     * @param  LpListaPrecio  $lpListaPrecio  Lista de precios a activar
      * @return JsonResponse Respuesta JSON con la lista de precios activada
      */
     public function activar(LpListaPrecio $lpListaPrecio): JsonResponse
@@ -355,7 +353,7 @@ class LpListaPrecioController extends Controller
     /**
      * Inactiva una lista de precios cambiando su estado a "Inactiva".
      *
-     * @param LpListaPrecio $lpListaPrecio Lista de precios a inactivar
+     * @param  LpListaPrecio  $lpListaPrecio  Lista de precios a inactivar
      * @return JsonResponse Respuesta JSON con la lista de precios inactivada
      */
     public function inactivar(LpListaPrecio $lpListaPrecio): JsonResponse
@@ -388,9 +386,9 @@ class LpListaPrecioController extends Controller
      * El estado "En Proceso" permite editar precios individuales antes de aprobar.
      * La lista NO se activa automáticamente al clonar.
      *
-     * @param  CloneLpListaPrecioRequest  $request          Datos validados de la nueva lista.
-     * @param  LpListaPrecio              $lpListaPrecio     Lista origen a clonar.
-     * @return JsonResponse                                   LpListaPrecioResource de la nueva lista (HTTP 201).
+     * @param  CloneLpListaPrecioRequest  $request  Datos validados de la nueva lista.
+     * @param  LpListaPrecio  $lpListaPrecio  Lista origen a clonar.
+     * @return JsonResponse LpListaPrecioResource de la nueva lista (HTTP 201).
      */
     public function clonar(CloneLpListaPrecioRequest $request, LpListaPrecio $lpListaPrecio): JsonResponse
     {
@@ -401,12 +399,12 @@ class LpListaPrecioController extends Controller
 
             // Crear la nueva lista en estado "En Proceso"
             $nuevaLista = LpListaPrecio::create([
-                'nombre'      => $request->string('nombre'),
-                'codigo'      => $request->input('codigo'),
+                'nombre' => $request->string('nombre'),
+                'codigo' => $request->input('codigo'),
                 'fecha_inicio' => $request->date('fecha_inicio'),
-                'fecha_fin'   => $request->date('fecha_fin'),
+                'fecha_fin' => $request->date('fecha_fin'),
                 'descripcion' => $request->input('descripcion', $lpListaPrecio->descripcion),
-                'status'      => LpListaPrecio::STATUS_EN_PROCESO,
+                'status' => LpListaPrecio::STATUS_EN_PROCESO,
             ]);
 
             // Heredar poblaciones de la lista origen o usar las especificadas
@@ -414,7 +412,7 @@ class LpListaPrecioController extends Controller
                 ? $request->input('poblaciones')
                 : $lpListaPrecio->poblaciones()->pluck('poblacions.id')->toArray();
 
-            if (!empty($poblaciones)) {
+            if (! empty($poblaciones)) {
                 $nuevaLista->poblaciones()->attach($poblaciones);
             }
 
@@ -427,13 +425,13 @@ class LpListaPrecioController extends Controller
                 foreach ($preciosOrigen as $precio) {
                     LpPrecioProducto::create([
                         'lista_precio_id' => $nuevaLista->id,
-                        'producto_id'     => $precio->producto_id,
-                        'precio_contado'  => $precio->precio_contado,
-                        'precio_total'    => $precio->precio_total,
-                        'matricula'       => $precio->matricula,
-                        'numero_cuotas'   => $precio->numero_cuotas,
-                        'cuotas_detalle'  => $precio->cuotas_detalle,
-                        'observaciones'   => $precio->observaciones,
+                        'producto_id' => $precio->producto_id,
+                        'precio_contado' => $precio->precio_contado,
+                        'precio_total' => $precio->precio_total,
+                        'matricula' => $precio->matricula,
+                        'numero_cuotas' => $precio->numero_cuotas,
+                        'cuotas_detalle' => $precio->cuotas_detalle,
+                        'observaciones' => $precio->observaciones,
                         // valor_cuota se recalcula automáticamente en el evento boot del modelo
                     ]);
 
@@ -446,16 +444,16 @@ class LpListaPrecioController extends Controller
             $nuevaLista->load(['poblaciones']);
 
             return response()->json([
-                'message'       => 'Lista de precios clonada exitosamente.',
+                'message' => 'Lista de precios clonada exitosamente.',
                 'precios_copiados' => $totalPrecios,
-                'data'          => new LpListaPrecioResource($nuevaLista),
+                'data' => new LpListaPrecioResource($nuevaLista),
             ], 201);
         } catch (\Exception $e) {
             DB::rollBack();
 
             return response()->json([
                 'message' => 'Error al clonar la lista de precios.',
-                'error'   => $e->getMessage(),
+                'error' => $e->getMessage(),
             ], 500);
         }
     }

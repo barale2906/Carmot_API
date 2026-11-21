@@ -82,11 +82,11 @@ class MatriculaController extends Controller
             'data' => MatriculaResource::collection($matriculas),
             'meta' => [
                 'current_page' => $matriculas->currentPage(),
-                'last_page'    => $matriculas->lastPage(),
-                'per_page'     => $matriculas->perPage(),
-                'total'        => $matriculas->total(),
-                'from'         => $matriculas->firstItem(),
-                'to'           => $matriculas->lastItem(),
+                'last_page' => $matriculas->lastPage(),
+                'per_page' => $matriculas->perPage(),
+                'total' => $matriculas->total(),
+                'from' => $matriculas->firstItem(),
+                'to' => $matriculas->lastItem(),
             ],
         ]);
     }
@@ -116,7 +116,7 @@ class MatriculaController extends Controller
 
         return response()->json([
             'message' => 'Matrícula creada exitosamente.',
-            'data'    => new MatriculaResource($matricula),
+            'data' => new MatriculaResource($matricula),
         ], 201);
     }
 
@@ -163,7 +163,7 @@ class MatriculaController extends Controller
 
         return response()->json([
             'message' => 'Matrícula actualizada exitosamente.',
-            'data'    => new MatriculaResource($matricula),
+            'data' => new MatriculaResource($matricula),
         ]);
     }
 
@@ -220,7 +220,7 @@ class MatriculaController extends Controller
 
         return response()->json([
             'message' => 'Matrícula restaurada exitosamente.',
-            'data'    => new MatriculaResource($matricula),
+            'data' => new MatriculaResource($matricula),
         ]);
     }
 
@@ -243,7 +243,7 @@ class MatriculaController extends Controller
      */
     public function trashed(Request $request): JsonResponse
     {
-        $filters               = $request->only([
+        $filters = $request->only([
             'search', 'status', 'estado_academico', 'curso_id', 'ciclo_id', 'estudiante_id',
             'fecha_matricula_inicio', 'fecha_matricula_fin', 'monto_min', 'monto_max',
         ]);
@@ -262,11 +262,11 @@ class MatriculaController extends Controller
             'data' => MatriculaResource::collection($matriculas),
             'meta' => [
                 'current_page' => $matriculas->currentPage(),
-                'last_page'    => $matriculas->lastPage(),
-                'per_page'     => $matriculas->perPage(),
-                'total'        => $matriculas->total(),
-                'from'         => $matriculas->firstItem(),
-                'to'           => $matriculas->lastItem(),
+                'last_page' => $matriculas->lastPage(),
+                'per_page' => $matriculas->perPage(),
+                'total' => $matriculas->total(),
+                'from' => $matriculas->firstItem(),
+                'to' => $matriculas->lastItem(),
             ],
         ]);
     }
@@ -278,20 +278,20 @@ class MatriculaController extends Controller
     {
         return response()->json([
             'data' => [
-                'status_options'           => self::getActiveStatusOptions(),
-                'estados_academicos'       => Matricula::ESTADOS_ACADEMICOS,
-                'tipos_identificacion'     => Matricula::TIPOS_IDENTIFICACION,
-                'generos'                  => Matricula::GENEROS,
-                'estados_civiles'          => Matricula::ESTADOS_CIVILES,
-                'grupos_sanguineos'        => Matricula::GRUPOS_SANGUINEOS,
-                'rhs'                      => Matricula::RHS,
-                'niveles_educacion'        => Matricula::NIVELES_EDUCACION,
-                'regimenes_salud'          => Matricula::REGIMENES_SALUD,
-                'tipos_discapacidad'       => Matricula::TIPOS_DISCAPACIDAD,
-                'cursos'                   => Curso::select('id', 'nombre')->get(),
-                'ciclos'                   => Ciclo::select('id', 'nombre')->get(),
-                'estudiantes'              => User::select('id', 'primer_nombre', 'segundo_nombre', 'primer_apellido', 'segundo_apellido', 'email')->get(),
-                'poblaciones'              => Poblacion::where('status', 1)->select('id', 'pais', 'provincia', 'nombre')->get(),
+                'status_options' => self::getActiveStatusOptions(),
+                'estados_academicos' => Matricula::ESTADOS_ACADEMICOS,
+                'tipos_identificacion' => Matricula::TIPOS_IDENTIFICACION,
+                'generos' => Matricula::GENEROS,
+                'estados_civiles' => Matricula::ESTADOS_CIVILES,
+                'grupos_sanguineos' => Matricula::GRUPOS_SANGUINEOS,
+                'rhs' => Matricula::RHS,
+                'niveles_educacion' => Matricula::NIVELES_EDUCACION,
+                'regimenes_salud' => Matricula::REGIMENES_SALUD,
+                'tipos_discapacidad' => Matricula::TIPOS_DISCAPACIDAD,
+                'cursos' => Curso::select('id', 'nombre')->get(),
+                'ciclos' => Ciclo::select('id', 'nombre')->get(),
+                'estudiantes' => User::select('id', 'primer_nombre', 'segundo_nombre', 'primer_apellido', 'segundo_apellido', 'email')->get(),
+                'poblaciones' => Poblacion::where('status', 1)->select('id', 'pais', 'provincia', 'nombre')->get(),
             ],
         ]);
     }
@@ -343,13 +343,13 @@ class MatriculaController extends Controller
     {
         $stats = [
             'totales' => [
-                'total'      => Matricula::count(),
+                'total' => Matricula::count(),
                 'eliminadas' => Matricula::onlyTrashed()->count(),
             ],
             'por_status' => [
-                'activas'   => Matricula::where('status', 1)->count(),
+                'activas' => Matricula::where('status', 1)->count(),
                 'inactivas' => Matricula::where('status', 0)->count(),
-                'anuladas'  => Matricula::where('status', 2)->count(),
+                'anuladas' => Matricula::where('status', 2)->count(),
             ],
             'por_estado_academico' => collect(Matricula::ESTADOS_ACADEMICOS)
                 ->map(fn ($texto, $estado) => Matricula::where('status', '!=', 2)->where('estado_academico', $estado)->count()),
@@ -369,10 +369,10 @@ class MatriculaController extends Controller
                     'ciclo' => $item->ciclo->nombre ?? 'Sin ciclo',
                     'total' => $item->total,
                 ]),
-            'monto_total'   => Matricula::sum('monto'),
+            'monto_total' => Matricula::sum('monto'),
             'monto_promedio' => Matricula::avg('monto'),
-            'monto_minimo'  => Matricula::min('monto'),
-            'monto_maximo'  => Matricula::max('monto'),
+            'monto_minimo' => Matricula::min('monto'),
+            'monto_maximo' => Matricula::max('monto'),
         ];
 
         return response()->json([
@@ -409,11 +409,6 @@ class MatriculaController extends Controller
      * inactiva y liberan el cupo del ciclo; volver a Activo o Aplazado la reactiva. Cada
      * cambio queda en el historial con fecha, motivo y usuario. Solo lo hace quien tiene
      * asignada la sede de la matrícula (N21).
-     *
-     * @param CambiarEstadoAcademicoRequest $request
-     * @param Matricula $matricula
-     * @param MatriculaEstadoService $servicio
-     * @return JsonResponse
      */
     public function cambiarEstadoAcademico(CambiarEstadoAcademicoRequest $request, Matricula $matricula, MatriculaEstadoService $servicio): JsonResponse
     {
@@ -431,7 +426,7 @@ class MatriculaController extends Controller
 
         return response()->json([
             'message' => "Estado académico actualizado a {$matricula->estado_academico_texto}.",
-            'data'    => new MatriculaResource($matricula),
+            'data' => new MatriculaResource($matricula),
         ]);
     }
 
@@ -439,10 +434,6 @@ class MatriculaController extends Controller
      * Evaluación de cierre de la matrícula: ciclo terminado, nota final de cada módulo
      * frente a la nota aprobatoria, cumplimiento de asistencia y saldo pendiente. Es lo
      * que se exige para graduar.
-     *
-     * @param Matricula $matricula
-     * @param EvaluacionCierreService $evaluacion
-     * @return JsonResponse
      */
     public function evaluacionCierre(Matricula $matricula, EvaluacionCierreService $evaluacion): JsonResponse
     {
@@ -453,9 +444,6 @@ class MatriculaController extends Controller
 
     /**
      * Historial de cambios de estado académico de la matrícula.
-     *
-     * @param Matricula $matricula
-     * @return JsonResponse
      */
     public function historialEstados(Matricula $matricula): JsonResponse
     {

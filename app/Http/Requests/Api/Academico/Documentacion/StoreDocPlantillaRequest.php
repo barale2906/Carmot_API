@@ -10,15 +10,11 @@ use Illuminate\Foundation\Http\FormRequest;
 
 /**
  * Valida la creación de una versión de plantilla de documento.
- *
- * @package App\Http\Requests\Api\Academico\Documentacion
  */
 class StoreDocPlantillaRequest extends FormRequest
 {
     /**
      * Determina si el usuario está autorizado (los permisos se validan por middleware).
-     *
-     * @return bool
      */
     public function authorize(): bool
     {
@@ -34,16 +30,13 @@ class StoreDocPlantillaRequest extends FormRequest
     {
         return [
             'tipo_documento_id' => 'required|integer|exists:doc_tipos_documento,id',
-            'nombre'            => 'required|string|max:255',
-            'contenido_html'    => 'required|string',
+            'nombre' => 'required|string|max:255',
+            'contenido_html' => 'required|string',
         ];
     }
 
     /**
      * Verifica que el contenido solo use variables y bloques habilitados para el tipo.
-     *
-     * @param Validator $validator
-     * @return void
      */
     public function withValidator(Validator $validator): void
     {
@@ -54,7 +47,7 @@ class StoreDocPlantillaRequest extends FormRequest
 
             $tipoDocumento = DocTipoDocumento::find($this->input('tipo_documento_id'));
 
-            if (!$tipoDocumento) {
+            if (! $tipoDocumento) {
                 return;
             }
 
@@ -89,9 +82,9 @@ class StoreDocPlantillaRequest extends FormRequest
     {
         return [
             'tipo_documento_id.required' => 'El tipo de documento es obligatorio.',
-            'tipo_documento_id.exists'   => 'El tipo de documento seleccionado no existe.',
-            'nombre.required'            => 'El nombre de la versión es obligatorio.',
-            'contenido_html.required'    => 'El contenido de la plantilla es obligatorio.',
+            'tipo_documento_id.exists' => 'El tipo de documento seleccionado no existe.',
+            'nombre.required' => 'El nombre de la versión es obligatorio.',
+            'contenido_html.required' => 'El contenido de la plantilla es obligatorio.',
         ];
     }
 
@@ -104,8 +97,8 @@ class StoreDocPlantillaRequest extends FormRequest
     {
         return [
             'tipo_documento_id' => 'tipo de documento',
-            'nombre'            => 'nombre',
-            'contenido_html'    => 'contenido',
+            'nombre' => 'nombre',
+            'contenido_html' => 'contenido',
         ];
     }
 }

@@ -13,8 +13,6 @@ class ImagenActActivoRequest extends FormRequest
 {
     /**
      * Determina si el usuario está autorizado para realizar esta petición.
-     *
-     * @return bool
      */
     public function authorize(): bool
     {
@@ -29,7 +27,7 @@ class ImagenActActivoRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'imagen' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:' . ArchivoService::MAX_KB],
+            'imagen' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:'.ArchivoService::MAX_KB],
         ];
     }
 
@@ -42,9 +40,9 @@ class ImagenActActivoRequest extends FormRequest
     {
         return [
             'imagen.required' => 'Selecciona la imagen del activo.',
-            'imagen.image'    => 'El archivo debe ser una imagen.',
-            'imagen.mimes'    => 'La imagen debe ser JPG, PNG o WEBP.',
-            'imagen.max'      => 'La imagen no puede superar 10 MB.',
+            'imagen.image' => 'El archivo debe ser una imagen.',
+            'imagen.mimes' => 'La imagen debe ser JPG, PNG o WEBP.',
+            'imagen.max' => 'La imagen no puede superar 10 MB.',
             'imagen.uploaded' => 'No se recibió el archivo: puede superar el tamaño que permite el servidor.',
         ];
     }
@@ -52,8 +50,7 @@ class ImagenActActivoRequest extends FormRequest
     /**
      * Un activo dado de baja ya no se modifica.
      *
-     * @param \Illuminate\Validation\Validator $validator
-     * @return void
+     * @param  \Illuminate\Validation\Validator  $validator
      */
     public function withValidator($validator): void
     {

@@ -17,8 +17,6 @@ use Illuminate\Http\Response as HttpResponse;
  *
  * Los pedidos se crean vía InvVentaController; aquí se consultan,
  * filtran y pueden cancelarse si aún están activos.
- *
- * @package App\Http\Controllers\Api\Inventarios
  */
 class InvPedidoController extends Controller
 {
@@ -35,9 +33,6 @@ class InvPedidoController extends Controller
 
     /**
      * Lista paginada de pedidos con filtros de status, sede, almacén y estudiante.
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function index(Request $request): JsonResponse
     {
@@ -53,20 +48,17 @@ class InvPedidoController extends Controller
             'data' => InvPedidoResource::collection($pedidos),
             'meta' => [
                 'current_page' => $pedidos->currentPage(),
-                'last_page'    => $pedidos->lastPage(),
-                'per_page'     => $pedidos->perPage(),
-                'total'        => $pedidos->total(),
-                'from'         => $pedidos->firstItem(),
-                'to'           => $pedidos->lastItem(),
+                'last_page' => $pedidos->lastPage(),
+                'per_page' => $pedidos->perPage(),
+                'total' => $pedidos->total(),
+                'from' => $pedidos->firstItem(),
+                'to' => $pedidos->lastItem(),
             ],
         ]);
     }
 
     /**
      * Muestra el detalle completo de un pedido, incluyendo sus ítems y entregas.
-     *
-     * @param InvPedido $pedido
-     * @return JsonResponse
      */
     public function show(InvPedido $pedido): JsonResponse
     {
@@ -90,10 +82,6 @@ class InvPedidoController extends Controller
     /**
      * Lista los pedidos activos de un estudiante.
      * Devuelve los que aún tienen saldo pendiente.
-     *
-     * @param int     $estudianteId
-     * @param Request $request
-     * @return JsonResponse
      */
     public function porEstudiante(int $estudianteId, Request $request): JsonResponse
     {
@@ -116,10 +104,6 @@ class InvPedidoController extends Controller
     /**
      * Cancela un pedido activo (aún sin pagar del todo, sin entregas).
      * Anula sus recibos de abono y registra el motivo.
-     *
-     * @param AnularInvPedidoRequest $request
-     * @param InvPedido              $pedido
-     * @return JsonResponse
      */
     public function cancelar(AnularInvPedidoRequest $request, InvPedido $pedido): JsonResponse
     {
@@ -138,10 +122,6 @@ class InvPedidoController extends Controller
      * Reintegra al almacén todo lo entregado (completo o parcial), cancela las
      * necesidades de compra, anula los recibos del pedido y registra el motivo.
      * Se rechaza si algún recibo ya está cerrado en caja.
-     *
-     * @param AnularInvPedidoRequest $request
-     * @param InvPedido              $pedido
-     * @return JsonResponse
      */
     public function anular(AnularInvPedidoRequest $request, InvPedido $pedido): JsonResponse
     {
@@ -151,10 +131,7 @@ class InvPedidoController extends Controller
     /**
      * Ejecuta la anulación común a cancelar y anular y arma la respuesta.
      *
-     * @param AnularInvPedidoRequest $request
-     * @param InvPedido              $pedido
-     * @param string                 $accion  Prefijo del mensaje de éxito
-     * @return JsonResponse
+     * @param  string  $accion  Prefijo del mensaje de éxito
      */
     private function ejecutarAnulacion(AnularInvPedidoRequest $request, InvPedido $pedido, string $accion): JsonResponse
     {
@@ -172,15 +149,12 @@ class InvPedidoController extends Controller
             'message' => $recibosAnulados > 0
                 ? "{$accion}. Se anularon {$recibosAnulados} recibo(s): devuelve el dinero al estudiante."
                 : "{$accion}.",
-            'data'    => new InvPedidoResource($pedido->fresh('canceladoPor')),
+            'data' => new InvPedidoResource($pedido->fresh('canceladoPor')),
         ]);
     }
 
     /**
      * Genera el ticket de venta en PDF para un pedido.
-     *
-     * @param InvPedido $pedido
-     * @return HttpResponse
      */
     public function ticketPdf(InvPedido $pedido): HttpResponse
     {

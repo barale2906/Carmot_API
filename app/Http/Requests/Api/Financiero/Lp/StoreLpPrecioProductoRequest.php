@@ -2,10 +2,10 @@
 
 namespace App\Http\Requests\Api\Financiero\Lp;
 
+use App\Models\Financiero\Lp\LpListaPrecio;
 use App\Models\Financiero\Lp\LpProducto;
 use App\Models\Financiero\Lp\LpProductoReferencia;
 use App\Services\Financiero\LpPrecioProductoService;
-use App\Models\Financiero\Lp\LpListaPrecio;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -74,7 +74,7 @@ class StoreLpPrecioProductoRequest extends FormRequest
             'cuotas_detalle.*' => 'required|numeric|min:0',
             'observaciones' => 'nullable|string',
             'referencia_tipo' => ['nullable', 'string', Rule::in(LpProductoReferencia::tiposValidos())],
-            'referencia_id'   => 'nullable|required_with:referencia_tipo|integer',
+            'referencia_id' => 'nullable|required_with:referencia_tipo|integer',
         ];
     }
 
@@ -140,7 +140,7 @@ class StoreLpPrecioProductoRequest extends FormRequest
 
             // Validar que la entidad académica exista si se envía referencia
             if ($this->filled('referencia_id') && $this->filled('referencia_tipo')) {
-                $tabla  = $this->input('referencia_tipo') === LpProductoReferencia::TIPO_CURSO ? 'cursos' : 'modulos';
+                $tabla = $this->input('referencia_tipo') === LpProductoReferencia::TIPO_CURSO ? 'cursos' : 'modulos';
                 $existe = DB::table($tabla)
                     ->whereNull('deleted_at')
                     ->where('id', $this->integer('referencia_id'))
@@ -188,10 +188,10 @@ class StoreLpPrecioProductoRequest extends FormRequest
             'cuotas_detalle.*.required' => 'Cada cuota debe tener un valor.',
             'cuotas_detalle.*.numeric' => 'El valor de cada cuota debe ser un número.',
             'cuotas_detalle.*.min' => 'El valor de cada cuota debe ser mayor o igual a 0.',
-            'observaciones.string'           => 'Las observaciones deben ser una cadena de texto.',
-            'referencia_tipo.in'             => 'El tipo de referencia debe ser "curso" o "modulo".',
-            'referencia_id.integer'          => 'El ID de la referencia debe ser un número entero.',
-            'referencia_id.required_with'    => 'El ID de referencia es obligatorio cuando se indica el tipo de referencia.',
+            'observaciones.string' => 'Las observaciones deben ser una cadena de texto.',
+            'referencia_tipo.in' => 'El tipo de referencia debe ser "curso" o "modulo".',
+            'referencia_id.integer' => 'El ID de la referencia debe ser un número entero.',
+            'referencia_id.required_with' => 'El ID de referencia es obligatorio cuando se indica el tipo de referencia.',
         ];
     }
 }

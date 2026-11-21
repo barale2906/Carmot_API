@@ -14,7 +14,6 @@ use Illuminate\Http\Resources\Json\JsonResource;
  * dinámicamente devolviendo todas las sedes activas del sistema.
  *
  * @mixin \App\Models\User
- * @package App\Http\Resources\Api\Configuracion
  */
 class UserResource extends JsonResource
 {
@@ -28,7 +27,7 @@ class UserResource extends JsonResource
     {
         if ($this->hasRole('superusuario')) {
             return $this->sedesAccesibles()->map(fn ($sede) => [
-                'id'     => $sede->id,
+                'id' => $sede->id,
                 'nombre' => $sede->nombre,
             ])->values()->toArray();
         }
@@ -38,7 +37,7 @@ class UserResource extends JsonResource
             : $this->sedes()->get();
 
         return $collection->map(fn ($sede) => [
-            'id'     => $sede->id,
+            'id' => $sede->id,
             'nombre' => $sede->nombre,
         ])->values()->toArray();
     }
@@ -51,14 +50,14 @@ class UserResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-            'id'               => $this->id,
-            'primer_nombre'    => $this->primer_nombre,
-            'segundo_nombre'   => $this->segundo_nombre,
-            'primer_apellido'  => $this->primer_apellido,
+            'id' => $this->id,
+            'primer_nombre' => $this->primer_nombre,
+            'segundo_nombre' => $this->segundo_nombre,
+            'primer_apellido' => $this->primer_apellido,
             'segundo_apellido' => $this->segundo_apellido,
-            'name'             => $this->name,
-            'email'            => $this->email,
-            'documento'        => $this->documento,
+            'name' => $this->name,
+            'email' => $this->email,
+            'documento' => $this->documento,
             /** @var array<string> */
             'roles' => $this->roles ? $this->roles->pluck('name')->toArray() : [],
             /** @var array<string> */

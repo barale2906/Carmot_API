@@ -12,8 +12,6 @@ class CompletarInvEntregaKitRequest extends FormRequest
 {
     /**
      * La autorización se resuelve con el middleware de permisos de la ruta.
-     *
-     * @return bool
      */
     public function authorize(): bool
     {
@@ -26,9 +24,9 @@ class CompletarInvEntregaKitRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'componentes'                            => ['required', 'array', 'min:1'],
-            'componentes.*.kit_componente_id'        => ['required', 'integer', 'exists:inv_kit_componentes,id'],
-            'componentes.*.producto_entregado_id'    => ['nullable', 'integer', 'exists:inv_productos,id'],
+            'componentes' => ['required', 'array', 'min:1'],
+            'componentes.*.kit_componente_id' => ['required', 'integer', 'exists:inv_kit_componentes,id'],
+            'componentes.*.producto_entregado_id' => ['nullable', 'integer', 'exists:inv_productos,id'],
         ];
     }
 
@@ -38,10 +36,10 @@ class CompletarInvEntregaKitRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'componentes.required'                         => 'Debe indicar los componentes a entregar.',
-            'componentes.*.kit_componente_id.required'     => 'El ID del componente es obligatorio.',
-            'componentes.*.kit_componente_id.exists'       => 'El componente seleccionado no existe.',
-            'componentes.*.producto_entregado_id.exists'   => 'La variante seleccionada no existe.',
+            'componentes.required' => 'Debe indicar los componentes a entregar.',
+            'componentes.*.kit_componente_id.required' => 'El ID del componente es obligatorio.',
+            'componentes.*.kit_componente_id.exists' => 'El componente seleccionado no existe.',
+            'componentes.*.producto_entregado_id.exists' => 'La variante seleccionada no existe.',
         ];
     }
 }

@@ -12,16 +12,12 @@ use Illuminate\Validation\Rule;
  * Valida los datos para crear un nuevo descuento en el sistema financiero.
  * Incluye validación de campos requeridos, tipos de descuento, aplicación,
  * condiciones de activación y relaciones many-to-many.
- *
- * @package App\Http\Requests\Api\Financiero\Descuento
  */
 class StoreDescuentoRequest extends FormRequest
 {
     /**
      * Determina si el usuario está autorizado para hacer esta solicitud.
      * La autorización se maneja mediante middleware y permisos.
-     *
-     * @return bool
      */
     public function authorize(): bool
     {
@@ -92,7 +88,7 @@ class StoreDescuentoRequest extends FormRequest
             'fecha_inicio' => 'required|date',
             'fecha_fin' => 'required|date|after_or_equal:fecha_inicio',
             'status' => Descuento::getStatusValidationRule(),
-            'listas_precios'   => 'nullable|array',
+            'listas_precios' => 'nullable|array',
             'listas_precios.*' => 'exists:lp_listas_precios,id',
             'productos' => 'nullable|array',
             'productos.*' => 'exists:lp_productos,id',
@@ -111,7 +107,7 @@ class StoreDescuentoRequest extends FormRequest
      * Validaciones cruzadas que la DB ya garantiza como CHECKs, pero se exponen
      * aquí para devolver mensajes claros al cliente.
      *
-     * @param \Illuminate\Validation\Validator $validator
+     * @param  \Illuminate\Validation\Validator  $validator
      */
     public function withValidator($validator): void
     {
@@ -144,32 +140,31 @@ class StoreDescuentoRequest extends FormRequest
     {
         return [
             'tipo_movimiento.required' => 'El tipo de movimiento (descuento o sobrecargo) es obligatorio.',
-            'tipo_movimiento.in'       => 'El tipo de movimiento debe ser: descuento o sobrecargo.',
-            'nombre.required'          => 'El nombre es obligatorio.',
-            'nombre.max'               => 'El nombre no puede exceder 255 caracteres.',
-            'codigo_descuento.unique'  => 'El código de descuento ya está en uso.',
+            'tipo_movimiento.in' => 'El tipo de movimiento debe ser: descuento o sobrecargo.',
+            'nombre.required' => 'El nombre es obligatorio.',
+            'nombre.max' => 'El nombre no puede exceder 255 caracteres.',
+            'codigo_descuento.unique' => 'El código de descuento ya está en uso.',
             'codigo_descuento.required' => 'El código es obligatorio cuando el tipo de activación es código promocional.',
-            'tipo.required'            => 'El tipo de cálculo es obligatorio.',
-            'tipo.in'                  => 'El tipo de cálculo debe ser porcentual o valor_fijo.',
-            'valor.required'           => 'El valor es obligatorio.',
-            'valor.numeric'            => 'El valor debe ser numérico.',
-            'valor.min'                => 'El valor no puede ser negativo.',
-            'valor.max'                => 'El valor no puede superar 100.',
-            'valor.regex'              => 'El valor admite máximo 2 decimales.',
-            'aplicacion.required'      => 'La aplicación es obligatoria.',
-            'aplicacion.in'            => 'Valor de aplicación no válido para este tipo de movimiento.',
+            'tipo.required' => 'El tipo de cálculo es obligatorio.',
+            'tipo.in' => 'El tipo de cálculo debe ser porcentual o valor_fijo.',
+            'valor.required' => 'El valor es obligatorio.',
+            'valor.numeric' => 'El valor debe ser numérico.',
+            'valor.min' => 'El valor no puede ser negativo.',
+            'valor.max' => 'El valor no puede superar 100.',
+            'valor.regex' => 'El valor admite máximo 2 decimales.',
+            'aplicacion.required' => 'La aplicación es obligatoria.',
+            'aplicacion.in' => 'Valor de aplicación no válido para este tipo de movimiento.',
             'tipo_activacion.required' => 'El tipo de activación es obligatorio.',
-            'tipo_activacion.in'       => 'Tipo de activación no válido para este tipo de movimiento.',
+            'tipo_activacion.in' => 'Tipo de activación no válido para este tipo de movimiento.',
             'dias_anticipacion.required' => 'Los días de anticipación son obligatorios para pago anticipado.',
-            'dias_anticipacion.min'    => 'Los días de anticipación deben ser al menos 1.',
-            'medios_pago.required'     => 'Los medios de pago son obligatorios para sobrecargos por medio de pago.',
-            'medios_pago.*.in'         => 'Medio de pago no válido.',
-            'marca_tarjeta.*.max'      => 'El nombre de la marca no puede exceder 60 caracteres.',
-            'fecha_inicio.required'    => 'La fecha de inicio es obligatoria.',
-            'fecha_fin.required'       => 'La fecha de fin es obligatoria.',
+            'dias_anticipacion.min' => 'Los días de anticipación deben ser al menos 1.',
+            'medios_pago.required' => 'Los medios de pago son obligatorios para sobrecargos por medio de pago.',
+            'medios_pago.*.in' => 'Medio de pago no válido.',
+            'marca_tarjeta.*.max' => 'El nombre de la marca no puede exceder 60 caracteres.',
+            'fecha_inicio.required' => 'La fecha de inicio es obligatoria.',
+            'fecha_fin.required' => 'La fecha de fin es obligatoria.',
             'fecha_fin.after_or_equal' => 'La fecha de fin debe ser igual o posterior a la fecha de inicio.',
-            'status.in'                => Descuento::getStatusValidationMessages()['status.in'] ?? 'Estado no válido.',
+            'status.in' => Descuento::getStatusValidationMessages()['status.in'] ?? 'Estado no válido.',
         ];
     }
 }
-

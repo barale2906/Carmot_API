@@ -9,7 +9,6 @@ use Illuminate\Support\Facades\Storage;
 /**
  * @mixin \App\Models\Academico\Biblioteca
  */
-
 class BibliotecaResource extends JsonResource
 {
     /**
@@ -20,27 +19,27 @@ class BibliotecaResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-            'id'                  => $this->id,
-            'nombre'              => $this->nombre,
-            'fecha_carga'         => $this->fecha_carga?->toDateString(),
+            'id' => $this->id,
+            'nombre' => $this->nombre,
+            'fecha_carga' => $this->fecha_carga?->toDateString(),
             'fecha_obsolescencia' => $this->fecha_obsolescencia?->toDateString(),
-            'ruta'                => $this->ruta,
-            'url'                 => Storage::disk('public')->exists($this->ruta)
-                                        ? asset('storage/' . $this->ruta)
+            'ruta' => $this->ruta,
+            'url' => Storage::disk('public')->exists($this->ruta)
+                                        ? asset('storage/'.$this->ruta)
                                         : null,
-            'tipo_archivo'        => $this->tipo_archivo,
-            'tamanio'             => $this->tamanio,
-            'tamanio_legible'     => $this->tamanioLegible(),
-            'status'              => $this->status,
-            'vigente'             => $this->esVigente(),
+            'tipo_archivo' => $this->tipo_archivo,
+            'tamanio' => $this->tamanio,
+            'tamanio_legible' => $this->tamanioLegible(),
+            'status' => $this->status,
+            'vigente' => $this->esVigente(),
 
             /** @var array<array<string, mixed>> */
             'cursos' => $this->when($this->relationLoaded('cursos'), function () {
                 return $this->cursos->map(fn ($curso) => [
-                    'id'       => $curso->id,
-                    'nombre'   => $curso->nombre,
+                    'id' => $curso->id,
+                    'nombre' => $curso->nombre,
                     'duracion' => $curso->duracion,
-                    'status'   => $curso->status,
+                    'status' => $curso->status,
                 ])->values()->toArray();
             }, []),
 
@@ -78,11 +77,11 @@ class BibliotecaResource extends JsonResource
         if ($bytes < 1024) {
             return "{$bytes} B";
         } elseif ($bytes < 1048576) {
-            return round($bytes / 1024, 2) . ' KB';
+            return round($bytes / 1024, 2).' KB';
         } elseif ($bytes < 1073741824) {
-            return round($bytes / 1048576, 2) . ' MB';
+            return round($bytes / 1048576, 2).' MB';
         }
 
-        return round($bytes / 1073741824, 2) . ' GB';
+        return round($bytes / 1073741824, 2).' GB';
     }
 }

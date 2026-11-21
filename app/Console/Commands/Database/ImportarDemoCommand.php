@@ -47,22 +47,25 @@ class ImportarDemoCommand extends Command
 
         if ($conexion->getDriverName() !== 'mysql') {
             $this->error('Este comando solo soporta conexiones MySQL.');
+
             return Command::FAILURE;
         }
 
         $ruta = ExportarDemoCommand::resolverRuta($this->option('file'));
 
-        if (!is_file($ruta) || !is_readable($ruta)) {
+        if (! is_file($ruta) || ! is_readable($ruta)) {
             $this->error("No existe o no se puede leer el archivo: {$ruta}");
+
             return Command::FAILURE;
         }
 
         if ($this->option('solo-vacia') && ($tabla = $this->primeraTablaConDatos()) !== null) {
             $this->error("La base de datos no está vacía (la tabla '{$tabla}' tiene registros). Importación cancelada.");
+
             return Command::FAILURE;
         }
 
-        if (!$this->confirmToProceed("Se eliminarán TODAS las tablas de '{$conexion->getDatabaseName()}' y se cargará {$ruta}")) {
+        if (! $this->confirmToProceed("Se eliminarán TODAS las tablas de '{$conexion->getDatabaseName()}' y se cargará {$ruta}")) {
             return Command::FAILURE;
         }
 
@@ -83,8 +86,6 @@ class ImportarDemoCommand extends Command
     /**
      * Devuelve la primera tabla con al menos un registro, o null si la base está vacía.
      * Se ignora `migrations`, que puede tener filas tras un `migrate` sin datos.
-     *
-     * @return string|null
      */
     private function primeraTablaConDatos(): ?string
     {
@@ -106,7 +107,6 @@ class ImportarDemoCommand extends Command
      * Las variables de sesión del encabezado (FOREIGN_KEY_CHECKS, time_zone, ...)
      * se mantienen porque todas las sentencias usan la misma conexión.
      *
-     * @param  string $ruta
      * @return int Cantidad de sentencias ejecutadas
      */
     private function ejecutarArchivo(string $ruta): int

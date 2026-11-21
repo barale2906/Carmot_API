@@ -14,8 +14,6 @@ class StoreDashboardCardRequest extends FormRequest
 {
     /**
      * Determina si el usuario está autorizado para hacer esta petición.
-     *
-     * @return bool
      */
     public function authorize(): bool
     {
@@ -141,8 +139,7 @@ class StoreDashboardCardRequest extends FormRequest
     /**
      * Configura el validador después de que las reglas se hayan aplicado.
      *
-     * @param \Illuminate\Validation\Validator $validator
-     * @return void
+     * @param  \Illuminate\Validation\Validator  $validator
      */
     public function withValidator($validator): void
     {
@@ -159,8 +156,7 @@ class StoreDashboardCardRequest extends FormRequest
     /**
      * Valida parámetros específicos según el tipo de gráfico.
      *
-     * @param \Illuminate\Validation\Validator $validator
-     * @return void
+     * @param  \Illuminate\Validation\Validator  $validator
      */
     private function validateChartParameters($validator): void
     {
@@ -174,32 +170,32 @@ class StoreDashboardCardRequest extends FormRequest
     /**
      * Valida la estructura de los filtros dinámicos.
      *
-     * @param \Illuminate\Validation\Validator $validator
-     * @return void
+     * @param  \Illuminate\Validation\Validator  $validator
      */
     private function validateFilters($validator): void
     {
         $filters = $this->filters ?? [];
 
         foreach ($filters as $index => $filter) {
-            if (!isset($filter['field']) || !isset($filter['type']) || !isset($filter['value'])) {
+            if (! isset($filter['field']) || ! isset($filter['type']) || ! isset($filter['value'])) {
                 $validator->errors()->add("filters.{$index}", "El filtro debe contener 'field', 'type' y 'value'.");
+
                 continue;
             }
 
             // Validar filtros de rango de fechas
-            if ($filter['type'] === 'date_range' && (!isset($filter['value']['start']) || !isset($filter['value']['end']))) {
+            if ($filter['type'] === 'date_range' && (! isset($filter['value']['start']) || ! isset($filter['value']['end']))) {
                 $validator->errors()->add("filters.{$index}.value", "Los filtros de rango de fechas requieren 'start' y 'end'.");
             }
 
             // Validar filtros de rango numérico
-            if ($filter['type'] === 'range' && (!isset($filter['value']['min']) || !isset($filter['value']['max']))) {
+            if ($filter['type'] === 'range' && (! isset($filter['value']['min']) || ! isset($filter['value']['max']))) {
                 $validator->errors()->add("filters.{$index}.value", "Los filtros de rango requieren 'min' y 'max'.");
             }
 
             // Validar filtros de lista
-            if ($filter['type'] === 'in' && !is_array($filter['value'])) {
-                $validator->errors()->add("filters.{$index}.value", "Los filtros de lista requieren un array de valores.");
+            if ($filter['type'] === 'in' && ! is_array($filter['value'])) {
+                $validator->errors()->add("filters.{$index}.value", 'Los filtros de lista requieren un array de valores.');
             }
         }
     }
@@ -207,7 +203,7 @@ class StoreDashboardCardRequest extends FormRequest
     /**
      * Valida el período personalizado.
      *
-     * @param \Illuminate\Validation\Validator $validator
+     * @param  \Illuminate\Validation\Validator  $validator
      * @return void
      */
     // Eliminada validación de período personalizado: las fechas se pasan por query a compute

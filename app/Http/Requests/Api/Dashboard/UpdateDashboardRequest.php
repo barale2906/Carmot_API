@@ -14,8 +14,6 @@ class UpdateDashboardRequest extends FormRequest
 {
     /**
      * Determina si el usuario está autorizado para hacer esta petición.
-     *
-     * @return bool
      */
     public function authorize(): bool
     {

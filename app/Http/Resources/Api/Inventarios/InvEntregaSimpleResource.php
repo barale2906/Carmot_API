@@ -11,26 +11,25 @@ use Illuminate\Http\Resources\Json\JsonResource;
 class InvEntregaSimpleResource extends JsonResource
 {
     /**
-     * @param  Request  $request
      * @return array<string, mixed>
      */
     public function toArray(Request $request): array
     {
         return [
-            'id'                  => $this->id,
-            'pedido_item_id'      => $this->pedido_item_id,
-            'producto_id'         => $this->producto_id,
-            'cantidad_entregada'  => $this->cantidad_entregada,
+            'id' => $this->id,
+            'pedido_item_id' => $this->pedido_item_id,
+            'producto_id' => $this->producto_id,
+            'cantidad_entregada' => $this->cantidad_entregada,
             // Datos que solo resuelve la pantalla de entregas pendientes.
             ...$this->datosDeEntregaPendiente(),
-            'status'              => $this->status,
-            'fecha_entrega'       => $this->fecha_entrega,
-            'usuario'             => $this->whenLoaded('usuario', fn () => [
-                'id'     => $this->usuario->id,
+            'status' => $this->status,
+            'fecha_entrega' => $this->fecha_entrega,
+            'usuario' => $this->whenLoaded('usuario', fn () => [
+                'id' => $this->usuario->id,
                 'nombre' => $this->usuario->name,
             ]),
-            'created_at'          => $this->created_at,
-            'updated_at'          => $this->updated_at,
+            'created_at' => $this->created_at,
+            'updated_at' => $this->updated_at,
         ];
     }
 
@@ -48,7 +47,7 @@ class InvEntregaSimpleResource extends JsonResource
 
         return [
             'cantidad_pendiente' => $this->cantidad_pendiente,
-            'stock_disponible'   => $this->stock_disponible,
+            'stock_disponible' => $this->stock_disponible,
         ];
     }
 }

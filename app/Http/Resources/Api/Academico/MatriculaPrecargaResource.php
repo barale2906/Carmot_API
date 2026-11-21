@@ -56,7 +56,6 @@ class MatriculaPrecargaResource extends JsonResource
     /**
      * Transforma el recurso en un array con solo los campos personales.
      *
-     * @param  Request  $request
      * @return array<string, mixed>
      */
     public function toArray(Request $request): array
@@ -65,64 +64,64 @@ class MatriculaPrecargaResource extends JsonResource
             'matricula_referencia_id' => $this->id,
 
             // ── Identificación ───────────────────────────────────────────────
-            'tipo_identificacion'       => $this->tipo_identificacion,
+            'tipo_identificacion' => $this->tipo_identificacion,
             'tipo_identificacion_texto' => $this->tipo_identificacion_texto,
-            'departamento_expedicion'   => $this->departamento_expedicion,
-            'ciudad_expedicion'         => $this->ciudad_expedicion,
+            'departamento_expedicion' => $this->departamento_expedicion,
+            'ciudad_expedicion' => $this->ciudad_expedicion,
 
             // ── Datos personales ─────────────────────────────────────────────
-            'fecha_nacimiento'   => $this->fecha_nacimiento?->format('Y-m-d'),
-            'genero'             => $this->genero,
-            'genero_texto'       => $this->genero_texto,
-            'estado_civil'       => $this->estado_civil,
+            'fecha_nacimiento' => $this->fecha_nacimiento?->format('Y-m-d'),
+            'genero' => $this->genero,
+            'genero_texto' => $this->genero_texto,
+            'estado_civil' => $this->estado_civil,
             'estado_civil_texto' => $this->estado_civil_texto,
-            'grupo_sanguineo'    => $this->grupo_sanguineo,
-            'rh'                 => $this->rh,
-            'rh_texto'           => $this->rh_texto,
-            'direccion'          => $this->direccion,
-            'celular'            => $this->celular,
-            'telefono'           => $this->telefono,
-            'lugar_origen_id'    => $this->lugar_origen_id,
-            'lugar_origen'       => $this->whenLoaded('lugarOrigen', fn () => $this->lugarOrigen ? [
-                'id'       => $this->lugarOrigen->id,
-                'pais'     => $this->lugarOrigen->pais,
+            'grupo_sanguineo' => $this->grupo_sanguineo,
+            'rh' => $this->rh,
+            'rh_texto' => $this->rh_texto,
+            'direccion' => $this->direccion,
+            'celular' => $this->celular,
+            'telefono' => $this->telefono,
+            'lugar_origen_id' => $this->lugar_origen_id,
+            'lugar_origen' => $this->whenLoaded('lugarOrigen', fn () => $this->lugarOrigen ? [
+                'id' => $this->lugarOrigen->id,
+                'pais' => $this->lugarOrigen->pais,
                 'provincia' => $this->lugarOrigen->provincia,
-                'nombre'   => $this->lugarOrigen->nombre,
+                'nombre' => $this->lugarOrigen->nombre,
             ] : null),
 
             // ── Datos socioeconómicos ────────────────────────────────────────
-            'nivel_educacion'        => $this->nivel_educacion,
-            'nivel_educacion_texto'  => $this->nivel_educacion_texto,
-            'ocupacion'              => $this->ocupacion,
-            'empresa'                => $this->empresa,
-            'estrato'                => $this->estrato,
-            'regimen_salud'          => $this->regimen_salud,
-            'regimen_salud_texto'    => $this->regimen_salud_texto,
+            'nivel_educacion' => $this->nivel_educacion,
+            'nivel_educacion_texto' => $this->nivel_educacion_texto,
+            'ocupacion' => $this->ocupacion,
+            'empresa' => $this->empresa,
+            'estrato' => $this->estrato,
+            'regimen_salud' => $this->regimen_salud,
+            'regimen_salud_texto' => $this->regimen_salud_texto,
             'enfermedad_prioritaria' => $this->enfermedad_prioritaria,
-            'enfermedad_detalle'     => $this->enfermedad_detalle,
-            'discapacidad'           => $this->discapacidad,
-            'tipo_discapacidad'      => $this->tipo_discapacidad,
+            'enfermedad_detalle' => $this->enfermedad_detalle,
+            'discapacidad' => $this->discapacidad,
+            'tipo_discapacidad' => $this->tipo_discapacidad,
             'tipo_discapacidad_texto' => $this->tipo_discapacidad_texto,
 
             // ── Proceso de inscripción ───────────────────────────────────────
             'conocimiento_curso' => $this->conocimiento_curso,
-            'como_entero_curso'  => $this->como_entero_curso,
+            'como_entero_curso' => $this->como_entero_curso,
 
             // ── Dotación ─────────────────────────────────────────────────────
             'talla_overol' => $this->talla_overol,
-            'talla_botas'  => $this->talla_botas,
+            'talla_botas' => $this->talla_botas,
 
             // ── Contacto de emergencia ───────────────────────────────────────
-            'nombre_contacto'   => $this->nombre_contacto,
+            'nombre_contacto' => $this->nombre_contacto,
             'telefono_contacto' => $this->telefono_contacto,
-            'correo_contacto'   => $this->correo_contacto,
+            'correo_contacto' => $this->correo_contacto,
 
             // ── Consentimientos e identidad cultural ─────────────────────────
             'aprueba_uso_imagen' => $this->aprueba_uso_imagen,
-            'multiculturalidad'  => $this->multiculturalidad,
-            'foto'               => $this->foto,
-            'foto_url'           => $this->foto && Storage::disk('public')->exists($this->foto)
-                                        ? asset('storage/' . $this->foto)
+            'multiculturalidad' => $this->multiculturalidad,
+            'foto' => $this->foto,
+            'foto_url' => $this->foto && Storage::disk('public')->exists($this->foto)
+                                        ? asset('storage/'.$this->foto)
                                         : null,
         ];
     }

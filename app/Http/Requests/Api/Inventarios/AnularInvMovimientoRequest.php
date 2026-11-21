@@ -11,8 +11,6 @@ class AnularInvMovimientoRequest extends FormRequest
 {
     /**
      * La autorización se resuelve con el middleware de permisos de la ruta.
-     *
-     * @return bool
      */
     public function authorize(): bool
     {
@@ -36,8 +34,8 @@ class AnularInvMovimientoRequest extends FormRequest
     {
         return [
             'motivo_anulacion.required' => 'El motivo de anulación es obligatorio.',
-            'motivo_anulacion.min'      => 'El motivo de anulación debe tener al menos 10 caracteres.',
-            'motivo_anulacion.max'      => 'El motivo de anulación no puede superar 1000 caracteres.',
+            'motivo_anulacion.min' => 'El motivo de anulación debe tener al menos 10 caracteres.',
+            'motivo_anulacion.max' => 'El motivo de anulación no puede superar 1000 caracteres.',
         ];
     }
 }

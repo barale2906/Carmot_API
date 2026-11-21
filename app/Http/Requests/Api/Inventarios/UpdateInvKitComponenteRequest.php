@@ -11,8 +11,6 @@ class UpdateInvKitComponenteRequest extends FormRequest
 {
     /**
      * La autorización se resuelve con el middleware de permisos de la ruta.
-     *
-     * @return bool
      */
     public function authorize(): bool
     {
@@ -26,7 +24,7 @@ class UpdateInvKitComponenteRequest extends FormRequest
     {
         return [
             'cantidad' => ['required', 'integer', 'min:1', 'max:999'],
-            'orden'    => ['nullable', 'integer', 'min:0'],
+            'orden' => ['nullable', 'integer', 'min:0'],
         ];
     }
 
@@ -37,8 +35,8 @@ class UpdateInvKitComponenteRequest extends FormRequest
     {
         return [
             'cantidad.required' => 'La cantidad es obligatoria.',
-            'cantidad.min'      => 'La cantidad mínima es 1.',
-            'cantidad.max'      => 'La cantidad máxima es 999.',
+            'cantidad.min' => 'La cantidad mínima es 1.',
+            'cantidad.max' => 'La cantidad máxima es 999.',
         ];
     }
 
@@ -49,7 +47,7 @@ class UpdateInvKitComponenteRequest extends FormRequest
     {
         return [
             'cantidad' => 'cantidad',
-            'orden'    => 'orden',
+            'orden' => 'orden',
         ];
     }
 }

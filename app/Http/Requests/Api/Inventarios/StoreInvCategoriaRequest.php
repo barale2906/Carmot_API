@@ -30,14 +30,14 @@ class StoreInvCategoriaRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'nombre'      => [
+            'nombre' => [
                 'required',
                 'string',
                 'max:150',
                 Rule::unique('inv_categorias', 'nombre')->whereNull('deleted_at'),
             ],
             'descripcion' => ['nullable', 'string', 'max:1000'],
-            'status'      => self::getStatusValidationRule(),
+            'status' => self::getStatusValidationRule(),
         ];
     }
 
@@ -48,8 +48,8 @@ class StoreInvCategoriaRequest extends FormRequest
     {
         return array_merge([
             'nombre.required' => 'El nombre de la categoría es obligatorio.',
-            'nombre.max'      => 'El nombre no puede superar 150 caracteres.',
-            'nombre.unique'   => 'Ya existe una categoría con ese nombre.',
+            'nombre.max' => 'El nombre no puede superar 150 caracteres.',
+            'nombre.unique' => 'Ya existe una categoría con ese nombre.',
         ], self::getStatusValidationMessages());
     }
 
@@ -59,9 +59,9 @@ class StoreInvCategoriaRequest extends FormRequest
     public function attributes(): array
     {
         return [
-            'nombre'      => 'nombre',
+            'nombre' => 'nombre',
             'descripcion' => 'descripción',
-            'status'      => 'estado',
+            'status' => 'estado',
         ];
     }
 }

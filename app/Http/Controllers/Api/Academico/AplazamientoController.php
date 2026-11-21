@@ -33,9 +33,6 @@ class AplazamientoController extends Controller
 
     /**
      * Listado general de aplazamientos, filtrable por ciclo, tipo y estado.
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function index(Request $request): JsonResponse
     {
@@ -53,20 +50,17 @@ class AplazamientoController extends Controller
             'data' => AplazamientoResource::collection($aplazamientos),
             'meta' => [
                 'current_page' => $aplazamientos->currentPage(),
-                'last_page'    => $aplazamientos->lastPage(),
-                'per_page'     => $aplazamientos->perPage(),
-                'total'        => $aplazamientos->total(),
-                'from'         => $aplazamientos->firstItem(),
-                'to'           => $aplazamientos->lastItem(),
+                'last_page' => $aplazamientos->lastPage(),
+                'per_page' => $aplazamientos->perPage(),
+                'total' => $aplazamientos->total(),
+                'from' => $aplazamientos->firstItem(),
+                'to' => $aplazamientos->lastItem(),
             ],
         ]);
     }
 
     /**
      * Detalle de un aplazamiento.
-     *
-     * @param Aplazamiento $aplazamiento
-     * @return JsonResponse
      */
     public function show(Aplazamiento $aplazamiento): JsonResponse
     {
@@ -79,9 +73,6 @@ class AplazamientoController extends Controller
 
     /**
      * Historial de aplazamientos de un ciclo específico.
-     *
-     * @param Ciclo $ciclo
-     * @return JsonResponse
      */
     public function historialCiclo(Ciclo $ciclo): JsonResponse
     {
@@ -100,10 +91,6 @@ class AplazamientoController extends Controller
 
     /**
      * Aplaza un ciclo a la fecha probable de reinicio indicada.
-     *
-     * @param StoreAplazamientoRequest $request
-     * @param Ciclo                    $ciclo
-     * @return JsonResponse
      */
     public function aplazar(StoreAplazamientoRequest $request, Ciclo $ciclo): JsonResponse
     {
@@ -112,17 +99,13 @@ class AplazamientoController extends Controller
 
         return response()->json([
             'message' => "Ciclo '{$ciclo->nombre}' aplazado {$aplazamiento->dias_aplazamiento} días. "
-                . "Fecha probable de reinicio: {$aplazamiento->fecha_reinicio_probable->format('d/m/Y')}.",
-            'data'    => new AplazamientoResource($aplazamiento),
+                ."Fecha probable de reinicio: {$aplazamiento->fecha_reinicio_probable->format('d/m/Y')}.",
+            'data' => new AplazamientoResource($aplazamiento),
         ], 201);
     }
 
     /**
      * Confirma que el ciclo reinició en la fecha probable (sin ajuste de fechas).
-     *
-     * @param ConfirmarAplazamientoRequest $request
-     * @param Aplazamiento                 $aplazamiento
-     * @return JsonResponse
      */
     public function confirmar(ConfirmarAplazamientoRequest $request, Aplazamiento $aplazamiento): JsonResponse
     {
@@ -130,16 +113,12 @@ class AplazamientoController extends Controller
 
         return response()->json([
             'message' => 'Aplazamiento confirmado. El ciclo reinició correctamente.',
-            'data'    => new AplazamientoResource($aplazamiento->load(['tipoAplazamiento', 'user'])),
+            'data' => new AplazamientoResource($aplazamiento->load(['tipoAplazamiento', 'user'])),
         ]);
     }
 
     /**
      * Amplía el aplazamiento a una fecha posterior, generando un aplazamiento hijo.
-     *
-     * @param AmpliarAplazamientoRequest $request
-     * @param Aplazamiento               $aplazamiento
-     * @return JsonResponse
      */
     public function ampliar(AmpliarAplazamientoRequest $request, Aplazamiento $aplazamiento): JsonResponse
     {
@@ -148,38 +127,30 @@ class AplazamientoController extends Controller
 
         return response()->json([
             'message' => "Aplazamiento ampliado {$hijo->dias_aplazamiento} días adicionales. "
-                . "Nueva fecha probable de reinicio: {$hijo->fecha_reinicio_probable->format('d/m/Y')}.",
-            'data'    => new AplazamientoResource($hijo),
+                ."Nueva fecha probable de reinicio: {$hijo->fecha_reinicio_probable->format('d/m/Y')}.",
+            'data' => new AplazamientoResource($hijo),
         ], 201);
     }
 
     /**
      * Interrumpe el aplazamiento porque el ciclo reinició antes de lo previsto.
      * Ajusta todas las fechas hacia atrás según los días reales transcurridos.
-     *
-     * @param InterrumpirAplazamientoRequest $request
-     * @param Aplazamiento                   $aplazamiento
-     * @return JsonResponse
      */
     public function interrumpir(InterrumpirAplazamientoRequest $request, Aplazamiento $aplazamiento): JsonResponse
     {
         $aplazamiento = $this->servicio->interrumpir($aplazamiento, $request->validated());
 
         return response()->json([
-            'message' => "Aplazamiento interrumpido. El ciclo reinició el "
-                . $aplazamiento->fecha_reinicio_real->format('d/m/Y')
-                . " ({$aplazamiento->dias_reales} días efectivos).",
-            'data'    => new AplazamientoResource($aplazamiento->load(['tipoAplazamiento', 'user'])),
+            'message' => 'Aplazamiento interrumpido. El ciclo reinició el '
+                .$aplazamiento->fecha_reinicio_real->format('d/m/Y')
+                ." ({$aplazamiento->dias_reales} días efectivos).",
+            'data' => new AplazamientoResource($aplazamiento->load(['tipoAplazamiento', 'user'])),
         ]);
     }
 
     /**
      * Revierte completamente el aplazamiento, restaurando todas las fechas al estado original.
      * Solo el superusuario (N25).
-     *
-     * @param Request      $request
-     * @param Aplazamiento $aplazamiento
-     * @return JsonResponse
      */
     public function revertir(Request $request, Aplazamiento $aplazamiento): JsonResponse
     {
@@ -187,7 +158,7 @@ class AplazamientoController extends Controller
             'observaciones' => 'nullable|string|max:1000',
         ]);
 
-        if (!$aplazamiento->esPendiente()) {
+        if (! $aplazamiento->esPendiente()) {
             return response()->json([
                 'message' => 'Solo se puede revertir un aplazamiento en estado Pendiente.',
             ], 422);
@@ -197,7 +168,7 @@ class AplazamientoController extends Controller
 
         return response()->json([
             'message' => 'Aplazamiento revertido. Las fechas del ciclo han sido restauradas a su estado original.',
-            'data'    => new AplazamientoResource($aplazamiento->load(['tipoAplazamiento', 'user'])),
+            'data' => new AplazamientoResource($aplazamiento->load(['tipoAplazamiento', 'user'])),
         ]);
     }
 }

@@ -12,8 +12,6 @@ use Illuminate\Foundation\Http\FormRequest;
  * Valida los datos para crear un nuevo producto en el catálogo LP.
  * La vinculación con cursos y módulos se gestiona de forma separada
  * mediante el endpoint de referencias (LpProductoReferenciaController).
- *
- * @package App\Http\Requests\Api\Financiero\Lp
  */
 class StoreLpProductoRequest extends FormRequest
 {
@@ -21,8 +19,6 @@ class StoreLpProductoRequest extends FormRequest
 
     /**
      * Determina si el usuario está autorizado para hacer esta solicitud.
-     *
-     * @return bool
      */
     public function authorize(): bool
     {
@@ -38,10 +34,10 @@ class StoreLpProductoRequest extends FormRequest
     {
         return [
             'tipo_producto_id' => 'required|integer|exists:lp_tipos_producto,id',
-            'nombre'           => 'required|string|max:255',
-            'codigo'           => 'nullable|string|max:100|unique:lp_productos,codigo',
-            'descripcion'      => 'nullable|string',
-            'status'           => self::getStatusValidationRule(),
+            'nombre' => 'required|string|max:255',
+            'codigo' => 'nullable|string|max:100|unique:lp_productos,codigo',
+            'descripcion' => 'nullable|string',
+            'status' => self::getStatusValidationRule(),
         ];
     }
 
@@ -56,15 +52,15 @@ class StoreLpProductoRequest extends FormRequest
 
         return array_merge([
             'tipo_producto_id.required' => 'El tipo de producto es obligatorio.',
-            'tipo_producto_id.integer'  => 'El tipo de producto debe ser un número entero.',
-            'tipo_producto_id.exists'   => 'El tipo de producto seleccionado no existe.',
-            'nombre.required'           => 'El nombre del producto es obligatorio.',
-            'nombre.string'             => 'El nombre debe ser una cadena de texto.',
-            'nombre.max'                => 'El nombre no puede exceder 255 caracteres.',
-            'codigo.string'             => 'El código debe ser una cadena de texto.',
-            'codigo.max'                => 'El código no puede exceder 100 caracteres.',
-            'codigo.unique'             => 'El código del producto ya existe.',
-            'descripcion.string'        => 'La descripción debe ser una cadena de texto.',
+            'tipo_producto_id.integer' => 'El tipo de producto debe ser un número entero.',
+            'tipo_producto_id.exists' => 'El tipo de producto seleccionado no existe.',
+            'nombre.required' => 'El nombre del producto es obligatorio.',
+            'nombre.string' => 'El nombre debe ser una cadena de texto.',
+            'nombre.max' => 'El nombre no puede exceder 255 caracteres.',
+            'codigo.string' => 'El código debe ser una cadena de texto.',
+            'codigo.max' => 'El código no puede exceder 100 caracteres.',
+            'codigo.unique' => 'El código del producto ya existe.',
+            'descripcion.string' => 'La descripción debe ser una cadena de texto.',
         ], $statusMessages);
     }
 }

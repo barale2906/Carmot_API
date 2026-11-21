@@ -21,10 +21,6 @@ class VerificarTokenDemo
 
     /**
      * Maneja la petición entrante.
-     *
-     * @param  Request $request
-     * @param  Closure $next
-     * @return Response
      */
     public function handle(Request $request, Closure $next): Response
     {
@@ -32,7 +28,7 @@ class VerificarTokenDemo
         $recibido = (string) $request->route('token');
 
         abort_if(
-            strlen($esperado) < self::LONGITUD_MINIMA || !hash_equals($esperado, $recibido),
+            strlen($esperado) < self::LONGITUD_MINIMA || ! hash_equals($esperado, $recibido),
             Response::HTTP_NOT_FOUND
         );
 

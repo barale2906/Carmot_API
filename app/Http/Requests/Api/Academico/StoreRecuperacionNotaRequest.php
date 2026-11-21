@@ -28,11 +28,11 @@ class StoreRecuperacionNotaRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'estudiante_id'  => 'required|integer|exists:users,id',
-            'grupo_id'       => 'required|integer|exists:grupos,id',
-            'nota'           => 'required|numeric|min:0',
+            'estudiante_id' => 'required|integer|exists:users,id',
+            'grupo_id' => 'required|integer|exists:grupos,id',
+            'nota' => 'required|numeric|min:0',
             'fecha_registro' => 'required|date',
-            'observaciones'  => 'nullable|string|max:1000',
+            'observaciones' => 'nullable|string|max:1000',
         ];
     }
 
@@ -45,13 +45,13 @@ class StoreRecuperacionNotaRequest extends FormRequest
     {
         return [
             'estudiante_id.required' => 'El estudiante es obligatorio.',
-            'estudiante_id.exists'   => 'El estudiante seleccionado no existe.',
-            'grupo_id.required'      => 'El grupo es obligatorio.',
-            'grupo_id.exists'        => 'El grupo seleccionado no existe.',
-            'nota.required'          => 'La nota de recuperación es obligatoria.',
-            'nota.numeric'           => 'La nota de recuperación debe ser un número.',
-            'nota.min'               => 'La nota de recuperación no puede ser menor a 0.',
-            'fecha_registro.date'    => 'La fecha de registro debe ser una fecha válida.',
+            'estudiante_id.exists' => 'El estudiante seleccionado no existe.',
+            'grupo_id.required' => 'El grupo es obligatorio.',
+            'grupo_id.exists' => 'El grupo seleccionado no existe.',
+            'nota.required' => 'La nota de recuperación es obligatoria.',
+            'nota.numeric' => 'La nota de recuperación debe ser un número.',
+            'nota.min' => 'La nota de recuperación no puede ser menor a 0.',
+            'fecha_registro.date' => 'La fecha de registro debe ser una fecha válida.',
         ];
     }
 
@@ -63,11 +63,11 @@ class StoreRecuperacionNotaRequest extends FormRequest
     public function attributes(): array
     {
         return [
-            'estudiante_id'  => 'estudiante',
-            'grupo_id'       => 'grupo',
-            'nota'           => 'nota de recuperación',
+            'estudiante_id' => 'estudiante',
+            'grupo_id' => 'grupo',
+            'nota' => 'nota de recuperación',
             'fecha_registro' => 'fecha de registro',
-            'observaciones'  => 'observaciones',
+            'observaciones' => 'observaciones',
         ];
     }
 
@@ -85,8 +85,7 @@ class StoreRecuperacionNotaRequest extends FormRequest
      * El estudiante debe estar en el grupo, con las notas abiertas, y haber reprobado
      * el módulo con la nota final completa; la nota debe caber en la escala del esquema.
      *
-     * @param \Illuminate\Validation\Validator $validator
-     * @return void
+     * @param  \Illuminate\Validation\Validator  $validator
      */
     public function withValidator($validator): void
     {
@@ -95,7 +94,7 @@ class StoreRecuperacionNotaRequest extends FormRequest
                 return;
             }
 
-            $grupo        = Grupo::find($this->grupo_id);
+            $grupo = Grupo::find($this->grupo_id);
             $estudianteId = (int) $this->estudiante_id;
 
             $this->validarEstudiantesDelGrupo($validator, $grupo, [$estudianteId]);
@@ -109,6 +108,7 @@ class StoreRecuperacionNotaRequest extends FormRequest
 
             if (! $calculo) {
                 $validator->errors()->add('grupo_id', 'El módulo del grupo no tiene un esquema de calificación activo.');
+
                 return;
             }
 

@@ -15,11 +15,9 @@ trait ValidaNotasAbiertas
      * Agrega un error en "{campo}.{i}.estudiante_id" (o en "estudiante_id" si $campo es null)
      * por cada estudiante con las notas cerradas en el grupo.
      *
-     * @param \Illuminate\Validation\Validator $validator
-     * @param Grupo|null $grupo
-     * @param array<int, mixed> $estudianteIds Índice → estudiante_id
-     * @param string|null $campo Arreglo del payload (p. ej. "notas"); null para un solo estudiante
-     * @return void
+     * @param  \Illuminate\Validation\Validator  $validator
+     * @param  array<int, mixed>  $estudianteIds  Índice → estudiante_id
+     * @param  string|null  $campo  Arreglo del payload (p. ej. "notas"); null para un solo estudiante
      */
     protected function validarNotasAbiertas($validator, ?Grupo $grupo, array $estudianteIds, ?string $campo = null): void
     {

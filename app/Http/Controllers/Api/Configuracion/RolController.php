@@ -19,8 +19,6 @@ use Spatie\Permission\Models\Role;
  * Permite crear, consultar, actualizar y eliminar roles, así como
  * gestionar sus permisos de forma individual o mediante sync completo.
  * Integra el paquete Spatie Permission para el manejo de autorización.
- *
- * @package App\Http\Controllers\Api\Configuracion
  */
 class RolController extends Controller
 {
@@ -59,7 +57,7 @@ class RolController extends Controller
             ]);
 
             if ($request->filled('search')) {
-                $query->where('name', 'like', '%' . $request->input('search') . '%');
+                $query->where('name', 'like', '%'.$request->input('search').'%');
             }
 
             if ($request->has('status')) {
@@ -70,6 +68,7 @@ class RolController extends Controller
 
             if ($perPage === 0) {
                 $roles = $query->with('permissions')->orderBy('name')->get();
+
                 return RolResource::collection($roles);
             }
 
@@ -80,12 +79,12 @@ class RolController extends Controller
         } catch (\Exception $e) {
             Log::error('Error al obtener los roles', [
                 'exception' => $e->getMessage(),
-                'trace'     => $e->getTraceAsString(),
+                'trace' => $e->getTraceAsString(),
             ]);
 
             return response()->json([
                 'message' => 'Error al obtener los roles',
-                'error'   => $e->getMessage(),
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -93,15 +92,14 @@ class RolController extends Controller
     /**
      * Crear un nuevo rol.
      *
-     * @param  \App\Http\Requests\Api\Configuracion\StoreRolRequest  $request
      * @return \Illuminate\Http\JsonResponse
      */
     public function store(StoreRolRequest $request)
     {
         $rol = Role::create([
-            'name'       => $request->name,
+            'name' => $request->name,
             'guard_name' => $request->input('guard_name', 'web'),
-            'status'     => $request->input('status', true),
+            'status' => $request->input('status', true),
         ]);
 
         if ($request->has('permissions')) {
@@ -118,7 +116,6 @@ class RolController extends Controller
     /**
      * Mostrar un rol específico con sus permisos.
      *
-     * @param  \Spatie\Permission\Models\Role  $rol
      * @return \App\Http\Resources\Api\Configuracion\RolResource
      */
     public function show(Role $rol)
@@ -131,8 +128,6 @@ class RolController extends Controller
     /**
      * Actualizar un rol existente.
      *
-     * @param  \App\Http\Requests\Api\Configuracion\UpdateRolRequest  $request
-     * @param  \Spatie\Permission\Models\Role  $rol
      * @return \App\Http\Resources\Api\Configuracion\RolResource
      */
     public function update(UpdateRolRequest $request, Role $rol)
@@ -152,7 +147,6 @@ class RolController extends Controller
     /**
      * Eliminar un rol. No se puede eliminar si tiene usuarios asignados.
      *
-     * @param  \Spatie\Permission\Models\Role  $rol
      * @return \Illuminate\Http\JsonResponse
      */
     public function destroy(Role $rol)
@@ -173,12 +167,11 @@ class RolController extends Controller
     /**
      * Alternar el estado activo/inactivo de un rol.
      *
-     * @param  \Spatie\Permission\Models\Role  $rol
      * @return \App\Http\Resources\Api\Configuracion\RolResource
      */
     public function toggleStatus(Role $rol)
     {
-        $rol->status = !$rol->status;
+        $rol->status = ! $rol->status;
         $rol->save();
 
         $this->cargarContadores($rol);
@@ -190,8 +183,6 @@ class RolController extends Controller
      * Reemplazar completamente los permisos de un rol (sync).
      * Enviar un array vacío [] para quitar todos los permisos.
      *
-     * @param  \App\Http\Requests\Api\Configuracion\SyncPermisosRolRequest  $request
-     * @param  \Spatie\Permission\Models\Role  $rol
      * @return \App\Http\Resources\Api\Configuracion\RolResource
      */
     public function syncPermisos(SyncPermisosRolRequest $request, Role $rol)
@@ -206,8 +197,6 @@ class RolController extends Controller
     /**
      * Agregar un permiso individual a un rol sin afectar los demás.
      *
-     * @param  \Spatie\Permission\Models\Role        $rol
-     * @param  \Spatie\Permission\Models\Permission  $permission
      * @return \App\Http\Resources\Api\Configuracion\RolResource|\Illuminate\Http\JsonResponse
      */
     public function addPermiso(Role $rol, Permission $permission)
@@ -228,13 +217,11 @@ class RolController extends Controller
     /**
      * Eliminar un permiso individual de un rol.
      *
-     * @param  \Spatie\Permission\Models\Role        $rol
-     * @param  \Spatie\Permission\Models\Permission  $permission
      * @return \App\Http\Resources\Api\Configuracion\RolResource|\Illuminate\Http\JsonResponse
      */
     public function removePermiso(Role $rol, Permission $permission)
     {
-        if (!$rol->hasPermissionTo($permission)) {
+        if (! $rol->hasPermissionTo($permission)) {
             return response()->json([
                 'message' => "El rol '{$rol->name}' no tiene el permiso '{$permission->name}'.",
             ], 409);

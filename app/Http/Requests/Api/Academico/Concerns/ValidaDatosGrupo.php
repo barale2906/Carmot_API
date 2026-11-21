@@ -17,9 +17,8 @@ trait ValidaDatosGrupo
     /**
      * Agrega un error en `profesor_id` si el usuario no tiene el rol profesor.
      *
-     * @param \Illuminate\Validation\Validator $validator
-     * @param mixed $profesorId
-     * @return void
+     * @param  \Illuminate\Validation\Validator  $validator
+     * @param  mixed  $profesorId
      */
     protected function validarProfesor($validator, $profesorId): void
     {
@@ -39,10 +38,9 @@ trait ValidaDatosGrupo
     /**
      * Agrega un error por cada horario cuya área no está asignada a la sede del grupo.
      *
-     * @param \Illuminate\Validation\Validator $validator
-     * @param mixed $sedeId
-     * @param mixed $horarios
-     * @return void
+     * @param  \Illuminate\Validation\Validator  $validator
+     * @param  mixed  $sedeId
+     * @param  mixed  $horarios
      */
     protected function validarAreasEnSede($validator, $sedeId, $horarios): void
     {
@@ -71,10 +69,9 @@ trait ValidaDatosGrupo
      * Agrega un error por cada horario que empieza antes de la apertura de la sede o
      * termina después de su cierre (la duración por defecto es 1 hora, como al guardarlo).
      *
-     * @param \Illuminate\Validation\Validator $validator
-     * @param mixed $sedeId
-     * @param mixed $horarios
-     * @return void
+     * @param  \Illuminate\Validation\Validator  $validator
+     * @param  mixed  $sedeId
+     * @param  mixed  $horarios
      */
     protected function validarHorariosEnJornadaSede($validator, $sedeId, $horarios): void
     {
@@ -84,7 +81,7 @@ trait ValidaDatosGrupo
         }
 
         $apertura = $sede->hora_inicio->format('H:i');
-        $cierre   = $sede->hora_fin->format('H:i');
+        $cierre = $sede->hora_fin->format('H:i');
 
         foreach ($horarios as $i => $horario) {
             $hora = $horario['hora'] ?? null;
@@ -93,8 +90,8 @@ trait ValidaDatosGrupo
             }
 
             $inicioMin = (int) substr($hora, 0, 2) * 60 + (int) substr($hora, 3, 2);
-            $finMin    = $inicioMin + 60 * (int) ($horario['duracion_horas'] ?? 1);
-            $fin       = sprintf('%02d:%02d', intdiv($finMin, 60), $finMin % 60);
+            $finMin = $inicioMin + 60 * (int) ($horario['duracion_horas'] ?? 1);
+            $fin = sprintf('%02d:%02d', intdiv($finMin, 60), $finMin % 60);
 
             if (substr($hora, 0, 5) < $apertura || $finMin > 24 * 60 || $fin > $cierre) {
                 $validator->errors()->add(

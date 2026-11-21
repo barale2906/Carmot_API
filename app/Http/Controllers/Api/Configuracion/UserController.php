@@ -17,8 +17,6 @@ use Illuminate\Support\Facades\Log;
  * Permite crear, consultar, actualizar e inactivar usuarios. Gestiona la
  * asignación de roles, permisos, cursos y sedes. Restringido al rol
  * superusuario para las operaciones de escritura.
- *
- * @package App\Http\Controllers\Api\Configuracion
  */
 class UserController extends Controller
 {
@@ -38,6 +36,7 @@ class UserController extends Controller
 
     /**
      * Mostrar una lista de usuarios.
+     *
      * @queryParam page int Número de página. Ejemplo: 1
      * @queryParam per_page int Número de elementos por página. Ejemplo: 15
      * @queryParam search string Buscar usuarios por nombre, correo o documento. Ejemplo: John Doe
@@ -45,6 +44,7 @@ class UserController extends Controller
      * @queryParam with string Relaciones a cargar separadas por coma. Ejemplo: roles,cursos
      *
      * @apiResourceCollection App\Http\Resources\UserResource
+     *
      * @apiResourceModel App\Models\User
      *
      * @return \Illuminate\Http\Resources\Json\AnonymousResourceCollection
@@ -70,14 +70,14 @@ class UserController extends Controller
             return UserResource::collection($users);
 
         } catch (\Exception $e) {
-            Log::error("Error al realizar la consulta", [
+            Log::error('Error al realizar la consulta', [
                 'exception' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
 
             return response()->json([
                 'message' => 'Error al obtener los usuarios',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -86,6 +86,7 @@ class UserController extends Controller
      * Almacenar un usuario recién creado en el almacenamiento.
      *
      * @apiResource App\Http\Resources\UserResource
+     *
      * @apiResourceModel App\Models\User
      *
      * @param  \App\Http\Requests\StoreUserRequest  $request
@@ -94,13 +95,13 @@ class UserController extends Controller
     public function store(StoreUserRequest $request)
     {
         $user = User::create([
-            'primer_nombre'    => $request->primer_nombre,
-            'segundo_nombre'   => $request->segundo_nombre,
-            'primer_apellido'  => $request->primer_apellido,
+            'primer_nombre' => $request->primer_nombre,
+            'segundo_nombre' => $request->segundo_nombre,
+            'primer_apellido' => $request->primer_apellido,
             'segundo_apellido' => $request->segundo_apellido,
-            'email'            => $request->email,
-            'password'         => Hash::make($request->password),
-            'documento'        => $request->documento,
+            'email' => $request->email,
+            'password' => Hash::make($request->password),
+            'documento' => $request->documento,
         ]);
 
         if ($request->has('roles')) {
@@ -118,22 +119,22 @@ class UserController extends Controller
         }
 
         // Sincronizar sedes solo si el usuario no es superusuario
-        if ($request->has('sedes') && !$user->hasRole('superusuario')) {
+        if ($request->has('sedes') && ! $user->hasRole('superusuario')) {
             $user->sedes()->sync($request->sedes);
         }
 
         return (new UserResource($user->load('roles', 'permissions', 'cursos', 'sedes')))
-                ->response()
-                ->setStatusCode(201); // 201 Created
+            ->response()
+            ->setStatusCode(201); // 201 Created
     }
 
     /**
      * Mostrar el usuario especificado.
      *
      * @apiResource App\Http\Resources\UserResource
+     *
      * @apiResourceModel App\Models\User
      *
-     * @param  \App\Models\User  $user
      * @return \App\Http\Resources\UserResource
      */
     public function show(Request $request, User $user)
@@ -154,10 +155,10 @@ class UserController extends Controller
      * Actualizar el usuario especificado en el almacenamiento.
      *
      * @apiResource App\Http\Resources\UserResource
+     *
      * @apiResourceModel App\Models\User
      *
      * @param  \App\Http\Requests\UpdateUserRequest  $request
-     * @param  \App\Models\User  $user
      * @return \App\Http\Resources\UserResource
      */
     public function update(UpdateUserRequest $request, User $user)
@@ -184,7 +185,7 @@ class UserController extends Controller
         }
 
         // Sincronizar sedes solo si el usuario no es superusuario
-        if ($request->has('sedes') && !$user->hasRole('superusuario')) {
+        if ($request->has('sedes') && ! $user->hasRole('superusuario')) {
             $user->sedes()->sync($request->sedes);
         }
 
@@ -198,7 +199,6 @@ class UserController extends Controller
     /**
      * Inactivar el usuario especificado.
      *
-     * @param  \App\Models\User  $user
      * @return \Illuminate\Http\JsonResponse
      */
     public function destroy(User $user)
@@ -281,10 +281,10 @@ class UserController extends Controller
     {
         $nameColumns = ['id', 'primer_nombre', 'segundo_nombre', 'primer_apellido', 'segundo_apellido'];
 
-        $roles       = \Spatie\Permission\Models\Role::select('id', 'name')->get();
-        $profesores  = User::role('profesor')->select($nameColumns)->get();
-        $cursos      = \App\Models\Academico\Curso::select('id', 'nombre')->get();
-        $gestores    = User::whereHas('gestores')->select($nameColumns)->get();
+        $roles = \Spatie\Permission\Models\Role::select('id', 'name')->get();
+        $profesores = User::role('profesor')->select($nameColumns)->get();
+        $cursos = \App\Models\Academico\Curso::select('id', 'nombre')->get();
+        $gestores = User::whereHas('gestores')->select($nameColumns)->get();
         $agendadores = User::whereHas('agendadores')->select($nameColumns)->get();
 
         return response()->json([

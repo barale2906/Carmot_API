@@ -54,14 +54,13 @@ class UpdateAsistenciaRequest extends FormRequest
      * Solo se justifica una ausencia o una tardanza: se valida con el estado resultante
      * (el enviado o el que ya tiene la asistencia).
      *
-     * @param \Illuminate\Validation\Validator $validator
-     * @return void
+     * @param  \Illuminate\Validation\Validator  $validator
      */
     public function withValidator($validator): void
     {
         $validator->after(function ($validator) {
-            $actual      = Asistencia::find($this->route('asistencia'));
-            $estado      = $this->input('estado', $actual?->estado);
+            $actual = Asistencia::find($this->route('asistencia'));
+            $estado = $this->input('estado', $actual?->estado);
             $justificada = $this->has('justificada') ? $this->boolean('justificada') : (bool) $actual?->justificada;
 
             if ($estado === 'presente' && $justificada) {

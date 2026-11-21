@@ -13,8 +13,6 @@ use Illuminate\Console\Command;
  * Se ejecuta diariamente para:
  * 1. Activar listas aprobadas cuando inicia su período de vigencia
  * 2. Inactivar listas activas que han perdido su vigencia
- *
- * @package App\Console\Commands\Financiero
  */
 class GestionarListasPrecios extends Command
 {
@@ -52,7 +50,7 @@ class GestionarListasPrecios extends Command
                 $this->info("Lista de precios '{$lista->nombre}' activada automáticamente.");
             }
 
-            $this->info("Total de listas activadas: " . $activadas->count());
+            $this->info('Total de listas activadas: '.$activadas->count());
 
             // 2. Inactivar listas activas que pierden su vigencia
             $inactivadas = LpListaPrecio::activasParaInactivar($fechaActual)->get();
@@ -62,9 +60,9 @@ class GestionarListasPrecios extends Command
                 $this->info("Lista de precios '{$lista->nombre}' inactivada automáticamente por vencimiento.");
             }
 
-            $this->info("Total de listas inactivadas por vencimiento: " . $inactivadas->count());
+            $this->info('Total de listas inactivadas por vencimiento: '.$inactivadas->count());
 
-            $this->info("Gestión de listas de precios completada exitosamente.");
+            $this->info('Gestión de listas de precios completada exitosamente.');
 
             return Command::SUCCESS;
         } catch (\Exception $e) {
@@ -75,4 +73,3 @@ class GestionarListasPrecios extends Command
         }
     }
 }
-

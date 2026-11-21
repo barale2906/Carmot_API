@@ -13,7 +13,6 @@ use Illuminate\Http\Resources\Json\JsonResource;
  * período (inicio/fin) y las relaciones opcionales de sede y área.
  *
  * @mixin \App\Models\Configuracion\Horario
- * @package App\Http\Resources\Api\Configuracion
  */
 class HorarioResource extends JsonResource
 {
@@ -22,7 +21,6 @@ class HorarioResource extends JsonResource
     /**
      * Transforma el recurso en un array.
      *
-     * @param Request $request
      * @return array<string, mixed>
      */
     public function toArray(Request $request): array
@@ -75,5 +73,4 @@ class HorarioResource extends JsonResource
             'area_count' => $this->when(isset($this->area_count), $this->area_count),
         ];
     }
-
 }

@@ -20,8 +20,6 @@ use Illuminate\Support\Facades\DB;
  * Ciclo de vida: borrador → enviada → recibida_parcial → recibida | cancelada.
  * La recepción llama a InvRecepcionService, que genera el movimiento de entrada
  * y actualiza el stock. Órdenes canceladas no pueden recibirse.
- *
- * @package App\Http\Controllers\Api\Inventarios
  */
 class InvOrdenCompraController extends Controller
 {
@@ -41,9 +39,6 @@ class InvOrdenCompraController extends Controller
 
     /**
      * Lista paginada de órdenes de compra con filtros.
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function index(Request $request): JsonResponse
     {
@@ -58,49 +53,46 @@ class InvOrdenCompraController extends Controller
             'data' => InvOrdenCompraResource::collection($ordenes),
             'meta' => [
                 'current_page' => $ordenes->currentPage(),
-                'last_page'    => $ordenes->lastPage(),
-                'per_page'     => $ordenes->perPage(),
-                'total'        => $ordenes->total(),
-                'from'         => $ordenes->firstItem(),
-                'to'           => $ordenes->lastItem(),
+                'last_page' => $ordenes->lastPage(),
+                'per_page' => $ordenes->perPage(),
+                'total' => $ordenes->total(),
+                'from' => $ordenes->firstItem(),
+                'to' => $ordenes->lastItem(),
             ],
         ]);
     }
 
     /**
      * Crea una nueva orden de compra en estado borrador.
-     *
-     * @param StoreInvOrdenCompraRequest $request
-     * @return JsonResponse
      */
     public function store(StoreInvOrdenCompraRequest $request): JsonResponse
     {
         $orden = DB::transaction(function () use ($request) {
             $orden = InvOrdenCompra::create([
-                'proveedor_id'   => $request->proveedor_id,
-                'almacen_id'     => $request->almacen_id,
+                'proveedor_id' => $request->proveedor_id,
+                'almacen_id' => $request->almacen_id,
                 'responsable_id' => $request->user()->id,
-                'status'         => InvOrdenCompra::STATUS_BORRADOR,
-                'observaciones'  => $request->observaciones,
+                'status' => InvOrdenCompra::STATUS_BORRADOR,
+                'observaciones' => $request->observaciones,
                 'fecha_esperada' => $request->fecha_esperada,
-                'subtotal'       => 0,
-                'total'          => 0,
+                'subtotal' => 0,
+                'total' => 0,
             ]);
 
             $subtotal = 0;
             foreach ($request->items as $item) {
-                $precio   = (float) ($item['precio_costo_unitario'] ?? 0);
+                $precio = (float) ($item['precio_costo_unitario'] ?? 0);
                 $cantidad = (int) $item['cantidad_solicitada'];
-                $sub      = round($precio * $cantidad, 2);
+                $sub = round($precio * $cantidad, 2);
                 $subtotal += $sub;
 
                 InvOrdenCompraItem::create([
-                    'orden_id'              => $orden->id,
-                    'producto_id'           => $item['producto_id'],
-                    'cantidad_solicitada'   => $cantidad,
+                    'orden_id' => $orden->id,
+                    'producto_id' => $item['producto_id'],
+                    'cantidad_solicitada' => $cantidad,
                     'precio_costo_unitario' => $precio,
-                    'subtotal'              => $sub,
-                    'cantidad_recibida'     => 0,
+                    'subtotal' => $sub,
+                    'cantidad_recibida' => 0,
                 ]);
             }
 
@@ -111,15 +103,12 @@ class InvOrdenCompraController extends Controller
 
         return response()->json([
             'message' => 'Orden de compra creada exitosamente.',
-            'data'    => new InvOrdenCompraResource($orden),
+            'data' => new InvOrdenCompraResource($orden),
         ], 201);
     }
 
     /**
      * Muestra el detalle completo de una orden de compra.
-     *
-     * @param InvOrdenCompra $ordenCompra
-     * @return JsonResponse
      */
     public function show(InvOrdenCompra $ordenCompra): JsonResponse
     {
@@ -133,14 +122,10 @@ class InvOrdenCompraController extends Controller
     /**
      * Actualiza una orden en estado borrador.
      * Solo se puede editar si la orden aún no ha sido enviada.
-     *
-     * @param UpdateInvOrdenCompraRequest $request
-     * @param InvOrdenCompra              $ordenCompra
-     * @return JsonResponse
      */
     public function update(UpdateInvOrdenCompraRequest $request, InvOrdenCompra $ordenCompra): JsonResponse
     {
-        if (!$ordenCompra->esEditable()) {
+        if (! $ordenCompra->esEditable()) {
             return response()->json([
                 'message' => 'Solo se pueden editar órdenes en estado borrador.',
             ], 422);
@@ -154,18 +139,18 @@ class InvOrdenCompraController extends Controller
                 $subtotal = 0;
 
                 foreach ($request->items as $item) {
-                    $precio   = (float) ($item['precio_costo_unitario'] ?? 0);
+                    $precio = (float) ($item['precio_costo_unitario'] ?? 0);
                     $cantidad = (int) $item['cantidad_solicitada'];
-                    $sub      = round($precio * $cantidad, 2);
+                    $sub = round($precio * $cantidad, 2);
                     $subtotal += $sub;
 
                     InvOrdenCompraItem::create([
-                        'orden_id'              => $ordenCompra->id,
-                        'producto_id'           => $item['producto_id'],
-                        'cantidad_solicitada'   => $cantidad,
+                        'orden_id' => $ordenCompra->id,
+                        'producto_id' => $item['producto_id'],
+                        'cantidad_solicitada' => $cantidad,
                         'precio_costo_unitario' => $precio,
-                        'subtotal'              => $sub,
-                        'cantidad_recibida'     => 0,
+                        'subtotal' => $sub,
+                        'cantidad_recibida' => 0,
                     ]);
                 }
 
@@ -177,16 +162,13 @@ class InvOrdenCompraController extends Controller
 
         return response()->json([
             'message' => 'Orden de compra actualizada exitosamente.',
-            'data'    => new InvOrdenCompraResource($orden),
+            'data' => new InvOrdenCompraResource($orden),
         ]);
     }
 
     /**
      * Envía la orden al proveedor (borrador → enviada).
      * Una vez enviada ya no puede editarse.
-     *
-     * @param InvOrdenCompra $ordenCompra
-     * @return JsonResponse
      */
     public function enviar(InvOrdenCompra $ordenCompra): JsonResponse
     {
@@ -206,17 +188,13 @@ class InvOrdenCompraController extends Controller
 
         return response()->json([
             'message' => 'Orden enviada al proveedor.',
-            'data'    => new InvOrdenCompraResource($ordenCompra->load(['proveedor', 'almacen'])),
+            'data' => new InvOrdenCompraResource($ordenCompra->load(['proveedor', 'almacen'])),
         ]);
     }
 
     /**
      * Registra la recepción total o parcial de ítems de una orden enviada.
      * Genera documento de entrada de stock y actualiza las existencias.
-     *
-     * @param RecibirInvOrdenCompraRequest $request
-     * @param InvOrdenCompra               $ordenCompra
-     * @return JsonResponse
      */
     public function recibir(RecibirInvOrdenCompraRequest $request, InvOrdenCompra $ordenCompra): JsonResponse
     {
@@ -230,9 +208,9 @@ class InvOrdenCompraController extends Controller
             $ordenCompra->refresh()->load(['proveedor', 'almacen', 'items.producto']);
 
             return response()->json([
-                'message'        => 'Recepción registrada exitosamente.',
-                'data'           => new InvOrdenCompraResource($ordenCompra),
-                'documento_id'   => $documento->id,
+                'message' => 'Recepción registrada exitosamente.',
+                'data' => new InvOrdenCompraResource($ordenCompra),
+                'documento_id' => $documento->id,
                 'numero_documento' => $documento->numero_documento,
             ]);
         } catch (\RuntimeException $e) {
@@ -245,13 +223,10 @@ class InvOrdenCompraController extends Controller
     /**
      * Cancela una orden de compra en estado borrador o enviada.
      * No se pueden cancelar órdenes que ya tienen recepciones.
-     *
-     * @param InvOrdenCompra $ordenCompra
-     * @return JsonResponse
      */
     public function cancelar(InvOrdenCompra $ordenCompra): JsonResponse
     {
-        if (!in_array($ordenCompra->status, [
+        if (! in_array($ordenCompra->status, [
             InvOrdenCompra::STATUS_BORRADOR,
             InvOrdenCompra::STATUS_ENVIADA,
         ])) {
@@ -264,15 +239,12 @@ class InvOrdenCompraController extends Controller
 
         return response()->json([
             'message' => 'Orden de compra cancelada.',
-            'data'    => new InvOrdenCompraResource($ordenCompra),
+            'data' => new InvOrdenCompraResource($ordenCompra),
         ]);
     }
 
     /**
      * Lista órdenes pendientes de recepción (enviadas o parcialmente recibidas).
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function pendientesRecepcion(Request $request): JsonResponse
     {
@@ -289,11 +261,11 @@ class InvOrdenCompraController extends Controller
             'data' => InvOrdenCompraResource::collection($ordenes),
             'meta' => [
                 'current_page' => $ordenes->currentPage(),
-                'last_page'    => $ordenes->lastPage(),
-                'per_page'     => $ordenes->perPage(),
-                'total'        => $ordenes->total(),
-                'from'         => $ordenes->firstItem(),
-                'to'           => $ordenes->lastItem(),
+                'last_page' => $ordenes->lastPage(),
+                'per_page' => $ordenes->perPage(),
+                'total' => $ordenes->total(),
+                'from' => $ordenes->firstItem(),
+                'to' => $ordenes->lastItem(),
             ],
         ]);
     }

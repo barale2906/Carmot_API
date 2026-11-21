@@ -14,8 +14,6 @@ class CompletarInvEntregaSimpleRequest extends FormRequest
 {
     /**
      * La autorización se resuelve con el middleware de permisos de la ruta.
-     *
-     * @return bool
      */
     public function authorize(): bool
     {
@@ -28,7 +26,7 @@ class CompletarInvEntregaSimpleRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'cantidad'       => ['nullable', 'integer', 'min:1'],
+            'cantidad' => ['nullable', 'integer', 'min:1'],
             'forzar_parcial' => ['nullable', 'boolean'],
         ];
     }
@@ -40,7 +38,7 @@ class CompletarInvEntregaSimpleRequest extends FormRequest
     {
         return [
             'cantidad.integer' => 'La cantidad a entregar debe ser un número entero.',
-            'cantidad.min'     => 'La cantidad a entregar debe ser al menos 1.',
+            'cantidad.min' => 'La cantidad a entregar debe ser al menos 1.',
             'forzar_parcial.boolean' => 'El indicador de entrega parcial forzada debe ser verdadero o falso.',
         ];
     }
@@ -51,7 +49,7 @@ class CompletarInvEntregaSimpleRequest extends FormRequest
     public function attributes(): array
     {
         return [
-            'cantidad'       => 'cantidad a entregar',
+            'cantidad' => 'cantidad a entregar',
             'forzar_parcial' => 'entrega parcial forzada',
         ];
     }

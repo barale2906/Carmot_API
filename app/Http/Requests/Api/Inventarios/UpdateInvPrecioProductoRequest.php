@@ -14,8 +14,6 @@ class UpdateInvPrecioProductoRequest extends FormRequest
 {
     /**
      * La autorización se resuelve con el middleware de permisos de la ruta.
-     *
-     * @return bool
      */
     public function authorize(): bool
     {
@@ -28,16 +26,13 @@ class UpdateInvPrecioProductoRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'precio'        => ['required', 'numeric', 'min:0'],
+            'precio' => ['required', 'numeric', 'min:0'],
             'observaciones' => ['nullable', 'string', 'max:1000'],
         ];
     }
 
     /**
      * Rechaza el cambio si la lista del precio ya está aprobada o activa (N14).
-     *
-     * @param Validator $validator
-     * @return void
      */
     public function withValidator(Validator $validator): void
     {
@@ -57,7 +52,7 @@ class UpdateInvPrecioProductoRequest extends FormRequest
     {
         return [
             'precio.required' => 'El precio es obligatorio.',
-            'precio.min'      => 'El precio no puede ser negativo.',
+            'precio.min' => 'El precio no puede ser negativo.',
         ];
     }
 }

@@ -9,8 +9,6 @@ class UpdateSedeRequest extends FormRequest
 {
     /**
      * Determina si el usuario está autorizado para realizar esta petición.
-     *
-     * @return bool
      */
     public function authorize(): bool
     {
@@ -35,9 +33,9 @@ class UpdateSedeRequest extends FormRequest
                 'string',
                 'email',
                 'max:255',
-                Rule::unique('sedes', 'email')->ignore($sedeId)
+                Rule::unique('sedes', 'email')->ignore($sedeId),
             ],
-            'codigo_academico'  => ['sometimes', 'nullable', 'string', 'max:10', Rule::unique('sedes', 'codigo_academico')->ignore($sedeId)],
+            'codigo_academico' => ['sometimes', 'nullable', 'string', 'max:10', Rule::unique('sedes', 'codigo_academico')->ignore($sedeId)],
             'codigo_inventario' => ['sometimes', 'nullable', 'string', 'max:10', Rule::unique('sedes', 'codigo_inventario')->ignore($sedeId)],
             'hora_inicio' => ['sometimes', 'date_format:H:i:s'],
             'hora_fin' => ['sometimes', 'date_format:H:i:s', 'after:hora_inicio'],
@@ -69,9 +67,9 @@ class UpdateSedeRequest extends FormRequest
             'email.email' => 'El email debe tener un formato válido.',
             'email.unique' => 'Este email ya está registrado.',
             'email.max' => 'El email no puede exceder los 255 caracteres.',
-            'codigo_academico.max'    => 'El código académico no puede exceder los 10 caracteres.',
+            'codigo_academico.max' => 'El código académico no puede exceder los 10 caracteres.',
             'codigo_academico.unique' => 'Este código académico ya está en uso por otra sede.',
-            'codigo_inventario.max'    => 'El código de inventario no puede exceder los 10 caracteres.',
+            'codigo_inventario.max' => 'El código de inventario no puede exceder los 10 caracteres.',
             'codigo_inventario.unique' => 'Este código de inventario ya está en uso por otra sede.',
             'hora_inicio.date_format' => 'La hora de inicio debe tener el formato HH:MM:SS.',
             'hora_fin.date_format' => 'La hora de fin debe tener el formato HH:MM:SS.',
@@ -106,7 +104,7 @@ class UpdateSedeRequest extends FormRequest
             'direccion' => 'dirección',
             'telefono' => 'teléfono',
             'email' => 'email',
-            'codigo_academico'  => 'código académico',
+            'codigo_academico' => 'código académico',
             'codigo_inventario' => 'código de inventario',
             'hora_inicio' => 'hora de inicio',
             'hora_fin' => 'hora de fin',

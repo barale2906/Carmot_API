@@ -9,15 +9,11 @@ use Illuminate\Foundation\Http\FormRequest;
 
 /**
  * Valida la configuración de impresión de los bloques de una versión de plantilla.
- *
- * @package App\Http\Requests\Api\Academico\Documentacion
  */
 class SyncDocPlantillaBloquesRequest extends FormRequest
 {
     /**
      * Determina si el usuario está autorizado (los permisos se validan por middleware).
-     *
-     * @return bool
      */
     public function authorize(): bool
     {
@@ -32,12 +28,12 @@ class SyncDocPlantillaBloquesRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'bloques'                   => 'present|array',
-            'bloques.*.bloque'          => 'required|string|max:100',
-            'bloques.*.columnas'        => 'required|array|min:1',
-            'bloques.*.columnas.*'      => 'required|string|max:100',
-            'bloques.*.titulos'         => 'sometimes|array',
-            'bloques.*.titulos.*'       => 'nullable|string|max:150',
+            'bloques' => 'present|array',
+            'bloques.*.bloque' => 'required|string|max:100',
+            'bloques.*.columnas' => 'required|array|min:1',
+            'bloques.*.columnas.*' => 'required|string|max:100',
+            'bloques.*.titulos' => 'sometimes|array',
+            'bloques.*.titulos.*' => 'nullable|string|max:150',
             'bloques.*.mostrar_resumen' => 'sometimes|boolean',
         ];
     }
@@ -47,9 +43,6 @@ class SyncDocPlantillaBloquesRequest extends FormRequest
      *
      * El catálogo depende de la entidad del tipo de documento: un bloque de
      * cartera no aplica a un documento que no se asocia a una matrícula.
-     *
-     * @param Validator $validator
-     * @return void
      */
     public function withValidator(Validator $validator): void
     {
@@ -57,18 +50,18 @@ class SyncDocPlantillaBloquesRequest extends FormRequest
             /** @var DocPlantilla|null $plantilla */
             $plantilla = $this->route('plantilla');
 
-            if (!$plantilla || $validator->errors()->isNotEmpty()) {
+            if (! $plantilla || $validator->errors()->isNotEmpty()) {
                 return;
             }
 
-            $render      = app(DocBloqueRenderService::class);
+            $render = app(DocBloqueRenderService::class);
             $entidadType = $plantilla->tipoDocumento->entidad_type;
-            $validos     = $render->clavesValidas($entidadType);
+            $validos = $render->clavesValidas($entidadType);
 
             foreach ($this->input('bloques', []) as $indice => $config) {
                 $clave = $config['bloque'] ?? null;
 
-                if (!in_array($clave, $validos, true)) {
+                if (! in_array($clave, $validos, true)) {
                     $validator->errors()->add(
                         "bloques.{$indice}.bloque",
                         "El bloque \"{$clave}\" no está disponible para la entidad de este tipo de documento."
@@ -97,10 +90,10 @@ class SyncDocPlantillaBloquesRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'bloques.present'             => 'Debe enviar la lista de bloques.',
-            'bloques.*.bloque.required'   => 'Cada configuración debe indicar el bloque.',
+            'bloques.present' => 'Debe enviar la lista de bloques.',
+            'bloques.*.bloque.required' => 'Cada configuración debe indicar el bloque.',
             'bloques.*.columnas.required' => 'Debe seleccionar al menos una columna del bloque.',
-            'bloques.*.columnas.min'      => 'Debe seleccionar al menos una columna del bloque.',
+            'bloques.*.columnas.min' => 'Debe seleccionar al menos una columna del bloque.',
         ];
     }
 
@@ -112,9 +105,9 @@ class SyncDocPlantillaBloquesRequest extends FormRequest
     public function attributes(): array
     {
         return [
-            'bloques'              => 'bloques',
-            'bloques.*.bloque'     => 'bloque',
-            'bloques.*.columnas'   => 'columnas',
+            'bloques' => 'bloques',
+            'bloques.*.bloque' => 'bloque',
+            'bloques.*.columnas' => 'columnas',
         ];
     }
 }

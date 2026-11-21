@@ -10,15 +10,11 @@ use Illuminate\Foundation\Http\FormRequest;
 
 /**
  * Valida la clonación de una versión de plantilla en una nueva versión borrador.
- *
- * @package App\Http\Requests\Api\Academico\Documentacion
  */
 class CloneDocPlantillaRequest extends FormRequest
 {
     /**
      * Determina si el usuario está autorizado (los permisos se validan por middleware).
-     *
-     * @return bool
      */
     public function authorize(): bool
     {
@@ -33,7 +29,7 @@ class CloneDocPlantillaRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'nombre'         => 'required|string|max:255',
+            'nombre' => 'required|string|max:255',
             'contenido_html' => 'nullable|string',
         ];
     }
@@ -43,9 +39,6 @@ class CloneDocPlantillaRequest extends FormRequest
      *
      * Si no se envía contenido se copia el de la versión origen, que ya fue
      * validado al crearse.
-     *
-     * @param Validator $validator
-     * @return void
      */
     public function withValidator(Validator $validator): void
     {
@@ -53,7 +46,7 @@ class CloneDocPlantillaRequest extends FormRequest
             /** @var DocPlantilla|null $plantilla */
             $plantilla = $this->route('plantilla');
 
-            if (!$plantilla || !$this->filled('contenido_html')) {
+            if (! $plantilla || ! $this->filled('contenido_html')) {
                 return;
             }
 
@@ -99,7 +92,7 @@ class CloneDocPlantillaRequest extends FormRequest
     public function attributes(): array
     {
         return [
-            'nombre'         => 'nombre',
+            'nombre' => 'nombre',
             'contenido_html' => 'contenido',
         ];
     }

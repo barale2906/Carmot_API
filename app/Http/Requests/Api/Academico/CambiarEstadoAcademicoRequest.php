@@ -11,8 +11,6 @@ class CambiarEstadoAcademicoRequest extends FormRequest
 {
     /**
      * Determina si el usuario está autorizado para realizar esta petición.
-     *
-     * @return bool
      */
     public function authorize(): bool
     {
@@ -28,8 +26,8 @@ class CambiarEstadoAcademicoRequest extends FormRequest
     {
         return [
             'estado_academico' => ['required', 'integer', Rule::in(array_diff(array_keys(Matricula::ESTADOS_ACADEMICOS), [Matricula::ESTADO_PENDIENTE_INICIO]))],
-            'fecha'            => ['required', 'date', 'before_or_equal:today'],
-            'motivo'           => ['required', 'string', 'min:5', 'max:1000'],
+            'fecha' => ['required', 'date', 'before_or_equal:today'],
+            'motivo' => ['required', 'string', 'min:5', 'max:1000'],
         ];
     }
 
@@ -42,11 +40,11 @@ class CambiarEstadoAcademicoRequest extends FormRequest
     {
         return [
             'estado_academico.required' => 'El estado académico es obligatorio.',
-            'estado_academico.in'       => 'El estado académico no es válido.',
-            'fecha.required'            => 'La fecha del cambio es obligatoria.',
-            'fecha.before_or_equal'     => 'La fecha del cambio no puede ser futura.',
-            'motivo.required'           => 'Indica el motivo del cambio de estado.',
-            'motivo.min'                => 'El motivo debe tener al menos 5 caracteres.',
+            'estado_academico.in' => 'El estado académico no es válido.',
+            'fecha.required' => 'La fecha del cambio es obligatoria.',
+            'fecha.before_or_equal' => 'La fecha del cambio no puede ser futura.',
+            'motivo.required' => 'Indica el motivo del cambio de estado.',
+            'motivo.min' => 'El motivo debe tener al menos 5 caracteres.',
         ];
     }
 
@@ -59,8 +57,8 @@ class CambiarEstadoAcademicoRequest extends FormRequest
     {
         return [
             'estado_academico' => 'estado académico',
-            'fecha'            => 'fecha',
-            'motivo'           => 'motivo',
+            'fecha' => 'fecha',
+            'motivo' => 'motivo',
         ];
     }
 
@@ -74,8 +72,7 @@ class CambiarEstadoAcademicoRequest extends FormRequest
      * cierre (ciclo terminado, notas completas y aprobadas) y reprobar exige el ciclo
      * terminado sin haberla aprobado (N20). La asistencia no decide: solo la nota del profesor.
      *
-     * @param \Illuminate\Validation\Validator $validator
-     * @return void
+     * @param  \Illuminate\Validation\Validator  $validator
      */
     public function withValidator($validator): void
     {
@@ -86,15 +83,17 @@ class CambiarEstadoAcademicoRequest extends FormRequest
 
             /** @var Matricula $matricula */
             $matricula = $this->route('matricula');
-            $nuevo     = (int) $this->estado_academico;
+            $nuevo = (int) $this->estado_academico;
 
             if ($matricula->status === 2) {
                 $validator->errors()->add('estado_academico', 'La matrícula está anulada: no se puede cambiar su estado académico.');
+
                 return;
             }
 
             if ($matricula->estado_academico === $nuevo) {
                 $validator->errors()->add('estado_academico', 'La matrícula ya tiene ese estado académico.');
+
                 return;
             }
 
@@ -106,6 +105,7 @@ class CambiarEstadoAcademicoRequest extends FormRequest
 
             if (in_array($actual, Matricula::ESTADOS_ACADEMICOS_CIERRE, true) && $nuevo !== Matricula::ESTADO_ACTIVO) {
                 $validator->errors()->add('estado_academico', "La matrícula está en estado {$matricula->estado_academico_texto}: solo puede volver a Activo para corregir un error.");
+
                 return;
             }
 
@@ -129,16 +129,13 @@ class CambiarEstadoAcademicoRequest extends FormRequest
     /**
      * Valida el paso a Graduado o Reprobado con la evaluación de cierre de la matrícula.
      *
-     * @param \Illuminate\Validation\Validator $validator
-     * @param Matricula $matricula
-     * @param int $actual
-     * @param int $nuevo
-     * @return void
+     * @param  \Illuminate\Validation\Validator  $validator
      */
     private function validarCierre($validator, Matricula $matricula, int $actual, int $nuevo): void
     {
         if ($actual !== Matricula::ESTADO_ACTIVO) {
             $validator->errors()->add('estado_academico', 'Solo se puede graduar o reprobar una matrícula en estado Activo.');
+
             return;
         }
 
@@ -148,6 +145,7 @@ class CambiarEstadoAcademicoRequest extends FormRequest
             foreach ($evaluacion['motivos'] as $motivo) {
                 $validator->errors()->add('estado_academico', "No se puede graduar: {$motivo}");
             }
+
             return;
         }
 

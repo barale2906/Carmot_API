@@ -8,7 +8,6 @@ use App\Http\Requests\Api\Financiero\Lp\SyncLpProductoReferenciasRequest;
 use App\Http\Resources\Api\Financiero\Lp\LpProductoReferenciaResource;
 use App\Models\Academico\Curso;
 use App\Models\Academico\Modulo;
-use App\Models\Financiero\Lp\LpProducto;
 use App\Models\Financiero\Lp\LpProductoReferencia;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -28,8 +27,6 @@ use Illuminate\Support\Facades\DB;
  * - destroy       → Desvincula una referencia específica
  * - sync          → Reemplaza masivamente todas las referencias de un producto
  * - sinVincular   → Lista cursos/módulos que no tienen ningún producto LP asignado
- *
- * @package App\Http\Controllers\Api\Financiero\Lp
  */
 class LpProductoReferenciaController extends Controller
 {
@@ -61,7 +58,7 @@ class LpProductoReferenciaController extends Controller
      * - per_page        (int)    Registros por página. Default: 15.
      *
      * @param  Request  $request  Solicitud HTTP con los filtros opcionales.
-     * @return JsonResponse       Colección paginada de LpProductoReferenciaResource.
+     * @return JsonResponse Colección paginada de LpProductoReferenciaResource.
      */
     public function index(Request $request): JsonResponse
     {
@@ -92,17 +89,17 @@ class LpProductoReferenciaController extends Controller
                 'data' => LpProductoReferenciaResource::collection($referencias),
                 'meta' => [
                     'current_page' => $referencias->currentPage(),
-                    'last_page'    => $referencias->lastPage(),
-                    'per_page'     => $referencias->perPage(),
-                    'total'        => $referencias->total(),
-                    'from'         => $referencias->firstItem(),
-                    'to'           => $referencias->lastItem(),
+                    'last_page' => $referencias->lastPage(),
+                    'per_page' => $referencias->perPage(),
+                    'total' => $referencias->total(),
+                    'from' => $referencias->firstItem(),
+                    'to' => $referencias->lastItem(),
                 ],
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Error al obtener las referencias.',
-                'error'   => $e->getMessage(),
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -112,7 +109,7 @@ class LpProductoReferenciaController extends Controller
      * Carga automáticamente el producto LP y su tipo de producto.
      *
      * @param  LpProductoReferencia  $lpProductoReferencia  Referencia a mostrar (Route Model Binding).
-     * @return JsonResponse                                  LpProductoReferenciaResource con datos completos.
+     * @return JsonResponse LpProductoReferenciaResource con datos completos.
      */
     public function show(LpProductoReferencia $lpProductoReferencia): JsonResponse
     {
@@ -126,7 +123,7 @@ class LpProductoReferenciaController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Error al obtener la referencia.',
-                'error'   => $e->getMessage(),
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -136,7 +133,7 @@ class LpProductoReferenciaController extends Controller
      * La unicidad del vínculo es validada por StoreLpProductoReferenciaRequest.
      *
      * @param  StoreLpProductoReferenciaRequest  $request  Datos validados del vínculo.
-     * @return JsonResponse                                 LpProductoReferenciaResource del vínculo creado (HTTP 201).
+     * @return JsonResponse LpProductoReferenciaResource del vínculo creado (HTTP 201).
      */
     public function store(StoreLpProductoReferenciaRequest $request): JsonResponse
     {
@@ -148,12 +145,12 @@ class LpProductoReferenciaController extends Controller
 
             return response()->json([
                 'message' => 'Referencia vinculada exitosamente.',
-                'data'    => new LpProductoReferenciaResource($referencia),
+                'data' => new LpProductoReferenciaResource($referencia),
             ], 201);
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Error al vincular la referencia.',
-                'error'   => $e->getMessage(),
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -164,7 +161,7 @@ class LpProductoReferenciaController extends Controller
      * historial propio y puede recrearse en cualquier momento.
      *
      * @param  LpProductoReferencia  $lpProductoReferencia  Referencia a eliminar (Route Model Binding).
-     * @return JsonResponse                                  Mensaje de confirmación.
+     * @return JsonResponse Mensaje de confirmación.
      */
     public function destroy(LpProductoReferencia $lpProductoReferencia): JsonResponse
     {
@@ -177,7 +174,7 @@ class LpProductoReferenciaController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Error al desvincular la referencia.',
-                'error'   => $e->getMessage(),
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -197,13 +194,13 @@ class LpProductoReferenciaController extends Controller
      * múltiples cursos/módulos y confirma todos los cambios de una vez.
      *
      * @param  SyncLpProductoReferenciasRequest  $request  Datos validados con el array de referencias.
-     * @return JsonResponse                                 Colección de las referencias resultantes y conteo total.
+     * @return JsonResponse Colección de las referencias resultantes y conteo total.
      */
     public function sync(SyncLpProductoReferenciasRequest $request): JsonResponse
     {
         try {
-            $productoId  = $request->integer('lp_producto_id');
-            $nuevasRefs  = $request->input('referencias', []);
+            $productoId = $request->integer('lp_producto_id');
+            $nuevasRefs = $request->input('referencias', []);
 
             DB::beginTransaction();
 
@@ -212,8 +209,8 @@ class LpProductoReferenciaController extends Controller
 
             // Insertar las nuevas referencias
             $creadas = collect($nuevasRefs)->map(fn ($ref) => LpProductoReferencia::create([
-                'lp_producto_id'  => $productoId,
-                'referencia_id'   => (int) $ref['referencia_id'],
+                'lp_producto_id' => $productoId,
+                'referencia_id' => (int) $ref['referencia_id'],
                 'referencia_tipo' => $ref['referencia_tipo'],
             ]));
 
@@ -225,15 +222,15 @@ class LpProductoReferenciaController extends Controller
 
             return response()->json([
                 'message' => 'Referencias sincronizadas exitosamente.',
-                'total'   => $creadas->count(),
-                'data'    => LpProductoReferenciaResource::collection($creadas),
+                'total' => $creadas->count(),
+                'data' => LpProductoReferenciaResource::collection($creadas),
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
 
             return response()->json([
                 'message' => 'Error al sincronizar las referencias.',
-                'error'   => $e->getMessage(),
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -254,7 +251,7 @@ class LpProductoReferenciaController extends Controller
      * - per_page        (int,    opcional)  Registros por página. Default: 15. Máx: 100.
      *
      * @param  Request  $request  Solicitud HTTP con los filtros y parámetros de paginación.
-     * @return JsonResponse       Lista paginada de cursos/módulos sin producto LP asignado.
+     * @return JsonResponse Lista paginada de cursos/módulos sin producto LP asignado.
      */
     public function sinVincular(Request $request): JsonResponse
     {
@@ -265,7 +262,7 @@ class LpProductoReferenciaController extends Controller
                     'string',
                     \Illuminate\Validation\Rule::in(LpProductoReferencia::tiposValidos()),
                 ],
-                'search'   => 'sometimes|string|max:150',
+                'search' => 'sometimes|string|max:150',
                 'per_page' => 'sometimes|integer|min:1|max:100',
             ]);
 
@@ -296,10 +293,10 @@ class LpProductoReferenciaController extends Controller
             $resultados = $query->paginate($request->integer('per_page', 15));
 
             $datos = collect($resultados->items())->map(fn ($item) => [
-                'id'     => $item->id,
+                'id' => $item->id,
                 'nombre' => $item->nombre,
                 'codigo' => $item->codigo ?? null,
-                'tipo'   => $tipo,
+                'tipo' => $tipo,
                 'tipo_label' => $tipo === LpProductoReferencia::TIPO_CURSO ? 'Curso' : 'Módulo',
             ]);
 
@@ -307,22 +304,22 @@ class LpProductoReferenciaController extends Controller
                 'data' => $datos,
                 'meta' => [
                     'current_page' => $resultados->currentPage(),
-                    'last_page'    => $resultados->lastPage(),
-                    'per_page'     => $resultados->perPage(),
-                    'total'        => $resultados->total(),
-                    'from'         => $resultados->firstItem(),
-                    'to'           => $resultados->lastItem(),
+                    'last_page' => $resultados->lastPage(),
+                    'per_page' => $resultados->perPage(),
+                    'total' => $resultados->total(),
+                    'from' => $resultados->firstItem(),
+                    'to' => $resultados->lastItem(),
                 ],
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
                 'message' => 'Error de validación.',
-                'errors'  => $e->errors(),
+                'errors' => $e->errors(),
             ], 422);
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Error al obtener los registros sin vincular.',
-                'error'   => $e->getMessage(),
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -346,14 +343,13 @@ class LpProductoReferenciaController extends Controller
      * - 'modulo' → setRelation('modulo', Modulo)
      *
      * @param  \Illuminate\Support\Collection<int, LpProductoReferencia>  $referencias  Colección a procesar.
-     * @return void
      */
     private function cargarEntidadesAcademicas(\Illuminate\Support\Collection $referencias): void
     {
-        $cursoIds  = $referencias->where('referencia_tipo', LpProductoReferencia::TIPO_CURSO)->pluck('referencia_id')->unique();
+        $cursoIds = $referencias->where('referencia_tipo', LpProductoReferencia::TIPO_CURSO)->pluck('referencia_id')->unique();
         $moduloIds = $referencias->where('referencia_tipo', LpProductoReferencia::TIPO_MODULO)->pluck('referencia_id')->unique();
 
-        $cursos  = $cursoIds->isNotEmpty()  ? Curso::whereIn('id', $cursoIds)->get()->keyBy('id')   : collect();
+        $cursos = $cursoIds->isNotEmpty() ? Curso::whereIn('id', $cursoIds)->get()->keyBy('id') : collect();
         $modulos = $moduloIds->isNotEmpty() ? Modulo::whereIn('id', $moduloIds)->get()->keyBy('id') : collect();
 
         $referencias->each(function (LpProductoReferencia $ref) use ($cursos, $modulos) {

@@ -10,8 +10,6 @@ class CambiarEstadoActActivoRequest extends FormRequest
 {
     /**
      * Determina si el usuario está autorizado para realizar esta petición.
-     *
-     * @return bool
      */
     public function authorize(): bool
     {
@@ -27,7 +25,7 @@ class CambiarEstadoActActivoRequest extends FormRequest
     {
         return [
             'estado' => ['required', Rule::in(array_keys(ActActivo::ESTADOS))],
-            'fecha'  => ['required', 'date', 'before_or_equal:today'],
+            'fecha' => ['required', 'date', 'before_or_equal:today'],
             'motivo' => ['required', 'string', 'min:5', 'max:1000'],
         ];
     }
@@ -40,9 +38,9 @@ class CambiarEstadoActActivoRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'estado.in'             => 'El estado no es válido.',
+            'estado.in' => 'El estado no es válido.',
             'fecha.before_or_equal' => 'La fecha del cambio no puede ser futura.',
-            'motivo.required'       => 'Indica el motivo del cambio de estado.',
+            'motivo.required' => 'Indica el motivo del cambio de estado.',
         ];
     }
 
@@ -50,8 +48,7 @@ class CambiarEstadoActActivoRequest extends FormRequest
      * La baja es definitiva, el estado nuevo debe ser distinto del actual y un activo
      * en tránsito no cambia de estado hasta que se reciba o se cancele el traslado.
      *
-     * @param \Illuminate\Validation\Validator $validator
-     * @return void
+     * @param  \Illuminate\Validation\Validator  $validator
      */
     public function withValidator($validator): void
     {

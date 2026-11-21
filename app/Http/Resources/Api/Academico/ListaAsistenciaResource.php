@@ -53,6 +53,7 @@ class ListaAsistenciaResource extends JsonResource
                         'en_mora' => ($estudiante->mora['saldo'] ?? 0) > 0,
                         'dias_mora' => (int) ($estudiante->mora['dias_mora'] ?? 0),
                         'mora_detalle' => $estudiante->mora['cuotas'] ?? [],
+                        'prorroga_pago' => $estudiante->prorroga_pago ?? null,
                         'transferencias_pendientes' => $estudiante->transferencias_pendientes['cantidad'] ?? 0,
                         'valor_transferencias_pendientes' => (float) ($estudiante->transferencias_pendientes['valor'] ?? 0),
                         'fallas_consecutivas' => (int) ($estudiante->fallas_consecutivas ?? 0),

@@ -13,7 +13,6 @@ use Illuminate\Http\Resources\Json\JsonResource;
  * opcionales de módulos y temas cuando están cargadas.
  *
  * @mixin \App\Models\Academico\Topico
- * @package App\Http\Resources\Api\Academico
  */
 class TopicoResource extends JsonResource
 {

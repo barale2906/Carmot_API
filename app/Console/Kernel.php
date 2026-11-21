@@ -30,6 +30,9 @@ class Kernel extends ConsoleKernel
 
         // Aplica mora diaria a las carteras vencidas con saldo pendiente
         $schedule->command('financiero:aplicar-mora-diaria')->dailyAt('00:30');
+
+        // Cierra los plazos nuevos de pago vencidos y avisa de los incumplidos
+        $schedule->command('financiero:verificar-prorrogas-pago')->dailyAt('00:40');
     }
 
     /**

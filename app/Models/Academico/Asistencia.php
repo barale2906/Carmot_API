@@ -3,6 +3,7 @@
 namespace App\Models\Academico;
 
 use App\Models\Financiero\Cartera\Cartera;
+use App\Models\Financiero\Cartera\ProrrogaPago;
 use App\Models\Financiero\ReciboPago\ReciboPago;
 use App\Models\User;
 use App\Traits\HasFilterScopes;
@@ -37,7 +38,6 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property \Carbon\Carbon $created_at Fecha de creación
  * @property \Carbon\Carbon $updated_at Fecha de última actualización
  * @property \Carbon\Carbon|null $deleted_at Fecha de eliminación (soft delete)
- *
  * @property-read \App\Models\User $estudiante Estudiante al que pertenece
  * @property-read \App\Models\Academico\AsistenciaClaseProgramada $claseProgramada Clase programada a la que pertenece
  * @property-read \App\Models\Academico\Grupo $grupo Grupo al que pertenece
@@ -48,7 +48,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  */
 class Asistencia extends Model
 {
-    use HasFactory, SoftDeletes, HasFilterScopes, HasGenericScopes, HasSortingScopes, HasRelationScopes;
+    use HasFactory, HasFilterScopes, HasGenericScopes, HasRelationScopes, HasSortingScopes, SoftDeletes;
 
     /** Estados de asistencia (enum de la tabla). La justificación va aparte, en `justificada`. */
     public const ESTADOS = ['presente', 'ausente', 'tardanza'];
@@ -78,8 +78,6 @@ class Asistencia extends Model
     /**
      * Relación con User (muchos a uno) - Estudiante.
      * Una asistencia pertenece a un estudiante.
-     *
-     * @return BelongsTo
      */
     public function estudiante(): BelongsTo
     {
@@ -89,8 +87,6 @@ class Asistencia extends Model
     /**
      * Relación con AsistenciaClaseProgramada (muchos a uno).
      * Una asistencia pertenece a una clase programada.
-     *
-     * @return BelongsTo
      */
     public function claseProgramada(): BelongsTo
     {
@@ -100,8 +96,6 @@ class Asistencia extends Model
     /**
      * Relación con Grupo (muchos a uno).
      * Una asistencia pertenece a un grupo.
-     *
-     * @return BelongsTo
      */
     public function grupo(): BelongsTo
     {
@@ -111,8 +105,6 @@ class Asistencia extends Model
     /**
      * Relación con Ciclo (muchos a uno).
      * Una asistencia pertenece a un ciclo.
-     *
-     * @return BelongsTo
      */
     public function ciclo(): BelongsTo
     {
@@ -122,8 +114,6 @@ class Asistencia extends Model
     /**
      * Relación con Modulo (muchos a uno).
      * Una asistencia pertenece a un módulo.
-     *
-     * @return BelongsTo
      */
     public function modulo(): BelongsTo
     {
@@ -133,8 +123,6 @@ class Asistencia extends Model
     /**
      * Relación con Curso (muchos a uno).
      * Una asistencia pertenece a un curso.
-     *
-     * @return BelongsTo
      */
     public function curso(): BelongsTo
     {
@@ -144,8 +132,6 @@ class Asistencia extends Model
     /**
      * Relación con User (muchos a uno) - Usuario que registró.
      * Una asistencia fue registrada por un usuario.
-     *
-     * @return BelongsTo
      */
     public function registradoPor(): BelongsTo
     {
@@ -155,8 +141,8 @@ class Asistencia extends Model
     /**
      * Scope para filtrar por estudiante.
      *
-     * @param \Illuminate\Database\Eloquent\Builder $query
-     * @param int $estudianteId
+     * @param  \Illuminate\Database\Eloquent\Builder  $query
+     * @param  int  $estudianteId
      * @return \Illuminate\Database\Eloquent\Builder
      */
     public function scopeByEstudiante($query, $estudianteId)
@@ -167,8 +153,8 @@ class Asistencia extends Model
     /**
      * Scope para filtrar por grupo.
      *
-     * @param \Illuminate\Database\Eloquent\Builder $query
-     * @param int $grupoId
+     * @param  \Illuminate\Database\Eloquent\Builder  $query
+     * @param  int  $grupoId
      * @return \Illuminate\Database\Eloquent\Builder
      */
     public function scopeByGrupo($query, $grupoId)
@@ -179,8 +165,8 @@ class Asistencia extends Model
     /**
      * Scope para filtrar por ciclo.
      *
-     * @param \Illuminate\Database\Eloquent\Builder $query
-     * @param int $cicloId
+     * @param  \Illuminate\Database\Eloquent\Builder  $query
+     * @param  int  $cicloId
      * @return \Illuminate\Database\Eloquent\Builder
      */
     public function scopeByCiclo($query, $cicloId)
@@ -191,8 +177,8 @@ class Asistencia extends Model
     /**
      * Scope para filtrar por curso.
      *
-     * @param \Illuminate\Database\Eloquent\Builder $query
-     * @param int $cursoId
+     * @param  \Illuminate\Database\Eloquent\Builder  $query
+     * @param  int  $cursoId
      * @return \Illuminate\Database\Eloquent\Builder
      */
     public function scopeByCurso($query, $cursoId)
@@ -203,7 +189,7 @@ class Asistencia extends Model
     /**
      * Scope para filtrar asistencias presentes.
      *
-     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @param  \Illuminate\Database\Eloquent\Builder  $query
      * @return \Illuminate\Database\Eloquent\Builder
      */
     public function scopePresentes($query)
@@ -214,7 +200,7 @@ class Asistencia extends Model
     /**
      * Scope para filtrar asistencias ausentes.
      *
-     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @param  \Illuminate\Database\Eloquent\Builder  $query
      * @return \Illuminate\Database\Eloquent\Builder
      */
     public function scopeAusentes($query)
@@ -225,7 +211,7 @@ class Asistencia extends Model
     /**
      * Scope para filtrar asistencias con justificación (ausencias o tardanzas justificadas).
      *
-     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @param  \Illuminate\Database\Eloquent\Builder  $query
      * @return \Illuminate\Database\Eloquent\Builder
      */
     public function scopeJustificadas($query)
@@ -236,8 +222,8 @@ class Asistencia extends Model
     /**
      * Scope para filtrar por la sede del grupo.
      *
-     * @param \Illuminate\Database\Eloquent\Builder $query
-     * @param int $sedeId
+     * @param  \Illuminate\Database\Eloquent\Builder  $query
+     * @param  int  $sedeId
      * @return \Illuminate\Database\Eloquent\Builder
      */
     public function scopeBySede($query, $sedeId)
@@ -248,9 +234,9 @@ class Asistencia extends Model
     /**
      * Scope para filtrar por la fecha de la clase (no la del registro): desde y/o hasta, inclusive.
      *
-     * @param \Illuminate\Database\Eloquent\Builder $query
-     * @param string|null $desde Fecha inicial (Y-m-d)
-     * @param string|null $hasta Fecha final (Y-m-d)
+     * @param  \Illuminate\Database\Eloquent\Builder  $query
+     * @param  string|null  $desde  Fecha inicial (Y-m-d)
+     * @param  string|null  $hasta  Fecha final (Y-m-d)
      * @return \Illuminate\Database\Eloquent\Builder
      */
     public function scopeByFechaClase($query, ?string $desde, ?string $hasta)
@@ -263,7 +249,7 @@ class Asistencia extends Model
     /**
      * Ordena por la fecha y hora de la clase, la más reciente primero, y luego por estudiante.
      *
-     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @param  \Illuminate\Database\Eloquent\Builder  $query
      * @return \Illuminate\Database\Eloquent\Builder
      */
     public function scopeOrdenadoPorClase($query)
@@ -281,8 +267,6 @@ class Asistencia extends Model
 
     /**
      * Verifica si la asistencia es presente.
-     *
-     * @return bool
      */
     public function esPresente(): bool
     {
@@ -291,8 +275,6 @@ class Asistencia extends Model
 
     /**
      * Verifica si la asistencia tiene justificación. Una ausencia justificada sigue siendo falla.
-     *
-     * @return bool
      */
     public function esJustificada(): bool
     {
@@ -303,21 +285,22 @@ class Asistencia extends Model
      * Deja en cada asistencia la situación de su estudiante en el curso, para el listado y el Excel:
      * - mora: `saldo_vencido` (0 si está al día), `dias_mora` de la cuota más antigua y
      *   `mora_detalle` con las cuotas vencidas (ver Cartera::moraPorEstudiante());
+     * - `prorroga_pago`: plazo nuevo vigente acordado con el estudiante, o null (ver ProrrogaPago::vigentesPorEstudiante());
      * - transferencias pendientes de aprobación: `transferencias_pendientes`, `valor_transferencias_pendientes`;
      * - `fallas_consecutivas` en el curso y `estado_estudiante` (ver estadoEstudiante()), tomando
      *   el estado académico de su matrícula más reciente no anulada en ese curso.
      *
-     * @param iterable<Asistencia> $asistencias
-     * @return void
+     * @param  iterable<Asistencia>  $asistencias
      */
     public static function cargarEstadoEstudiante(iterable $asistencias): void
     {
         $asistencias = collect($asistencias);
-        $ids            = $asistencias->pluck('estudiante_id')->unique()->values()->all();
-        $moras          = Cartera::moraPorEstudiante($ids);
+        $ids = $asistencias->pluck('estudiante_id')->unique()->values()->all();
+        $moras = Cartera::moraPorEstudiante($ids);
         $transferencias = ReciboPago::transferenciasPendientesPorEstudiante($ids);
-        $fallas         = static::fallasConsecutivasPorCurso($ids);
-        $estados        = Matricula::whereIn('estudiante_id', $ids)
+        $fallas = static::fallasConsecutivasPorCurso($ids);
+        $prorrogas = ProrrogaPago::vigentesPorEstudiante($ids);
+        $estados = Matricula::whereIn('estudiante_id', $ids)
             ->whereIn('curso_id', $asistencias->pluck('curso_id')->unique()->values()->all())
             ->where('status', '!=', 2)
             ->orderBy('id')
@@ -325,14 +308,15 @@ class Asistencia extends Model
             ->keyBy(fn (Matricula $m) => "{$m->estudiante_id}:{$m->curso_id}")
             ->map(fn (Matricula $m) => (int) $m->estado_academico);
 
-        $asistencias->each(function (Asistencia $asistencia) use ($moras, $transferencias, $fallas, $estados) {
-            $clave     = "{$asistencia->estudiante_id}:{$asistencia->curso_id}";
+        $asistencias->each(function (Asistencia $asistencia) use ($moras, $transferencias, $fallas, $estados, $prorrogas) {
+            $clave = "{$asistencia->estudiante_id}:{$asistencia->curso_id}";
             $pendiente = $transferencias->get($asistencia->estudiante_id);
-            $mora      = $moras->get($asistencia->estudiante_id);
-            $seguidas  = $fallas->get($clave, 0);
+            $mora = $moras->get($asistencia->estudiante_id);
+            $seguidas = $fallas->get($clave, 0);
             $asistencia->setAttribute('saldo_vencido', $mora['saldo'] ?? 0.0);
             $asistencia->setAttribute('dias_mora', $mora['dias_mora'] ?? 0);
             $asistencia->setAttribute('mora_detalle', $mora['cuotas'] ?? []);
+            $asistencia->setAttribute('prorroga_pago', $prorrogas->get($asistencia->estudiante_id));
             $asistencia->setAttribute('transferencias_pendientes', $pendiente['cantidad'] ?? 0);
             $asistencia->setAttribute('valor_transferencias_pendientes', $pendiente['valor'] ?? 0.0);
             $asistencia->setAttribute('fallas_consecutivas', $seguidas);
@@ -347,7 +331,7 @@ class Asistencia extends Model
      * No cuentan (ni cortan la racha) las clases canceladas o reprogramadas ni la clase de origen de
      * una reposición: la ausencia en la clase de destino sí cuenta.
      *
-     * @param array<int> $estudianteIds
+     * @param  array<int>  $estudianteIds
      * @return \Illuminate\Support\Collection<string, int> "estudianteId:cursoId" => fallas consecutivas
      */
     public static function fallasConsecutivasPorCurso(array $estudianteIds): \Illuminate\Support\Collection
@@ -383,10 +367,7 @@ class Asistencia extends Model
      * 3. si tiene cuotas vencidas, En mora;
      * 4. si no, Activo.
      *
-     * @param int|null $estadoAcademico Matricula::ESTADOS_ACADEMICOS de su matrícula en el curso (null si no se encontró)
-     * @param int $fallasConsecutivas
-     * @param bool $enMora
-     * @return string
+     * @param  int|null  $estadoAcademico  Matricula::ESTADOS_ACADEMICOS de su matrícula en el curso (null si no se encontró)
      */
     public static function estadoEstudiante(?int $estadoAcademico, int $fallasConsecutivas, bool $enMora): string
     {
@@ -403,8 +384,6 @@ class Asistencia extends Model
 
     /**
      * Obtiene los campos permitidos para ordenamiento.
-     *
-     * @return array
      */
     protected function getAllowedSortFields(): array
     {
@@ -418,14 +397,12 @@ class Asistencia extends Model
             'curso_id',
             'modulo_id',
             'created_at',
-            'updated_at'
+            'updated_at',
         ];
     }
 
     /**
      * Obtiene las relaciones permitidas para este modelo.
-     *
-     * @return array
      */
     protected function getAllowedRelations(): array
     {
@@ -437,14 +414,12 @@ class Asistencia extends Model
             'ciclo',
             'modulo',
             'curso',
-            'registradoPor'
+            'registradoPor',
         ];
     }
 
     /**
      * Obtiene las relaciones por defecto a cargar.
-     *
-     * @return array
      */
     protected function getDefaultRelations(): array
     {
@@ -453,8 +428,6 @@ class Asistencia extends Model
 
     /**
      * Obtiene las relaciones que pueden ser contadas.
-     *
-     * @return array
      */
     protected function getCountableRelations(): array
     {
@@ -464,8 +437,7 @@ class Asistencia extends Model
     /**
      * Scope para aplicar múltiples filtros de manera dinámica.
      *
-     * @param \Illuminate\Database\Eloquent\Builder $query
-     * @param array $filters
+     * @param  \Illuminate\Database\Eloquent\Builder  $query
      * @return \Illuminate\Database\Eloquent\Builder
      */
     public function scopeWithFilters($query, array $filters)

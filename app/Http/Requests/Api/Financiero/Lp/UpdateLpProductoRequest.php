@@ -13,8 +13,6 @@ use Illuminate\Validation\Rule;
  * Valida los datos para actualizar un producto existente en el catálogo LP.
  * Todos los campos son opcionales (sometimes) para permitir actualizaciones parciales.
  * La gestión de referencias académicas se realiza mediante LpProductoReferenciaController.
- *
- * @package App\Http\Requests\Api\Financiero\Lp
  */
 class UpdateLpProductoRequest extends FormRequest
 {
@@ -22,8 +20,6 @@ class UpdateLpProductoRequest extends FormRequest
 
     /**
      * Determina si el usuario está autorizado para hacer esta solicitud.
-     *
-     * @return bool
      */
     public function authorize(): bool
     {
@@ -42,8 +38,8 @@ class UpdateLpProductoRequest extends FormRequest
 
         return [
             'tipo_producto_id' => 'sometimes|integer|exists:lp_tipos_producto,id',
-            'nombre'           => 'sometimes|string|max:255',
-            'codigo'           => [
+            'nombre' => 'sometimes|string|max:255',
+            'codigo' => [
                 'sometimes',
                 'nullable',
                 'string',
@@ -51,7 +47,7 @@ class UpdateLpProductoRequest extends FormRequest
                 Rule::unique('lp_productos', 'codigo')->ignore($productoId),
             ],
             'descripcion' => 'nullable|string',
-            'status'      => self::getStatusValidationRule(),
+            'status' => self::getStatusValidationRule(),
         ];
     }
 
@@ -65,14 +61,14 @@ class UpdateLpProductoRequest extends FormRequest
         $statusMessages = self::getStatusValidationMessages();
 
         return array_merge([
-            'tipo_producto_id.integer'  => 'El tipo de producto debe ser un número entero.',
-            'tipo_producto_id.exists'   => 'El tipo de producto seleccionado no existe.',
-            'nombre.string'             => 'El nombre debe ser una cadena de texto.',
-            'nombre.max'                => 'El nombre no puede exceder 255 caracteres.',
-            'codigo.string'             => 'El código debe ser una cadena de texto.',
-            'codigo.max'                => 'El código no puede exceder 100 caracteres.',
-            'codigo.unique'             => 'El código del producto ya existe.',
-            'descripcion.string'        => 'La descripción debe ser una cadena de texto.',
+            'tipo_producto_id.integer' => 'El tipo de producto debe ser un número entero.',
+            'tipo_producto_id.exists' => 'El tipo de producto seleccionado no existe.',
+            'nombre.string' => 'El nombre debe ser una cadena de texto.',
+            'nombre.max' => 'El nombre no puede exceder 255 caracteres.',
+            'codigo.string' => 'El código debe ser una cadena de texto.',
+            'codigo.max' => 'El código no puede exceder 100 caracteres.',
+            'codigo.unique' => 'El código del producto ya existe.',
+            'descripcion.string' => 'La descripción debe ser una cadena de texto.',
         ], $statusMessages);
     }
 }

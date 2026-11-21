@@ -8,15 +8,11 @@ use Illuminate\Foundation\Http\FormRequest;
 
 /**
  * Valida la generación de un documento a partir de su tipo y entidad.
- *
- * @package App\Http\Requests\Api\Academico\Documentacion
  */
 class GenerarDocDocumentoRequest extends FormRequest
 {
     /**
      * Determina si el usuario está autorizado (los permisos se validan por middleware).
-     *
-     * @return bool
      */
     public function authorize(): bool
     {
@@ -32,7 +28,7 @@ class GenerarDocDocumentoRequest extends FormRequest
     {
         return [
             'tipo_documento_id' => 'required|integer|exists:doc_tipos_documento,id',
-            'entidad_id'        => 'nullable|integer',
+            'entidad_id' => 'nullable|integer',
         ];
     }
 
@@ -41,9 +37,6 @@ class GenerarDocDocumentoRequest extends FormRequest
      *
      * Los tipos asociados a una entidad (matrícula, cartera, estudiante) solo
      * pueden generarse indicando el registro concreto del que se toman los datos.
-     *
-     * @param Validator $validator
-     * @return void
      */
     public function withValidator(Validator $validator): void
     {
@@ -54,7 +47,7 @@ class GenerarDocDocumentoRequest extends FormRequest
 
             $tipoDocumento = DocTipoDocumento::find($this->input('tipo_documento_id'));
 
-            if (!$tipoDocumento) {
+            if (! $tipoDocumento) {
                 return;
             }
 
@@ -64,11 +57,11 @@ class GenerarDocDocumentoRequest extends FormRequest
                 return;
             }
 
-            if (!$tipoDocumento->entidad_type) {
+            if (! $tipoDocumento->entidad_type) {
                 return;
             }
 
-            if (!$this->filled('entidad_id')) {
+            if (! $this->filled('entidad_id')) {
                 $validator->errors()->add(
                     'entidad_id',
                     'Este tipo de documento requiere indicar el registro asociado.'
@@ -77,7 +70,7 @@ class GenerarDocDocumentoRequest extends FormRequest
                 return;
             }
 
-            if (!$tipoDocumento->entidad_type::find($this->integer('entidad_id'))) {
+            if (! $tipoDocumento->entidad_type::find($this->integer('entidad_id'))) {
                 $validator->errors()->add('entidad_id', 'El registro asociado no existe.');
             }
         });
@@ -92,7 +85,7 @@ class GenerarDocDocumentoRequest extends FormRequest
     {
         return [
             'tipo_documento_id.required' => 'El tipo de documento es obligatorio.',
-            'tipo_documento_id.exists'   => 'El tipo de documento seleccionado no existe.',
+            'tipo_documento_id.exists' => 'El tipo de documento seleccionado no existe.',
         ];
     }
 
@@ -105,7 +98,7 @@ class GenerarDocDocumentoRequest extends FormRequest
     {
         return [
             'tipo_documento_id' => 'tipo de documento',
-            'entidad_id'        => 'registro asociado',
+            'entidad_id' => 'registro asociado',
         ];
     }
 }

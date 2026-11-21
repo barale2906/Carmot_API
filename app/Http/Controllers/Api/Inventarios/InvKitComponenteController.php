@@ -15,8 +15,6 @@ use Illuminate\Http\JsonResponse;
  *
  * Recurso anidado bajo /productos/{producto}/componentes.
  * El parámetro {producto} siempre debe ser un producto de tipo 'kit'.
- *
- * @package App\Http\Controllers\Api\Inventarios
  */
 class InvKitComponenteController extends Controller
 {
@@ -32,9 +30,6 @@ class InvKitComponenteController extends Controller
 
     /**
      * Lista todos los componentes del kit especificado.
-     *
-     * @param InvProducto $producto
-     * @return JsonResponse
      */
     public function index(InvProducto $producto): JsonResponse
     {
@@ -56,10 +51,6 @@ class InvKitComponenteController extends Controller
 
     /**
      * Agrega un componente al kit especificado.
-     *
-     * @param StoreInvKitComponenteRequest $request
-     * @param InvProducto $producto
-     * @return JsonResponse
      */
     public function store(StoreInvKitComponenteRequest $request, InvProducto $producto): JsonResponse
     {
@@ -70,27 +61,22 @@ class InvKitComponenteController extends Controller
         }
 
         $componente = InvKitComponente::create([
-            'kit_id'            => $producto->id,
+            'kit_id' => $producto->id,
             'grupo_producto_id' => $request->grupo_producto_id,
-            'cantidad'          => $request->cantidad,
-            'orden'             => $request->orden ?? 0,
+            'cantidad' => $request->cantidad,
+            'orden' => $request->orden ?? 0,
         ]);
 
         $componente->load('grupoProducto');
 
         return response()->json([
             'message' => 'Componente agregado al kit exitosamente.',
-            'data'    => new InvKitComponenteResource($componente),
+            'data' => new InvKitComponenteResource($componente),
         ], 201);
     }
 
     /**
      * Actualiza la cantidad u orden de un componente del kit.
-     *
-     * @param UpdateInvKitComponenteRequest $request
-     * @param InvProducto $producto
-     * @param InvKitComponente $componente
-     * @return JsonResponse
      */
     public function update(UpdateInvKitComponenteRequest $request, InvProducto $producto, InvKitComponente $componente): JsonResponse
     {
@@ -104,16 +90,12 @@ class InvKitComponenteController extends Controller
 
         return response()->json([
             'message' => 'Componente actualizado exitosamente.',
-            'data'    => new InvKitComponenteResource($componente),
+            'data' => new InvKitComponenteResource($componente),
         ]);
     }
 
     /**
      * Elimina un componente del kit.
-     *
-     * @param InvProducto $producto
-     * @param InvKitComponente $componente
-     * @return JsonResponse
      */
     public function destroy(InvProducto $producto, InvKitComponente $componente): JsonResponse
     {

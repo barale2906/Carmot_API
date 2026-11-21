@@ -13,8 +13,6 @@ class StoreActActivoRequest extends FormRequest
 
     /**
      * Determina si el usuario está autorizado para realizar esta petición.
-     *
-     * @return bool
      */
     public function authorize(): bool
     {
@@ -29,20 +27,20 @@ class StoreActActivoRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'nombre'         => ['required', 'string', 'max:200'],
-            'descripcion'    => ['nullable', 'string', 'max:2000'],
-            'categoria_id'   => ['required', 'integer', Rule::exists('act_categorias', 'id')->where('status', 1)->whereNull('deleted_at')],
-            'sede_id'        => ['required', 'integer', 'exists:sedes,id'],
-            'area_id'        => ['nullable', 'integer', 'exists:areas,id'],
+            'nombre' => ['required', 'string', 'max:200'],
+            'descripcion' => ['nullable', 'string', 'max:2000'],
+            'categoria_id' => ['required', 'integer', Rule::exists('act_categorias', 'id')->where('status', 1)->whereNull('deleted_at')],
+            'sede_id' => ['required', 'integer', 'exists:sedes,id'],
+            'area_id' => ['nullable', 'integer', 'exists:areas,id'],
             'responsable_id' => ['nullable', 'integer', 'exists:users,id', $this->reglaResponsable()],
-            'marca'          => ['nullable', 'string', 'max:100'],
-            'modelo'         => ['nullable', 'string', 'max:100'],
-            'serial'         => ['nullable', 'string', 'max:100'],
-            'fecha_ingreso'  => ['required', 'date', 'before_or_equal:today'],
-            'valor'          => ['required', 'numeric', 'min:0', 'max:9999999999999'],
+            'marca' => ['nullable', 'string', 'max:100'],
+            'modelo' => ['nullable', 'string', 'max:100'],
+            'serial' => ['nullable', 'string', 'max:100'],
+            'fecha_ingreso' => ['required', 'date', 'before_or_equal:today'],
+            'valor' => ['required', 'numeric', 'min:0', 'max:9999999999999'],
             // Un activo nace en uso; la baja solo se registra como cambio de estado.
-            'estado'         => ['sometimes', Rule::in(array_diff(array_keys(ActActivo::ESTADOS), [ActActivo::ESTADO_BAJA]))],
-            'observaciones'  => ['nullable', 'string', 'max:2000'],
+            'estado' => ['sometimes', Rule::in(array_diff(array_keys(ActActivo::ESTADOS), [ActActivo::ESTADO_BAJA]))],
+            'observaciones' => ['nullable', 'string', 'max:2000'],
         ];
     }
 
@@ -54,9 +52,9 @@ class StoreActActivoRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'categoria_id.exists'          => 'La categoría no existe o está inactiva.',
+            'categoria_id.exists' => 'La categoría no existe o está inactiva.',
             'fecha_ingreso.before_or_equal' => 'La fecha de ingreso no puede ser futura.',
-            'estado.in'                    => 'Estado inválido: un activo nuevo no puede registrarse de baja.',
+            'estado.in' => 'Estado inválido: un activo nuevo no puede registrarse de baja.',
         ];
     }
 
@@ -68,19 +66,18 @@ class StoreActActivoRequest extends FormRequest
     public function attributes(): array
     {
         return [
-            'categoria_id'   => 'categoría',
-            'sede_id'        => 'sede',
-            'area_id'        => 'área',
+            'categoria_id' => 'categoría',
+            'sede_id' => 'sede',
+            'area_id' => 'área',
             'responsable_id' => 'responsable',
-            'fecha_ingreso'  => 'fecha de ingreso',
+            'fecha_ingreso' => 'fecha de ingreso',
         ];
     }
 
     /**
      * La sede debe estar asignada al usuario y el área pertenecer a la sede.
      *
-     * @param \Illuminate\Validation\Validator $validator
-     * @return void
+     * @param  \Illuminate\Validation\Validator  $validator
      */
     public function withValidator($validator): void
     {

@@ -26,8 +26,6 @@ use Illuminate\Validation\Rule;
  *
  * Recibo de costo cero: con monto_a_pagar = 0 y sin medios de pago se genera un recibo
  * que solo descarga las cuotas cuyo costo efectivo es 0 (valor 0 o descuento del 100 %).
- *
- * @package App\Http\Requests\Api\Financiero\ReciboPago
  */
 class StoreReciboPagoRequest extends FormRequest
 {
@@ -49,72 +47,72 @@ class StoreReciboPagoRequest extends FormRequest
         return [
             // Encabezado del recibo. El recibo queda en la sede del turno de caja abierto del
             // cajero (de ahí sale su consecutivo), no necesariamente en la sede enviada aquí.
-            'sede_id'                                   => 'required|exists:sedes,id',
-            'cajero_id'                                 => 'required|exists:users,id',
+            'sede_id' => 'required|exists:sedes,id',
+            'cajero_id' => 'required|exists:users,id',
             // Caja desde la que se factura; obligatoria solo si el cajero tiene turnos abiertos en varias sedes
-            'turno_caja_id'                             => 'nullable|integer',
-            'matricula_id'                              => 'required|exists:matriculas,id',
-            'origen'                                    => ['required', 'integer', Rule::in([ReciboPago::ORIGEN_INVENTARIOS, ReciboPago::ORIGEN_ACADEMICO])],
+            'turno_caja_id' => 'nullable|integer',
+            'matricula_id' => 'required|exists:matriculas,id',
+            'origen' => ['required', 'integer', Rule::in([ReciboPago::ORIGEN_INVENTARIOS, ReciboPago::ORIGEN_ACADEMICO])],
             // Solo la respeta el superusuario; para el resto el recibo siempre queda con la fecha de hoy
-            'fecha_recibo'                              => 'nullable|date',
-            'fecha_transaccion'                         => 'required|date',
-            'banco'                                     => 'nullable|string|max:100',
+            'fecha_recibo' => 'nullable|date',
+            'fecha_transaccion' => 'required|date',
+            'banco' => 'nullable|string|max:100',
 
             // Monto total que el estudiante paga en este recibo.
             // 0 es válido: genera un recibo que solo descarga cuotas de costo efectivo cero
             // (valor 0 o descuento del 100 %), sin medios de pago.
-            'monto_a_pagar'                             => 'required|numeric|min:0',
+            'monto_a_pagar' => 'required|numeric|min:0',
 
             // Lista de precios vigente (referencia para auditoría y descuentos)
-            'lista_precio_id'                           => 'nullable|exists:lp_listas_precios,id',
+            'lista_precio_id' => 'nullable|exists:lp_listas_precios,id',
 
             // Si se aplica descuento por pronto pago sobre las cuotas de cartera
-            'aplicar_descuento'                         => 'nullable|boolean',
+            'aplicar_descuento' => 'nullable|boolean',
 
             // Conceptos adicionales al cobro de cartera (certificados, copias, etc.)
             // Su precio unitario se toma directamente de conceptos_pago.valor.
-            'conceptos_adicionales'                     => 'nullable|array',
+            'conceptos_adicionales' => 'nullable|array',
             'conceptos_adicionales.*.concepto_pago_id' => 'required|integer|exists:conceptos_pago,id',
-            'conceptos_adicionales.*.cantidad'          => 'required|integer|min:1',
+            'conceptos_adicionales.*.cantidad' => 'required|integer|min:1',
 
             // Medios de pago — la suma debe igualar monto_a_pagar, sin sobrecargos: cada medio se envía
             // por su valor base y al registrar el recibo se le suma su recargo (queda lo cobrado).
             // Si el medio es 'transferencia' solo puede haber un elemento en este array.
             // En un recibo de costo cero (monto_a_pagar = 0) no se registran medios de pago.
-            'medios_pago'                               => $this->esReciboCostoCero()
+            'medios_pago' => $this->esReciboCostoCero()
                 ? ['prohibited']
                 : ['required', 'array', 'min:1'],
-            'medios_pago.*.medio_pago'                  => ['required', 'string', Rule::in(array_keys(ReciboPagoMedioPago::MEDIOS))],
-            'medios_pago.*.tipo_tarjeta'                => 'nullable|string|max:60',
-            'medios_pago.*.valor'                       => 'required|numeric|min:0',
-            'medios_pago.*.referencia'                  => 'nullable|string|max:100',
-            'medios_pago.*.banco'                       => 'nullable|string|max:100',
+            'medios_pago.*.medio_pago' => ['required', 'string', Rule::in(array_keys(ReciboPagoMedioPago::MEDIOS))],
+            'medios_pago.*.tipo_tarjeta' => 'nullable|string|max:60',
+            'medios_pago.*.valor' => 'required|numeric|min:0',
+            'medios_pago.*.referencia' => 'nullable|string|max:100',
+            'medios_pago.*.banco' => 'nullable|string|max:100',
             // Campos exclusivos de transferencia
-            'medios_pago.*.banco_id'                    => 'nullable|exists:bancos,id',
+            'medios_pago.*.banco_id' => 'nullable|exists:bancos,id',
             // Cuenta del instituto que recibió la transferencia: activa y aplicable a la sede
             // donde se recibe el pago, que es la del turno de caja (el recibo queda en esa sede)
-            'medios_pago.*.cuenta_bancaria_id'          => ['nullable', 'integer', CuentaBancaria::reglaActivaDeSede(
+            'medios_pago.*.cuenta_bancaria_id' => ['nullable', 'integer', CuentaBancaria::reglaActivaDeSede(
                 LdTurnoCaja::sedeParaFacturar((int) $this->cajero_id, $this->integer('turno_caja_id') ?: null)
             )],
-            'medios_pago.*.numero_transaccion'          => 'nullable|string|max:100|unique:recibo_pago_medio_pago,numero_transaccion',
+            'medios_pago.*.numero_transaccion' => 'nullable|string|max:100|unique:recibo_pago_medio_pago,numero_transaccion',
             // Fecha en que el cliente hizo la transferencia: no puede ser futura
-            'medios_pago.*.fecha_transferencia'         => 'nullable|date|before_or_equal:today',
+            'medios_pago.*.fecha_transferencia' => 'nullable|date|before_or_equal:today',
 
             // Comprobante de transferencia (foto del soporte) — campo de archivo a nivel raíz
-            'comprobante'                               => 'nullable|file|mimes:jpg,jpeg,png,pdf,webp|max:' . ArchivoService::MAX_KB,
+            'comprobante' => 'nullable|file|mimes:jpg,jpeg,png,pdf,webp|max:'.ArchivoService::MAX_KB,
 
             // Sobrecargos seleccionados por el cajero (pre-calculados vía /precalcular-sobrecargos)
             // Cada ítem vincula un sobrecargo a un índice de medio de pago
-            'sobrecargos'                               => $this->esReciboCostoCero() ? 'prohibited' : 'nullable|array',
-            'sobrecargos.*.descuento_id'                => 'required|exists:descuentos,id',
-            'sobrecargos.*.medio_pago_index'            => 'required|integer|min:0', // índice en medios_pago[]
+            'sobrecargos' => $this->esReciboCostoCero() ? 'prohibited' : 'nullable|array',
+            'sobrecargos.*.descuento_id' => 'required|exists:descuentos,id',
+            'sobrecargos.*.medio_pago_index' => 'required|integer|min:0', // índice en medios_pago[]
         ];
     }
 
     /**
      * Validaciones cruzadas: suma de medios de pago debe igualar monto_a_pagar.
      *
-     * @param \Illuminate\Validation\Validator $validator
+     * @param  \Illuminate\Validation\Validator  $validator
      */
     public function withValidator($validator): void
     {
@@ -170,7 +168,7 @@ class StoreReciboPagoRequest extends FormRequest
                     if ($idx < 0 || $idx >= $totalMedios) {
                         $validator->errors()->add(
                             "sobrecargos.{$i}.medio_pago_index",
-                            "El índice de medio de pago no es válido."
+                            'El índice de medio de pago no es válido.'
                         );
                     }
                 }
@@ -196,46 +194,46 @@ class StoreReciboPagoRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'sede_id.required'                                   => 'La sede es obligatoria.',
-            'sede_id.exists'                                     => 'La sede seleccionada no existe.',
-            'cajero_id.required'                                 => 'El cajero es obligatorio.',
-            'cajero_id.exists'                                   => 'El cajero seleccionado no existe.',
-            'matricula_id.required'                              => 'La matrícula es obligatoria.',
-            'matricula_id.exists'                                => 'La matrícula seleccionada no existe.',
-            'origen.required'                                    => 'El origen es obligatorio.',
-            'origen.in'                                          => 'El origen debe ser 0 (Inventarios) o 1 (Académico).',
-            'fecha_recibo.date'                                  => 'La fecha del recibo debe ser una fecha válida.',
-            'fecha_transaccion.required'                         => 'La fecha de transacción es obligatoria.',
-            'fecha_transaccion.date'                             => 'La fecha de transacción debe ser una fecha válida.',
-            'monto_a_pagar.required'                             => 'El monto a pagar es obligatorio.',
-            'monto_a_pagar.numeric'                              => 'El monto a pagar debe ser un número.',
-            'monto_a_pagar.min'                                  => 'El monto a pagar no puede ser negativo.',
-            'medios_pago.required'                               => 'Debe incluir al menos un medio de pago.',
-            'medios_pago.prohibited'                             => 'Un recibo sin valor a pagar no admite medios de pago.',
-            'medios_pago.min'                                    => 'Debe incluir al menos un medio de pago.',
-            'medios_pago.*.medio_pago.required'                  => 'El tipo de medio de pago es obligatorio.',
-            'medios_pago.*.medio_pago.in'                        => 'El medio de pago no es válido.',
-            'medios_pago.*.tipo_tarjeta.max'                     => 'La marca de tarjeta no puede exceder 60 caracteres.',
-            'medios_pago.*.valor.required'                       => 'El valor del medio de pago es obligatorio.',
-            'medios_pago.*.valor.min'                            => 'El valor del medio de pago no puede ser negativo.',
-            'medios_pago.*.banco_id.exists'                      => 'El banco seleccionado no existe.',
-            'medios_pago.*.cuenta_bancaria_id.in'                => 'La cuenta seleccionada no está activa o no aplica a la sede desde la que se factura.',
-            'medios_pago.*.numero_transaccion.unique'            => 'El número de transacción ya fue registrado en otro recibo.',
-            'medios_pago.*.numero_transaccion.max'               => 'El número de transacción no puede exceder los 100 caracteres.',
-            'medios_pago.*.fecha_transferencia.date'             => 'La fecha de la transferencia debe ser una fecha válida.',
-            'medios_pago.*.fecha_transferencia.before_or_equal'  => 'La fecha de la transferencia no puede ser futura.',
-            'comprobante.file'                                   => 'El comprobante debe ser un archivo.',
-            'comprobante.mimes'                                  => 'El comprobante debe ser jpg, jpeg, png, pdf o webp.',
-            'comprobante.max'                                    => 'El comprobante no puede superar los 10 MB.',
-            'comprobante.uploaded'                               => 'No se recibió el archivo: puede superar el tamaño que permite el servidor.',
-            'sobrecargos.prohibited'                             => 'Un recibo sin valor a pagar no admite sobrecargos.',
-            'sobrecargos.*.descuento_id.required'              => 'El ID del sobrecargo es obligatorio.',
-            'sobrecargos.*.descuento_id.exists'                  => 'El sobrecargo seleccionado no existe.',
-            'sobrecargos.*.medio_pago_index.required'            => 'El índice de medio de pago del sobrecargo es obligatorio.',
-            'conceptos_adicionales.*.concepto_pago_id.required'  => 'El concepto adicional es obligatorio.',
-            'conceptos_adicionales.*.concepto_pago_id.exists'    => 'Uno de los conceptos adicionales no existe.',
-            'conceptos_adicionales.*.cantidad.required'          => 'La cantidad es obligatoria para cada concepto adicional.',
-            'conceptos_adicionales.*.cantidad.min'               => 'La cantidad de cada concepto debe ser al menos 1.',
+            'sede_id.required' => 'La sede es obligatoria.',
+            'sede_id.exists' => 'La sede seleccionada no existe.',
+            'cajero_id.required' => 'El cajero es obligatorio.',
+            'cajero_id.exists' => 'El cajero seleccionado no existe.',
+            'matricula_id.required' => 'La matrícula es obligatoria.',
+            'matricula_id.exists' => 'La matrícula seleccionada no existe.',
+            'origen.required' => 'El origen es obligatorio.',
+            'origen.in' => 'El origen debe ser 0 (Inventarios) o 1 (Académico).',
+            'fecha_recibo.date' => 'La fecha del recibo debe ser una fecha válida.',
+            'fecha_transaccion.required' => 'La fecha de transacción es obligatoria.',
+            'fecha_transaccion.date' => 'La fecha de transacción debe ser una fecha válida.',
+            'monto_a_pagar.required' => 'El monto a pagar es obligatorio.',
+            'monto_a_pagar.numeric' => 'El monto a pagar debe ser un número.',
+            'monto_a_pagar.min' => 'El monto a pagar no puede ser negativo.',
+            'medios_pago.required' => 'Debe incluir al menos un medio de pago.',
+            'medios_pago.prohibited' => 'Un recibo sin valor a pagar no admite medios de pago.',
+            'medios_pago.min' => 'Debe incluir al menos un medio de pago.',
+            'medios_pago.*.medio_pago.required' => 'El tipo de medio de pago es obligatorio.',
+            'medios_pago.*.medio_pago.in' => 'El medio de pago no es válido.',
+            'medios_pago.*.tipo_tarjeta.max' => 'La marca de tarjeta no puede exceder 60 caracteres.',
+            'medios_pago.*.valor.required' => 'El valor del medio de pago es obligatorio.',
+            'medios_pago.*.valor.min' => 'El valor del medio de pago no puede ser negativo.',
+            'medios_pago.*.banco_id.exists' => 'El banco seleccionado no existe.',
+            'medios_pago.*.cuenta_bancaria_id.in' => 'La cuenta seleccionada no está activa o no aplica a la sede desde la que se factura.',
+            'medios_pago.*.numero_transaccion.unique' => 'El número de transacción ya fue registrado en otro recibo.',
+            'medios_pago.*.numero_transaccion.max' => 'El número de transacción no puede exceder los 100 caracteres.',
+            'medios_pago.*.fecha_transferencia.date' => 'La fecha de la transferencia debe ser una fecha válida.',
+            'medios_pago.*.fecha_transferencia.before_or_equal' => 'La fecha de la transferencia no puede ser futura.',
+            'comprobante.file' => 'El comprobante debe ser un archivo.',
+            'comprobante.mimes' => 'El comprobante debe ser jpg, jpeg, png, pdf o webp.',
+            'comprobante.max' => 'El comprobante no puede superar los 10 MB.',
+            'comprobante.uploaded' => 'No se recibió el archivo: puede superar el tamaño que permite el servidor.',
+            'sobrecargos.prohibited' => 'Un recibo sin valor a pagar no admite sobrecargos.',
+            'sobrecargos.*.descuento_id.required' => 'El ID del sobrecargo es obligatorio.',
+            'sobrecargos.*.descuento_id.exists' => 'El sobrecargo seleccionado no existe.',
+            'sobrecargos.*.medio_pago_index.required' => 'El índice de medio de pago del sobrecargo es obligatorio.',
+            'conceptos_adicionales.*.concepto_pago_id.required' => 'El concepto adicional es obligatorio.',
+            'conceptos_adicionales.*.concepto_pago_id.exists' => 'Uno de los conceptos adicionales no existe.',
+            'conceptos_adicionales.*.cantidad.required' => 'La cantidad es obligatoria para cada concepto adicional.',
+            'conceptos_adicionales.*.cantidad.min' => 'La cantidad de cada concepto debe ser al menos 1.',
         ];
     }
 
@@ -247,11 +245,11 @@ class StoreReciboPagoRequest extends FormRequest
     public function attributes(): array
     {
         return [
-            'sede_id'       => 'sede',
-            'cajero_id'     => 'cajero',
-            'matricula_id'  => 'matrícula',
+            'sede_id' => 'sede',
+            'cajero_id' => 'cajero',
+            'matricula_id' => 'matrícula',
             'monto_a_pagar' => 'monto a pagar',
-            'origen'        => 'origen',
+            'origen' => 'origen',
         ];
     }
 }

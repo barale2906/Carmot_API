@@ -21,8 +21,6 @@ use Illuminate\Http\Request;
  * Gestiona las operaciones CRUD para los descuentos del sistema financiero.
  * Permite crear, listar, mostrar, actualizar, eliminar y aprobar descuentos.
  * También permite aplicar descuentos y consultar el historial.
- *
- * @package App\Http\Controllers\Api\Financiero\Descuento
  */
 class DescuentoController extends Controller
 {
@@ -46,7 +44,7 @@ class DescuentoController extends Controller
      * Muestra una lista de descuentos.
      * Permite filtrar, ordenar y cargar relaciones.
      *
-     * @param Request $request Solicitud HTTP con parámetros de filtrado y paginación
+     * @param  Request  $request  Solicitud HTTP con parámetros de filtrado y paginación
      * @return JsonResponse Respuesta JSON con la lista paginada de descuentos
      */
     public function index(Request $request): JsonResponse
@@ -60,8 +58,8 @@ class DescuentoController extends Controller
                 $search = $request->string('search');
                 $query->where(function ($q) use ($search) {
                     $q->where('nombre', 'like', "%{$search}%")
-                      ->orWhere('codigo_descuento', 'like', "%{$search}%")
-                      ->orWhere('descripcion', 'like', "%{$search}%");
+                        ->orWhere('codigo_descuento', 'like', "%{$search}%")
+                        ->orWhere('descripcion', 'like', "%{$search}%");
                 });
             }
 
@@ -108,7 +106,7 @@ class DescuentoController extends Controller
 
             // Cargar relaciones opcionales
             $relations = $request->get('relations', []);
-            if (!empty($relations)) {
+            if (! empty($relations)) {
                 $query->withRelations(explode(',', $relations));
             }
 
@@ -142,7 +140,7 @@ class DescuentoController extends Controller
     /**
      * Almacena un nuevo descuento en la base de datos.
      *
-     * @param StoreDescuentoRequest $request Datos validados del descuento
+     * @param  StoreDescuentoRequest  $request  Datos validados del descuento
      * @return JsonResponse Respuesta JSON con el descuento creado
      */
     public function store(StoreDescuentoRequest $request): JsonResponse
@@ -211,8 +209,8 @@ class DescuentoController extends Controller
     /**
      * Muestra el descuento especificado.
      *
-     * @param Request $request Solicitud HTTP con parámetros opcionales
-     * @param Descuento $descuento Descuento a mostrar
+     * @param  Request  $request  Solicitud HTTP con parámetros opcionales
+     * @param  Descuento  $descuento  Descuento a mostrar
      * @return JsonResponse Respuesta JSON con los datos del descuento
      */
     public function show(Request $request, Descuento $descuento): JsonResponse
@@ -220,7 +218,7 @@ class DescuentoController extends Controller
         try {
             // Cargar relaciones opcionales
             $relations = $request->get('relations', []);
-            if (!empty($relations)) {
+            if (! empty($relations)) {
                 $descuento->load(explode(',', $relations));
             }
 
@@ -238,8 +236,8 @@ class DescuentoController extends Controller
     /**
      * Actualiza el descuento especificado en la base de datos.
      *
-     * @param UpdateDescuentoRequest $request Datos validados para actualizar
-     * @param Descuento $descuento Descuento a actualizar
+     * @param  UpdateDescuentoRequest  $request  Datos validados para actualizar
+     * @param  Descuento  $descuento  Descuento a actualizar
      * @return JsonResponse Respuesta JSON con el descuento actualizado
      */
     public function update(UpdateDescuentoRequest $request, Descuento $descuento): JsonResponse
@@ -308,7 +306,7 @@ class DescuentoController extends Controller
     /**
      * Elimina (soft delete) el descuento especificado.
      *
-     * @param Descuento $descuento Descuento a eliminar
+     * @param  Descuento  $descuento  Descuento a eliminar
      * @return JsonResponse Respuesta JSON de confirmación
      */
     public function destroy(Descuento $descuento): JsonResponse
@@ -330,7 +328,7 @@ class DescuentoController extends Controller
     /**
      * Aprueba un descuento cambiando su estado a "Aprobado".
      *
-     * @param Descuento $descuento Descuento a aprobar
+     * @param  Descuento  $descuento  Descuento a aprobar
      * @return JsonResponse Respuesta JSON con el descuento aprobado
      */
     public function aprobar(Descuento $descuento): JsonResponse
@@ -355,7 +353,7 @@ class DescuentoController extends Controller
      * Solo es posible si el descuento está en estado "Aprobado" y la fecha de inicio ya llegó.
      * Sin este paso, el scope vigentes() no lo devuelve y no se aplica en recibos.
      *
-     * @param Descuento $descuento Descuento a activar
+     * @param  Descuento  $descuento  Descuento a activar
      * @return JsonResponse Respuesta JSON con el descuento activado
      */
     public function activar(Descuento $descuento): JsonResponse
@@ -370,14 +368,14 @@ class DescuentoController extends Controller
 
         return response()->json([
             'message' => 'Descuento activado exitosamente.',
-            'data'    => new DescuentoResource($descuento->fresh()),
+            'data' => new DescuentoResource($descuento->fresh()),
         ]);
     }
 
     /**
      * Aplica descuentos a un precio y retorna los valores calculados.
      *
-     * @param Request $request Solicitud HTTP con los parámetros necesarios
+     * @param  Request  $request  Solicitud HTTP con los parámetros necesarios
      * @return JsonResponse Respuesta JSON con los precios calculados
      */
     public function aplicarDescuento(Request $request): JsonResponse
@@ -396,7 +394,7 @@ class DescuentoController extends Controller
                 'fecha_programada' => 'nullable|date',
             ]);
 
-            $service = new DescuentoService();
+            $service = new DescuentoService;
 
             $fechaPago = $request->filled('fecha_pago') ? Carbon::parse($request->date('fecha_pago')) : null;
             $fechaProgramada = $request->filled('fecha_programada') ? Carbon::parse($request->date('fecha_programada')) : null;
@@ -437,19 +435,19 @@ class DescuentoController extends Controller
      * El campo valor_base es el monto a pagar con ese medio específico (ej. valor de la tarjeta),
      * no el total del recibo. Así el sobrecargo porcentual aplica solo sobre la porción con tarjeta.
      *
-     * @param Request $request Parámetros: medio_pago (requerido), tipo_tarjeta (opcional), valor_base (requerido)
+     * @param  Request  $request  Parámetros: medio_pago (requerido), tipo_tarjeta (opcional), valor_base (requerido)
      * @return JsonResponse Lista de sobrecargos con tipo, valor configurado y monto calculado
      */
     public function sobrecargoPorMedioPago(Request $request): JsonResponse
     {
         try {
             $request->validate([
-                'medio_pago'   => 'required|string|in:efectivo,transferencia,tarjeta_debito,tarjeta_credito,cheque,consignacion',
+                'medio_pago' => 'required|string|in:efectivo,transferencia,tarjeta_debito,tarjeta_credito,cheque,consignacion',
                 'tipo_tarjeta' => 'nullable|string|max:60',
-                'valor_base'   => 'required|numeric|min:0',
+                'valor_base' => 'required|numeric|min:0',
             ]);
 
-            $service   = new AjusteService();
+            $service = new AjusteService;
             $resultado = $service->resolverSobrecargosPorMedioPago(
                 $request->string('medio_pago'),
                 $request->filled('tipo_tarjeta') ? $request->string('tipo_tarjeta') : null,
@@ -458,15 +456,15 @@ class DescuentoController extends Controller
 
             return response()->json([
                 'data' => $resultado->map(fn ($item) => [
-                    'descuento_id'     => $item['sobrecargo']->id,
-                    'nombre'           => $item['sobrecargo']->nombre,
-                    'tipo'             => $item['sobrecargo']->tipo,
-                    'valor'            => (float) $item['sobrecargo']->valor,
-                    'medio_pago'       => $request->string('medio_pago'),
-                    'tipo_tarjeta'     => $request->input('tipo_tarjeta'),
-                    'valor_base'       => $item['valor_base'],
+                    'descuento_id' => $item['sobrecargo']->id,
+                    'nombre' => $item['sobrecargo']->nombre,
+                    'tipo' => $item['sobrecargo']->tipo,
+                    'valor' => (float) $item['sobrecargo']->valor,
+                    'medio_pago' => $request->string('medio_pago'),
+                    'tipo_tarjeta' => $request->input('tipo_tarjeta'),
+                    'valor_base' => $item['valor_base'],
                     'valor_sobrecargo' => $item['valor_sobrecargo'],
-                    'valor_final'      => $item['valor_final'],
+                    'valor_final' => $item['valor_final'],
                 ])->values(),
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
@@ -480,7 +478,7 @@ class DescuentoController extends Controller
      * Muestra el historial de descuentos aplicados.
      * Permite filtrar y paginar los registros.
      *
-     * @param Request $request Solicitud HTTP con parámetros de filtrado y paginación
+     * @param  Request  $request  Solicitud HTTP con parámetros de filtrado y paginación
      * @return JsonResponse Respuesta JSON con el historial paginado
      */
     public function historial(Request $request): JsonResponse
@@ -523,7 +521,7 @@ class DescuentoController extends Controller
 
             // Cargar relaciones opcionales
             $relations = $request->get('relations', []);
-            if (!empty($relations)) {
+            if (! empty($relations)) {
                 $query->withRelations(explode(',', $relations));
             } else {
                 $query->with(['descuento']);
@@ -556,4 +554,3 @@ class DescuentoController extends Controller
         }
     }
 }
-

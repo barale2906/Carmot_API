@@ -29,13 +29,10 @@ class TipoAplazamientoController extends Controller
 
     /**
      * Lista paginada de tipos de aplazamiento.
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function index(Request $request): JsonResponse
     {
-        $filters   = $request->only(['search', 'status', 'include_trashed', 'only_trashed']);
+        $filters = $request->only(['search', 'status', 'include_trashed', 'only_trashed']);
         $relations = $request->has('with') ? explode(',', $request->with) : [];
 
         $tipos = TipoAplazamiento::withFilters($filters)
@@ -47,40 +44,34 @@ class TipoAplazamientoController extends Controller
             'data' => TipoAplazamientoResource::collection($tipos),
             'meta' => [
                 'current_page' => $tipos->currentPage(),
-                'last_page'    => $tipos->lastPage(),
-                'per_page'     => $tipos->perPage(),
-                'total'        => $tipos->total(),
-                'from'         => $tipos->firstItem(),
-                'to'           => $tipos->lastItem(),
+                'last_page' => $tipos->lastPage(),
+                'per_page' => $tipos->perPage(),
+                'total' => $tipos->total(),
+                'from' => $tipos->firstItem(),
+                'to' => $tipos->lastItem(),
             ],
         ]);
     }
 
     /**
      * Crea un nuevo tipo de aplazamiento.
-     *
-     * @param StoreTipoAplazamientoRequest $request
-     * @return JsonResponse
      */
     public function store(StoreTipoAplazamientoRequest $request): JsonResponse
     {
         $tipo = TipoAplazamiento::create([
-            'nombre'      => $request->nombre,
+            'nombre' => $request->nombre,
             'descripcion' => $request->descripcion,
-            'status'      => $request->status ?? 1,
+            'status' => $request->status ?? 1,
         ]);
 
         return response()->json([
             'message' => 'Tipo de aplazamiento creado exitosamente.',
-            'data'    => new TipoAplazamientoResource($tipo),
+            'data' => new TipoAplazamientoResource($tipo),
         ], 201);
     }
 
     /**
      * Muestra un tipo de aplazamiento específico.
-     *
-     * @param TipoAplazamiento $tipoAplazamiento
-     * @return JsonResponse
      */
     public function show(TipoAplazamiento $tipoAplazamiento): JsonResponse
     {
@@ -91,10 +82,6 @@ class TipoAplazamientoController extends Controller
 
     /**
      * Actualiza un tipo de aplazamiento.
-     *
-     * @param UpdateTipoAplazamientoRequest $request
-     * @param TipoAplazamiento              $tipoAplazamiento
-     * @return JsonResponse
      */
     public function update(UpdateTipoAplazamientoRequest $request, TipoAplazamiento $tipoAplazamiento): JsonResponse
     {
@@ -102,15 +89,12 @@ class TipoAplazamientoController extends Controller
 
         return response()->json([
             'message' => 'Tipo de aplazamiento actualizado exitosamente.',
-            'data'    => new TipoAplazamientoResource($tipoAplazamiento->fresh()),
+            'data' => new TipoAplazamientoResource($tipoAplazamiento->fresh()),
         ]);
     }
 
     /**
      * Elimina (soft delete) un tipo de aplazamiento.
-     *
-     * @param TipoAplazamiento $tipoAplazamiento
-     * @return JsonResponse
      */
     public function destroy(TipoAplazamiento $tipoAplazamiento): JsonResponse
     {
@@ -129,9 +113,6 @@ class TipoAplazamientoController extends Controller
 
     /**
      * Restaura un tipo de aplazamiento eliminado.
-     *
-     * @param int $id
-     * @return JsonResponse
      */
     public function restore(int $id): JsonResponse
     {
@@ -140,15 +121,12 @@ class TipoAplazamientoController extends Controller
 
         return response()->json([
             'message' => 'Tipo de aplazamiento restaurado exitosamente.',
-            'data'    => new TipoAplazamientoResource($tipo),
+            'data' => new TipoAplazamientoResource($tipo),
         ]);
     }
 
     /**
      * Elimina permanentemente un tipo de aplazamiento.
-     *
-     * @param int $id
-     * @return JsonResponse
      */
     public function forceDelete(int $id): JsonResponse
     {
@@ -169,13 +147,10 @@ class TipoAplazamientoController extends Controller
 
     /**
      * Lista los tipos de aplazamiento eliminados (soft delete).
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function trashed(Request $request): JsonResponse
     {
-        $filters              = $request->only(['search', 'status']);
+        $filters = $request->only(['search', 'status']);
         $filters['only_trashed'] = true;
 
         $tipos = TipoAplazamiento::withFilters($filters)
@@ -186,19 +161,17 @@ class TipoAplazamientoController extends Controller
             'data' => TipoAplazamientoResource::collection($tipos),
             'meta' => [
                 'current_page' => $tipos->currentPage(),
-                'last_page'    => $tipos->lastPage(),
-                'per_page'     => $tipos->perPage(),
-                'total'        => $tipos->total(),
-                'from'         => $tipos->firstItem(),
-                'to'           => $tipos->lastItem(),
+                'last_page' => $tipos->lastPage(),
+                'per_page' => $tipos->perPage(),
+                'total' => $tipos->total(),
+                'from' => $tipos->firstItem(),
+                'to' => $tipos->lastItem(),
             ],
         ]);
     }
 
     /**
      * Opciones de filtros disponibles.
-     *
-     * @return JsonResponse
      */
     public function filters(): JsonResponse
     {

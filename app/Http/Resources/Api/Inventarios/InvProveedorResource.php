@@ -16,25 +16,24 @@ class InvProveedorResource extends JsonResource
     /**
      * Transforma el recurso en un array.
      *
-     * @param Request $request
      * @return array<string, mixed>
      */
     public function toArray(Request $request): array
     {
         return [
-            'id'           => $this->id,
+            'id' => $this->id,
             'razon_social' => $this->razon_social,
-            'nit'          => $this->nit,
-            'contacto'     => $this->contacto,
-            'telefono'     => $this->telefono,
-            'email'        => $this->email,
-            'direccion'    => $this->direccion,
-            'notas'        => $this->notas,
-            'status'       => $this->status,
-            'status_text'  => self::getActiveStatusText($this->status),
-            'created_at'   => $this->created_at?->format('Y-m-d H:i:s'),
-            'updated_at'   => $this->updated_at?->format('Y-m-d H:i:s'),
-            'deleted_at'   => $this->deleted_at?->format('Y-m-d H:i:s'),
+            'nit' => $this->nit,
+            'contacto' => $this->contacto,
+            'telefono' => $this->telefono,
+            'email' => $this->email,
+            'direccion' => $this->direccion,
+            'notas' => $this->notas,
+            'status' => $this->status,
+            'status_text' => self::getActiveStatusText($this->status),
+            'created_at' => $this->created_at?->format('Y-m-d H:i:s'),
+            'updated_at' => $this->updated_at?->format('Y-m-d H:i:s'),
+            'deleted_at' => $this->deleted_at?->format('Y-m-d H:i:s'),
         ];
     }
 }

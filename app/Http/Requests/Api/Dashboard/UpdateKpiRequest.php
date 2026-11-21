@@ -68,7 +68,7 @@ class UpdateKpiRequest extends FormRequest
 
         return [
             'name' => 'sometimes|required|string|max:255',
-            'code' => 'sometimes|required|string|max:255|unique:kpis,code,' . $kpiId,
+            'code' => 'sometimes|required|string|max:255|unique:kpis,code,'.$kpiId,
             'description' => 'nullable|string',
             'unit' => 'nullable|string|max:50',
             'is_active' => 'boolean',
@@ -95,18 +95,18 @@ class UpdateKpiRequest extends FormRequest
     public function withValidator($validator): void
     {
         $validator->after(function ($validator) {
-            $hasDenModel = $this->has('denominator_model') && !is_null($this->input('denominator_model'));
-            $hasDenOp = $this->has('denominator_operation') && !is_null($this->input('denominator_operation'));
+            $hasDenModel = $this->has('denominator_model') && ! is_null($this->input('denominator_model'));
+            $hasDenOp = $this->has('denominator_operation') && ! is_null($this->input('denominator_operation'));
 
             // Si en el update se establece un modelo de denominador, exigir una operación válida
-            if ($hasDenModel && !$hasDenOp) {
+            if ($hasDenModel && ! $hasDenOp) {
                 $validator->errors()->add('denominator_operation', 'La operación del denominador es obligatoria cuando se especifica un modelo.');
             }
 
             // Solo el conteo puede ir sin campo; se combinan los valores enviados con los guardados (B40)
             $kpi = $this->route('kpi');
             $kpi = $kpi instanceof \App\Models\Dashboard\Kpi ? $kpi : \App\Models\Dashboard\Kpi::find($kpi);
-            $numOp    = $this->has('numerator_operation') ? $this->input('numerator_operation') : $kpi?->numerator_operation;
+            $numOp = $this->has('numerator_operation') ? $this->input('numerator_operation') : $kpi?->numerator_operation;
             $numCampo = $this->has('numerator_field') ? $this->input('numerator_field') : $kpi?->numerator_field;
             if ($numOp && $numOp !== 'count' && empty($numCampo)) {
                 $validator->errors()->add('numerator_field', 'El campo del numerador es obligatorio salvo en la operación de conteo.');
@@ -114,4 +114,3 @@ class UpdateKpiRequest extends FormRequest
         });
     }
 }
-

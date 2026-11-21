@@ -20,8 +20,6 @@ class ActTrasladoController extends Controller
 {
     /**
      * Registra los middlewares de permisos.
-     *
-     * @param ActActivoService $activos
      */
     public function __construct(private readonly ActActivoService $activos)
     {
@@ -34,9 +32,6 @@ class ActTrasladoController extends Controller
      * Lista paginada de traslados con origen o destino en las sedes del usuario, del más
      * reciente al más antiguo. Filtros: `estado` (pendiente, recibido, cancelado),
      * `direccion` (entrantes, salientes) y `search` (ID, nombre o serial del activo).
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function index(Request $request): JsonResponse
     {
@@ -54,11 +49,11 @@ class ActTrasladoController extends Controller
             'data' => ActMovimientoResource::collection($traslados),
             'meta' => [
                 'current_page' => $traslados->currentPage(),
-                'last_page'    => $traslados->lastPage(),
-                'per_page'     => $traslados->perPage(),
-                'total'        => $traslados->total(),
-                'from'         => $traslados->firstItem(),
-                'to'           => $traslados->lastItem(),
+                'last_page' => $traslados->lastPage(),
+                'per_page' => $traslados->perPage(),
+                'total' => $traslados->total(),
+                'from' => $traslados->firstItem(),
+                'to' => $traslados->lastItem(),
             ],
         ]);
     }
@@ -68,10 +63,6 @@ class ActTrasladoController extends Controller
      * queda ubicado allí. Solo lo hace quien tiene asignada la sede de destino y, para que
      * la llegada la confirme otra persona, no puede ser quien envió el traslado (salvo el
      * superusuario).
-     *
-     * @param RecibirTrasladoActActivoRequest $request
-     * @param ActMovimiento $traslado
-     * @return JsonResponse
      */
     public function recibir(RecibirTrasladoActActivoRequest $request, ActMovimiento $traslado): JsonResponse
     {
@@ -86,17 +77,13 @@ class ActTrasladoController extends Controller
 
         return response()->json([
             'message' => 'Recepción del activo registrada.',
-            'data'    => new ActMovimientoResource($traslado->fresh([...ActMovimiento::RELACIONES, 'activo.categoria'])),
+            'data' => new ActMovimientoResource($traslado->fresh([...ActMovimiento::RELACIONES, 'activo.categoria'])),
         ]);
     }
 
     /**
      * Cancela un traslado pendiente; el activo permanece en su origen. Solo lo hace quien
      * tiene asignada la sede de origen.
-     *
-     * @param CancelarTrasladoActActivoRequest $request
-     * @param ActMovimiento $traslado
-     * @return JsonResponse
      */
     public function cancelar(CancelarTrasladoActActivoRequest $request, ActMovimiento $traslado): JsonResponse
     {
@@ -106,17 +93,12 @@ class ActTrasladoController extends Controller
 
         return response()->json([
             'message' => 'Traslado cancelado.',
-            'data'    => new ActMovimientoResource($traslado->fresh([...ActMovimiento::RELACIONES, 'activo.categoria'])),
+            'data' => new ActMovimientoResource($traslado->fresh([...ActMovimiento::RELACIONES, 'activo.categoria'])),
         ]);
     }
 
     /**
      * Responde 403 si la sede no está asignada al usuario.
-     *
-     * @param Request $request
-     * @param int|null $sedeId
-     * @param string $mensaje
-     * @return void
      */
     private function autorizarSede(Request $request, ?int $sedeId, string $mensaje): void
     {

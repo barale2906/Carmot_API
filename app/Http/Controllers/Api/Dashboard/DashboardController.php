@@ -3,12 +3,12 @@
 namespace App\Http\Controllers\Api\Dashboard;
 
 use App\Http\Controllers\Controller;
-use App\Http\Resources\Api\Dashboard\DashboardResource;
 use App\Http\Requests\Api\Dashboard\StoreDashboardRequest;
 use App\Http\Requests\Api\Dashboard\UpdateDashboardRequest;
+use App\Http\Resources\Api\Dashboard\DashboardResource;
 use App\Models\Dashboard\Dashboard;
-use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 /**
  * Controlador DashboardController
@@ -18,11 +18,10 @@ use Illuminate\Http\JsonResponse;
  */
 class DashboardController extends Controller
 {
-
     /**
      * Obtiene una lista paginada de dashboards.
      *
-     * @param Request $request Datos de la petición
+     * @param  Request  $request  Datos de la petición
      * @return JsonResponse Lista de dashboards
      */
     public function index(Request $request): JsonResponse
@@ -41,7 +40,7 @@ class DashboardController extends Controller
                 // Usuarios normales ven dashboards default O sus propios dashboards
                 $query->where(function ($q) use ($authenticatedUserId) {
                     $q->where('is_default', true)
-                      ->orWhere('user_id', $authenticatedUserId);
+                        ->orWhere('user_id', $authenticatedUserId);
                 });
             }
         } else {
@@ -68,7 +67,7 @@ class DashboardController extends Controller
     /**
      * Crea un nuevo dashboard.
      *
-     * @param StoreDashboardRequest $request Datos de la petición
+     * @param  StoreDashboardRequest  $request  Datos de la petición
      * @return JsonResponse Dashboard creado
      */
     public function store(StoreDashboardRequest $request): JsonResponse
@@ -82,7 +81,7 @@ class DashboardController extends Controller
     /**
      * Obtiene un dashboard específico.
      *
-     * @param int $dashboardId ID del dashboard
+     * @param  int  $dashboardId  ID del dashboard
      * @return JsonResponse Dashboard encontrado
      */
     public function show(int $dashboardId): JsonResponse
@@ -96,8 +95,8 @@ class DashboardController extends Controller
     /**
      * Actualiza un dashboard existente.
      *
-     * @param UpdateDashboardRequest $request Datos de la petición
-     * @param int $dashboardId ID del dashboard
+     * @param  UpdateDashboardRequest  $request  Datos de la petición
+     * @param  int  $dashboardId  ID del dashboard
      * @return JsonResponse Dashboard actualizado
      */
     public function update(UpdateDashboardRequest $request, int $dashboardId): JsonResponse
@@ -124,8 +123,7 @@ class DashboardController extends Controller
     /**
      * Elimina un dashboard. Solo su dueño o un superusuario (403 en otro caso).
      *
-     * @param Request $request
-     * @param int $dashboardId ID del dashboard
+     * @param  int  $dashboardId  ID del dashboard
      * @return JsonResponse Respuesta de confirmación
      */
     public function destroy(Request $request, int $dashboardId): JsonResponse
@@ -140,7 +138,7 @@ class DashboardController extends Controller
     /**
      * Exporta un dashboard a PDF.
      *
-     * @param int $dashboardId ID del dashboard
+     * @param  int  $dashboardId  ID del dashboard
      * @return \Illuminate\Http\Response Archivo PDF
      */
     public function exportPdf(int $dashboardId)
@@ -152,7 +150,7 @@ class DashboardController extends Controller
         // Por ahora retornamos un JSON con los datos del dashboard
         return response()->json([
             'message' => 'Funcionalidad de exportación a PDF pendiente de implementar',
-            'dashboard' => $dashboard
+            'dashboard' => $dashboard,
         ]);
     }
 }

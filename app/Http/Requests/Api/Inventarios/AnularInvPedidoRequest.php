@@ -34,8 +34,8 @@ class AnularInvPedidoRequest extends FormRequest
     {
         return [
             'motivo.required' => 'El motivo es obligatorio.',
-            'motivo.min'      => 'El motivo debe tener al menos 5 caracteres.',
-            'motivo.max'      => 'El motivo no puede superar los 500 caracteres.',
+            'motivo.min' => 'El motivo debe tener al menos 5 caracteres.',
+            'motivo.max' => 'El motivo no puede superar los 500 caracteres.',
         ];
     }
 

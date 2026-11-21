@@ -12,8 +12,6 @@ use Illuminate\Http\Request;
 
 /**
  * Controlador para la gestión de proveedores del módulo de inventarios.
- *
- * @package App\Http\Controllers\Api\Inventarios
  */
 class InvProveedorController extends Controller
 {
@@ -31,9 +29,6 @@ class InvProveedorController extends Controller
 
     /**
      * Muestra una lista paginada de proveedores con filtros y ordenamiento.
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function index(Request $request): JsonResponse
     {
@@ -47,19 +42,17 @@ class InvProveedorController extends Controller
             'data' => InvProveedorResource::collection($proveedores),
             'meta' => [
                 'current_page' => $proveedores->currentPage(),
-                'last_page'    => $proveedores->lastPage(),
-                'per_page'     => $proveedores->perPage(),
-                'total'        => $proveedores->total(),
-                'from'         => $proveedores->firstItem(),
-                'to'           => $proveedores->lastItem(),
+                'last_page' => $proveedores->lastPage(),
+                'per_page' => $proveedores->perPage(),
+                'total' => $proveedores->total(),
+                'from' => $proveedores->firstItem(),
+                'to' => $proveedores->lastItem(),
             ],
         ]);
     }
 
     /**
      * Lista todos los proveedores activos sin paginación (para selectores).
-     *
-     * @return JsonResponse
      */
     public function activos(): JsonResponse
     {
@@ -68,8 +61,8 @@ class InvProveedorController extends Controller
         return response()->json([
             'data' => InvProveedorResource::collection($proveedores),
             'meta' => [
-                'total'       => $proveedores->count(),
-                'scope'       => 'activos',
+                'total' => $proveedores->count(),
+                'scope' => 'activos',
                 'descripcion' => 'Proveedores activos y sin eliminación lógica.',
             ],
         ]);
@@ -77,9 +70,6 @@ class InvProveedorController extends Controller
 
     /**
      * Almacena un nuevo proveedor en la base de datos.
-     *
-     * @param StoreInvProveedorRequest $request
-     * @return JsonResponse
      */
     public function store(StoreInvProveedorRequest $request): JsonResponse
     {
@@ -87,15 +77,12 @@ class InvProveedorController extends Controller
 
         return response()->json([
             'message' => 'Proveedor creado exitosamente.',
-            'data'    => new InvProveedorResource($proveedor),
+            'data' => new InvProveedorResource($proveedor),
         ], 201);
     }
 
     /**
      * Muestra el proveedor especificado.
-     *
-     * @param InvProveedor $proveedor
-     * @return JsonResponse
      */
     public function show(InvProveedor $proveedor): JsonResponse
     {
@@ -106,10 +93,6 @@ class InvProveedorController extends Controller
 
     /**
      * Actualiza el proveedor especificado en la base de datos.
-     *
-     * @param UpdateInvProveedorRequest $request
-     * @param InvProveedor $proveedor
-     * @return JsonResponse
      */
     public function update(UpdateInvProveedorRequest $request, InvProveedor $proveedor): JsonResponse
     {
@@ -117,15 +100,12 @@ class InvProveedorController extends Controller
 
         return response()->json([
             'message' => 'Proveedor actualizado exitosamente.',
-            'data'    => new InvProveedorResource($proveedor),
+            'data' => new InvProveedorResource($proveedor),
         ]);
     }
 
     /**
      * Elimina el proveedor (soft delete).
-     *
-     * @param InvProveedor $proveedor
-     * @return JsonResponse
      */
     public function destroy(InvProveedor $proveedor): JsonResponse
     {
@@ -138,9 +118,6 @@ class InvProveedorController extends Controller
 
     /**
      * Restaura un proveedor eliminado (soft delete).
-     *
-     * @param int $id
-     * @return JsonResponse
      */
     public function restore(int $id): JsonResponse
     {
@@ -149,15 +126,12 @@ class InvProveedorController extends Controller
 
         return response()->json([
             'message' => 'Proveedor restaurado exitosamente.',
-            'data'    => new InvProveedorResource($proveedor),
+            'data' => new InvProveedorResource($proveedor),
         ]);
     }
 
     /**
      * Elimina permanentemente un proveedor.
-     *
-     * @param int $id
-     * @return JsonResponse
      */
     public function forceDelete(int $id): JsonResponse
     {
@@ -171,9 +145,6 @@ class InvProveedorController extends Controller
 
     /**
      * Obtiene solo los proveedores eliminados (soft delete).
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function trashed(Request $request): JsonResponse
     {
@@ -188,11 +159,11 @@ class InvProveedorController extends Controller
             'data' => InvProveedorResource::collection($proveedores),
             'meta' => [
                 'current_page' => $proveedores->currentPage(),
-                'last_page'    => $proveedores->lastPage(),
-                'per_page'     => $proveedores->perPage(),
-                'total'        => $proveedores->total(),
-                'from'         => $proveedores->firstItem(),
-                'to'           => $proveedores->lastItem(),
+                'last_page' => $proveedores->lastPage(),
+                'per_page' => $proveedores->perPage(),
+                'total' => $proveedores->total(),
+                'from' => $proveedores->firstItem(),
+                'to' => $proveedores->lastItem(),
             ],
         ]);
     }

@@ -12,8 +12,6 @@ use Illuminate\Foundation\Http\FormRequest;
  *
  * Valida los datos para crear una nueva lista de precios.
  * Incluye validación de fechas, poblaciones, estados y solapamiento de vigencia.
- *
- * @package App\Http\Requests\Api\Financiero\Lp
  */
 class StoreLpListaPrecioRequest extends FormRequest
 {
@@ -22,8 +20,6 @@ class StoreLpListaPrecioRequest extends FormRequest
     /**
      * Determina si el usuario está autorizado para hacer esta solicitud.
      * La autorización se maneja mediante middleware y permisos.
-     *
-     * @return bool
      */
     public function authorize(): bool
     {
@@ -52,8 +48,6 @@ class StoreLpListaPrecioRequest extends FormRequest
     /**
      * Configurar validaciones adicionales después de las reglas básicas.
      * Valida que no existan solapamientos de vigencia para las poblaciones especificadas.
-     *
-     * @return void
      */
     public function withValidator($validator): void
     {
@@ -67,7 +61,7 @@ class StoreLpListaPrecioRequest extends FormRequest
                     return;
                 }
 
-                $service = new LpPrecioProductoService();
+                $service = new LpPrecioProductoService;
 
                 foreach ($this->poblaciones as $poblacionId) {
                     $sinSolapamiento = $service->validarSolapamientoVigencia(
@@ -76,7 +70,7 @@ class StoreLpListaPrecioRequest extends FormRequest
                         $fechaFin
                     );
 
-                    if (!$sinSolapamiento) {
+                    if (! $sinSolapamiento) {
                         $validator->errors()->add(
                             'poblaciones',
                             "Ya existe una lista de precios activa con vigencia solapada para la población ID {$poblacionId} en el período especificado."

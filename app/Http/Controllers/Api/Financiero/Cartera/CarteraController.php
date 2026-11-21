@@ -7,6 +7,7 @@ use App\Http\Requests\Api\Financiero\Cartera\StoreAcuerdoPagoRequest;
 use App\Http\Resources\Api\Financiero\Cartera\CarteraResource;
 use App\Models\Academico\Matricula;
 use App\Models\Financiero\Cartera\Cartera;
+use App\Models\Financiero\Cartera\ProrrogaPago;
 use App\Models\Financiero\ReciboPago\ReciboPago;
 use App\Services\Financiero\AcuerdoPagoService;
 use App\Services\Financiero\CarteraDescuentoService;
@@ -41,10 +42,8 @@ class CarteraController extends Controller
      * Con `con_transferencia_pendiente=1` solo se listan las matrículas de estudiantes que
      * tienen alguna transferencia por validar. El `meta` incluye `total_transferencias_pendientes`
      * (suma de las transferencias por validar de los estudiantes filtrados) y `total_cartera_neta`
-     * (`total_saldo_filtrado` menos esas transferencias).
-     *
-     * @param Request $request
-     * @return JsonResponse
+     * (`total_saldo_filtrado` menos esas transferencias). `prorrogas_pago` cuenta las veces que se
+     * acordó con el estudiante un plazo nuevo de pago (total, vigentes, cumplidas e incumplidas).
      */
     public function index(Request $request): JsonResponse
     {
@@ -139,53 +138,55 @@ class CarteraController extends Controller
             $matriculas->getCollection()->pluck('estudiante_id')->filter()->unique()->values()->all()
         );
 
+        $prorrogas = ProrrogaPago::resumenPorEstudiante(
+            $matriculas->getCollection()->pluck('estudiante_id')->filter()->unique()->values()->all()
+        );
+
         $data = $matriculas->getCollection()->map(fn (Matricula $matricula) => [
             'matricula_id' => $matricula->id,
-            'matricula'    => [
-                'id'              => $matricula->id,
-                'curso'           => $matricula->curso?->nombre,
+            'matricula' => [
+                'id' => $matricula->id,
+                'curso' => $matricula->curso?->nombre,
                 'fecha_matricula' => $matricula->fecha_matricula?->toDateString(),
             ],
-            'estudiante'   => [
-                'id'     => $matricula->estudiante?->id,
+            'estudiante' => [
+                'id' => $matricula->estudiante?->id,
                 'nombre' => $matricula->estudiante?->nombre_completo ?? $matricula->estudiante?->name,
             ],
-            'sede'         => [
-                'id'     => $matricula->sede?->id,
+            'sede' => [
+                'id' => $matricula->sede?->id,
                 'nombre' => $matricula->sede?->nombre,
             ],
-            'total_valor'  => (float) $matricula->carteras->sum('valor'),
-            'total_saldo'  => (float) $matricula->carteras->sum('saldo'),
-            'total_abono'  => (float) $matricula->carteras->sum('abono'),
+            'total_valor' => (float) $matricula->carteras->sum('valor'),
+            'total_saldo' => (float) $matricula->carteras->sum('saldo'),
+            'total_abono' => (float) $matricula->carteras->sum('abono'),
             // Valor total = abonado + descuento + saldo: sin esta columna no cuadraba (F16)
             'total_descuento' => (float) $matricula->carteras->sum('descuento'),
-            'carteras'     => CarteraResource::collection($matricula->carteras),
-            'transferencias_pendientes'       => $transferencias->get($matricula->estudiante_id)['cantidad'] ?? 0,
+            'carteras' => CarteraResource::collection($matricula->carteras),
+            'transferencias_pendientes' => $transferencias->get($matricula->estudiante_id)['cantidad'] ?? 0,
             'valor_transferencias_pendientes' => (float) ($transferencias->get($matricula->estudiante_id)['valor'] ?? 0),
+            'prorrogas_pago' => $prorrogas->get($matricula->estudiante_id) ?? ['total' => 0, 'vigentes' => 0, 'cumplidas' => 0, 'incumplidas' => 0],
         ]);
 
         return response()->json([
             'data' => $data,
             'meta' => [
-                'current_page'        => $matriculas->currentPage(),
-                'last_page'           => $matriculas->lastPage(),
-                'per_page'            => $matriculas->perPage(),
-                'total'               => $matriculas->total(),
-                'from'                => $matriculas->firstItem(),
-                'to'                  => $matriculas->lastItem(),
+                'current_page' => $matriculas->currentPage(),
+                'last_page' => $matriculas->lastPage(),
+                'per_page' => $matriculas->perPage(),
+                'total' => $matriculas->total(),
+                'from' => $matriculas->firstItem(),
+                'to' => $matriculas->lastItem(),
                 'total_saldo_filtrado' => $totalSaldoFiltrado,
                 'total_valor_filtrado' => $totalValorFiltrado,
                 'total_transferencias_pendientes' => $totalTransferenciasPendientes,
-                'total_cartera_neta'  => round($totalSaldoFiltrado - $totalTransferenciasPendientes, 2),
+                'total_cartera_neta' => round($totalSaldoFiltrado - $totalTransferenciasPendientes, 2),
             ],
         ]);
     }
 
     /**
      * Muestra el detalle de una cartera específica.
-     *
-     * @param Cartera $cartera
-     * @return JsonResponse
      */
     public function show(Cartera $cartera): JsonResponse
     {
@@ -201,9 +202,6 @@ class CarteraController extends Controller
      * Equivale al método obligaciones() de tailpoli/RecibosPagoCrear.
      *
      * Parámetros: estudiante_id (requerido)
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function deudasEstudiante(Request $request): JsonResponse
     {
@@ -221,11 +219,11 @@ class CarteraController extends Controller
                 $primera = $carteras->first();
 
                 return [
-                    'matricula_id'    => $matriculaId,
-                    'curso'           => $primera->matricula?->curso?->nombre,
-                    'total_saldo'     => $carteras->sum('saldo'),
-                    'total_valor'     => $carteras->sum('valor'),
-                    'carteras_count'  => $carteras->count(),
+                    'matricula_id' => $matriculaId,
+                    'curso' => $primera->matricula?->curso?->nombre,
+                    'total_saldo' => $carteras->sum('saldo'),
+                    'total_valor' => $carteras->sum('valor'),
+                    'carteras_count' => $carteras->count(),
                 ];
             })
             ->values();
@@ -239,24 +237,21 @@ class CarteraController extends Controller
      * Incluye cálculo de descuento disponible por pronto pago.
      *
      * Parámetros: matricula_id (requerido), fecha_referencia (opcional, default: hoy)
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function detalleMatricula(Request $request): JsonResponse
     {
         $request->validate([
-            'matricula_id'     => 'required|integer|exists:matriculas,id',
+            'matricula_id' => 'required|integer|exists:matriculas,id',
             'fecha_referencia' => 'nullable|date',
         ]);
 
         $matricula = Matricula::findOrFail($request->integer('matricula_id'));
-        $fecha     = $request->filled('fecha_referencia')
+        $fecha = $request->filled('fecha_referencia')
             ? Carbon::parse($request->input('fecha_referencia'))
             : Carbon::today();
 
-        $vencidas   = $matricula->carteras()->vencidas($fecha)->orderBy('fecha_vencimiento')->get();
-        $proximas   = $matricula->carteras()->proximas($fecha)->orderBy('fecha_vencimiento')->get();
+        $vencidas = $matricula->carteras()->vencidas($fecha)->orderBy('fecha_vencimiento')->get();
+        $proximas = $matricula->carteras()->proximas($fecha)->orderBy('fecha_vencimiento')->get();
         $totalSaldo = $matricula->carteras()->pendientes()->sum('saldo');
 
         $descuento = $this->descuentoService->calcular(
@@ -267,11 +262,11 @@ class CarteraController extends Controller
 
         return response()->json([
             'data' => [
-                'vencidas'              => CarteraResource::collection($vencidas),
-                'proximas'              => CarteraResource::collection($proximas),
-                'siguiente_cuota'       => $proximas->first() ? new CarteraResource($proximas->first()) : null,
-                'total_saldo'           => $totalSaldo,
-                'descuento_disponible'  => $descuento,
+                'vencidas' => CarteraResource::collection($vencidas),
+                'proximas' => CarteraResource::collection($proximas),
+                'siguiente_cuota' => $proximas->first() ? new CarteraResource($proximas->first()) : null,
+                'total_saldo' => $totalSaldo,
+                'descuento_disponible' => $descuento,
             ],
         ]);
     }
@@ -279,9 +274,6 @@ class CarteraController extends Controller
     /**
      * Anula una cartera (estado → Anulada).
      * Solo aplicable a carteras Activas o Abonadas que aún no tienen pagos registrados.
-     *
-     * @param Cartera $cartera
-     * @return JsonResponse
      */
     public function anular(Cartera $cartera): JsonResponse
     {
@@ -299,7 +291,7 @@ class CarteraController extends Controller
 
         return response()->json([
             'message' => 'Cartera anulada exitosamente.',
-            'data'    => new CarteraResource($cartera->fresh()),
+            'data' => new CarteraResource($cartera->fresh()),
         ]);
     }
 
@@ -307,9 +299,6 @@ class CarteraController extends Controller
      * Registra un acuerdo de pago para una matrícula con cuotas vencidas.
      * Marca las carteras pendientes como "En Acuerdo" y genera nuevas con
      * las condiciones reestructuradas.
-     *
-     * @param StoreAcuerdoPagoRequest $request
-     * @return JsonResponse
      */
     public function acuerdoPago(StoreAcuerdoPagoRequest $request): JsonResponse
     {
@@ -325,8 +314,8 @@ class CarteraController extends Controller
 
         return response()->json([
             'message' => 'Acuerdo de pago registrado exitosamente.',
-            'data'    => [
-                'carteras_acuerdo'    => CarteraResource::collection($resultado['carteras_acuerdo']),
+            'data' => [
+                'carteras_acuerdo' => CarteraResource::collection($resultado['carteras_acuerdo']),
                 'total_reestructurado' => $resultado['total_reestructurado'],
             ],
         ], 201);
@@ -337,8 +326,8 @@ class CarteraController extends Controller
      *
      * Parámetros: sede_id, fecha_desde, fecha_hasta, status
      *
-     * @param Request $request
-     * @return JsonResponse
+     * `prorrogas_pago` cuenta los plazos nuevos de pago acordados (sin los cancelados) con la misma
+     * sede y, si se envía el rango, con fecha de acuerdo dentro de él; con desglose por estado.
      */
     public function reportes(Request $request): JsonResponse
     {
@@ -354,20 +343,35 @@ class CarteraController extends Controller
             $query->byStatus($request->integer('status'));
         }
 
+        $prorrogas = ProrrogaPago::query()
+            ->when($request->filled('sede_id'), fn ($q) => $q->where('sede_id', $request->integer('sede_id')))
+            ->when($request->filled('fecha_desde') && $request->filled('fecha_hasta'), fn ($q) => $q->whereBetween('fecha_acuerdo', [$request->input('fecha_desde'), $request->input('fecha_hasta')]))
+            ->selectRaw('estado, count(*) as total')
+            ->groupBy('estado')
+            ->pluck('total', 'estado');
+
+        $prorrogas = [
+            'total' => (int) $prorrogas->sum(),
+            'vigentes' => (int) ($prorrogas[ProrrogaPago::VIGENTE] ?? 0),
+            'cumplidas' => (int) ($prorrogas[ProrrogaPago::CUMPLIDO] ?? 0),
+            'incumplidas' => (int) ($prorrogas[ProrrogaPago::INCUMPLIDO] ?? 0),
+        ];
+
         $resumen = [
-            'total_valor'    => (clone $query)->sum('valor'),
-            'total_saldo'    => (clone $query)->sum('saldo'),
-            'total_abono'    => (clone $query)->sum('abono'),
+            'total_valor' => (clone $query)->sum('valor'),
+            'total_saldo' => (clone $query)->sum('saldo'),
+            'total_abono' => (clone $query)->sum('abono'),
             'total_descuento' => (clone $query)->sum('descuento'),
-            'por_status'     => (clone $query)->selectRaw('status, count(*) as total, sum(saldo) as total_saldo')
+            'por_status' => (clone $query)->selectRaw('status, count(*) as total, sum(saldo) as total_saldo')
                 ->groupBy('status')
                 ->get()
                 ->map(fn ($r) => [
-                    'status'      => $r->status,
+                    'status' => $r->status,
                     'status_text' => Cartera::getStatusText($r->status),
-                    'total'       => $r->total,
+                    'total' => $r->total,
                     'total_saldo' => $r->total_saldo,
                 ]),
+            'prorrogas_pago' => $prorrogas,
         ];
 
         return response()->json(['data' => $resumen]);

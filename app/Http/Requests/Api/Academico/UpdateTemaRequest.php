@@ -19,8 +19,6 @@ class UpdateTemaRequest extends FormRequest
 
     /**
      * Determina si el usuario está autorizado para hacer esta solicitud.
-     *
-     * @return bool
      */
     public function authorize(): bool
     {
@@ -41,7 +39,7 @@ class UpdateTemaRequest extends FormRequest
                 'required',
                 'string',
                 'max:255',
-                Rule::unique('temas', 'nombre')->ignore($temaId)
+                Rule::unique('temas', 'nombre')->ignore($temaId),
             ],
             'descripcion' => 'required|string|max:1000',
             'duracion' => 'required|numeric|min:0.1|max:999',

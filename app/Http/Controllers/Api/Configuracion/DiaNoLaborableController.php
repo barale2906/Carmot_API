@@ -23,8 +23,6 @@ use Illuminate\Support\Facades\DB;
  * ciclos afectados: fechas de grupos, fecha fin automática y clases
  * programadas pendientes. Los ciclos recalculados se informan en
  * meta.ciclos_recalculados.
- *
- * @package App\Http\Controllers\Api\Configuracion
  */
 class DiaNoLaborableController extends Controller
 {
@@ -47,9 +45,6 @@ class DiaNoLaborableController extends Controller
     /**
      * Muestra una lista paginada de días no laborables con filtros y ordenamiento.
      * Con sede_id incluye también los días generales (todas las sedes).
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function index(Request $request): JsonResponse
     {
@@ -64,11 +59,11 @@ class DiaNoLaborableController extends Controller
             'data' => DiaNoLaborableResource::collection($dias),
             'meta' => [
                 'current_page' => $dias->currentPage(),
-                'last_page'    => $dias->lastPage(),
-                'per_page'     => $dias->perPage(),
-                'total'        => $dias->total(),
-                'from'         => $dias->firstItem(),
-                'to'           => $dias->lastItem(),
+                'last_page' => $dias->lastPage(),
+                'per_page' => $dias->perPage(),
+                'total' => $dias->total(),
+                'from' => $dias->firstItem(),
+                'to' => $dias->lastItem(),
             ],
         ]);
     }
@@ -76,14 +71,11 @@ class DiaNoLaborableController extends Controller
     /**
      * Devuelve todos los días no laborables activos de un año, sin paginar,
      * para la vista de calendario. Con sede_id incluye los días generales.
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function calendario(Request $request): JsonResponse
     {
         $request->validate([
-            'anio'    => 'required|integer|between:2000,2100',
+            'anio' => 'required|integer|between:2000,2100',
             'sede_id' => 'nullable|integer|exists:sedes,id',
         ]);
 
@@ -96,9 +88,9 @@ class DiaNoLaborableController extends Controller
         return response()->json([
             'data' => DiaNoLaborableResource::collection($dias),
             'meta' => [
-                'anio'     => (int) $request->anio,
-                'sede_id'  => $request->filled('sede_id') ? (int) $request->sede_id : null,
-                'total'    => $dias->count(),
+                'anio' => (int) $request->anio,
+                'sede_id' => $request->filled('sede_id') ? (int) $request->sede_id : null,
+                'total' => $dias->count(),
                 'por_tipo' => $dias->countBy('tipo'),
             ],
         ]);
@@ -106,33 +98,27 @@ class DiaNoLaborableController extends Controller
 
     /**
      * Almacena un nuevo día no laborable y recalcula los ciclos afectados.
-     *
-     * @param StoreDiaNoLaborableRequest $request
-     * @return JsonResponse
      */
     public function store(StoreDiaNoLaborableRequest $request): JsonResponse
     {
         [$dia, $recalculados] = DB::transaction(function () use ($request) {
-            $data           = $request->only(self::FILLABLE_FIELDS);
+            $data = $request->only(self::FILLABLE_FIELDS);
             $data['status'] = $data['status'] ?? 1;
-            $dia            = DiaNoLaborable::create($data);
+            $dia = DiaNoLaborable::create($data);
 
             return [$dia, $this->recalculo->recalcularPorDias([$this->clave($dia)])];
         });
 
         return response()->json([
             'message' => 'Día no laborable creado exitosamente.',
-            'data'    => new DiaNoLaborableResource($dia->load('sede')),
-            'meta'    => ['ciclos_recalculados' => $recalculados],
+            'data' => new DiaNoLaborableResource($dia->load('sede')),
+            'meta' => ['ciclos_recalculados' => $recalculados],
         ], 201);
     }
 
     /**
      * Registra un día no laborable por cada fecha de un rango (ej. vacaciones
      * colectivas). Las fechas ya registradas se omiten y se reportan.
-     *
-     * @param StoreRangoDiaNoLaborableRequest $request
-     * @return JsonResponse
      */
     public function rango(StoreRangoDiaNoLaborableRequest $request): JsonResponse
     {
@@ -146,9 +132,6 @@ class DiaNoLaborableController extends Controller
      * Genera los festivos nacionales de Colombia del año indicado. Los festivos
      * ya registrados o eliminados previamente se omiten; luego pueden editarse
      * o eliminarse como cualquier otro día.
-     *
-     * @param GenerarFestivosRequest $request
-     * @return JsonResponse
      */
     public function generarFestivos(GenerarFestivosRequest $request): JsonResponse
     {
@@ -163,9 +146,6 @@ class DiaNoLaborableController extends Controller
 
     /**
      * Muestra el día no laborable especificado.
-     *
-     * @param DiaNoLaborable $diaNoLaborable
-     * @return JsonResponse
      */
     public function show(DiaNoLaborable $diaNoLaborable): JsonResponse
     {
@@ -177,10 +157,6 @@ class DiaNoLaborableController extends Controller
     /**
      * Actualiza el día no laborable y recalcula los ciclos afectados por la
      * fecha/sede anterior y la nueva (cubre cambios de fecha, sede o estado).
-     *
-     * @param UpdateDiaNoLaborableRequest $request
-     * @param DiaNoLaborable $diaNoLaborable
-     * @return JsonResponse
      */
     public function update(UpdateDiaNoLaborableRequest $request, DiaNoLaborable $diaNoLaborable): JsonResponse
     {
@@ -193,16 +169,13 @@ class DiaNoLaborableController extends Controller
 
         return response()->json([
             'message' => 'Día no laborable actualizado exitosamente.',
-            'data'    => new DiaNoLaborableResource($diaNoLaborable->fresh('sede')),
-            'meta'    => ['ciclos_recalculados' => $recalculados],
+            'data' => new DiaNoLaborableResource($diaNoLaborable->fresh('sede')),
+            'meta' => ['ciclos_recalculados' => $recalculados],
         ]);
     }
 
     /**
      * Elimina el día no laborable (soft delete) y recalcula los ciclos afectados.
-     *
-     * @param DiaNoLaborable $diaNoLaborable
-     * @return JsonResponse
      */
     public function destroy(DiaNoLaborable $diaNoLaborable): JsonResponse
     {
@@ -214,16 +187,13 @@ class DiaNoLaborableController extends Controller
 
         return response()->json([
             'message' => 'Día no laborable eliminado exitosamente.',
-            'meta'    => ['ciclos_recalculados' => $recalculados],
+            'meta' => ['ciclos_recalculados' => $recalculados],
         ]);
     }
 
     /**
      * Restaura un día no laborable eliminado y recalcula los ciclos afectados.
      * Rechaza la restauración si la fecha ya fue registrada de nuevo.
-     *
-     * @param int $id
-     * @return JsonResponse
      */
     public function restore(int $id): JsonResponse
     {
@@ -242,17 +212,14 @@ class DiaNoLaborableController extends Controller
 
         return response()->json([
             'message' => 'Día no laborable restaurado exitosamente.',
-            'data'    => new DiaNoLaborableResource($dia->load('sede')),
-            'meta'    => ['ciclos_recalculados' => $recalculados],
+            'data' => new DiaNoLaborableResource($dia->load('sede')),
+            'meta' => ['ciclos_recalculados' => $recalculados],
         ]);
     }
 
     /**
      * Elimina permanentemente un día no laborable que ya está en soft delete.
      * No recalcula: un día eliminado ya no afecta el calendario.
-     *
-     * @param int $id
-     * @return JsonResponse
      */
     public function forceDelete(int $id): JsonResponse
     {
@@ -265,9 +232,6 @@ class DiaNoLaborableController extends Controller
 
     /**
      * Obtiene solo los días no laborables eliminados (soft delete).
-     *
-     * @param Request $request
-     * @return JsonResponse
      */
     public function trashed(Request $request): JsonResponse
     {
@@ -283,25 +247,23 @@ class DiaNoLaborableController extends Controller
             'data' => DiaNoLaborableResource::collection($dias),
             'meta' => [
                 'current_page' => $dias->currentPage(),
-                'last_page'    => $dias->lastPage(),
-                'per_page'     => $dias->perPage(),
-                'total'        => $dias->total(),
-                'from'         => $dias->firstItem(),
-                'to'           => $dias->lastItem(),
+                'last_page' => $dias->lastPage(),
+                'per_page' => $dias->perPage(),
+                'total' => $dias->total(),
+                'from' => $dias->firstItem(),
+                'to' => $dias->lastItem(),
             ],
         ]);
     }
 
     /**
      * Obtiene las opciones de filtros (tipos y estados) para el frontend.
-     *
-     * @return JsonResponse
      */
     public function filters(): JsonResponse
     {
         return response()->json([
             'data' => [
-                'tipos'  => DiaNoLaborable::TIPOS,
+                'tipos' => DiaNoLaborable::TIPOS,
                 'status' => DiaNoLaborable::getActiveStatusOptions(),
             ],
         ]);
@@ -309,8 +271,6 @@ class DiaNoLaborableController extends Controller
 
     /**
      * Obtiene estadísticas del calendario de días no laborables.
-     *
-     * @return JsonResponse
      */
     public function statistics(): JsonResponse
     {
@@ -319,17 +279,17 @@ class DiaNoLaborableController extends Controller
         return response()->json([
             'data' => [
                 'totales' => [
-                    'total'      => DiaNoLaborable::withTrashed()->count(),
-                    'activos'    => DiaNoLaborable::where('status', 1)->count(),
-                    'inactivos'  => DiaNoLaborable::where('status', 0)->count(),
+                    'total' => DiaNoLaborable::withTrashed()->count(),
+                    'activos' => DiaNoLaborable::where('status', 1)->count(),
+                    'inactivos' => DiaNoLaborable::where('status', 0)->count(),
                     'eliminados' => DiaNoLaborable::onlyTrashed()->count(),
                 ],
-                'por_tipo'  => DiaNoLaborable::active()->selectRaw('tipo, COUNT(*) as total')->groupBy('tipo')->pluck('total', 'tipo'),
-                'alcance'   => [
+                'por_tipo' => DiaNoLaborable::active()->selectRaw('tipo, COUNT(*) as total')->groupBy('tipo')->pluck('total', 'tipo'),
+                'alcance' => [
                     'generales' => DiaNoLaborable::active()->whereNull('sede_id')->count(),
-                    'por_sede'  => DiaNoLaborable::active()->whereNotNull('sede_id')->count(),
+                    'por_sede' => DiaNoLaborable::active()->whereNotNull('sede_id')->count(),
                 ],
-                'proximos'  => DiaNoLaborableResource::collection(
+                'proximos' => DiaNoLaborableResource::collection(
                     DiaNoLaborable::active()->with('sede')->where('fecha', '>=', $hoy)->orderBy('fecha')->limit(5)->get()
                 ),
             ],
@@ -340,9 +300,7 @@ class DiaNoLaborableController extends Controller
      * Ejecuta un alta masiva, recalcula los ciclos afectados por los días creados
      * y arma la respuesta con creados, omitidos y ciclos recalculados.
      *
-     * @param \Closure $alta  Devuelve ['creados' => Collection, 'omitidos' => array]
-     * @param string   $mensaje
-     * @return JsonResponse
+     * @param  \Closure  $alta  Devuelve ['creados' => Collection, 'omitidos' => array]
      */
     private function respuestaAltaMasiva(\Closure $alta, string $mensaje): JsonResponse
     {
@@ -357,12 +315,12 @@ class DiaNoLaborableController extends Controller
         $creados = $resultado['creados']->count();
 
         return response()->json([
-            'message' => "{$mensaje} Creados: {$creados}, omitidos: " . count($resultado['omitidos']) . '.',
-            'data'    => [
-                'creados'  => DiaNoLaborableResource::collection($resultado['creados']),
+            'message' => "{$mensaje} Creados: {$creados}, omitidos: ".count($resultado['omitidos']).'.',
+            'data' => [
+                'creados' => DiaNoLaborableResource::collection($resultado['creados']),
                 'omitidos' => $resultado['omitidos'],
             ],
-            'meta'    => ['ciclos_recalculados' => $recalculados],
+            'meta' => ['ciclos_recalculados' => $recalculados],
         ], $creados > 0 ? 201 : 200);
     }
 

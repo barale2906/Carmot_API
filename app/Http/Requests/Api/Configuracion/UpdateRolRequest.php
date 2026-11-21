@@ -38,7 +38,7 @@ class UpdateRolRequest extends FormRequest
         $rolId = $this->rolId();
 
         return [
-            'name'          => [
+            'name' => [
                 'sometimes',
                 'string',
                 'max:125',
@@ -53,8 +53,8 @@ class UpdateRolRequest extends FormRequest
                     }
                 },
             ],
-            'status'        => ['sometimes', 'boolean'],
-            'permissions'   => ['sometimes', 'array'],
+            'status' => ['sometimes', 'boolean'],
+            'permissions' => ['sometimes', 'array'],
             'permissions.*' => ['string', 'exists:permissions,name'],
         ];
     }
@@ -67,10 +67,10 @@ class UpdateRolRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'name.unique'           => 'Ya existe un rol con ese nombre.',
-            'name.max'              => 'El nombre del rol no puede exceder los 125 caracteres.',
-            'permissions.array'     => 'Los permisos deben ser un array.',
-            'permissions.*.exists'  => 'Uno o más permisos indicados no existen.',
+            'name.unique' => 'Ya existe un rol con ese nombre.',
+            'name.max' => 'El nombre del rol no puede exceder los 125 caracteres.',
+            'permissions.array' => 'Los permisos deben ser un array.',
+            'permissions.*.exists' => 'Uno o más permisos indicados no existen.',
         ];
     }
 
@@ -82,9 +82,9 @@ class UpdateRolRequest extends FormRequest
     public function attributes(): array
     {
         return [
-            'name'          => 'nombre del rol',
-            'status'        => 'estado',
-            'permissions'   => 'permisos',
+            'name' => 'nombre del rol',
+            'status' => 'estado',
+            'permissions' => 'permisos',
             'permissions.*' => 'permiso',
         ];
     }

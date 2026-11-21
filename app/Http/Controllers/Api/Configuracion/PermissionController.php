@@ -14,8 +14,6 @@ use Spatie\Permission\Models\Permission;
  * Expone un único endpoint de listado que permite buscar y filtrar
  * los permisos registrados mediante el paquete Spatie Permission.
  * Su uso principal es alimentar los formularios de asignación de permisos a roles.
- *
- * @package App\Http\Controllers\Api\Configuracion
  */
 class PermissionController extends Controller
 {
@@ -45,7 +43,7 @@ class PermissionController extends Controller
                 $search = $request->input('search');
                 $query->where(function ($q) use ($search) {
                     $q->where('name', 'like', "%{$search}%")
-                      ->orWhere('descripcion', 'like', "%{$search}%");
+                        ->orWhere('descripcion', 'like', "%{$search}%");
                 });
             }
 
@@ -58,6 +56,7 @@ class PermissionController extends Controller
             // Si per_page = 0 devuelve todos sin paginar
             if ($perPage == 0) {
                 $permissions = $query->orderBy('name')->get();
+
                 return PermissionResource::collection($permissions);
             }
 
@@ -68,12 +67,12 @@ class PermissionController extends Controller
         } catch (\Exception $e) {
             Log::error('Error al obtener los permisos', [
                 'exception' => $e->getMessage(),
-                'trace'     => $e->getTraceAsString(),
+                'trace' => $e->getTraceAsString(),
             ]);
 
             return response()->json([
                 'message' => 'Error al obtener los permisos',
-                'error'   => $e->getMessage(),
+                'error' => $e->getMessage(),
             ], 500);
         }
     }

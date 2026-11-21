@@ -13,8 +13,6 @@ class UpdateActCategoriaRequest extends FormRequest
 
     /**
      * Determina si el usuario está autorizado para realizar esta petición.
-     *
-     * @return bool
      */
     public function authorize(): bool
     {
@@ -29,9 +27,9 @@ class UpdateActCategoriaRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'nombre'      => ['sometimes', 'string', 'max:120', Rule::unique('act_categorias', 'nombre')->whereNull('deleted_at')->ignore($this->route('categoria'))],
+            'nombre' => ['sometimes', 'string', 'max:120', Rule::unique('act_categorias', 'nombre')->whereNull('deleted_at')->ignore($this->route('categoria'))],
             'descripcion' => ['sometimes', 'nullable', 'string', 'max:1000'],
-            'status'      => self::getStatusValidationRule(),
+            'status' => self::getStatusValidationRule(),
         ];
     }
 
@@ -44,7 +42,7 @@ class UpdateActCategoriaRequest extends FormRequest
     {
         return [
             'nombre.required' => 'El nombre de la categoría es obligatorio.',
-            'nombre.unique'   => 'Ya existe una categoría con este nombre.',
+            'nombre.unique' => 'Ya existe una categoría con este nombre.',
         ] + self::getStatusValidationMessages();
     }
 }

@@ -10,7 +10,8 @@ use Illuminate\Validation\Rule;
 
 class UpdateCursoRequest extends FormRequest
 {
-    use HasTipo, HasActiveStatus, HasActiveStatusValidation;
+    use HasActiveStatus, HasActiveStatusValidation, HasTipo;
+
     /**
      * Determina si el usuario está autorizado para hacer esta solicitud.
      */
@@ -33,10 +34,10 @@ class UpdateCursoRequest extends FormRequest
                 'sometimes',
                 'string',
                 'max:255',
-                Rule::unique('cursos', 'nombre')->ignore($cursoId)
+                Rule::unique('cursos', 'nombre')->ignore($cursoId),
             ],
             'duracion' => 'sometimes|numeric|min:0',
-            'tipo' => 'sometimes|integer|' . self::getTipoValidationRule(),
+            'tipo' => 'sometimes|integer|'.self::getTipoValidationRule(),
             'status' => self::getStatusValidationRule(),
             'modulo_ids' => 'sometimes|array',
             'modulo_ids.*' => 'integer|exists:modulos,id',
@@ -60,7 +61,9 @@ class UpdateCursoRequest extends FormRequest
             'modulo_ids.*.integer' => 'Cada módulo debe ser un número entero.',
             'modulo_ids.*.exists' => 'Uno o más módulos seleccionados no existen.',
             'tipo.integer' => 'El tipo debe ser un número entero.',
-            'tipo.in' => 'El tipo debe ser uno de los valores válidos: ' . implode(', ', array_map(function($key, $value) { return "$key ($value)"; }, array_keys(self::getTipoOptions()), self::getTipoOptions())) . '.',
+            'tipo.in' => 'El tipo debe ser uno de los valores válidos: '.implode(', ', array_map(function ($key, $value) {
+                return "$key ($value)";
+            }, array_keys(self::getTipoOptions()), self::getTipoOptions())).'.',
         ], self::getStatusValidationMessages());
     }
 }

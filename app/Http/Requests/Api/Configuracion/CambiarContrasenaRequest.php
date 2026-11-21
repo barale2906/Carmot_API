@@ -15,8 +15,6 @@ class CambiarContrasenaRequest extends FormRequest
 
     /**
      * Determina si el usuario está autorizado para realizar esta solicitud.
-     *
-     * @return bool
      */
     public function authorize(): bool
     {
@@ -32,7 +30,7 @@ class CambiarContrasenaRequest extends FormRequest
     {
         return [
             'contrasena_actual' => ['required', 'string', 'current_password:sanctum'],
-            'password'          => [
+            'password' => [
                 'required', 'confirmed', 'different:contrasena_actual',
                 ...$this->reglaContrasena($this->user()->getRoleNames()->all()),
             ],
@@ -47,12 +45,12 @@ class CambiarContrasenaRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'contrasena_actual.required'         => 'Ingrese su contraseña actual.',
+            'contrasena_actual.required' => 'Ingrese su contraseña actual.',
             'contrasena_actual.current_password' => 'La contraseña actual no es correcta.',
-            'password.required'                  => 'Ingrese la nueva contraseña.',
-            'password.confirmed'                 => 'La confirmación de la contraseña no coincide.',
-            'password.different'                 => 'La nueva contraseña debe ser distinta de la actual.',
-            'password.regex'                     => 'La contraseña no puede tener espacios.',
+            'password.required' => 'Ingrese la nueva contraseña.',
+            'password.confirmed' => 'La confirmación de la contraseña no coincide.',
+            'password.different' => 'La nueva contraseña debe ser distinta de la actual.',
+            'password.regex' => 'La contraseña no puede tener espacios.',
         ];
     }
 }
