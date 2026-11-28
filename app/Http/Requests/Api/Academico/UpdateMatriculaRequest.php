@@ -2,8 +2,6 @@
 
 namespace App\Http\Requests\Api\Academico;
 
-use App\Http\Requests\Api\Academico\Concerns\ValidaCicloDeMatricula;
-use App\Http\Requests\Api\Academico\Concerns\ValidaProgramacionDeMatricula;
 use App\Models\Academico\Matricula;
 use App\Services\ArchivoService;
 use App\Traits\HasActiveStatus;
@@ -13,7 +11,7 @@ use Illuminate\Validation\Rule;
 
 class UpdateMatriculaRequest extends FormRequest
 {
-    use HasActiveStatus, HasActiveStatusValidation, ValidaCicloDeMatricula, ValidaProgramacionDeMatricula;
+    use HasActiveStatus, HasActiveStatusValidation;
 
     /**
      * Opciones de estado: extiende el trait para incluir "Anulado".
@@ -44,7 +42,6 @@ class UpdateMatriculaRequest extends FormRequest
             'curso_id' => 'sometimes|integer|exists:cursos,id',
             'ciclo_id' => 'sometimes|integer|exists:ciclos,id',
             'programacion_id' => 'sometimes|nullable|integer|exists:programacions,id',
-            'recalcular_descuentos' => 'sometimes|boolean',
             'estudiante_id' => 'sometimes|integer|exists:users,id',
             'matriculado_por_id' => 'sometimes|integer|exists:users,id',
             'comercial_id' => 'sometimes|integer|exists:users,id',
@@ -127,7 +124,6 @@ class UpdateMatriculaRequest extends FormRequest
             'curso_id.exists' => 'El curso seleccionado no existe.',
             'ciclo_id.exists' => 'El ciclo seleccionado no existe.',
             'programacion_id.exists' => 'La programación seleccionada no existe.',
-            'recalcular_descuentos.boolean' => 'Indique si desea recalcular los descuentos (sí o no).',
             'estudiante_id.exists' => 'El estudiante seleccionado no existe.',
             'matriculado_por_id.exists' => 'El usuario que realiza la matrícula no existe.',
             'comercial_id.exists' => 'El usuario comercial seleccionado no existe.',
@@ -177,33 +173,7 @@ class UpdateMatriculaRequest extends FormRequest
         $validator->after(function ($validator) {
             $matricula = $this->route('matricula');
 
-            if ($this->hasAny(['ciclo_id', 'curso_id'])) {
-                $this->validarCicloDeMatricula(
-                    $validator,
-                    $this->input('ciclo_id', $matricula->ciclo_id),
-                    $matricula->sede_id,
-                    $this->input('curso_id', $matricula->curso_id)
-                );
-            }
-
-            if ($this->hasAny(['programacion_id', 'curso_id'])) {
-                $this->validarProgramacionDeMatricula(
-                    $validator,
-                    $this->input('programacion_id', $matricula->programacion_id),
-                    $matricula->sede_id,
-                    $this->input('curso_id', $matricula->curso_id)
-                );
-            }
-
-            // Recalcular reemplaza los descuentos congelados: no se permite si a la cuota 0
-            // ya se le aplicó un descuento, porque quedaría un descuento pagado sin respaldo.
-            if ($this->boolean('recalcular_descuentos')
-                && $matricula->carteras()->where('numero_cuota', 0)->where('descuento', '>', 0)->exists()) {
-                $validator->errors()->add(
-                    'recalcular_descuentos',
-                    'No se pueden recalcular los descuentos: la matrícula ya recibió un descuento en su pago.'
-                );
-            }
+            $this->rechazarCambioDeUbicacion($validator, $matricula);
 
             $estudianteId = $this->input('estudiante_id', $matricula->estudiante_id);
             $cursoId = $this->input('curso_id', $matricula->curso_id);
@@ -234,7 +204,6 @@ class UpdateMatriculaRequest extends FormRequest
             'curso_id' => 'curso',
             'ciclo_id' => 'ciclo',
             'programacion_id' => 'programación',
-            'recalcular_descuentos' => 'recalcular descuentos',
             'estudiante_id' => 'estudiante',
             'matriculado_por_id' => 'usuario que realiza la matrícula',
             'comercial_id' => 'usuario comercial',
@@ -264,5 +233,19 @@ class UpdateMatriculaRequest extends FormRequest
             'aprueba_uso_imagen' => 'aprobación de uso de imagen',
             'multiculturalidad' => 'identidad multicultural',
         ];
+    }
+
+    /**
+     * La sede, el curso, el ciclo y la programación de una matrícula no se editan aquí: cambian
+     * solo por un traslado (módulo de traslados), que deja historial, ajusta la cartera y evalúa
+     * la nivelación. Se aceptan si llegan iguales a los actuales, porque el formulario envía todo.
+     */
+    private function rechazarCambioDeUbicacion($validator, Matricula $matricula): void
+    {
+        foreach (['sede_id', 'curso_id', 'ciclo_id', 'programacion_id'] as $campo) {
+            if ($this->has($campo) && (int) $this->input($campo) !== (int) $matricula->{$campo}) {
+                $validator->errors()->add($campo, 'Este dato no se edita en la matrícula: use un traslado para cambiar la sede, el curso, el ciclo o la programación.');
+            }
+        }
     }
 }

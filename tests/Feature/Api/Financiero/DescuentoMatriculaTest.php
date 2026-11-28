@@ -357,50 +357,69 @@ class DescuentoMatriculaTest extends TestCase
             ->assertJsonValidationErrors('programacion_id');
     }
 
-    // ─── Cambio de curso / ciclo / programación ───────────────────────────────
+    // ─── Traslado de programación (jornada) ───────────────────────────────────
+
+    /**
+     * Matricula al estudiante y devuelve el cuerpo de un traslado a la programación indicada (mismo
+     * ciclo, sede y curso), para elegir si se recalculan los descuentos.
+     */
+    private function trasladoDeProgramacion(Programacion $destino, array $extra = []): array
+    {
+        Permission::create(['name' => 'tra_trasladoCrear', 'descripcion' => 'registrar traslados']);
+        $this->usuario->givePermissionTo('tra_trasladoCrear');
+        $this->usuario->sedes()->attach($this->sede->id);
+        // El ciclo del factory es aleatorio: el traslado necesita un ciclo activo y vigente
+        $this->ciclo->update(['status' => 1, 'fecha_fin' => now()->addYear()->toDateString()]);
+
+        $id = $this->actingAs($this->usuario)
+            ->postJson(route('matriculas.store'), $this->datosMatricula())
+            ->json('data.id');
+
+        return array_merge(
+            $this->contexto(['programacion_id' => $destino->id, 'matricula_id' => $id, 'motivo' => 'Cambio de jornada']),
+            ['lp_precio_producto_id' => null],
+            $extra
+        );
+    }
 
     /** @test */
-    public function al_cambiar_la_programacion_el_usuario_elige_si_recalcula(): void
+    public function al_trasladar_de_programacion_el_usuario_elige_si_recalcula_los_descuentos(): void
     {
         $noche = $this->descuento(['jornadas' => [2]]);
         $dia   = $this->descuento(['jornadas' => [0]]);
         $programacionDia = Programacion::factory()->create([
-            'sede_id' => $this->sede->id, 'curso_id' => $this->curso->id, 'jornada' => 0,
+            'sede_id' => $this->sede->id, 'curso_id' => $this->curso->id, 'jornada' => 0, 'status' => 1,
         ]);
 
-        $id = $this->actingAs($this->usuario)
-            ->postJson(route('matriculas.store'), $this->datosMatricula())
-            ->json('data.id');
-
         // Sin recalcular: se conserva el descuento del momento de matricular
-        $this->actingAs($this->usuario)
-            ->putJson(route('matriculas.update', $id), ['programacion_id' => $programacionDia->id])
-            ->assertOk()
-            ->assertJsonPath('data.descuentos_congelados.0.id', $noche->id);
+        $datos = $this->trasladoDeProgramacion($programacionDia);
+        $this->actingAs($this->usuario)->postJson(route('tra-traslados.store'), $datos)->assertCreated();
+        $this->assertSame([$noche->id], Matricula::findOrFail($datos['matricula_id'])->descuentosCongelados->pluck('id')->all());
 
         // Recalculando: pasa al descuento de la nueva jornada
+        // (vuelve primero a la programación de noche y luego se traslada de nuevo a la de día)
         $this->actingAs($this->usuario)
-            ->putJson(route('matriculas.update', $id), [
-                'programacion_id' => $programacionDia->id, 'recalcular_descuentos' => true,
-            ])
-            ->assertOk()
-            ->assertJsonCount(1, 'data.descuentos_congelados')
-            ->assertJsonPath('data.descuentos_congelados.0.id', $dia->id);
+            ->postJson(route('tra-traslados.store'), array_merge($datos, ['programacion_id' => $this->programacion->id]))
+            ->assertCreated();
+        $this->actingAs($this->usuario)
+            ->postJson(route('tra-traslados.store'), array_merge($datos, ['programacion_id' => $programacionDia->id, 'recalcular_descuentos' => true]))
+            ->assertCreated();
+        $this->assertSame([$dia->id], Matricula::findOrFail($datos['matricula_id'])->descuentosCongelados->pluck('id')->all());
     }
 
     /** @test */
-    public function no_permite_recalcular_si_la_matricula_ya_recibio_descuento_en_su_pago(): void
+    public function no_permite_recalcular_al_trasladar_si_la_matricula_ya_recibio_descuento_en_su_pago(): void
     {
         $this->descuento();
+        $programacionDia = Programacion::factory()->create([
+            'sede_id' => $this->sede->id, 'curso_id' => $this->curso->id, 'jornada' => 0, 'status' => 1,
+        ]);
 
-        $id = $this->actingAs($this->usuario)
-            ->postJson(route('matriculas.store'), $this->datosMatricula())
-            ->json('data.id');
-
-        Matricula::findOrFail($id)->carteras()->where('numero_cuota', 0)->update(['descuento' => 20000]);
+        $datos = $this->trasladoDeProgramacion($programacionDia, ['recalcular_descuentos' => true]);
+        Matricula::findOrFail($datos['matricula_id'])->carteras()->where('numero_cuota', 0)->update(['descuento' => 20000]);
 
         $this->actingAs($this->usuario)
-            ->putJson(route('matriculas.update', $id), ['recalcular_descuentos' => true])
+            ->postJson(route('tra-traslados.store'), $datos)
             ->assertUnprocessable()
             ->assertJsonValidationErrors('recalcular_descuentos');
     }

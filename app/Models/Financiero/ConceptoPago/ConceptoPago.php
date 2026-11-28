@@ -102,6 +102,9 @@ class ConceptoPago extends Model
     /** Descuento por pronto pago — línea negativa en la pivot (tipo Cartera). */
     public const DESCUENTO = 'Descuento pronto pago';
 
+    /** Cobro por trasladar a un estudiante de programación, curso o sede; su valor es la tarifa (0 = no se cobra). */
+    public const TRASLADO = 'Traslado';
+
     /**
      * Busca un ConceptoPago por nombre exacto.
      *
