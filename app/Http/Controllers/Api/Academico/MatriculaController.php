@@ -137,9 +137,10 @@ class MatriculaController extends Controller
     }
 
     /**
-     * Actualiza la matrícula especificada.
+     * Actualiza los datos de la matrícula especificada. La sede, el curso, el ciclo y la
+     * programación no se cambian aquí: eso se hace con un traslado (módulo de traslados).
      */
-    public function update(UpdateMatriculaRequest $request, Matricula $matricula, MatriculaDescuentoService $descuentos): JsonResponse
+    public function update(UpdateMatriculaRequest $request, Matricula $matricula): JsonResponse
     {
         $data = $request->only(self::FILLABLE_FIELDS);
 
@@ -151,13 +152,6 @@ class MatriculaController extends Controller
         }
 
         $matricula->update($data);
-
-        // Al cambiar curso, ciclo o programación el usuario decide si los descuentos congelados
-        // se recalculan (recalcular_descuentos = true) o se conservan los del momento de matricular.
-        if ($request->boolean('recalcular_descuentos')) {
-            $matricula->load('lpPrecioProducto');
-            $descuentos->congelar($matricula);
-        }
 
         $matricula->load(['curso', 'ciclo', 'estudiante', 'matriculadoPor', 'comercial', 'lugarOrigen', 'descuentosCongelados']);
 

@@ -61,6 +61,8 @@ class DatabaseSeeder extends Seeder
             AddCuentasBancariasPermissionsSeeder::class,
             AddReposicionPermissionsSeeder::class,
             AddProrrogaPagoPermissionsSeeder::class,
+            AddConceptoTrasladoSeeder::class,
+            AddTrasladosPermissionsSeeder::class,
         ]);
         // \App\Models\User::factory(10)->create();
 

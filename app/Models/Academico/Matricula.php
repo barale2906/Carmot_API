@@ -10,6 +10,7 @@ use App\Models\Financiero\Cartera\Cartera;
 use App\Models\Financiero\Descuento\Descuento;
 use App\Models\Financiero\Lp\LpPrecioProducto;
 use App\Models\Financiero\ReciboPago\ReciboPago;
+use App\Models\Traslados\MatriculaTraslado;
 use App\Models\User;
 use App\Services\Financiero\CarteraGeneradorService;
 use App\Services\Financiero\MatriculaDescuentoService;
@@ -309,6 +310,14 @@ class Matricula extends Model
     /**
      * Lead del CRM del que proviene la matrícula.
      */
+    /**
+     * Traslados de la matrícula (cambios de programación, curso o sede), del más reciente al más antiguo.
+     */
+    public function traslados(): HasMany
+    {
+        return $this->hasMany(MatriculaTraslado::class)->latest('fecha')->latest('id');
+    }
+
     public function referido(): BelongsTo
     {
         return $this->belongsTo(Referido::class);
@@ -570,6 +579,7 @@ class Matricula extends Model
             'lpPrecioProducto',
             'referido',
             'historialEstados',
+            'traslados',
         ];
     }
 

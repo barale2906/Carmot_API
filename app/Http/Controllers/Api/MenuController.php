@@ -236,6 +236,39 @@ class MenuController extends Controller
             ];
         }
 
+        // Traslados de estudiantes - cambio de programación, de curso o de sede, y seguimiento de nivelaciones
+        if ($this->hasAnyPermission($user, ['tra_traslados', 'tra_trasladoNivelacion'])) {
+            $trasladosChildren = [];
+
+            if ($user->can('tra_traslados')) {
+                $trasladosChildren[] = [
+                    'id' => 'traslados-historial',
+                    'title' => 'Traslados',
+                    'icon' => 'swap_horiz',
+                    'route' => '/traslados',
+                    'permission' => 'tra_traslados',
+                ];
+            }
+
+            if ($user->can('tra_trasladoNivelacion')) {
+                $trasladosChildren[] = [
+                    'id' => 'traslados-nivelaciones',
+                    'title' => 'Nivelaciones pendientes',
+                    'icon' => 'rule',
+                    'route' => '/traslados/nivelaciones',
+                    'permission' => 'tra_trasladoNivelacion',
+                ];
+            }
+
+            $menu[] = [
+                'id' => 'traslados',
+                'title' => 'Traslados',
+                'icon' => 'swap_horiz',
+                'route' => '/traslados',
+                'children' => $trasladosChildren,
+            ];
+        }
+
         // Académico - módulo con submenús según la estructura requerida
         if ($this->hasAnyPermission($user, [
             'aca_programas', 'aca_programaciones', 'aca_matriculas', 'aca_cursos',
